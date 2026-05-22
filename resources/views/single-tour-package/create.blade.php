@@ -1603,13 +1603,13 @@
                                             <input
                                                 type="number"
                                                 min="0"
-                                                step="0.01"
+                                                step="1"
                                                 class="form-control"
                                                 id="discount_price"
                                                 name="discount_price"
                                                 form="singleTourPackageForm"
-                                                value="{{ old('discount_price', 0) }}"
-                                                placeholder="0.00"
+                                                value="{{ old('discount_price') !== null ? (int) ceil((float) old('discount_price')) : 0 }}"
+                                                placeholder="0"
                                                 style="height: 48px; border-radius: 8px 0 0 8px; font-size: 0.95rem;"
                                             >
                                             <span class="input-group-text fw-semibold" style="height: 48px; border-radius: 0 8px 8px 0; font-size: 0.85rem; background:#f8f9fa; color:#495057;">
@@ -5558,35 +5558,36 @@
                             for (let r of document.querySelectorAll('input[name="tour_type"]')) { if (r.checked) { tourType = r.value; window.selectedTourType = tourType; break; } }
                         }
 
-                        // Helper: build base FormData for creating a Tour (shared fields)
-                        const makeBaseTourFormData = function () {
-                            const fd = new FormData();
-                            fd.append('_token', csrfToken);
-                            fd.append('adults', adults);
-                            fd.append('male', male);
-                            fd.append('female', female);
-                            fd.append('children', children);
-                            fd.append('infants', infants);
-                            fd.append('child_ages', childAgesData);
-                            fd.append('agent_id', agent);
-                            fd.append('reference_number', document.getElementById('reference_number')?.value || '');
-                            fd.append('enquiry_id', enquiry ? enquiry.enquiry_id : 0);
-                            fd.append('mainguest', JSON.stringify(mainGuestData));
-                            fd.append('additionalguest', JSON.stringify(additionalGuests));
-                            fd.append('tour_type', tourType);
-                            // GROUP: persist FOC details (mounted inside modal)
-                            if (String(tourType).toUpperCase() === 'GROUP') {
-                                fd.append('foc_size', document.getElementById('foc_size')?.value || 0);
-                                fd.append('group_size', document.getElementById('group_size')?.value || 0);
-                                fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
-                                fd.append('discount', document.getElementById('discount')?.value || 0);
-                            }
-                            // Manual discount price (applies to both FIT and GROUP)
-                            fd.append('discount_price', document.getElementById('discount_price')?.value || 0);
-                            // Persist Single/Multi city selection to DB column `city_type`
-                            fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
-                            return fd;
-                        };
+                    // Helper: build base FormData for creating a Tour (shared fields)
+                    const makeBaseTourFormData = function () {
+                        const fd = new FormData();
+                        fd.append('_token', csrfToken);
+                        fd.append('adults', adults);
+                        fd.append('male', male);
+                        fd.append('female', female);
+                        fd.append('children', children);
+                        fd.append('infants', infants);
+                        fd.append('child_ages', childAgesData);
+                        fd.append('agent_id', agent);
+                        fd.append('reference_number', document.getElementById('reference_number')?.value || '');
+                        fd.append('enquiry_id', enquiry ? enquiry.enquiry_id : 0);
+                        fd.append('mainguest', JSON.stringify(mainGuestData));
+                        fd.append('additionalguest', JSON.stringify(additionalGuests));
+                        fd.append('tour_type', tourType);
+                        // GROUP: persist FOC details (mounted inside modal)
+                        if (String(tourType).toUpperCase() === 'GROUP') {
+                            fd.append('foc_size', document.getElementById('foc_size')?.value || 0);
+                            fd.append('group_size', document.getElementById('group_size')?.value || 0);
+                            fd.append('paying_pax', document.getElementById('paying_pax')?.value || 0);
+                            fd.append('discount', document.getElementById('discount')?.value || 0);
+                        }
+                        // Manual discount price (applies to both FIT and GROUP); store ceiling (e.g. 847.64 → 848)
+                        const discountRaw = parseFloat(document.getElementById('discount_price')?.value || '0') || 0;
+                        fd.append('discount_price', String(Math.ceil(discountRaw)));
+                        // Persist Single/Multi city selection to DB column `city_type`
+                        fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
+                        return fd;
+                    };
 
                         // Helper: POST to create a Tour and return {tour_id, display_id}
                         const createTourViaAjax = async function (fd) {
@@ -8255,7 +8256,8 @@
                 });
 
                 const focSize = parseIntVal('foc_size');
-                return Math.round(perPaxTotal * focSize * 100) / 100;
+                const raw = perPaxTotal * focSize;
+                return raw > 0 ? Math.ceil(raw) : 0;
             }
 
             // The hidden service JSON fields (attraction_data, restaurant_data, etc.) are
@@ -8298,7 +8300,7 @@
                 refreshHiddenServiceFields();
                 const discountAmount = calculateFOCDiscountAmount();
                 if (discountField.dataset.focDiscountAuto !== '0') {
-                    discountField.value = discountAmount > 0 ? String(discountAmount) : '0';
+                    discountField.value = discountAmount > 0 ? String(Math.ceil(discountAmount)) : '0';
                     discountField.dataset.focDiscountAuto = '1';
                 }
                 discountField.readOnly = false;
@@ -8314,6 +8316,16 @@
                 }
                 updateDiscountPrice();
             };
+
+            document.addEventListener('blur', function (e) {
+                if (e?.target?.id !== 'discount_price') return;
+                const raw = parseFloat(e.target.value || '0');
+                if (!isNaN(raw) && raw > 0) {
+                    e.target.value = String(Math.ceil(raw));
+                } else if (!isNaN(raw) && raw <= 0) {
+                    e.target.value = '0';
+                }
+            }, true);
 
             document.addEventListener('input', function (e) {
                 const id = e?.target?.id || '';

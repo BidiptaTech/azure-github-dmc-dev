@@ -2092,6 +2092,7 @@
                                         <th style="padding: 4px 8px; min-width: 120px;">Room Type</th>
                                         <th style="padding: 4px 8px; min-width: 120px;">Bed Type</th>
                                         <th style="padding: 4px 8px; min-width: 100px;">Meal Plan</th>
+                                        <th style="width: 56px; padding: 4px 8px; text-align: center;" title="Guests counted for meal charges per room (2 standard, 3 with extra bed)">Meal Pax</th>
                                         <th style="width: 60px; padding: 4px 8px; text-align: center;">Rooms</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Avg Cost</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Sell</th>
@@ -6184,6 +6185,68 @@
             }
         }
         return total;
+    }
+
+    /** Meal guest count per room for Lite-style meal totals (matches room distribution capacity). */
+    function enquiryProMealPaxPerRoomFromState(maxOccupancy, hasExtraBed, extraBedAvailable) {
+        const maxOcc = Math.max(1, parseInt(maxOccupancy, 10) || 99);
+        const ebAvail = extraBedAvailable === undefined || extraBedAvailable === null ? true : !!extraBedAvailable;
+        const extraOn = !!hasExtraBed && ebAvail;
+        return extraOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
+    }
+
+    function enquiryProMealPlanComponentFlags(mealPlan) {
+        const mealFlags = { breakfast: false, lunch: false, dinner: false };
+        if (!mealPlan) return mealFlags;
+        switch (mealPlan) {
+            case 'RO': break;
+            case 'BB': mealFlags.breakfast = true; break;
+            case 'HB_L': mealFlags.breakfast = true; mealFlags.lunch = true; break;
+            case 'HB_D': mealFlags.breakfast = true; mealFlags.dinner = true; break;
+            case 'FB': mealFlags.breakfast = true; mealFlags.lunch = true; mealFlags.dinner = true; break;
+            case 'room_only': break;
+            case 'room_with_breakfast': mealFlags.breakfast = true; break;
+            case 'room_with_lunch': mealFlags.lunch = true; break;
+            case 'room_with_dinner': mealFlags.dinner = true; break;
+            case 'room_with_breakfast_+_lunch': mealFlags.breakfast = true; mealFlags.lunch = true; break;
+            case 'room_with_breakfast_+_dinner': mealFlags.breakfast = true; mealFlags.dinner = true; break;
+            case 'room_with_lunch_+_dinner': mealFlags.lunch = true; mealFlags.dinner = true; break;
+            case 'room_with_all_meals_(breakfast_+_lunch_+_dinner)': mealFlags.breakfast = true; mealFlags.lunch = true; mealFlags.dinner = true; break;
+            default: break;
+        }
+        return mealFlags;
+    }
+
+    /**
+     * Single Tour Package Lite-style meal total: each adult meal rate × mealPax × rooms × nights (summed per component).
+     */
+    function enquiryProMealTotalLite(room, mealPlanKey, mealPlanLabel, nights, numRooms, mealPaxPerRoom) {
+        const parsePrice = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            const num = parseFloat(val);
+            return (!isNaN(num) && num >= 0) ? num : 0;
+        };
+        if (!room) return 0;
+        const mpp = Math.max(0, parseFloat(mealPaxPerRoom) || 0);
+        const nr = Math.max(1, parseInt(numRooms, 10) || 1);
+        const nt = Math.max(1, parseInt(nights, 10) || 1);
+        const slots = mpp * nr * nt;
+        if (slots <= 0) return 0;
+
+        const labelLow = String(mealPlanLabel || '').toLowerCase();
+        const breakfastComplimentaryLabel = labelLow.includes('breakfast') && labelLow.includes('complimentary');
+        const breakfastIncluded = !!(room.breakfast_included || room.breakfastIncluded) || breakfastComplimentaryLabel;
+
+        const flags = enquiryProMealPlanComponentFlags(mealPlanKey);
+        const bPrice = parsePrice(room.breakfast_price || room.breakfastPrice || 0);
+        const lPrice = parsePrice(room.lunch_price || room.lunchPrice || 0);
+        const dPrice = parsePrice(room.dinner_price || room.dinnerPrice || 0);
+
+        let sum = 0;
+        if (flags.breakfast && !breakfastIncluded) sum += bPrice * slots;
+        if (flags.lunch) sum += lPrice * slots;
+        if (flags.dinner) sum += dPrice * slots;
+        return sum;
     }
 
     function computePerNightRoomPrice(combo, occupancy) {
@@ -10325,7 +10388,7 @@
             }
             
             // Show loading state
-            roomCombinationsTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Loading room combinations...</td></tr>';
+            roomCombinationsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Loading room combinations...</td></tr>';
             roomCombinationsSection.style.display = 'block';
             
             // Generate all permutation combinations (now async - fetches beds from API)
@@ -10343,7 +10406,7 @@
         } catch (e) {
             console.error('Error loading room types:', e);
             roomCombinationsSection.style.display = 'none';
-            roomCombinationsTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-danger">Error loading room combinations. Please try again.</td></tr>';
+            roomCombinationsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading room combinations. Please try again.</td></tr>';
         }
     }
     
@@ -10571,7 +10634,7 @@
         window.selectedRoomComboOrder = [];
         
         if (combinations.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No room combinations available</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No room combinations available</td></tr>';
             return;
         }
         
@@ -10636,6 +10699,12 @@
                 <td style="padding: 2px 8px;">${combo.roomType}</td>
                 <td style="padding: 2px 8px;">${combo.bedType}</td>
                 <td style="padding: 2px 8px;">${combo.mealPlanLabel}</td>
+                <td style="padding: 2px 8px; text-align: center;">
+                    <input type="number" class="form-control form-control-sm combo-meal-pax"
+                           data-combo-id="${combo.id}" value="0" min="0" step="1"
+                           style="font-size: 10px; padding: 2px 4px; text-align: center; width: 46px;"
+                           title="Meal guests per room (auto: 2 without extra bed, 3 with extra bed). You can edit this. Meal cost = Σ(meal rate × this × rooms × nights).">
+                </td>
                 <td style="padding: 2px 8px;">
                     <input type="number" class="form-control form-control-sm combo-rooms"
                            data-combo-id="${combo.id}" value="${defaultRooms}" min="0"
@@ -10754,6 +10823,33 @@
             return extraBedOn ? Math.min(3, maxOcc) : Math.min(2, maxOcc);
         };
 
+        const updateAllMealPaxCells = () => {
+            tbody.querySelectorAll('tr.room-combination-row').forEach(row => {
+                const comboId = row.getAttribute('data-combo-id');
+                const combo = window.currentRoomCombinations?.find(c => c.id === comboId);
+                if (!combo || !comboId) return;
+                const cb = row.querySelector('.room-combination-checkbox');
+                const checked = !!(cb && cb.checked);
+                const inp = row.querySelector('.combo-meal-pax');
+                if (!inp) return;
+
+                if (!checked) {
+                    inp.value = '0';
+                    inp.removeAttribute('data-user-edited');
+                    combo.mealPax = 0;
+                    return;
+                }
+
+                const cap = getComboRoomCapacity(combo, comboId);
+                const userEdited = inp.getAttribute('data-user-edited') === 'true';
+                if (!userEdited) {
+                    inp.value = String(cap);
+                }
+                const v = parseInt(inp.value, 10);
+                combo.mealPax = Number.isFinite(v) ? v : cap;
+            });
+        };
+
         const distributePaxAcrossRooms = () => {
             const headerValues = getHeaderValues();
             const totalAdults = headerValues.adults || 0;
@@ -10773,7 +10869,10 @@
                 if (roomsInput) roomsInput.value = '0';
             });
 
-            if (N === 0) return;
+            if (N === 0) {
+                updateAllMealPaxCells();
+                return;
+            }
 
             const totalAdultsForRooms = Math.max(0, totalAdults);
 
@@ -10826,6 +10925,7 @@
             });
             if (typeof validateTotalOccupancy === 'function') validateTotalOccupancy();
             if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
+            updateAllMealPaxCells();
         };
         
         // Add event listener for room count changes
@@ -10833,6 +10933,19 @@
             input.addEventListener('input', function() {
                 const comboId = this.getAttribute('data-combo-id');
                 recalcPrice(comboId);
+                updateAllMealPaxCells();
+                if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
+            });
+        });
+
+        // Meal Pax: allow user override (don’t auto-overwrite once edited)
+        tbody.querySelectorAll('.combo-meal-pax').forEach(input => {
+            input.addEventListener('input', function() {
+                this.setAttribute('data-user-edited', 'true');
+                const comboId = this.getAttribute('data-combo-id');
+                const combo = window.currentRoomCombinations?.find(c => c.id === comboId);
+                const v = parseInt(this.value, 10);
+                if (combo) combo.mealPax = Number.isFinite(v) ? v : (combo.mealPax || 0);
                 if (typeof syncAccommodationPreviewFromModal === 'function') syncAccommodationPreviewFromModal();
             });
         });
@@ -10874,6 +10987,8 @@
                 const selectionCb = tbody.querySelector(`.room-combination-checkbox[data-combo-id="${comboId}"]`);
                 if (selectionCb && selectionCb.checked) {
                     distributePaxAcrossRooms();
+                } else {
+                    updateAllMealPaxCells();
                 }
             });
         });
@@ -10967,6 +11082,7 @@
             }
             recalcPrice(combo.id);
         });
+        updateAllMealPaxCells();
         
         // Add listeners for header pax changes to redistribute rooms
         const adultCountInput = document.getElementById('adultCountInput');
@@ -11404,6 +11520,8 @@
                 const supplementCheck = document.querySelector(`.combo-supplement-check[data-combo-id="${comboId}"]`);
                 const childWithBedInput = row ? row.querySelector('.combo-extra-bed') : null;
                 const childWithoutBedInput = row ? row.querySelector('.combo-child-without') : null;
+                const mealPaxInput = document.querySelector(`.combo-meal-pax[data-combo-id="${comboId}"]`);
+                const mealPaxParsed = parseInt(mealPaxInput?.value, 10);
                 
                 // Get prices from room data
                 const extraBedPrice = parseFloat(combo.extraBedPrice || combo.roomData?.extra_bed_price || 0);
@@ -11416,24 +11534,37 @@
                     ? priceFromInput
                     : (parseFloat(combo.price) || 0);
 
+                const roomsCount = Math.max(1, parseInt(roomsInput?.value || 1, 10) || 1);
+                const extraBedOn = !!(extraBedCheck?.checked);
+                const mealPax = (Number.isFinite(mealPaxParsed) && mealPaxParsed > 0)
+                    ? mealPaxParsed
+                    : (combo.mealPax || enquiryProMealPaxPerRoomFromState(
+                        parseInt(combo.maxOccupancy || combo.roomData?.max_occupancy || 2, 10) || 2,
+                        extraBedOn,
+                        combo.extraBedAvailable !== false
+                    ));
+                const cwbOn = !!(cwbCheck?.checked);
+                const cnbOn = !!(cnbCheck?.checked);
                 selectedCombos.push({
                     ...combo,
-                    rooms: parseInt(roomsInput?.value || 1),
+                    rooms: roomsCount,
+                    mealPax: mealPax,
                     price: finalPrice,
                     priceUserEdited: priceInput?.getAttribute('data-user-edited') === 'true',
                     sell: parseFloat(sellInput?.value || finalPrice || 0),
                     sellUserEdited: sellInput?.getAttribute('data-user-edited') === 'true',
-                    hasExtraBed: extraBedCheck?.checked || false,
+                    hasExtraBed: extraBedOn,
+                    extraBed: extraBedOn ? roomsCount : 0,
                     extraBedPrice: extraBedPrice, // Always store price, checkbox controls usage
-                    hasCwb: cwbCheck?.checked || false,
+                    hasCwb: cwbOn,
                     cwbPrice: cwbPrice, // Always store price, checkbox controls usage
-                    hasCnb: cnbCheck?.checked || false,
+                    hasCnb: cnbOn,
                     cnbPrice: cnbPrice, // Always store price, checkbox controls usage
                     hasInfant: infantCheck?.checked || false,
                     infantPrice: infantPrice, // Always store price, checkbox controls usage
                     supplement: supplementCheck?.checked || false,
-                    childWithBed: parseInt(childWithBedInput?.value || 0) || 0,
-                    childWithoutBed: parseInt(childWithoutBedInput?.value || 0) || 0
+                    childWithBed: cwbOn ? roomsCount : (parseInt(childWithBedInput?.value || 0, 10) || 0),
+                    childWithoutBed: cnbOn ? roomsCount : (parseInt(childWithoutBedInput?.value || 0, 10) || 0)
                 });
             } else {
                 console.warn('Combo not found for ID:', comboId);
@@ -11500,8 +11631,15 @@
             checkOut: checkOut,
             nights: nights,
             rooms: combo.rooms,
+            extraBed: combo.hasExtraBed ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : 0,
             mealPlan: combo.mealPlan, // Keep value for backward compatibility
             mealPlanLabel: combo.mealPlanLabel || combo.mealPlan, // Label format for single tour package
+            mealPax: combo.mealPax != null ? combo.mealPax : enquiryProMealPaxPerRoomFromState(
+                parseInt(combo.maxOccupancy || combo.roomData?.max_occupancy || 2, 10) || 2,
+                !!combo.hasExtraBed,
+                combo.extraBedAvailable !== false
+            ),
+            extraBedAvailable: combo.extraBedAvailable !== false,
             supplement: combo.supplement || false,
             roomPrice: combo.price,
             cost: combo.price || 0,
@@ -11515,12 +11653,13 @@
             cnbPrice: combo.cnbPrice || 0,
             hasInfant: combo.hasInfant || false,
             infantPrice: combo.infantPrice || 0,
-            // Child with bed / without bed counts for JSON payload
-            childWithBed: combo.childWithBed || 0,
-            childWithoutBed: combo.childWithoutBed || 0,
+            // Child with bed / without bed counts for JSON payload (= rooms when enabled)
+            childWithBed: combo.hasCwb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithBed || 0),
+            childWithoutBed: combo.hasCnb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithoutBed || 0),
             // Store room and bed data for reference
             roomData: combo.roomData,
             bedData: combo.bedData,
+            weekendDays: combo.weekendDays || [],
             focServiceDiscount: hotelFocSvc
         }));
     }
@@ -14593,7 +14732,7 @@
                     <a href="javascript:void(0)" onclick="editAccommodation(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         <strong>${hotel.hotelName}</strong><br>
                         <small style="color: #666; font-size: 0.6rem;">
-                            Room: ${hotel.roomType || 'N/A'} | Bed: ${hotel.bedType || 'N/A'} | Meal: ${hotel.mealPlan || 'N/A'}
+                            Room: ${hotel.roomType || 'N/A'} | Bed: ${hotel.bedType || 'N/A'} | Meal: ${hotel.mealPlan || 'N/A'} | Meal Pax: ${hotel.mealPax != null ? hotel.mealPax : '—'}
                         </small>
                     </a>
                 </td>
@@ -14640,6 +14779,13 @@
     function updateAccommodationField(index, field, value) {
         if (accommodationList[index]) {
             const accommodation = accommodationList[index];
+            if (field === 'rooms') {
+                accommodation.rooms = Math.max(1, parseInt(value, 10) || 1);
+                enquiryProSyncHotelAddonQuantities(accommodation);
+                updateAccommodationTable();
+                recalculateTotals();
+                return;
+            }
             accommodation[field] = value;
             
             // Recalculate totals when cost or sell changes (affects footer pricing)
@@ -14775,11 +14921,8 @@
                         const cnbCheck = document.querySelector(`.combo-cnb-check[data-combo-id="${matchingCombo.id}"]`);
                         const infantCheck = document.querySelector(`.combo-infant-check[data-combo-id="${matchingCombo.id}"]`);
                         const supplementCheck = document.querySelector(`.combo-supplement-check[data-combo-id="${matchingCombo.id}"]`);
+                        const mealPaxInput = document.querySelector(`.combo-meal-pax[data-combo-id="${matchingCombo.id}"]`);
                         
-                        if (roomsInput) {
-                            roomsInput.value = hotel.rooms;
-                            roomsInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
                         // Restore saved AVG COST / SELL and mark as user-edited so subsequent
                         // recalcPrice calls don't overwrite the user's previous values.
                         const costVal = parseFloat(hotel.cost) || parseFloat(hotel.roomPrice) || parseFloat(hotel.sell);
@@ -14795,6 +14938,8 @@
                         }
                         if (extraBedCheck) {
                             extraBedCheck.checked = hotel.hasExtraBed === true;
+                            // Important: Meal Pax auto-cap depends on extra-bed state; refresh after setting.
+                            extraBedCheck.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                         if (cwbCheck) {
                             cwbCheck.checked = hotel.hasCwb === true;
@@ -14807,6 +14952,16 @@
                         }
                         if (supplementCheck) {
                             supplementCheck.checked = hotel.supplement || false;
+                        }
+                        // Restore saved meal pax if present; otherwise let the modal auto-cap it.
+                        const savedMealPax = parseInt(hotel.mealPax, 10);
+                        if (mealPaxInput && Number.isFinite(savedMealPax) && savedMealPax > 0) {
+                            mealPaxInput.value = String(savedMealPax);
+                            mealPaxInput.setAttribute('data-user-edited', 'true');
+                        }
+                        if (roomsInput) {
+                            roomsInput.value = hotel.rooms;
+                            roomsInput.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                         const htlFocEd = document.getElementById('accommodationHotelFocServiceDiscount');
                         if (htlFocEd) htlFocEd.checked = hotel.focServiceDiscount !== false;
@@ -24918,6 +25073,7 @@
                 if (hotel.supplement) return;
                 
                 let nights = parseInt(hotel.nights) || 0;
+                const numberOfRooms = Math.max(1, parseInt(hotel.rooms, 10) || 1);
                 // Initialize with object values as fallback
                 let hotelCostPerNight = parseFloat(hotel.cost || hotel.roomPrice || 0);
                 let hotelSellPerNight = parseFloat(hotel.sell || hotel.roomPrice || 0);
@@ -25010,9 +25166,12 @@
 
                 const totalSell = (hotelSellPerNight * nights) * __htlF;
                 const totalCost = (hotelCostPerNight * nights) * __htlF;
-                const totalExtraBed = (extraBedPrice * nights) * __htlF;
-                const cwbNightCost = (cwbPrice * nights) * __htlF;
-                const cnbNightCost = (cnbPrice * nights) * __htlF;
+                const extraBedQty = hasExtraBed ? numberOfRooms : 0;
+                const cwbQty = hasCwb ? numberOfRooms : 0;
+                const cnbQty = hasCnb ? numberOfRooms : 0;
+                const totalExtraBed = (extraBedPrice * nights * extraBedQty) * __htlF;
+                const cwbNightCost = (cwbPrice * nights * cwbQty) * __htlF;
+                const cnbNightCost = (cnbPrice * nights * cnbQty) * __htlF;
 
                 // Single = sell * nights (full room cost for single occupancy)
                 const singleCost = totalCost + sTourCost + sTransferCost + sGuideSingleCost + sLocalSingleCost;
@@ -25904,15 +26063,6 @@
         }
     }
 
-    /** Total tour adults stored as beds[].head_count (not per-room capacity). */
-    function getHotelHeadCount(hotel) {
-        const headerAdults = parseInt(document.getElementById('adultCountInput')?.value || document.getElementById('adults')?.value || '0', 10) || 0;
-        if (headerAdults > 0) return headerAdults;
-        const stored = parseInt(hotel?.headCount ?? hotel?.head_count ?? 0, 10);
-        if (stored > 0) return stored;
-        return parseInt(hotel?.adultsPerRoom, 10) || 2;
-    }
-
     function getFocDiscountContext() {
         const discountType = document.getElementById('discountType')?.value || '';
         const f = (typeof getEnquiryProGroupFocFactors === 'function')
@@ -26574,6 +26724,125 @@
         return { entryPortData, exitPortData };
     }
     
+    /** Per-room add-on count: extra bed / CWB / CNB quantity equals number_of_rooms when enabled */
+    function enquiryProHotelRoomCount(hotel) {
+        return Math.max(1, parseInt(hotel && hotel.rooms, 10) || 1);
+    }
+    function enquiryProHotelAddonQuantity(hotel, addonKey) {
+        const rooms = enquiryProHotelRoomCount(hotel);
+        if (addonKey === 'extra_bed') return hotel.hasExtraBed ? rooms : 0;
+        if (addonKey === 'cwb') return hotel.hasCwb ? rooms : 0;
+        if (addonKey === 'cnb') return hotel.hasCnb ? rooms : 0;
+        return 0;
+    }
+    function enquiryProSyncHotelAddonQuantities(hotel) {
+        if (!hotel) return;
+        const rooms = enquiryProHotelRoomCount(hotel);
+        hotel.extraBed = hotel.hasExtraBed ? rooms : 0;
+        if (hotel.hasCwb) hotel.childWithBed = rooms;
+        if (hotel.hasCnb) hotel.childWithoutBed = rooms;
+    }
+
+    /** Map meal plan label/value to computeMealCost switch key */
+    function enquiryProMealPlanKey(mealPlan, mealPlanLabel) {
+        if (mealPlan && String(mealPlan).includes('_')) return String(mealPlan).trim();
+        const label = String(mealPlanLabel || mealPlan || '').trim().toLowerCase();
+        if (!label) return 'room_only';
+        const labelMap = {
+            'room only': 'room_only',
+            'room with breakfast': 'room_with_breakfast',
+            'room with breakfast (complimentary)': 'room_with_breakfast',
+            'room with lunch': 'room_with_lunch',
+            'room with dinner': 'room_with_dinner',
+            'room with breakfast + lunch': 'room_with_breakfast_+_lunch',
+            'room with breakfast + dinner': 'room_with_breakfast_+_dinner',
+            'room with breakfast (complimentary) + lunch': 'room_with_breakfast_+_lunch',
+            'room with breakfast (complimentary) + dinner': 'room_with_breakfast_+_dinner',
+            'room with lunch + dinner': 'room_with_lunch_+_dinner',
+            'room with breakfast (complimentary) + lunch + dinner': 'room_with_all_meals_(breakfast_+_lunch_+_dinner)',
+            'room with all meals (breakfast + lunch + dinner)': 'room_with_all_meals_(breakfast_+_lunch_+_dinner)',
+            'ro': 'RO', 'bb': 'BB', 'hb_l': 'HB_L', 'hb_d': 'HB_D', 'fb': 'FB', 'cp': 'BB', 'ep': 'room_only'
+        };
+        return labelMap[label] || label.replace(/\s+/g, '_');
+    }
+
+    /** Meal pax per room for JSON beds[].head_count (same logic as lite meal totals). */
+    function enquiryProMealPaxPerRoomForHotel(hotel) {
+        if (!hotel) return 0;
+        const room = hotel.roomData || hotel.bedData || {};
+        let mealPaxPerRoom = parseInt(hotel.mealPax, 10);
+        if (!Number.isFinite(mealPaxPerRoom) || mealPaxPerRoom <= 0) {
+            const maxOcc = parseInt(hotel.maxOccupancy || room.max_occupancy || 2, 10) || 2;
+            const ebAvail = hotel.extraBedAvailable !== undefined && hotel.extraBedAvailable !== null
+                ? !!hotel.extraBedAvailable
+                : true;
+            mealPaxPerRoom = enquiryProMealPaxPerRoomFromState(maxOcc, !!hotel.hasExtraBed, ebAvail);
+        }
+        return mealPaxPerRoom;
+    }
+
+    /** Total meal price for JSON selectedMeals.meal_1 (Lite: meal rate × meal pax × rooms × nights). */
+    function enquiryProSelectedMealTotalPrice(hotel, numberOfRooms, nights) {
+        if (!hotel) return 0;
+        const room = hotel.roomData || hotel.bedData || {};
+        const mealPlanKey = enquiryProMealPlanKey(hotel.mealPlan, hotel.mealPlanLabel);
+        const mealPaxPerRoom = enquiryProMealPaxPerRoomForHotel(hotel);
+        const rooms = Math.max(1, parseInt(numberOfRooms, 10) || 1);
+        const n = Math.max(1, parseInt(nights, 10) || 1);
+        return enquiryProMealTotalLite(room, mealPlanKey, hotel.mealPlanLabel, n, rooms, mealPaxPerRoom);
+    }
+
+    /** Weekend-day list saved on accommodation row or from last-loaded hotel modal. */
+    function enquiryProWeekendDaysFromHotel(hotel) {
+        if (hotel && hotel.weekendDays && hotel.weekendDays.length) return hotel.weekendDays;
+        const h = typeof window.currentHotelData !== 'undefined' ? window.currentHotelData : null;
+        if (!h) return [];
+        return typeof parseWeekendDays === 'function'
+            ? parseWeekendDays(h.weekend_days || h.weekend || h.weekendDays || [])
+            : [];
+    }
+
+    /**
+     * Per-night room-only sell (matches AVG row logic with meal_plan = room_only) for lodging portion of JSON totalPrice.
+     */
+    function enquiryProRoomOnlyNightSellForHotel(hotel) {
+        if (!hotel || typeof computePerNightRoomPrice !== 'function') return 0;
+        const room = hotel.roomData || {};
+        const maxOcc = Math.max(1, parseInt(hotel.maxOccupancy || room.max_occupancy || 99, 10) || 99);
+        const baseAdults = Math.min(2, maxOcc);
+        const combo = {
+            weekendDays: enquiryProWeekendDaysFromHotel(hotel),
+            roomData: room,
+            mealPlan: 'room_only',
+            mealPlanLabel: 'room only',
+            extraBedPrice: hotel.extraBedPrice || room.extra_bed_price || 0,
+            maxOccupancy: hotel.maxOccupancy
+        };
+        const v = computePerNightRoomPrice(combo, { adults: baseAdults, childWithBed: 0, childWithoutBed: 0 });
+        return Number.isFinite(v) ? v : 0;
+    }
+
+    /** Hotel JSON total: room-only lodging + lite meals + extra bed / CWB / CNB. */
+    function enquiryProHotelPayloadTotalPrice(hotel, numberOfRooms, nights) {
+        if (!hotel) return 0;
+        const nr = Math.max(1, parseInt(numberOfRooms, 10) || 1);
+        const n = Math.max(1, parseInt(nights, 10) || 1);
+        enquiryProSyncHotelAddonQuantities(hotel);
+        const cwbChildren = enquiryProHotelAddonQuantity(hotel, 'cwb');
+        const cnbChildren = enquiryProHotelAddonQuantity(hotel, 'cnb');
+        const extraBedQuantity = enquiryProHotelAddonQuantity(hotel, 'extra_bed');
+        const cwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0) : 0;
+        const cnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0) : 0;
+        const extraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0) : 0;
+        const childWithBedTotalCost = (hotel.hasCwb && cwbChildren > 0) ? (cwbPrice * cwbChildren * n) : 0;
+        const childWithoutBedTotalCost = (hotel.hasCnb && cnbChildren > 0) ? (cnbPrice * cnbChildren * n) : 0;
+        const extraBedTotalCost = (hotel.hasExtraBed && extraBedQuantity > 0) ? (extraBedPrice * extraBedQuantity * n) : 0;
+        const roomOnlyNight = enquiryProRoomOnlyNightSellForHotel(hotel);
+        const lodgingTotal = roomOnlyNight * nr * n;
+        const mealTotal = enquiryProSelectedMealTotalPrice(hotel, nr, n);
+        return lodgingTotal + mealTotal + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
+    }
+
     // Transform accommodation data to required hotel format
     function transformAccommodationData() {
         const customerInfo = getCustomerInfo();
@@ -26614,32 +26883,22 @@
             }
             nights = Math.max(1, nights);
             
-            // Calculate total price (room total = sell * rooms * nights; add child_with_bed and child_without_bed totals)
+            // Costs / sell for bed line; JSON totalPrice = room-only lodging + lite meals + add-ons (lite summary parity)
             const numberOfRooms = parseInt(hotel.rooms) || 1;
             const roomCost = parseFloat(hotel.cost || hotel.roomPrice) || 0;
             const roomSell = parseFloat(hotel.sell || hotel.roomPrice) || 0;
             const roomPrice = parseFloat(hotel.roomPrice) || 0;
             const totalCost = roomCost * numberOfRooms * nights;
-            const roomTotal = roomSell * numberOfRooms * nights;
             const cwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0) : 0;
             const cnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0) : 0;
-            let cwbChildren = parseInt(hotel.childWithBed) || 0;
-            let cnbChildren = parseInt(hotel.childWithoutBed) || 0;
-            // When both per-hotel child counts are 0, use header child value so payload reflects header
-            const headerChildCount = parseInt(getHeaderValues().children) || 0;
-            if (cwbChildren === 0 && cnbChildren === 0 && headerChildCount > 0) {
-                cwbChildren = headerChildCount;
-            }
-            // For child_without_bed payload: use header when cnbChildren is 0 (same as child_with_bed) so both show children and total_cost
-            const cnbChildrenForPayload = cnbChildren > 0 ? cnbChildren : (headerChildCount > 0 ? headerChildCount : 0);
-            // Costs must match payload total_costs so totalPrice = roomTotal + extra_bed.total_cost + child_with_bed.total_cost + child_without_bed.total_cost
+            enquiryProSyncHotelAddonQuantities(hotel);
+            const cwbChildren = enquiryProHotelAddonQuantity(hotel, 'cwb');
+            const cnbChildrenForPayload = enquiryProHotelAddonQuantity(hotel, 'cnb');
             const childWithBedTotalCost = (hotel.hasCwb && cwbChildren > 0) ? (cwbPrice * cwbChildren * nights) : 0;
             const childWithoutBedTotalCost = (hotel.hasCnb && cnbChildrenForPayload > 0) ? (cnbPrice * cnbChildrenForPayload * nights) : 0;
-            // Extra bed: price * quantity * nights, add to total
             const extraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0) : 0;
-            const extraBedQuantity = parseInt(hotel.extraBed) || (hotel.hasExtraBed ? 1 : 0);
+            const extraBedQuantity = enquiryProHotelAddonQuantity(hotel, 'extra_bed');
             const extraBedTotalCost = (hotel.hasExtraBed && extraBedQuantity > 0) ? (extraBedPrice * extraBedQuantity * nights) : 0;
-            const totalPrice = roomTotal + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
             
             // Structure rooms array with beds - matching working format exactly
             // Use actual database bed_id (this is what single tour package uses to match)
@@ -26661,19 +26920,22 @@
             // Get the actual database room_id
             const databaseRoomId = hotel.databaseRoomId || hotel.roomData?.room_id || hotel.roomData?.id || actualBedId || '';
             
+            const selectedMealTotal = enquiryProSelectedMealTotalPrice(hotel, numberOfRooms, nights);
+            const totalPrice = enquiryProHotelPayloadTotalPrice(hotel, numberOfRooms, nights);
+
             // Create bed object with clean structure
             const bedObject = {
                 bed_id: String(actualBedId || ""),
                 bed_type: cleanBedType,
                 baby_cot: 0,
-                head_count: getHotelHeadCount(hotel),
+                head_count: enquiryProMealPaxPerRoomForHotel(hotel),
                 max_occupancy: parseInt(hotel.maxOccupancy) || 3,
                 price: roomSell,
                 mealTypes: [mealPlanLabel],
                 selectedMeals: {
                     meal_1: {
                         type: mealPlanLabel,
-                        price: 0
+                        price: selectedMealTotal
                     }
                 }
             };
@@ -26757,13 +27019,13 @@
                     enabled: !!(hotel.hasCwb),
                     price: parseFloat(hotel.cwbPrice) || 0,
                     children: cwbChildren,
-                    total_cost: (parseFloat(hotel.cwbPrice) || 0) * cwbChildren * nights
+                    total_cost: childWithBedTotalCost
                 },
                 child_without_bed: {
                     enabled: !!(hotel.hasCnb),
                     price: parseFloat(hotel.cnbPrice) || 0,
                     children: cnbChildrenForPayload,
-                    total_cost: (parseFloat(hotel.cnbPrice) || 0) * cnbChildrenForPayload * nights
+                    total_cost: childWithoutBedTotalCost
                 },
                 
                 // Transfer options
@@ -28235,7 +28497,22 @@
                 checkOutDate = parts[0];
                 checkOutTime = parts[1] ? parts[1] + ':00' : "10:00:00";
             }
-            
+
+            let groupNights = parseInt(group.hotel.nights, 10) || 0;
+            if (groupNights <= 0 && checkInDate && checkOutDate) {
+                const inDate = new Date(checkInDate);
+                const outDate = new Date(checkOutDate);
+                if (!isNaN(inDate) && !isNaN(outDate) && outDate > inDate) {
+                    groupNights = Math.ceil((outDate - inDate) / (1000 * 60 * 60 * 24));
+                }
+            }
+            groupNights = Math.max(1, groupNights);
+
+            const groupedHotelJsonTotal = group.rooms.reduce((sum, room) => {
+                const nr = Math.max(1, parseInt(room.rooms, 10) || 1);
+                return sum + enquiryProHotelPayloadTotalPrice(room, nr, groupNights);
+            }, 0);
+
             return {
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
@@ -28273,20 +28550,23 @@
                 rooms: group.rooms.map((room, idx) => {
                     // Use actual database bed_id (this is what single tour package uses to match)
                     const actualBedId = room.bedId || room.roomId || room.bedData?.bed_id || '';
-                    
+                    const roomMealLabel = room.mealPlanLabel || room.mealPlan || 'room only';
+                    const nr = Math.max(1, parseInt(room.rooms, 10) || 1);
+                    const roomMealTotal = enquiryProSelectedMealTotalPrice(room, nr, groupNights);
+
                     // Create bed object matching the working format exactly
                     const bedObject = {
                         bed_id: String(actualBedId || ""), // Actual database bed_id as string
                         bed_type: room.bedType || "",
                         baby_cot: 0,
-                        head_count: getHotelHeadCount(group.hotel || room),
+                        head_count: enquiryProMealPaxPerRoomForHotel(room),
                         max_occupancy: room.maxOccupancy || 2,
-                        price: room.roomPrice || 0,
-                        mealTypes: [room.mealPlan || "EP"],
+                        price: room.roomPrice || room.sell || 0,
+                        mealTypes: [roomMealLabel],
                         selectedMeals: {
                             meal_1: {
-                                type: room.mealPlan || "EP",
-                                price: 0
+                                type: roomMealLabel,
+                                price: roomMealTotal
                             }
                         }
                     };
@@ -28294,12 +28574,12 @@
                     return {
                         room_id: `room_${Date.now()}_${idx}`, // Generated room_id (matching working format)
                         room_type: room.roomType || "",
-                        number_of_rooms: room.rooms || 1,
+                        number_of_rooms: nr,
                         beds: [bedObject] // Only beds array (matching working format)
                     };
                 }),
-                totalPrice: group.rooms.reduce((sum, room) => sum + (room.roomPrice * room.rooms || 0), 0),
-                price: group.rooms.reduce((sum, room) => sum + (room.roomPrice * room.rooms || 0), 0),
+                totalPrice: groupedHotelJsonTotal,
+                price: groupedHotelJsonTotal,
                 transfer_options: linkedTransfer ? {
                     transfer_required: true,
                     type: linkedTransfer.type || "Private",
@@ -30221,6 +30501,20 @@
         
         // Extract number of rooms - check firstRoom.number_of_rooms first, then fall back to data.numberOfRooms
         const numberOfRooms = parseInt(firstRoom.number_of_rooms) || parseInt(data.numberOfRooms) || parseInt(data.number_of_rooms) || 1;
+
+        /** beds[].head_count in saved JSON is meal pax per room (not tour adults); ignore legacy inflated values when hydrating. */
+        const maxOccHydrate = parseInt(firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 3, 10) || 3;
+        const hydrateHasExtraBed = data.extra_bed?.enabled === true || data.hasExtraBed === true || data.has_extra_bed === true || data.has_extra_bed === 1;
+        const mealPaxCapHydrate = maxOccHydrate + (hydrateHasExtraBed ? 1 : 0);
+        let resolvedMealPaxFromOrder = parseInt(data.mealPax ?? data.meal_pax, 10);
+        if (!Number.isFinite(resolvedMealPaxFromOrder) || resolvedMealPaxFromOrder <= 0) {
+            const hcBed = parseInt(firstBed.head_count, 10);
+            if (Number.isFinite(hcBed) && hcBed > 0 && hcBed <= mealPaxCapHydrate) {
+                resolvedMealPaxFromOrder = hcBed;
+            } else {
+                resolvedMealPaxFromOrder = null;
+            }
+        }
         
         const hotel = {
             id: originalFrontendId || order.order_id || generateId('hotel'),
@@ -30235,7 +30529,8 @@
             nights: nights,
             rooms: numberOfRooms, // Number of rooms (integer)
             adultsPerRoom: parseInt(data.adults_per_room || data.adultsPerRoom || 2, 10) || 2,
-            headCount: parseInt(firstBed.head_count || data.headCount || data.head_count || 0, 10) || null,
+            headCount: parseInt(data.headCount || data.head_count || 0, 10) || null,
+            mealPax: (Number.isFinite(resolvedMealPaxFromOrder) && resolvedMealPaxFromOrder > 0) ? resolvedMealPaxFromOrder : null,
             extraBed: parseInt(data.extra_bed?.quantity ?? data.extraBed ?? 0) || 0,
             cwb: firstBed.baby_cot || data.cwb || 0,
             // Child counts: support both flat (childWithoutBed/cnb) and nested (child_with_bed/child_without_bed) JSON format
@@ -30274,6 +30569,7 @@
             transferIds: [],
             isStandalone: true
         };
+        enquiryProSyncHotelAddonQuantities(hotel);
         
         accommodationList.push(hotel);
         console.log('Loaded hotel:', hotel);

@@ -1710,6 +1710,29 @@
                 </div>
             </div>
         </div>
+<style>
+    #createTourProModal .select2-container--default .select2-selection--single {
+        height: 31px;
+        min-height: 31px;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        font-size: 10px;
+    }
+    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 29px;
+        padding-left: 8px;
+        font-size: 10px;
+    }
+    #createTourProModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 29px;
+    }
+    #createTourProModal .select2-container {
+        width: 100% !important;
+    }
+    .select2-container--open .select2-dropdown--below {
+        z-index: 1065;
+    }
+</style>
 <!-- Modal for Create Single Tour Pro Initial Information -->
 <div class="modal fade" id="createTourProModal" tabindex="-1" aria-labelledby="createTourProModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
@@ -1721,7 +1744,7 @@
                 </h6>
                 <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}">
+            <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}" novalidate>
                 @csrf
                 <div class="modal-body" style="padding: 10px 15px;">
                     <!-- Row 1: Tour Type + dates -->
@@ -1750,7 +1773,7 @@
                     </div>
 
                     <!-- FIT: Adult / Child / Infant (unchanged behaviour) -->
-                    <div class="row g-2 mb-1" id="tourProFitPaxRow">
+                    <div class="row g-2 mb-1 d-none" id="tourProFitPaxRow">
                         <div class="col-md-2 col-4">
                             <label class="form-label small mb-0" style="font-size: 10px;">Adult <span class="text-danger">*</span></label>
                             <input type="number" class="form-control form-control-sm" id="adultCount" min="1" value="1" style="font-size: 10px;">
@@ -1765,24 +1788,24 @@
                         </div>
                     </div>
 
-                    <!-- GROUP: summary + open guest / FOC modal (Create Lite style) -->
-                    <div class="row g-2 mb-1 d-none" id="tourProGroupPaxRow">
+                    <!-- FIT & GROUP: guest modal (GROUP shows FOC section inside modal) -->
+                    <div class="row g-2 mb-1" id="tourProGuestsRow">
                         <div class="col-12">
                             <label class="form-label small mb-0" style="font-size: 10px;">Guests <span class="text-danger">*</span></label>
                             <div class="d-flex align-items-center flex-wrap gap-2 p-2 border rounded" style="background:#f8f9fa;font-size:10px;">
-                                <span id="tourProGroupGuestSummary" class="text-muted">Configure group guests and FOC…</span>
+                                <span id="tourProGuestSummary" class="text-muted">Click “Select tour guests” to set passengers…</span>
                                 <button type="button" class="btn btn-sm text-white ms-auto" id="tourProOpenGuestModalBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 10px; padding: 4px 10px;">
                                     <i class="ri-group-line me-1"></i>Select tour guests
                                 </button>
                             </div>
-                            <small class="text-muted" style="font-size:9px;">Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra and do not use a pax slot.</small>
+                            <small id="tourProGuestsHelper" class="text-muted" style="font-size:9px;">Set adults (male + female), children, and infants. Infants do not use a pax slot.</small>
                         </div>
                     </div>
 
                     <input type="hidden" name="adult_count" id="ctp_hidden_adult_count" value="1">
                     <input type="hidden" name="child_count" id="ctp_hidden_child_count" value="0">
                     <input type="hidden" name="infant_count" id="ctp_hidden_infant_count" value="0">
-                    <input type="hidden" name="male" id="ctp_hidden_male" value="0">
+                    <input type="hidden" name="male" id="ctp_hidden_male" value="1">
                     <input type="hidden" name="female" id="ctp_hidden_female" value="0">
                     <input type="hidden" name="group_size" id="ctp_hidden_group_size" value="0">
                     <input type="hidden" name="foc_size" id="ctp_hidden_foc_size" value="0">
@@ -1831,19 +1854,17 @@
                     <div class="row g-2 mb-1">
                         <div class="col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Agency <span class="text-danger">*</span></label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="agencySelectModal" placeholder="Select destination first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agencySuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
-                            </div>
-                            <input type="hidden" id="agencyIdValue" name="agency_id" required>
+                            <select class="form-select form-select-sm" id="ctpAgencySelect" style="font-size: 10px;">
+                                <option value="">Choose agency...</option>
+                            </select>
+                            <input type="hidden" id="agencyIdValue" name="agency_id">
                         </div>
                         <div class="col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Agent <span class="text-danger">*</span></label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="agentSelectModal" placeholder="Select agency first..." autocomplete="off" style="font-size: 10px;" disabled readonly onfocus="this.removeAttribute('readonly');">
-                                <div id="agentSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 150px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
-                            </div>
-                            <input type="hidden" id="agentIdValue" name="agent_id" required>
+                            <select class="form-select form-select-sm" id="ctpAgentSelect" style="font-size: 10px;" disabled>
+                                <option value="">Choose agent...</option>
+                            </select>
+                            <input type="hidden" id="agentIdValue" name="agent_id">
                         </div>
                     </div>
 
@@ -1880,7 +1901,7 @@
                     <div class="row g-2 mb-1">
                         <div class="col-12">
                             <label class="form-label small mb-0" style="font-size: 10px;">Email</label>
-                            <input type="email" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" autocomplete="email" style="font-size: 10px;">
+                            <input type="text" class="form-control form-control-sm" id="customerEmail" name="email" placeholder="Optional" inputmode="email" autocomplete="email" style="font-size: 10px;">
                         </div>
                     </div>                    
 
@@ -1889,7 +1910,7 @@
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 11px; padding: 4px 12px;">
                         <i class="ri-close-line me-1"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" style="font-size: 11px; padding: 4px 12px;">
+                    <button type="submit" class="btn btn-success btn-sm" id="submitTourProBtn" disabled style="font-size: 11px; padding: 4px 12px; opacity: 0.55; cursor: not-allowed;" title="Fill all required fields (contact and email are optional).">
                         <i class="ri-check-line me-1"></i>Continue
                     </button>
                 </div>
@@ -1910,7 +1931,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
-                <div class="p-2 border rounded mb-3" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
+                <div class="p-2 border rounded mb-3" id="ctpProGroupDetailsSection" style="background:#ffffff;border-color:#e9ecef !important;border-radius:10px;">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <div class="fw-semibold" style="color:#495057; font-size:0.82rem;"><i class="ri-group-2-line me-1 text-primary"></i>Group Details</div>
                         <span class="badge" style="background:#e7f1ff;color:#0d6efd;border-radius:6px;font-size:0.7rem;">FOC</span>
@@ -2329,14 +2350,29 @@
         if (createTourBtn) {
             createTourBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                const modal = new bootstrap.Modal(document.getElementById('createTourProModal'));
+                const modalEl = document.getElementById('createTourProModal');
+                const modal = new bootstrap.Modal(modalEl);
                 modal.show();
                 loadDestinations();
+                if (modalEl) {
+                    modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
+                        modalEl.removeEventListener('shown.bs.modal', onCtpShown);
+                        ctpBindAgencyAgentHandlers();
+                        loadAgenciesForDmc();
+                        ctpInitTourProSelect2();
+                        if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                    });
+                }
             });
         }
 
         // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
         window.tourProGuestConfigured = false;
+        let selectedDestinations = [];
+        let allDestinations = [];
+        let availableAgencies = [];
+        let availableAgents = [];
+
         function ctpSafeInt(v) {
             const n = parseInt(String(v ?? '').trim(), 10);
             return Number.isFinite(n) ? n : 0;
@@ -2345,6 +2381,55 @@
             const r = document.getElementById('tourTypeGroup');
             return !!(r && r.checked);
         }
+
+        /** Enable Continue when required fields are set. Contact number and email are optional. */
+        function ctpUpdateSubmitButtonState() {
+            const btn = document.getElementById('submitTourProBtn');
+            if (!btn) return;
+            let ok = true;
+
+            const start = (document.getElementById('tourStartDate')?.value || '').trim();
+            const end = (document.getElementById('tourEndDate')?.value || '').trim();
+            if (!start || !end) ok = false;
+
+            const multipleDestChecked = document.getElementById('multipleDestination')?.checked === true;
+            if (multipleDestChecked) {
+                if (!selectedDestinations.length) ok = false;
+            } else {
+                const singleDest = (document.getElementById('destinationSingleValue')?.value || '').trim();
+                if (!singleDest) ok = false;
+            }
+
+            if (!(document.getElementById('agencyIdValue')?.value || '').trim()) ok = false;
+            if (!(document.getElementById('agentIdValue')?.value || '').trim()) ok = false;
+
+            const custName = (document.getElementById('customerName')?.value || '').trim();
+            if (!custName) ok = false;
+
+            if (!window.tourProGuestConfigured) ok = false;
+
+            btn.disabled = !ok;
+            btn.style.opacity = ok ? '1' : '0.55';
+            btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+            btn.title = ok
+                ? 'Continue to enquiry form'
+                : 'Fill all required fields (destination, agency, agent, customer name, guests). Contact and email are optional.';
+        }
+        window.ctpUpdateSubmitButtonState = ctpUpdateSubmitButtonState;
+
+        function loadDestinations() {
+            fetch('{{ route("enquiry-form-pro.get-destinations") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.destinations.length > 0) {
+                        allDestinations = data.destinations;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading destinations:', error);
+                });
+        }
+
         function ctpSetHidden(id, val) {
             const el = document.getElementById(id);
             if (el) el.value = String(val);
@@ -2382,31 +2467,42 @@
             ctpSetHidden('ctp_hidden_female', 0);
             ctpSetHidden('ctp_hidden_child_ages', '[]');
         }
+        function ctpInitDefaultFitHidden() {
+            ctpSetHidden('ctp_hidden_group_size', 0);
+            ctpSetHidden('ctp_hidden_foc_size', 0);
+            ctpSetHidden('ctp_hidden_paying_pax', 0);
+            ctpSetHidden('ctp_hidden_discount', 0);
+            ctpSetHidden('ctp_hidden_auto_foc', 0);
+            ctpSetHidden('ctp_hidden_adult_count', 1);
+            ctpSetHidden('ctp_hidden_child_count', 0);
+            ctpSetHidden('ctp_hidden_infant_count', 0);
+            ctpSetHidden('ctp_hidden_male', 1);
+            ctpSetHidden('ctp_hidden_female', 0);
+            ctpSetHidden('ctp_hidden_child_ages', '[]');
+        }
         function ctpRefreshTourTypeUI() {
-            const fitRow = document.getElementById('tourProFitPaxRow');
-            const groupRow = document.getElementById('tourProGroupPaxRow');
+            const helper = document.getElementById('tourProGuestsHelper');
             const g = ctpIsGroup();
-            if (fitRow) fitRow.classList.toggle('d-none', g);
-            if (groupRow) groupRow.classList.toggle('d-none', !g);
-            if (!g) {
-                window.tourProGuestConfigured = false;
-                ctpSyncFitHiddenPax();
+            if (helper) {
+                helper.textContent = g
+                    ? 'Group size = paying pax; FOC adds to total pax. Adults + children must match total pax (male + female = adults). Infants are extra.'
+                    : 'Set adults (male + female), children, and infants. Infants do not use a pax slot.';
             }
-            ctpRenderGroupSummary();
+            window.tourProGuestConfigured = false;
+            if (g) ctpInitDefaultGroupHidden();
+            else ctpInitDefaultFitHidden();
+            ctpRenderGuestSummary();
+            ctpUpdateSubmitButtonState();
         }
         document.querySelectorAll('input[name="tour_type"]').forEach(function(r) {
             r.addEventListener('change', function() {
-                if (ctpIsGroup()) {
-                    window.tourProGuestConfigured = false;
-                    ctpInitDefaultGroupHidden();
-                }
                 ctpRefreshTourTypeUI();
             });
         });
-        ['adultCount', 'childCount', 'infantCount'].forEach(function(id) {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('input', ctpSyncFitHiddenPax);
-        });
+        const ctpCustomerNameEl = document.getElementById('customerName');
+        if (ctpCustomerNameEl) {
+            ctpCustomerNameEl.addEventListener('input', ctpUpdateSubmitButtonState);
+        }
         function ctpUpdateFOCFieldsInModal() {
             const gsd = document.getElementById('pro_group_size_display');
             const focEl = document.getElementById('pro_foc_size');
@@ -2480,7 +2576,6 @@
             }
         }, true);
         window.ctpGuestDelta = function(type, change) {
-            const cap = ctpModalTourCap();
             const maleEl = document.getElementById('ctpModalMale');
             const femaleEl = document.getElementById('ctpModalFemale');
             const childEl = document.getElementById('ctpModalChildren');
@@ -2491,13 +2586,40 @@
             let f = ctpSafeInt(femaleEl.textContent);
             let c = ctpSafeInt(childEl.textContent);
             let inf = ctpSafeInt(infEl.textContent);
+            const isGroup = ctpIsGroup();
+            const cap = isGroup ? ctpModalTourCap() : Infinity;
+
             if (type === 'male' || type === 'female') {
-                const cur = type === 'male' ? m : f;
-                const nv = cur + change;
-                if (nv < 0) return;
-                if (type === 'male') m = nv; else f = nv;
-                if (m + f < 1) return;
-                if (m + f + c > cap) return;
+                if (isGroup) {
+                    if (type === 'male') {
+                        if (change > 0) {
+                            if (f <= 0) return;
+                            m++;
+                            f--;
+                        } else if (change < 0) {
+                            if (m <= 0) return;
+                            m--;
+                            f++;
+                        }
+                    } else {
+                        if (change > 0) {
+                            if (m <= 0) return;
+                            f++;
+                            m--;
+                        } else if (change < 0) {
+                            if (f <= 0) return;
+                            f--;
+                            m++;
+                        }
+                    }
+                    if (m + f < 1) return;
+                    if (m + f + c > cap) return;
+                } else {
+                    const cur = type === 'male' ? m : f;
+                    const nv = Math.max(0, cur + change);
+                    if (type === 'male') m = nv; else f = nv;
+                    if (m + f < 1) return;
+                }
                 maleEl.textContent = String(m);
                 femaleEl.textContent = String(f);
                 if (adEl) adEl.textContent = String(m + f);
@@ -2506,32 +2628,52 @@
             if (type === 'children') {
                 const nv = c + change;
                 if (nv < 0) return;
-                if (m + f + nv > cap) return;
+                if (isGroup && m + f + nv > cap) return;
                 c = nv;
                 childEl.textContent = String(c);
                 window.ctpUpdateChildAgeDropdownsPro(c);
                 if (adEl) adEl.textContent = String(m + f);
-                ctpSyncModalGuestsToCap();
+                if (isGroup) ctpSyncModalGuestsToCap();
                 return;
             }
             if (type === 'infants') {
                 const nv = inf + change;
                 if (nv < 0) return;
-                inf = nv;
-                infEl.textContent = String(inf);
+                infEl.textContent = String(nv);
             }
         };
         window.ctpGuestAdultsDelta = function(change) {
-            const cap = ctpModalTourCap();
             const maleEl = document.getElementById('ctpModalMale');
             const femaleEl = document.getElementById('ctpModalFemale');
             const childEl = document.getElementById('ctpModalChildren');
-            const infEl = document.getElementById('ctpModalInfants');
             const adEl = document.getElementById('ctpModalAdults');
-            if (!maleEl || !femaleEl || !childEl || !infEl) return;
+            if (!maleEl || !femaleEl || !childEl) return;
             let m = ctpSafeInt(maleEl.textContent);
             let f = ctpSafeInt(femaleEl.textContent);
             const c = ctpSafeInt(childEl.textContent);
+
+            if (!ctpIsGroup()) {
+                let adults = m + f;
+                let newAdults = Math.max(0, adults + change);
+                const currentAdults = m + f;
+                if (newAdults > currentAdults) {
+                    m += newAdults - currentAdults;
+                } else if (newAdults < currentAdults) {
+                    let toRemove = currentAdults - newAdults;
+                    const fromM = Math.min(m, toRemove);
+                    m -= fromM;
+                    toRemove -= fromM;
+                    if (toRemove > 0) f = Math.max(0, f - toRemove);
+                    newAdults = m + f;
+                }
+                if (newAdults < 1) return;
+                maleEl.textContent = String(m);
+                femaleEl.textContent = String(f);
+                if (adEl) adEl.textContent = String(m + f);
+                return;
+            }
+
+            const cap = ctpModalTourCap();
             const maxAd = Math.max(0, cap - c);
             let total = m + f + change;
             total = Math.max(maxAd > 0 ? 1 : 0, Math.min(maxAd, total));
@@ -2568,20 +2710,54 @@
             femaleEl.textContent = String(f);
             if (adEl) adEl.textContent = String(m + f);
         };
+        function ctpCollectChildAgesFromModal(expectedCount) {
+            const expected = Math.max(0, parseInt(expectedCount, 10) || 0);
+            if (!expected) return [];
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            if (!box) return null;
+            const selects = box.querySelectorAll('select.ctp-child-age');
+            if (selects.length !== expected) return null;
+            const ages = [];
+            for (let i = 0; i < selects.length; i++) {
+                const raw = String(selects[i].value ?? '').trim();
+                if (raw === '') return null;
+                const age = parseInt(raw, 10);
+                if (!Number.isFinite(age) || age < 0 || age > 17) return null;
+                ages.push(age);
+            }
+            return ages;
+        }
+        function ctpEnsureChildAgeDropdowns(childCount) {
+            const box = document.getElementById('ctpChildAgeDropdowns');
+            const n = Math.max(0, parseInt(childCount, 10) || 0);
+            const current = box ? box.querySelectorAll('select.ctp-child-age').length : 0;
+            if (current !== n) {
+                window.ctpUpdateChildAgeDropdownsPro(n);
+            }
+        }
         window.ctpUpdateChildAgeDropdownsPro = function(childCount) {
             const sec = document.getElementById('ctpChildAgesSection');
             const box = document.getElementById('ctpChildAgeDropdowns');
             if (!sec || !box) return;
-            if (!childCount) {
+            const n = Math.max(0, parseInt(childCount, 10) || 0);
+            const preserved = [];
+            box.querySelectorAll('select.ctp-child-age').forEach(function(s) {
+                preserved.push(String(s.value ?? '').trim());
+            });
+            if (!n) {
                 sec.style.display = 'none';
                 box.innerHTML = '';
                 return;
             }
             sec.style.display = 'block';
             box.innerHTML = '';
-            for (let i = 1; i <= childCount; i++) {
+            for (let i = 1; i <= n; i++) {
+                const preset = preserved[i - 1] != null ? preserved[i - 1] : '';
                 let opts = '<option value="">Age</option>';
-                for (let a = 1; a <= 17; a++) opts += '<option value="' + a + '">' + a + '</option>';
+                for (let a = 0; a <= 17; a++) {
+                    const sel = preset !== '' && String(a) === preset ? ' selected' : '';
+                    opts += '<option value="' + a + '"' + sel + '>' + a + '</option>';
+                }
                 box.insertAdjacentHTML('beforeend', '<div class="d-flex align-items-center gap-1 mb-1"><span class="small">C' + i + ':</span><select class="form-select form-select-sm ctp-child-age">' + opts + '</select></div>');
             }
         };
@@ -2604,7 +2780,7 @@
             const m = maleEl ? ctpSafeInt(maleEl.textContent) : 0;
             const f = femaleEl ? ctpSafeInt(femaleEl.textContent) : 0;
             if (adEl) adEl.textContent = String(m + f);
-            ctpRebalanceHeadcountToTotal();
+            if (ctpIsGroup()) ctpRebalanceHeadcountToTotal();
             window.ctpUpdateChildAgeDropdownsPro(childEl ? ctpSafeInt(childEl.textContent) : 0);
             let ages = [];
             try {
@@ -2615,8 +2791,12 @@
             });
         }
         function ctpOpenGuestModal() {
-            if (!ctpIsGroup()) return;
-            if (!window.tourProGuestConfigured) ctpInitDefaultGroupHidden();
+            const focSec = document.getElementById('ctpProGroupDetailsSection');
+            if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
+            if (!window.tourProGuestConfigured) {
+                if (ctpIsGroup()) ctpInitDefaultGroupHidden();
+                else ctpInitDefaultFitHidden();
+            }
             ctpCopyModalInputsFromHidden();
             const el = document.getElementById('tourProGuestModal');
             if (!el || !window.bootstrap) return;
@@ -2636,32 +2816,47 @@
         const ctpApplyBtn = document.getElementById('tourProGuestApplyBtn');
         if (ctpApplyBtn) {
             ctpApplyBtn.addEventListener('click', function() {
-                const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
-                const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
-                const cap = gs + foc;
                 const childEl = document.getElementById('ctpModalChildren');
                 let c = ctpSafeInt(childEl.textContent);
-                c = Math.min(c, cap);
-                childEl.textContent = String(c);
-                window.ctpUpdateChildAgeDropdownsPro(c);
-                ctpSyncModalGuestsToCap();
                 const m = ctpSafeInt(document.getElementById('ctpModalMale').textContent);
                 const f = ctpSafeInt(document.getElementById('ctpModalFemale').textContent);
                 const inf = ctpSafeInt(document.getElementById('ctpModalInfants').textContent);
-                const childAges = [];
-                document.querySelectorAll('.ctp-child-age').forEach(function(s) {
-                    if (s.value) childAges.push(parseInt(s.value, 10));
-                });
-                if (c > 0 && childAges.length !== c) {
+                if (m + f < 1) {
+                    alert('At least one adult is required.');
+                    return;
+                }
+                if (ctpIsGroup()) {
+                    ctpSyncModalGuestsToCap();
+                    const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                    const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                    const cap = gs + foc;
+                    c = Math.min(ctpSafeInt(childEl.textContent), cap);
+                    childEl.textContent = String(c);
+                    ctpSyncModalGuestsToCap();
+                    c = ctpSafeInt(childEl.textContent);
+                }
+                ctpEnsureChildAgeDropdowns(c);
+                const childAges = ctpCollectChildAgesFromModal(c);
+                if (c > 0 && childAges === null) {
                     alert('Please select an age for each child.');
                     return;
                 }
-                const cb = document.getElementById('pro_include_foc_in_group_price');
-                ctpSetHidden('ctp_hidden_group_size', gs);
-                ctpSetHidden('ctp_hidden_foc_size', foc);
-                ctpSetHidden('ctp_hidden_paying_pax', gs);
-                ctpSetHidden('ctp_hidden_auto_foc', foc);
-                ctpSetHidden('ctp_hidden_discount', (cb && cb.checked) ? 1 : 0);
+                if (ctpIsGroup()) {
+                    const gs = Math.max(0, ctpSafeInt(document.getElementById('pro_group_size_display').value));
+                    const foc = Math.max(0, ctpSafeInt(document.getElementById('pro_foc_size').value));
+                    const cb = document.getElementById('pro_include_foc_in_group_price');
+                    ctpSetHidden('ctp_hidden_group_size', gs);
+                    ctpSetHidden('ctp_hidden_foc_size', foc);
+                    ctpSetHidden('ctp_hidden_paying_pax', gs);
+                    ctpSetHidden('ctp_hidden_auto_foc', foc);
+                    ctpSetHidden('ctp_hidden_discount', (cb && cb.checked) ? 1 : 0);
+                } else {
+                    ctpSetHidden('ctp_hidden_group_size', 0);
+                    ctpSetHidden('ctp_hidden_foc_size', 0);
+                    ctpSetHidden('ctp_hidden_paying_pax', 0);
+                    ctpSetHidden('ctp_hidden_auto_foc', 0);
+                    ctpSetHidden('ctp_hidden_discount', 0);
+                }
                 ctpSetHidden('ctp_hidden_male', m);
                 ctpSetHidden('ctp_hidden_female', f);
                 ctpSetHidden('ctp_hidden_adult_count', m + f);
@@ -2669,225 +2864,216 @@
                 ctpSetHidden('ctp_hidden_infant_count', inf);
                 ctpSetHidden('ctp_hidden_child_ages', JSON.stringify(childAges));
                 window.tourProGuestConfigured = true;
-                ctpRenderGroupSummary();
+                ctpRenderGuestSummary();
                 const gmod = document.getElementById('tourProGuestModal');
                 const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
                 if (inst) inst.hide();
             });
         }
-        function ctpRenderGroupSummary() {
-            const span = document.getElementById('tourProGroupGuestSummary');
-            if (!span || !ctpIsGroup()) return;
+        function ctpRenderGuestSummary() {
+            const span = document.getElementById('tourProGuestSummary');
+            if (!span) return;
             if (!window.tourProGuestConfigured) {
-                span.textContent = 'Configure group guests and FOC…';
+                span.textContent = 'Click “Select tour guests” to set passengers…';
+                ctpUpdateSubmitButtonState();
                 return;
             }
             const a = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
             const c = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
             const i = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
-            const m = ctpSafeInt(document.getElementById('ctp_hidden_male').value);
-            const f = ctpSafeInt(document.getElementById('ctp_hidden_female').value);
-            const gs = ctpSafeInt(document.getElementById('ctp_hidden_group_size').value);
-            const foc = ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value);
-            span.innerHTML = 'Paying <strong>' + gs + '</strong> + FOC <strong>' + foc + '</strong> · ' + a + ' adults (' + m + 'M/' + f + 'F), ' + c + ' ch, ' + i + ' inf';
+            const mv = ctpSafeInt(document.getElementById('ctp_hidden_male').value);
+            const fv = ctpSafeInt(document.getElementById('ctp_hidden_female').value);
+            if (ctpIsGroup()) {
+                const gs = ctpSafeInt(document.getElementById('ctp_hidden_group_size').value);
+                const foc = ctpSafeInt(document.getElementById('ctp_hidden_foc_size').value);
+                span.innerHTML = 'Paying <strong>' + gs + '</strong> + FOC <strong>' + foc + '</strong> · ' + a + ' adults (' + mv + 'M/' + fv + 'F), ' + c + ' ch, ' + i + ' inf';
+            } else {
+                span.innerHTML = a + ' adults (' + mv + 'M/' + fv + 'F), ' + c + ' ch, ' + i + ' inf';
+            }
+            ctpUpdateSubmitButtonState();
         }
+
         ctpRefreshTourTypeUI();
-        ctpSyncFitHiddenPax();
+        ctpUpdateSubmitButtonState();
 
-        // Store agencies list globally for autocomplete
-        let availableAgencies = [];
-        
-        // Load Agencies by single destination
-        function loadAgenciesByDestination(destination) {
-            const agencyInput = document.getElementById('agencySelectModal');
-            agencyInput.value = 'Loading agencies...';
-            agencyInput.disabled = true;
-            
-            // Reset agency and agent
-            document.getElementById('agencyIdValue').value = '';
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = '';
-            agentInput.placeholder = 'Select agency first...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            
-            fetch('{{ route("enquiry-form-pro.get-agencies") }}?destination=' + encodeURIComponent(destination))
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Agencies loaded for destination:', destination, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                    if (data.success && data.agencies.length > 0) {
+        function ctpHasSelect2() {
+            return typeof jQuery !== 'undefined' && jQuery.fn && typeof jQuery.fn.select2 === 'function';
+        }
+        function ctpSelect2Config(kind) {
+            return {
+                placeholder: kind === 'agent' ? 'Type to search agent...' : 'Type to search agency...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: jQuery('#createTourProModal')
+            };
+        }
+        function ctpDestroySelect2(selectEl) {
+            if (!selectEl || !ctpHasSelect2()) return;
+            const $el = jQuery(selectEl);
+            if ($el.data('select2')) $el.select2('destroy');
+        }
+        function ctpRebuildSelect2(selectEl, placeholder, items, disabled) {
+            if (!selectEl) return;
+            ctpDestroySelect2(selectEl);
+            selectEl.innerHTML = '';
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = '';
+            selectEl.appendChild(emptyOpt);
+            (items || []).forEach(function(item) {
+                const opt = document.createElement('option');
+                opt.value = String(item.id);
+                opt.textContent = item.text;
+                selectEl.appendChild(opt);
+            });
+            selectEl.disabled = !!disabled;
+            if (ctpHasSelect2()) {
+                const kind = selectEl.id === 'ctpAgentSelect' ? 'agent' : 'agency';
+                const cfg = ctpSelect2Config(kind);
+                if (placeholder) cfg.placeholder = placeholder;
+                const $el = jQuery(selectEl);
+                $el.prop('disabled', !!disabled);
+                $el.select2(cfg);
+            }
+        }
+        let ctpAgencyAgentHandlersBound = false;
+        let ctpAgencyPickTimer = null;
+        function ctpBindAgencyAgentHandlers() {
+            if (ctpAgencyAgentHandlersBound || typeof jQuery === 'undefined') return;
+            const $modal = jQuery('#createTourProModal');
+            if (!$modal.length) return;
+            ctpAgencyAgentHandlersBound = true;
+
+            function ctpOnAgencyChosen(agencyId) {
+                const id = agencyId ? String(agencyId) : '';
+                const agencyIdVal = document.getElementById('agencyIdValue');
+                if (agencyIdVal) agencyIdVal.value = id;
+                clearTimeout(ctpAgencyPickTimer);
+                ctpAgencyPickTimer = setTimeout(function() {
+                    loadAgentsByAgency(id);
+                    ctpUpdateSubmitButtonState();
+                }, 0);
+            }
+            function ctpOnAgentChosen(agentId) {
+                const id = agentId ? String(agentId) : '';
+                const agentIdVal = document.getElementById('agentIdValue');
+                if (agentIdVal) agentIdVal.value = id;
+                ctpUpdateSubmitButtonState();
+            }
+
+            $modal.on('change.ctpPro', '#ctpAgencySelect', function() {
+                ctpOnAgencyChosen(jQuery(this).val());
+            });
+            $modal.on('select2:select.ctpPro', '#ctpAgencySelect', function(e) {
+                const id = (e.params && e.params.data && e.params.data.id != null)
+                    ? e.params.data.id
+                    : jQuery(this).val();
+                ctpOnAgencyChosen(id);
+            });
+            $modal.on('select2:clear.ctpPro', '#ctpAgencySelect', function() {
+                ctpOnAgencyChosen('');
+            });
+
+            $modal.on('change.ctpPro', '#ctpAgentSelect', function() {
+                ctpOnAgentChosen(jQuery(this).val());
+            });
+            $modal.on('select2:select.ctpPro', '#ctpAgentSelect', function(e) {
+                const id = (e.params && e.params.data && e.params.data.id != null)
+                    ? e.params.data.id
+                    : jQuery(this).val();
+                ctpOnAgentChosen(id);
+            });
+            $modal.on('select2:clear.ctpPro', '#ctpAgentSelect', function() {
+                ctpOnAgentChosen('');
+            });
+        }
+        function ctpInitTourProSelect2() {
+            if (!ctpHasSelect2()) return;
+            const $agency = jQuery('#ctpAgencySelect');
+            const $agent = jQuery('#ctpAgentSelect');
+            if ($agency.length && !$agency.data('select2')) {
+                $agency.select2(ctpSelect2Config('agency'));
+            }
+            if ($agent.length && !$agent.data('select2')) {
+                $agent.select2(ctpSelect2Config('agent'));
+            }
+        }
+        function ctpResetAgentSelect() {
+            const agentSel = document.getElementById('ctpAgentSelect');
+            const agentIdVal = document.getElementById('agentIdValue');
+            if (!agentSel) return;
+            if (agentIdVal) agentIdVal.value = '';
+            availableAgents = [];
+            ctpRebuildSelect2(agentSel, 'Choose agent...', [], true);
+        }
+
+        function loadAgenciesForDmc() {
+            const agencySel = document.getElementById('ctpAgencySelect');
+            const agencyIdVal = document.getElementById('agencyIdValue');
+            if (!agencySel) return;
+            if (agencyIdVal) agencyIdVal.value = '';
+            ctpRebuildSelect2(agencySel, 'Loading agencies...', [], true);
+            ctpResetAgentSelect();
+
+            fetch('{{ route("enquiry-form-pro.get-agencies") }}?by_dmc=1')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success && data.agencies && data.agencies.length > 0) {
                         availableAgencies = data.agencies;
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'Type to search agency...';
-                        agencyInput.disabled = false;
+                        const items = data.agencies.map(function(agency) {
+                            return { id: agency.agency_id, text: agency.agency_name };
+                        });
+                        ctpRebuildSelect2(agencySel, 'Type to search agency...', items, false);
                     } else {
                         availableAgencies = [];
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'No agencies available (filtered by destination & DMC)';
+                        ctpRebuildSelect2(agencySel, 'No agencies for this DMC', [], true);
                     }
+                    ctpInitTourProSelect2();
                 })
-                .catch(error => {
+                .catch(function(error) {
                     console.error('Error loading agencies:', error);
                     availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Error loading agencies';
+                    ctpRebuildSelect2(agencySel, 'Error loading agencies', [], true);
+                    ctpInitTourProSelect2();
                 });
         }
 
-        // Load Agencies by multiple destinations
-        function loadAgenciesByDestinations() {
-            if (selectedDestinations.length === 0) return;
-            
-            const agencyInput = document.getElementById('agencySelectModal');
-            agencyInput.value = 'Loading agencies...';
-            agencyInput.disabled = true;
-            
-            // Reset agency and agent
-            document.getElementById('agencyIdValue').value = '';
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = '';
-            agentInput.placeholder = 'Select agency first...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            
-            const destinations = selectedDestinations.join(',');
-            
-            fetch('{{ route("enquiry-form-pro.get-agencies") }}?destinations=' + encodeURIComponent(destinations))
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Agencies loaded for destinations:', destinations, 'DMC ID:', data.dmc_id, 'Count:', data.count);
-                    if (data.success && data.agencies.length > 0) {
-                        availableAgencies = data.agencies;
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'Type to search agency...';
-                        agencyInput.disabled = false;
-                    } else {
-                        availableAgencies = [];
-                        agencyInput.value = '';
-                        agencyInput.placeholder = 'No agencies available (filtered by destinations & DMC)';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading agencies:', error);
-                    availableAgencies = [];
-                    agencyInput.value = '';
-                    agencyInput.placeholder = 'Error loading agencies';
-                });
-        }
-
-        // Agency autocomplete
-        const agencyInput = document.getElementById('agencySelectModal');
-        const agencySuggestions = document.getElementById('agencySuggestions');
-        const agencyIdValue = document.getElementById('agencyIdValue');
-
-        agencyInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                agencySuggestions.style.display = 'none';
+        function loadAgentsByAgency(agencyId) {
+            const agentSel = document.getElementById('ctpAgentSelect');
+            const agentIdVal = document.getElementById('agentIdValue');
+            if (!agentSel) return;
+            if (!agencyId) {
+                ctpResetAgentSelect();
+                ctpUpdateSubmitButtonState();
                 return;
             }
+            if (agentIdVal) agentIdVal.value = '';
+            ctpRebuildSelect2(agentSel, 'Loading agents...', [], true);
 
-            const filtered = availableAgencies.filter(agency => 
-                agency.agency_name.toLowerCase().includes(query)
-            );
-
-            if (filtered.length > 0) {
-                agencySuggestions.innerHTML = '';
-                filtered.forEach(agency => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = agency.agency_name;
-                    item.addEventListener('click', function() {
-                        agencyInput.value = agency.agency_name;
-                        agencyIdValue.value = agency.agency_id;
-                        agencySuggestions.style.display = 'none';
-                        // Load agents for this agency
-                        loadAgentsByAgency(agency.agency_id);
-                    });
-                    agencySuggestions.appendChild(item);
-                });
-                agencySuggestions.style.display = 'block';
-            } else {
-                agencySuggestions.style.display = 'none';
-            }
-        });
-
-        // Store agents list globally for autocomplete
-        let availableAgents = [];
-
-        // Load agents by agency
-        function loadAgentsByAgency(agencyId) {
-            const agentInput = document.getElementById('agentSelectModal');
-            agentInput.value = 'Loading agents...';
-            agentInput.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-
-            fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + agencyId)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.agents.length > 0) {
+            fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + encodeURIComponent(agencyId), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success && data.agents && data.agents.length > 0) {
                         availableAgents = data.agents;
-                        agentInput.value = '';
-                        agentInput.placeholder = 'Type to search agent...';
-                        agentInput.disabled = false;
+                        const items = data.agents.map(function(agent) {
+                            return { id: agent.agent_id, text: agent.name };
+                        });
+                        ctpRebuildSelect2(agentSel, 'Type to search agent...', items, false);
                     } else {
                         availableAgents = [];
-                        agentInput.value = '';
-                        agentInput.placeholder = 'No agents available';
+                        ctpRebuildSelect2(agentSel, 'No agents available', [], true);
                     }
+                    ctpUpdateSubmitButtonState();
                 })
-                .catch(error => {
+                .catch(function(error) {
                     console.error('Error loading agents:', error);
                     availableAgents = [];
-                    agentInput.value = '';
-                    agentInput.placeholder = 'Error loading agents';
+                    ctpRebuildSelect2(agentSel, 'Error loading agents', [], true);
+                    ctpUpdateSubmitButtonState();
                 });
         }
-
-        // Agent autocomplete
-        const agentInput = document.getElementById('agentSelectModal');
-        const agentSuggestions = document.getElementById('agentSuggestions');
-        const agentIdValue = document.getElementById('agentIdValue');
-
-        agentInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            
-            if (query.length < 1) {
-                agentSuggestions.style.display = 'none';
-                return;
-            }
-
-            const filtered = availableAgents.filter(agent => 
-                agent.name.toLowerCase().includes(query)
-            );
-
-            if (filtered.length > 0) {
-                agentSuggestions.innerHTML = '';
-                filtered.forEach(agent => {
-                    const item = document.createElement('a');
-                    item.href = 'javascript:void(0);';
-                    item.className = 'list-group-item list-group-item-action';
-                    item.style.padding = '6px 10px';
-                    item.style.fontSize = '10px';
-                    item.style.cursor = 'pointer';
-                    item.textContent = agent.name;
-                    item.addEventListener('click', function() {
-                        agentInput.value = agent.name;
-                        agentIdValue.value = agent.agent_id;
-                        agentSuggestions.style.display = 'none';
-                    });
-                    agentSuggestions.appendChild(item);
-                });
-                agentSuggestions.style.display = 'block';
-            } else {
-                agentSuggestions.style.display = 'none';
-            }
-        });
 
         // Multiple destination checkbox toggle
         const multipleDestCheckbox = document.getElementById('multipleDestination');
@@ -2914,36 +3100,8 @@
                 updateSelectedDestinations();
             }
             
-            // Reset agency and agent when switching modes
-            const agencyInputReset = document.getElementById('agencySelectModal');
-            agencyInputReset.value = '';
-            agencyInputReset.placeholder = 'Select destination first...';
-            agencyInputReset.disabled = true;
-            document.getElementById('agencyIdValue').value = '';
-            availableAgencies = [];
-            
-            const agentInputReset = document.getElementById('agentSelectModal');
-            agentInputReset.value = '';
-            agentInputReset.placeholder = 'Select agency first...';
-            agentInputReset.disabled = true;
-            document.getElementById('agentIdValue').value = '';
-            availableAgents = [];
+            ctpUpdateSubmitButtonState();
         });
-
-        // Load destinations
-        let allDestinations = [];
-        function loadDestinations() {
-            fetch('{{ route("enquiry-form-pro.get-destinations") }}')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.destinations.length > 0) {
-                        allDestinations = data.destinations;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading destinations:', error);
-                });
-        }
 
         // Single destination autocomplete
         const destinationSingleInput = document.getElementById('destinationSingle');
@@ -2976,8 +3134,7 @@
                         destinationSingleInput.value = dest.name;
                         destinationSingleValue.value = dest.name;
                         suggestionBoxSingle.style.display = 'none';
-                        // Load agencies for this destination
-                        loadAgenciesByDestination(dest.name);
+                        ctpUpdateSubmitButtonState();
                     });
                     suggestionBoxSingle.appendChild(item);
                 });
@@ -2991,7 +3148,6 @@
         const destinationInput = document.getElementById('destinationMultiple');
         const suggestionBox = document.getElementById('destinationSuggestions');
         const selectedDestinationsDiv = document.getElementById('selectedDestinations');
-        let selectedDestinations = [];
 
         destinationInput.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();
@@ -3033,33 +3189,12 @@
             if (!selectedDestinations.includes(name)) {
                 selectedDestinations.push(name);
                 updateSelectedDestinations();
-                // Load agencies for selected destinations
-                loadAgenciesByDestinations();
             }
         }
 
         function removeDestination(name) {
             selectedDestinations = selectedDestinations.filter(d => d !== name);
             updateSelectedDestinations();
-            // Reload agencies based on remaining destinations
-            if (selectedDestinations.length > 0) {
-                loadAgenciesByDestinations();
-            } else {
-                // Reset agency if no destinations selected
-                const agencyInputReset = document.getElementById('agencySelectModal');
-                agencyInputReset.value = '';
-                agencyInputReset.placeholder = 'Select destination first...';
-                agencyInputReset.disabled = true;
-                document.getElementById('agencyIdValue').value = '';
-                availableAgencies = [];
-                // Also reset agent
-                const agentInputReset = document.getElementById('agentSelectModal');
-                agentInputReset.value = '';
-                agentInputReset.placeholder = 'Select agency first...';
-                agentInputReset.disabled = true;
-                document.getElementById('agentIdValue').value = '';
-                availableAgents = [];
-            }
         }
 
         function updateSelectedDestinations() {
@@ -3078,6 +3213,7 @@
 
             // Update hidden input
             document.getElementById('destinationsArray').value = JSON.stringify(selectedDestinations);
+            ctpUpdateSubmitButtonState();
         }
 
         // Set min date for start date (today)
@@ -3108,11 +3244,31 @@
                 if (new Date(tourEndDateInput.value) <= startDate) {
                     tourEndDateInput.value = minEndDateStr;
                 }
+                ctpUpdateSubmitButtonState();
             });
+            tourEndDateInput.addEventListener('change', ctpUpdateSubmitButtonState);
         }
         
-        // Form validation
+        // Form validation (contact number and email are optional)
         document.getElementById('createTourProForm').addEventListener('submit', function(e) {
+            const emailVal = (document.getElementById('customerEmail')?.value || '').trim();
+            if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+                e.preventDefault();
+                alert('Please enter a valid email address or leave email blank.');
+                return false;
+            }
+
+            if (!(document.getElementById('agencyIdValue')?.value || '').trim()) {
+                e.preventDefault();
+                alert('Please select an agency from the list.');
+                return false;
+            }
+            if (!(document.getElementById('agentIdValue')?.value || '').trim()) {
+                e.preventDefault();
+                alert('Please select an agent from the list.');
+                return false;
+            }
+
             const multipleDestChecked = document.getElementById('multipleDestination').checked;
             
             // Validate destination based on mode
@@ -3152,36 +3308,23 @@
                 return false;
             }
 
-            // Pax validation (FIT uses visible fields; GROUP uses hidden after guest modal)
-            ctpSyncFitHiddenPax();
-            if (ctpIsGroup()) {
-                if (!window.tourProGuestConfigured) {
-                    e.preventDefault();
-                    alert('For Group tours, click "Select tour guests", set group size / FOC / breakdown, then Apply Selection.');
-                    return false;
-                }
-                const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
-                const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
-                const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
-                if (adults + children + infants === 0) {
-                    e.preventDefault();
-                    alert('Please specify at least one passenger.');
-                    return false;
-                }
-            } else {
-                const adults = ctpSafeInt(document.getElementById('adultCount').value);
-                const children = ctpSafeInt(document.getElementById('childCount').value);
-                const infants = ctpSafeInt(document.getElementById('infantCount').value);
-                if (adults + children + infants === 0) {
-                    e.preventDefault();
-                    alert('Please specify at least one passenger (Adult, Child, or Infant)');
-                    return false;
-                }
-                if (adults < 1) {
-                    e.preventDefault();
-                    alert('FIT tours require at least one adult.');
-                    return false;
-                }
+            if (!window.tourProGuestConfigured) {
+                e.preventDefault();
+                alert('Click "Select tour guests", set passengers, then Apply Selection.');
+                return false;
+            }
+            const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+            const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+            const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            if (adults + children + infants === 0) {
+                e.preventDefault();
+                alert('Please specify at least one passenger.');
+                return false;
+            }
+            if (adults < 1) {
+                e.preventDefault();
+                alert('At least one adult is required.');
+                return false;
             }
         });
 
@@ -3194,14 +3337,6 @@
             // Close single destination suggestions
             if (!destinationSingleInput.contains(e.target) && !suggestionBoxSingle.contains(e.target)) {
                 suggestionBoxSingle.style.display = 'none';
-            }
-            // Close agency suggestions
-            if (!agencyInput.contains(e.target) && !agencySuggestions.contains(e.target)) {
-                agencySuggestions.style.display = 'none';
-            }
-            // Close agent suggestions
-            if (!agentInput.contains(e.target) && !agentSuggestions.contains(e.target)) {
-                agentSuggestions.style.display = 'none';
             }
         });
     });

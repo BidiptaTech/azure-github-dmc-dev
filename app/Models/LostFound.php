@@ -15,6 +15,7 @@ class LostFound extends Model
     protected $casts = [
         'resolved' => 'boolean',
         'images' => 'array',
+        'guest_images' => 'array',
     ];
 
     public function tour()

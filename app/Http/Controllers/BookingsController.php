@@ -112,6 +112,28 @@ class BookingsController extends Controller
     }
 
     /**
+     * Ensure tours.discount_amount is available on list rows (join selects can omit or null it).
+     */
+    private function hydrateTourNegotiationDiscounts($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        foreach ($items as $tour) {
+            $fromRow = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
+            if ($fromRow > 0) {
+                $tour->discount_amount = $fromRow;
+                continue;
+            }
+            if (!empty($tour->tour_id)) {
+                $stored = Tour::where('tour_id', $tour->tour_id)->value('discount_amount');
+                $tour->discount_amount = max(0, (float) ($stored ?? 0));
+            }
+        }
+    }
+
+    /**
      * Display New Enquiries (tour_status = 'New Enquiry')
      */
     public function newEnquiries()
@@ -150,7 +172,8 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
-                    'tours.mainguest', 
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
@@ -159,6 +182,7 @@ class BookingsController extends Controller
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
 
             foreach ($tours as $t) {
                 $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
@@ -225,7 +249,8 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
-                    'tours.mainguest', 
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
@@ -234,6 +259,7 @@ class BookingsController extends Controller
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
 
             foreach ($tours as $t) {
                 $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
@@ -291,9 +317,13 @@ class BookingsController extends Controller
             ->first();
 
         if ($action === 'negotiate') {
+            $grossAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+            $tourDiscount = max(0, (float) ($tour->discount_amount ?? 0));
+            $netBase = max(0, $grossAmount - $tourDiscount);
+
             $actualAmount = (float) $request->input('actual_amount', 0);
             if ($actualAmount <= 0) {
-                $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+                $actualAmount = $netBase;
             }
             $amountOffered = (float) $validated['amount'];
 
@@ -603,6 +633,7 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.created_by',
+                'tours.discount_amount',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
                 'created_by_user.name as created_by_name',
@@ -618,6 +649,7 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -674,6 +706,7 @@ class BookingsController extends Controller
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'tours.created_by',
+                    'tours.discount_amount',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
                     'created_by_user.name as created_by_name',
@@ -690,6 +723,7 @@ class BookingsController extends Controller
                 ->where('tours.dmc_id', $dmc_id)
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
@@ -790,6 +824,7 @@ class BookingsController extends Controller
                 'tours.is_pro',
                 'tours.user_currency',
                 'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -803,6 +838,7 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -857,6 +893,7 @@ class BookingsController extends Controller
                 'tours.is_pro',
                 'tours.user_currency',
                 'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -870,6 +907,7 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         $currency = CommonHelper::getDmcCurrencyByCountry();
@@ -1078,6 +1116,7 @@ class BookingsController extends Controller
                 'tours.is_pro',
                 'tours.user_currency',
                 'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -1096,6 +1135,7 @@ class BookingsController extends Controller
             })
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -1153,6 +1193,7 @@ class BookingsController extends Controller
                 'tours.is_pro',
                 'tours.user_currency',
                 'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.created_by',
                 'tours.updated_at',
@@ -1166,6 +1207,7 @@ class BookingsController extends Controller
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
 
@@ -1305,6 +1347,7 @@ class BookingsController extends Controller
                     'tours.is_pro',
                     'tours.user_currency',
                     'tours.mainguest',
+                    'tours.discount_amount',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1318,6 +1361,7 @@ class BookingsController extends Controller
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -1370,6 +1414,7 @@ class BookingsController extends Controller
                     'tours.is_pro',
                     'tours.user_currency',
                     'tours.mainguest',
+                    'tours.discount_amount',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
@@ -1383,6 +1428,7 @@ class BookingsController extends Controller
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
 
@@ -1508,6 +1554,7 @@ class BookingsController extends Controller
                 'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -1568,6 +1615,7 @@ class BookingsController extends Controller
                 'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -1638,6 +1686,8 @@ class BookingsController extends Controller
                 'tours.display_id',
                 'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -1716,6 +1766,8 @@ class BookingsController extends Controller
                 'tours.display_id',
                 'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',

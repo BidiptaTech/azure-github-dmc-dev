@@ -26,50 +26,93 @@
         z-index: 9999;
         background: #fff;
         border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        padding: 12px;
-        max-width: 320px;
-        max-height: 280px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+        padding: 10px 12px;
+        width: 248px;
+        max-height: 220px;
+        overflow-x: hidden;
         overflow-y: auto;
+        overscroll-behavior: contain;
         border: 1px solid #e9ecef;
         display: none;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f8fafc;
+    }
+    .zone-hover-tooltip::-webkit-scrollbar {
+        width: 5px;
+    }
+    .zone-hover-tooltip::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 6px;
     }
     .zone-hover-tooltip.show {
         display: block;
         pointer-events: auto;
     }
     .zone-hover-tooltip .tooltip-title {
-        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 10px;
         font-weight: 600;
-        color: #495057;
+        color: #6c757d;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 10px;
+        letter-spacing: 0.4px;
+        margin-bottom: 8px;
         padding-bottom: 6px;
         border-bottom: 1px solid #e9ecef;
+    }
+    .zone-hover-tooltip .tooltip-title-text {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.3;
+    }
+    .zone-hover-tooltip .tooltip-count {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 600;
+        color: #495057;
+        background: #f1f3f5;
+        border-radius: 10px;
+        padding: 2px 8px;
+        line-height: 1.4;
     }
     .zone-hover-tooltip .tooltip-item {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 6px 0;
+        gap: 8px;
+        padding: 5px 0;
         border-bottom: 1px solid #f1f3f5;
     }
     .zone-hover-tooltip .tooltip-item:last-child {
         border-bottom: none;
     }
     .zone-hover-tooltip .tooltip-item-img {
-        width: 40px;
-        height: 40px;
-        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        border-radius: 5px;
         object-fit: cover;
         flex-shrink: 0;
+        border: 1px solid #e9ecef;
+        background: #f8f9fa;
     }
     .zone-hover-tooltip .tooltip-item-name {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 500;
         color: #212529;
-        line-height: 1.3;
+        line-height: 1.25;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .zone-hover-tooltip .tooltip-hint {
+        font-size: 9px;
+        color: #adb5bd;
+        margin-top: 6px;
+        text-align: center;
     }
     /* Enhanced tab styling */
     .port-port-tab {
@@ -753,7 +796,113 @@
                     $zonesSorted = collect($zones ?? [])
                         ->sortByDesc(fn ($z) => mb_strtolower(trim((string) ($z->zone_name ?? ''))))
                         ->values();
+
+                    $dmcIdForZoneItems = (int) ($vehicle->dmc_id ?? 0);
+                    $buildVehicleZonePayload = function ($zone) use ($dmcIdForZoneItems) {
+                        $zoneType = (string) ($zone->zone_type ?? '');
+                        $zoneId = (string) ($zone->zone_id ?? '');
+                        $items = [];
+
+                        if ($zoneType === 'Hotel') {
+                            $assigned = App\Models\Hotel::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($h) => (string) ($h->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($h) => [
+                                'name' => $h->name ?? '',
+                                'image' => ($h->main_image ?? '')
+                                    ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/')
+                                        ? $h->main_image
+                                        : asset($h->main_image))
+                                    : '',
+                            ])->values()->toArray();
+                        } elseif ($zoneType === 'Attraction') {
+                            $assigned = App\Models\Attraction::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($a) => (string) ($a->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($a) => [
+                                'name' => $a->name ?? '',
+                                'image' => ($a->master_image ?? '')
+                                    ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/')
+                                        ? $a->master_image
+                                        : asset($a->master_image))
+                                    : '',
+                            ])->values()->toArray();
+                        } elseif ($zoneType === 'Restaurant') {
+                            $assigned = App\Models\Restaurant::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($r) => (string) ($r->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($r) => [
+                                'name' => $r->name ?? '',
+                                'image' => ($r->master_image ?? '')
+                                    ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/')
+                                        ? $r->master_image
+                                        : asset($r->master_image))
+                                    : '',
+                            ])->values()->toArray();
+                        }
+
+                        return [
+                            'zone_id' => $zoneId,
+                            'zone_name' => (string) ($zone->zone_name ?? ''),
+                            'zone_type' => $zoneType,
+                            'description' => (string) ($zone->description ?? ''),
+                            'items' => $items,
+                        ];
+                    };
                 @endphp
+
+                <script>
+                (function () {
+                    window.VehicleZoneMappingUi = {
+                        escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        },
+                        stripHtml(str) {
+                            const el = document.createElement('div');
+                            el.innerHTML = str || '';
+                            return (el.textContent || el.innerText || '').trim();
+                        },
+                        badgeClass(zoneType) {
+                            switch (zoneType) {
+                                case 'Hotel': return 'success';
+                                case 'Attraction': return 'info';
+                                case 'Restaurant': return 'warning';
+                                default: return 'secondary';
+                            }
+                        },
+                        zoneCellHtml(zoneById, zoneId) {
+                            const z = zoneById.get(String(zoneId));
+                            const name = z ? String(z.zone_name || '').trim() : '';
+                            const desc = z ? this.stripHtml(z.description || '') : '';
+                            const zoneType = z ? (z.zone_type || 'Zone') : 'Zone';
+                            const label = name || ('Zone ID: ' + zoneId);
+                            const fullLabel = desc ? (label + ' - ' + desc) : label;
+                            const itemsJson = this.escapeHtml(JSON.stringify((z && z.items) ? z.items : []));
+                            return '<div class="d-flex align-items-center">' +
+                                '<span class="badge bg-' + this.badgeClass(zoneType) + ' me-2">' + this.escapeHtml(zoneType) + '</span>' +
+                                '<span class="zone-cell-hover" data-zone-items="' + itemsJson + '" data-zone-type="' + this.escapeHtml(zoneType) + '">' + this.escapeHtml(fullLabel) + '</span>' +
+                                '</div>';
+                        }
+                    };
+                })();
+                </script>
                 
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -1380,12 +1529,7 @@
 
                     $toAttractions = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Attraction'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -1394,6 +1538,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'port_attraction') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const ports = @json($ports ?? []);
                         const toZones = @json($toAttractions);
                         const existing = @json($portAttractionMappings);
@@ -1439,12 +1584,7 @@
 
                             tr.innerHTML = `
                                 <td>${escapeHtml(portText(fromId))}</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-info me-2">Attraction</span>
-                                        <span>${escapeHtml(zoneText(toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -1557,12 +1697,7 @@
 
                     $toRestaurants = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Restaurant'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -1571,6 +1706,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'port_restaurant') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const ports = @json($ports ?? []);
                         const toZones = @json($toRestaurants);
                         const existing = @json($portRestaurantMappings);
@@ -1616,12 +1752,7 @@
 
                             tr.innerHTML = `
                                 <td>${escapeHtml(portText(fromId))}</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-warning me-2">Restaurant</span>
-                                        <span>${escapeHtml(zoneText(toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -1686,7 +1817,7 @@
                             (toZones || [])
                                 .slice()
                                 .filter(z => String(z.zone_id))
-                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
                                 .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
                         }
 
@@ -1732,12 +1863,7 @@
 
                     $toHotels = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Hotel'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -1746,6 +1872,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'port_hotel') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const ports = @json($ports ?? []);
                         const toZones = @json($toHotels);
                         const existing = @json($portHotelMappings);
@@ -1791,12 +1918,7 @@
 
                             tr.innerHTML = `
                                 <td>${escapeHtml(portText(fromId))}</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-success me-2">Hotel</span>
-                                        <span>${escapeHtml(zoneText(toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -1861,7 +1983,7 @@
                             (toZones || [])
                                 .slice()
                                 .filter(z => String(z.zone_id))
-                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
                                 .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
                         }
 
@@ -1907,22 +2029,12 @@
 
                     $fromHotels = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Hotel'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
 
                     $toAttractions = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Attraction'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -1931,6 +2043,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'hotel_attraction') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const fromZones = @json($fromHotels);
                         const toZones = @json($toAttractions);
                         const existing = @json($hotelAttractionMappings);
@@ -1969,18 +2082,8 @@
                             if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
 
                             tr.innerHTML = `
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-success me-2">Hotel</span>
-                                        <span>${escapeHtml(zoneText(fromById, fromId))}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-info me-2">Attraction</span>
-                                        <span>${escapeHtml(zoneText(toById, toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -2091,22 +2194,12 @@
 
                     $fromHotels = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Hotel'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
 
                     $toRestaurants = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Restaurant'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -2115,6 +2208,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'hotel_restaurant') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const fromZones = @json($fromHotels);
                         const toZones = @json($toRestaurants);
                         const existing = @json($hotelRestaurantMappings);
@@ -2153,18 +2247,8 @@
                             if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
 
                             tr.innerHTML = `
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-success me-2">Hotel</span>
-                                        <span>${escapeHtml(zoneText(fromById, fromId))}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-warning me-2">Restaurant</span>
-                                        <span>${escapeHtml(zoneText(toById, toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -2275,22 +2359,12 @@
 
                     $fromAttractions = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Attraction'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
 
                     $toRestaurants = collect($zones ?? [])
                         ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
-                        ->map(fn ($z) => [
-                            'zone_id' => (string) $z->zone_id,
-                            'zone_name' => (string) ($z->zone_name ?? ''),
-                            'zone_type' => (string) ($z->zone_type ?? 'Restaurant'),
-                            'description' => (string) ($z->description ?? ''),
-                        ])
+                        ->map($buildVehicleZonePayload)
                         ->values();
                 @endphp
 
@@ -2299,6 +2373,7 @@
                         const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
                         if (mappingType !== 'attraction_restaurant') return;
 
+                        const Ui = window.VehicleZoneMappingUi;
                         const fromZones = @json($fromAttractions);
                         const toZones = @json($toRestaurants);
                         const existing = @json($attractionRestaurantMappings);
@@ -2337,18 +2412,8 @@
                             if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
 
                             tr.innerHTML = `
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-info me-2">Attraction</span>
-                                        <span>${escapeHtml(zoneText(fromById, fromId))}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-warning me-2">Restaurant</span>
-                                        <span>${escapeHtml(zoneText(toById, toId))}</span>
-                                    </div>
-                                </td>
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
@@ -4651,37 +4716,77 @@ $(document).ready(function() {
             }
         });
         
-        // Zone hover tooltip - show items with images, stay visible when hovering tooltip (scrollable)
+        // Zone hover tooltip - compact panel, scroll inside tooltip without scrolling page
         if (!$('#zoneHoverTooltip').length) $('body').append('<div id="zoneHoverTooltip" class="zone-hover-tooltip"></div>');
         const $zoneTooltip = $('#zoneHoverTooltip');
-        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#e9ecef" width="40" height="40"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="10">No img</text></svg>');
+        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect fill="#e9ecef" width="32" height="32"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="8">No img</text></svg>');
         let hideTid = null;
+        let tooltipWheelBound = false;
         function scheduleHide() {
             if (hideTid) clearTimeout(hideTid);
-            hideTid = setTimeout(function() { $zoneTooltip.removeClass('show'); hideTid = null; }, 300);
+            hideTid = setTimeout(function() {
+                $zoneTooltip.removeClass('show');
+                if (tooltipWheelBound) {
+                    document.removeEventListener('wheel', handleTooltipWheel, { capture: true });
+                    tooltipWheelBound = false;
+                }
+                hideTid = null;
+            }, 300);
         }
         function cancelHide() { if (hideTid) { clearTimeout(hideTid); hideTid = null; } }
-        $zoneTooltip.on('mouseenter', cancelHide).on('mouseleave', scheduleHide);
-        $(document).on('mouseenter', '.zone-cell-hover', function(e) {
-            cancelHide();
-            let items = $(this).attr('data-zone-items');
-            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
-            const zoneType = $(this).attr('data-zone-type') || 'Item';
-            const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
-            let html = '<div class="tooltip-title">' + label + ' in this zone</div>';
+        function scrollTooltipBy(delta) {
+            const el = $zoneTooltip[0];
+            if (!el) return;
+            const maxScroll = el.scrollHeight - el.clientHeight;
+            if (maxScroll <= 0) return;
+            el.scrollTop = Math.max(0, Math.min(el.scrollTop + delta, maxScroll));
+        }
+        function handleTooltipWheel(e) {
+            if (!$zoneTooltip.hasClass('show')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY !== undefined ? e.deltaY : (e.wheelDelta ? -e.wheelDelta / 3 : 0);
+            scrollTooltipBy(delta);
+        }
+        function zoneItemsLabel(zoneType) {
+            return zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+        }
+        function buildZoneTooltipHtml(items, zoneType) {
+            const label = zoneItemsLabel(zoneType);
+            const count = (items && items.length) ? items.length : 0;
+            let html = '<div class="tooltip-title"><span class="tooltip-title-text">' + label + ' in this zone</span>';
+            if (count > 0) html += '<span class="tooltip-count">' + count + '</span>';
+            html += '</div>';
             if (!items || !items.length) {
                 html += '<div class="tooltip-item"><span class="tooltip-item-name text-muted">No ' + label.toLowerCase() + ' assigned</span></div>';
             } else {
                 items.forEach(function(item) {
-                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + (item.image || '').replace(/^\/+/, '') : defaultImg);
+                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + String(item.image).replace(/^\/+/, '') : defaultImg);
                     html += '<div class="tooltip-item"><img class="tooltip-item-img" src="' + imgSrc + '" alt=""><span class="tooltip-item-name">' + escapeHtml(item.name || '') + '</span></div>';
                 });
+                if (count > 4) html += '<div class="tooltip-hint">Scroll for more</div>';
             }
-            $zoneTooltip.html(html).addClass('show');
-            const rect = this.getBoundingClientRect();
-            $zoneTooltip.css({ left: Math.min(rect.left + (rect.width/2) - 160, window.innerWidth - 330) + 'px', top: (rect.bottom + 4) + 'px' });
+            return html;
+        }
+        function showZoneTooltip($el) {
+            cancelHide();
+            let items = $el.attr('data-zone-items');
+            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
+            const zoneType = $el.attr('data-zone-type') || 'Item';
+            $zoneTooltip.html(buildZoneTooltipHtml(items, zoneType)).addClass('show');
+            const rect = $el[0].getBoundingClientRect();
+            const left = Math.max(8, Math.min(rect.left + (rect.width / 2) - 124, window.innerWidth - 256));
+            $zoneTooltip.css({ left: left + 'px', top: (rect.bottom + 4) + 'px' });
+            if (!tooltipWheelBound) {
+                document.addEventListener('wheel', handleTooltipWheel, { capture: true, passive: false });
+                tooltipWheelBound = true;
+            }
+        }
+        $zoneTooltip.on('mouseenter', cancelHide).on('mouseleave', scheduleHide);
+        $(document).on('mouseenter', '.zone-cell-hover, .zone-select-hover-option', function() {
+            showZoneTooltip($(this));
         });
-        $(document).on('mouseleave', '.zone-cell-hover', scheduleHide);
+        $(document).on('mouseleave', '.zone-cell-hover, .zone-select-hover-option', scheduleHide);
     });
 </script>
 @endif

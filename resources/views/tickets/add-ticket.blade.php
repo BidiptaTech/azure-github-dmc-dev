@@ -91,7 +91,7 @@
                                     <!-- Child Sell Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price" class="form-label"><strong>Child Sell Price (Local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="child_price" name="child_price" placeholder="Enter Child Sell Price" value="{{ old('child_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price" name="child_price" placeholder="Enter Child Sell Price" value="{{ old('child_price') }}" required>
                                         @error('child_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -100,7 +100,7 @@
                                     <!-- Child Cost Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price" class="form-label"><strong>Child Cost Price (Local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="child_cost_price" name="child_cost_price" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_cost_price" name="child_cost_price" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price') }}" required>
                                         @error('child_cost_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -109,7 +109,7 @@
                                     <!-- Adult Sell Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price" class="form-label"><strong>Adult Sell Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="adult_price" name="adult_price" placeholder="Enter Adult Sell Price" value="{{ old('adult_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price" name="adult_price" placeholder="Enter Adult Sell Price" value="{{ old('adult_price') }}" required>
                                         @error('adult_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -118,7 +118,7 @@
                                     <!-- Adult Cost Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price" class="form-label"><strong>Adult Cost Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="adult_cost_price" name="adult_cost_price" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_cost_price" name="adult_cost_price" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price') }}" required>
                                         @error('adult_cost_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -127,7 +127,7 @@
                                     <!-- Senior Adult Sell Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price" class="form-label"><strong>Senior Sell Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="senior_adult_price" name="senior_adult_price" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price" name="senior_adult_price" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price') }}" required>
                                         @error('senior_adult_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -136,7 +136,7 @@
                                     <!-- Senior Adult Cost Price -->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price" class="form-label"><strong>Senior Cost Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="senior_adult_cost_price" name="senior_adult_cost_price" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_cost_price" name="senior_adult_cost_price" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price') }}" required>
                                         @error('senior_adult_cost_price')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -145,7 +145,7 @@
                                     <!-- Child Sell Price NRI -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price_nri" class="form-label"><strong>Child Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="child_price_nri" name="child_price_nri" placeholder="Enter Child Sell Price" value="{{ old('child_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price_nri" name="child_price_nri" placeholder="Enter Child Sell Price" value="{{ old('child_price_nri') }}" required>
                                         @error('child_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -154,7 +154,7 @@
                                     <!-- Child Cost Price NRI -->
                                     <div class="col-md-4 mb-3">
                                         <label for="child_price_nri" class="form-label"><strong>Child Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="child_cost_price_nri" name="child_cost_price_nri" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_cost_price_nri" name="child_cost_price_nri" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price_nri') }}" required>
                                         @error('child_cost_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -163,7 +163,7 @@
                                     <!-- Adult Sell Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price_nri" class="form-label"><strong>Adult Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="adult_price_nri" name="adult_price_nri" placeholder="Enter Adult Sell Price" value="{{ old('adult_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price_nri" name="adult_price_nri" placeholder="Enter Adult Sell Price" value="{{ old('adult_price_nri') }}" required>
                                         @error('adult_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -172,7 +172,7 @@
                                     <!-- Adult Cost Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="adult_price_nri" class="form-label"><strong>Adult Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="adult_cost_price_nri" name="adult_cost_price_nri" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_cost_price_nri" name="adult_cost_price_nri" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price_nri') }}" required>
                                         @error('adult_cost_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -181,7 +181,7 @@
                                     <!-- Senior Adult Sell Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price_nri" class="form-label"><strong>Senior Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price_nri') }}" required>
                                         @error('senior_adult_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -190,7 +190,7 @@
                                     <!-- Senior Adult Cost Price NRI-->
                                     <div class="col-md-4 mb-3">
                                         <label for="senior_adult_price_nri" class="form-label"><strong>Senior Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="1" class="form-control" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price_nri') }}" required>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price_nri') }}" required>
                                         @error('senior_adult_cost_price_nri')
                                             <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -417,6 +417,19 @@
             allowClear: true,
             tags: true,
             width: '100%'
+        });
+
+        function clampTicketPriceInput(el) {
+            if (!el || el.value === '' || el.value === null) return;
+            const n = parseFloat(String(el.value).replace(',', '.'));
+            if (isNaN(n)) return;
+            el.value = Number(n.toFixed(2));
+        }
+        document.querySelectorAll('.ticket-price-input').forEach(function (el) {
+            el.addEventListener('blur', function () { clampTicketPriceInput(this); });
+            if (el.value !== '') {
+                clampTicketPriceInput(el);
+            }
         });
         
         // Form submission validation for DMC availability
