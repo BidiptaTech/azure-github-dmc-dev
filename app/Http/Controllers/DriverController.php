@@ -379,12 +379,12 @@ class DriverController extends Controller
         ]);
 
         // Generate unique driver ID
-        $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
-        $driver_max_id = $lastDriver->driver_id ?? 0;
-        $driverId = CommonHelper::createId($driver_max_id);
-        while (Driver::where('driver_id', $driverId)->exists()) {
-            $driverId = CommonHelper::createId($driverId);
-        }
+        // $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $driver_max_id = $lastDriver->driver_id ?? 0;
+        // $driverId = CommonHelper::createId($driver_max_id);
+        // while (Driver::where('driver_id', $driverId)->exists()) {
+        //     $driverId = CommonHelper::createId($driverId);
+        // }
 
         $master_image = '';
         if ($request->hasFile('master_image')) {
@@ -502,7 +502,7 @@ class DriverController extends Controller
             $plainPassword = $request->app_password;
             
             $driver = new Driver();
-            $driver->driver_id = $driverId;
+                // $driver->driver_id = $driverId;
             $driver->salutation = $request->salutation;
             $driver->driver_gender = $request->driver_gender;
             $driver->name = $request->name;
@@ -529,8 +529,10 @@ class DriverController extends Controller
             $driver->created_by = $auth_user->userId;
             $driver->dmc_id = $dmc_id ?? 0;
             $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
-        
+            
             if ($driver->save()) {
+                $driver->refresh();
+                $driverId = $driver->driver_id;
                 // LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
         
                 // Send credentials email if email is provided

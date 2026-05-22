@@ -1165,20 +1165,21 @@ class JobSheetController extends Controller
 
             // TODO: Add your logic to store the jobsheet
             // For example:
-            $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
-            $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
-            $jobsheetId = CommonHelper::createId($jobsheet_max_id);
-            while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
-                $jobsheetId = CommonHelper::createId($jobsheetId);
-            }
+            // $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
+            // $jobsheetId = CommonHelper::createId($jobsheet_max_id);
+            // while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
+            //     $jobsheetId = CommonHelper::createId($jobsheetId);
+            // }
             $jobsheet = new Jobsheet();
-            $jobsheet->jobsheet_id = $jobsheetId;
+            // $jobsheet->jobsheet_id = $jobsheetId;
             $jobsheet->dmc_id = $request->dmc_id;
             $jobsheet->tour_id = $request->tourId;
             $jobsheet->date = $request->date;
             $jobsheet->created_by = $user->userId;
             $jobsheet->save();
-
+            $jobsheet->refresh();
+            $jobsheetId = $jobsheet->jobsheet_id;
             return response()->json([
                 'success' => true,
                 'message' => 'Driver jobsheet created successfully'
@@ -1829,12 +1830,12 @@ class JobSheetController extends Controller
                 ->where('order_id', $request->order_id)
                 ->first(); 
                 
-            $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
-            $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
-            $jobsheetId = CommonHelper::createId($jobsheet_max_id);
-            while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
-                $jobsheetId = CommonHelper::createId($jobsheetId);
-            }
+            // $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
+            // $jobsheetId = CommonHelper::createId($jobsheet_max_id);
+            // while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
+            //     $jobsheetId = CommonHelper::createId($jobsheetId);
+            // }
             
             $user = auth()->user();
             
@@ -1884,7 +1885,7 @@ class JobSheetController extends Controller
                 
                 // Create new record
                 $jobsheet = new Jobsheet();
-                $jobsheet->jobsheet_id = $jobsheetId;
+                // $jobsheet->jobsheet_id = $jobsheetId;
                 $jobsheet->dmc_id = $request->dmc_id;
                 $jobsheet->created_by = $user->userId;
                 $jobsheet->tour_id = $actualTourId; // Use the actual numeric tour_id
@@ -1938,6 +1939,8 @@ class JobSheetController extends Controller
 
                 $jobsheet->order_id = $request->order_id;
                 $is_saved = $jobsheet->save();
+                $jobsheet->refresh();
+                $jobsheetId = $jobsheet->jobsheet_id;
             }
 
             if ($is_saved) {
@@ -2046,15 +2049,15 @@ class JobSheetController extends Controller
                     $jobsheet = $existingJobsheet;
                 }
             } else {
-                $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
-                $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
-                $jobsheetId = CommonHelper::createId($jobsheet_max_id);
-                while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
-                    $jobsheetId = CommonHelper::createId($jobsheetId);
-                }
+                // $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
+                // $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
+                // $jobsheetId = CommonHelper::createId($jobsheet_max_id);
+                // while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
+                //     $jobsheetId = CommonHelper::createId($jobsheetId);
+                // }
 
                 $jobsheet = new Jobsheet();
-                $jobsheet->jobsheet_id = $jobsheetId;
+                // $jobsheet->jobsheet_id = $jobsheetId;
                 $jobsheet->dmc_id = $request->dmc_id;
                 $jobsheet->created_by = $user->userId;
                 $jobsheet->tour_id = $actualTourId;
@@ -2068,6 +2071,8 @@ class JobSheetController extends Controller
                 $jobsheet->service_type = $request->type;
                 $jobsheet->order_id = $order_id;
                 $is_saved = $jobsheet->save();
+                $jobsheet->refresh();
+                $jobsheetId = $jobsheet->jobsheet_id;
             }
 
             if (!empty($is_saved) && $jobsheet) {

@@ -504,12 +504,12 @@ class RestaurantController extends Controller
                 'closing_time_dinner' => null,
             ]);
         }
-        $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-        $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-        $restaurantId = CommonHelper::createId($restaurant_max_id);
-        while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-            $restaurantId = CommonHelper::createId($restaurantId);
-        }
+        // $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
+        // $restaurantId = CommonHelper::createId($restaurant_max_id);
+        // while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
+        //     $restaurantId = CommonHelper::createId($restaurantId);
+        // }
 
         $imagePaths = [];
         if ($request->hasFile('all_images')) {
@@ -597,7 +597,7 @@ class RestaurantController extends Controller
         $restaurant->dinner_price = $request->input('dinner_price');
 
         $restaurant->owned_by = $request->input('owned_by');
-        $restaurant->restaurant_id = $restaurantId;
+        // $restaurant->restaurant_id = $restaurantId;
 
         $restaurant->property = $request->input('property');
         $restaurant->email = $request->input('restaurant_email');    //email added
@@ -613,6 +613,7 @@ class RestaurantController extends Controller
         $restaurant->terms_conditions = $request->input('terms_conditions');
         $restaurant->created_by = $auth_user->userId;
         $restaurant->save();
+        $restaurant->refresh();
 
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 78, 120])) {
         //     return view('restaurants.thankyou');
