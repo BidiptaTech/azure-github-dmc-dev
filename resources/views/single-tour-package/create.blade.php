@@ -5474,7 +5474,22 @@
                     async function saveAllBookings() {
                         
                         const agentId = document.getElementById('agent_id').value;
-                        let tourId = window.currentTourId;
+                        const syncTourIdFields = function (id) {
+                            const n = parseInt(id, 10);
+                            if (!Number.isFinite(n) || n <= 0) return null;
+                            window.currentTourId = n;
+                            const tourIdEl = document.getElementById('tour_id');
+                            if (tourIdEl) tourIdEl.value = String(n);
+                            return n;
+                        };
+                        const resolveTourId = function () {
+                            const fromWin = parseInt(window.currentTourId, 10);
+                            if (Number.isFinite(fromWin) && fromWin > 0) return fromWin;
+                            const fromInput = parseInt(document.getElementById('tour_id')?.value, 10);
+                            if (Number.isFinite(fromInput) && fromInput > 0) return fromInput;
+                            return null;
+                        };
+                        let tourId = resolveTourId();
                         const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
                         const isMultiCity = (cityMode === 'multi');
                         const enquiry = @json($enquiry);
@@ -5547,7 +5562,12 @@
                                     if (m) guestData[m[2]] = input.value || '';
                                 }
                             });
-                            if (Object.keys(guestData).length > 0) additionalGuests.push(guestData);
+                            const gName = String(guestData.name || guestData.guest_name || '').trim();
+                            const gContact = String(guestData.contact_no || guestData.contact || '').trim();
+                            const gEmail = String(guestData.email || '').trim();
+                            if (gName !== '' || gContact !== '' || gEmail !== '') {
+                                additionalGuests.push(guestData);
+                            }
                         });
 
                         // Tour type
@@ -5595,14 +5615,24 @@
                             if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || e.message || 'Failed to create tour'); }
                             const data = await resp.json();
                             if (!data || !data.success) throw new Error(data?.message || 'Failed to create tour');
+                            const createdTourId = parseInt(data.tour_id ?? data.tour?.tour_id, 10);
+                            if (!Number.isFinite(createdTourId) || createdTourId <= 0) {
+                                throw new Error('Tour was saved but no valid tour ID was returned. Please refresh and try again.');
+                            }
+                            data.tour_id = createdTourId;
+                            syncTourIdFields(createdTourId);
                             return data;
                         };
 
                         // Helper: POST service orders for a tour_id
                         const postServiceOrders = async function (payload) {
+                            const tourIdInt = parseInt(payload.tour_id, 10);
+                            if (!Number.isFinite(tourIdInt) || tourIdInt <= 0) {
+                                throw new Error('Tour ID is missing. Please save tour details again before adding services.');
+                            }
                             const fd = new FormData();
                             fd.append('_token', csrfToken);
-                            fd.append('tour_id', payload.tour_id);
+                            fd.append('tour_id', String(tourIdInt));
                             fd.append('agent_id', agentId);
                             fd.append('hotel_data', payload.hotel_data || '');
                             fd.append('attraction_data', payload.attraction_data || '');
@@ -5931,6 +5961,13 @@
                         }
 
                         const totalPrice = calculateTotalPackagePrice();
+
+                        tourId = resolveTourId() || tourId;
+                        if (!tourId) {
+                            alert('Tour ID is missing. Could not save services. Please try saving again.');
+                            resetSaveButton();
+                            return false;
+                        }
 
                         try {
                             const result = await postServiceOrders({
