@@ -52,14 +52,14 @@ class PortController extends Controller
                 $cityIdToUse = $existingCity->city_id;
             } else {
                 // Generate new custom city_id
-                $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
-                $lastCity_max_city_id = $lastCity->city_id ?? 0;
-                $newCityId = CommonHelper::createId($lastCity_max_city_id);
+                // $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+                // $lastCity_max_city_id = $lastCity->city_id ?? 0;
+                // $newCityId = CommonHelper::createId($lastCity_max_city_id);
 
                 // Ensure uniqueness of city_id
-                while (City::where('city_id', $newCityId)->exists()) {
-                    $newCityId = CommonHelper::createId($newCityId);
-                }
+                // while (City::where('city_id', $newCityId)->exists()) {
+                //     $newCityId = CommonHelper::createId($newCityId);
+                // }
 
                 // Generate new custom ID
                 $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
@@ -70,8 +70,9 @@ class PortController extends Controller
                     'id' => $newId,
                     'name' => $cityName,
                     'country' => $request->country,
-                    'city_id' => $newCityId,
+                    // 'city_id' => $newCityId,
                 ]);
+                
 
                 $cityIdToUse = $newCity->city_id;
             }
@@ -96,15 +97,16 @@ class PortController extends Controller
         }
 
         // Create port
-        $port_max_id = Port::max('port_id') ?? 0;
-        $portId = CommonHelper::createId($port_max_id);
+        // $port_max_id = Port::max('port_id') ?? 0;
+        // $portId = CommonHelper::createId($port_max_id);
 
         $data = $validator->validated();
-        $data['port_id'] = $portId;
+        // $data['port_id'] = $portId;
         $data['status'] = $request->has('status') ? true : false;
         $data['city_id'] = $cityIdToUse;
 
-        Port::create($data);
+        $port = Port::create($data);
+        $port->refresh();
 
         return redirect()->route('ports.index')->with('success', 'Port created successfully');
     }
@@ -154,14 +156,14 @@ class PortController extends Controller
                 $cityIdToUse = $existingCity->city_id;
             } else {
                 // Generate new custom city_id
-                $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
-                $lastCity_max_city_id = $lastCity->city_id ?? 0;
-                $newCityId = CommonHelper::createId($lastCity_max_city_id);
+                // $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+                // $lastCity_max_city_id = $lastCity->city_id ?? 0;
+                // $newCityId = CommonHelper::createId($lastCity_max_city_id);
 
-                // Ensure uniqueness of city_id
-                while (City::where('city_id', $newCityId)->exists()) {
-                    $newCityId = CommonHelper::createId($newCityId);
-                }
+                // // Ensure uniqueness of city_id
+                // while (City::where('city_id', $newCityId)->exists()) {
+                //     $newCityId = CommonHelper::createId($newCityId);
+                // }
 
                 // Generate new custom ID
                 $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
@@ -172,9 +174,9 @@ class PortController extends Controller
                     'id' => $newId,
                     'name' => $cityName,
                     'country' => $request->country,
-                    'city_id' => $newCityId,
+                    // 'city_id' => $newCityId,
                 ]);
-
+                $newCity->refresh();
                 $cityIdToUse = $newCity->city_id;
             }
         } else {

@@ -1474,11 +1474,13 @@ class UserController extends Controller
         //login user role insert directly
         $auth_role_id = $this->auth_user->role_id;
         
-        $user_max_id = User::withTrashed()->max('userId') ?? 1;
-        $usersId = CommonHelper::createId($user_max_id);
-        while (User::where('userId', $usersId)->exists()) {
-            $usersId = CommonHelper::createId($usersId);
-        }
+        // $user_max_id = User::withTrashed()->max('userId') ?? 1;
+        // $usersId = CommonHelper::createId($user_max_id);
+        // $usersId = CommonHelper::createId();
+        // while (User::where('userId', $usersId)->exists()) {
+            // $usersId = CommonHelper::createId();
+            // $usersId = CommonHelper::createId($usersId);
+        // }
         $role = $request->input('role');
         if ($role <= 9 || ($role >= 13 && $role <= 17) || $role == 21 || $role == 22 || $role == 23 || ($role >= 39 && $role <= 48) || $role == 79 || $role == 82 || $role == 85 || $role == 88 || $role == 91 || $role == 94 
         ||$role == 97 || $role == 100 || $role == 103 || $role == 106 || $role == 109 || $role == 112 || $role == 115 || $role == 118 || $role == 121) {
@@ -1538,7 +1540,8 @@ class UserController extends Controller
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
             'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
-            'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
+            // 'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
+            'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
             'phone' => (string) $request->input('phone'),
             'city' => $request->input('city'),
@@ -1547,7 +1550,7 @@ class UserController extends Controller
             'markup_type' => 0, 
             'guide_pax' => (int) ($request->guide_pax ?? 0), // Ensure integer
             'markup_price' => 0, // Ensure float
-            'userId' => (int) $usersId, // Ensure integer
+            // 'userId' => (int) $usersId, // Ensure integer
             'email' => $email, // Store email in lowercase
             'created_by' => (int) ($admin_id ?? 0), // Ensure integer
             'user_type' => (int) $user_type, // Ensure integer

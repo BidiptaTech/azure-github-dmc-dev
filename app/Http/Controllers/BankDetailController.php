@@ -132,13 +132,13 @@ class BankDetailController extends Controller
             }
 
             // Generate bank_detail_id
-            $lastBankDetail = BankDetail::withTrashed()->orderBy('created_at', 'desc')->first();
-            $bank_detail_max_id = $lastBankDetail->bank_detail_id ?? 0;
-            $bankDetailId = CommonHelper::createId($bank_detail_max_id);
+            // $lastBankDetail = BankDetail::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $bank_detail_max_id = $lastBankDetail->bank_detail_id ?? 0;
+            // $bankDetailId = CommonHelper::createId($bank_detail_max_id);
             
-            while (BankDetail::where('bank_detail_id', $bankDetailId)->exists()) {
-                $bankDetailId = CommonHelper::createId($bankDetailId);
-            }
+            // while (BankDetail::where('bank_detail_id', $bankDetailId)->exists()) {
+            //     $bankDetailId = CommonHelper::createId($bankDetailId);
+            // }
 
             // Prepare payment terms array
             $paymentTerms = [];
@@ -164,7 +164,7 @@ class BankDetailController extends Controller
             });
 
             $bankDetail = new BankDetail();
-            $bankDetail->bank_detail_id = $bankDetailId;
+            // $bankDetail->bank_detail_id = $bankDetailId;
             $bankDetail->dmc_id = $dmc_id;
             $bankDetail->terms_and_conditions = $request->terms_and_conditions;
             $bankDetail->payment_terms = !empty($paymentTerms) ? $paymentTerms : null;
@@ -180,7 +180,13 @@ class BankDetailController extends Controller
             $bankDetail->aba_routing = $request->aba_routing;
             $bankDetail->is_active = $request->has('is_active') ? 1 : 0;
             $bankDetail->created_by = $authUser->userId;
-            $bankDetail->save();
+            $isSaved = $bankDetail->save();
+            $bankDetail->refresh();
+            if ($isSaved) {
+                return redirect()->route('bank-details.index')->with('success', 'Bank details created successfully!');
+            } else {
+                return redirect()->back()->withInput()->with('error', 'Failed to create bank details.');
+            }
 
             DB::commit();
 

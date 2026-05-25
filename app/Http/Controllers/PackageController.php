@@ -1616,15 +1616,15 @@ class PackageController extends Controller
                 $dmc_id = $request->input('dmc_id', $user->userId);
             }
 
-            $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
-            $package_max_id = $lastPackage->package_id ?? 0;
-            $packageId = CommonHelper::createId($package_max_id);
-            while (Package::where('package_id', $packageId)->exists()) {
-                $packageId = CommonHelper::createId($packageId);
-            }
+            // $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $package_max_id = $lastPackage->package_id ?? 0;
+            // $packageId = CommonHelper::createId($package_max_id);
+            // while (Package::where('package_id', $packageId)->exists()) {
+            //     $packageId = CommonHelper::createId($packageId);
+            // }
 
             $package = Package::create([
-                'package_id' => $packageId,
+                // 'package_id' => $packageId,
                 'title' => $validated['title'],
                 'destination' => $validated['destination'],
                 'city' => $cityValue,
@@ -1658,6 +1658,8 @@ class PackageController extends Controller
                 'departure_data' => $departureDataPayload,
                 'itinerary' => json_encode($definitionData),
             ]);
+            $package->refresh();
+            $packageId = $package->package_id;
 
             DB::commit();
             return redirect()->route('packages.index')->with('success', 'Package definition created successfully.');

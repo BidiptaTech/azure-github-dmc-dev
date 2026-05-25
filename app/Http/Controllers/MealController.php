@@ -70,7 +70,8 @@ class MealController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Catch Validation Errors
-            dd($e->errors());
+            \Log::error('Validation errors in MealController@store', ['errors' => $e->errors()]);
+            return redirect()->back()->withErrors($e->errors())->withInput();
         }
 
         $auth_user = Auth::user();
@@ -89,12 +90,12 @@ class MealController extends Controller
             $dmc_id = $sales_head->created_by;
         }
 
-        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-        $meal_max_id = $lastMeal->meal_id ?? 0;
-        $mealId = CommonHelper::createId($meal_max_id);
-        while (Meal::where('meal_id', $mealId)->exists()) {
-            $mealId = CommonHelper::createId($mealId);
-        }
+        // $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $meal_max_id = $lastMeal->meal_id ?? 0;
+        // $mealId = CommonHelper::createId($meal_max_id);
+        // while (Meal::where('meal_id', $mealId)->exists()) {
+        //     $mealId = CommonHelper::createId($mealId);
+        // }
 
         // $image = $request->file('item_file');
         // if($image){
@@ -112,7 +113,7 @@ class MealController extends Controller
         $auth_user = Auth::user();
         //Create a new restaurant record
         $meal = new Meal();
-        $meal->meal_id = $mealId;
+        // $meal->meal_id = $mealId;
         $meal->name = $request->input('name');
         $meal->restaurant_id = $request->restaurant_id;
         $meal->item_description = $request->item_description;
@@ -132,6 +133,8 @@ class MealController extends Controller
         $meal->dmc_id = $dmc_id;
 
         $meal->save();
+        $meal->refresh();
+        $mealId = $meal->meal_id;
 
         return redirect()->route('meals.restaurant_create', Crypt::encrypt($request->restaurant_id))->with('success', 'Meal added successfully!');
     }

@@ -253,17 +253,18 @@ class GuideController extends Controller
     foreach ($request->languages as $index => $language) {
         if (!array_key_exists($language, $existingLanguages)) {
             // Generate new language_id
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
 
             // Insert new language
             if ($language && isset($request->language_proficiency[$index])) {
                 GuideLanguage::create([
                     'guide_id' => $guide->guide_id,
                     'language' => $language,
-                    'language_id' => $language_id,
+                    // 'language_id' => $language_id,
                     'proficiency' => $request->language_proficiency[$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
         }
     }
@@ -411,13 +412,13 @@ class GuideController extends Controller
     
             return DB::transaction(function () use ($request, $validated, $auth_user) {
                 // Generate unique guide ID
-                $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-                $guide_max_id = $lastGuide->guide_id ?? 0;
-                $guideId = CommonHelper::createId($guide_max_id);
+                // $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
+                // $guide_max_id = $lastGuide->guide_id ?? 0;
+                // $guideId = CommonHelper::createId($guide_max_id);
             
-                while (Guide::where('guide_id', $guideId)->exists()) {
-                    $guideId = CommonHelper::createId($guideId);
-                }
+                // while (Guide::where('guide_id', $guideId)->exists()) {
+                //     $guideId = CommonHelper::createId($guideId);
+                // }
             
                 // Process license image
                 $licenseImage = '';
@@ -539,20 +540,21 @@ class GuideController extends Controller
             // Handle guide languages
             GuideLanguage::where('guide_id', $deletedGuide->guide_id)->delete();
             
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
-            
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
+        
             // Insert languages
             foreach ($validated['languages'] as $index => $language) {
-                GuideLanguage::create([
+                $newGuideLanguage = GuideLanguage::create([
                     'guide_id' => $deletedGuide->guide_id,
-                    'language_id' => $language_id + $index,
+                    // 'language_id' => $language_id + $index,
                     'language' => $language,
                     'proficiency' => $validated['language_proficiency'][$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
 
-            LogActivityService::log('restore_guide', 'App\Models\Guide', $deletedGuide->id, $deletedGuide);
+            // LogActivityService::log('restore_guide', 'App\Models\Guide', $deletedGuide->id, $deletedGuide);
 
             // if (in_array($auth_user->role_id, [11, 4, 3, 35, 75, 102])) {
             //     return view('guides.thankyou');
@@ -566,7 +568,7 @@ class GuideController extends Controller
         $plainPassword = $request->app_password;
         
         $guide = new Guide();
-        $guide->guide_id = $guideId;
+        // $guide->guide_id = $guideId;
         $guide->salutation = $validated['salutation'];
         $guide->guide_gender = $validated['guide_gender'];
         $guide->name = $validated['name'];
@@ -600,21 +602,23 @@ class GuideController extends Controller
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
         $guide->created_by = $auth_user->userId;
         $save = $guide->save();
+        $guide->refresh();
         
         // Save guide before inserting into GuideLanguage
         if ($save) {
-            $guideId = $guide->guide_id; // Ensure correct primary key usage
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
+            // $guideId = $guide->guide_id; // Ensure correct primary key usage
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
             
             // Insert languages
             foreach ($validated['languages'] as $index => $language) {
-                GuideLanguage::create([
-                    'guide_id' => $guideId,
-                    'language_id' => $language_id + $index,
+                $newGuideLanguage = GuideLanguage::create([
+                    'guide_id' => $guide->guide_id,
+                    // 'language_id' => $language_id + $index,
                     'language' => $language,
                     'proficiency' => $validated['language_proficiency'][$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
             
             // Send credentials email if email is provided
@@ -843,17 +847,18 @@ class GuideController extends Controller
         foreach ($request->languages as $index => $language) {
             if (!array_key_exists($language, $existingLanguages)) {
                 // Generate new language_id
-                $max_language_id = GuideLanguage::max('language_id') ?? 0;
-                $language_id = CommonHelper::createId($max_language_id);
+                // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+                // $language_id = CommonHelper::createId($max_language_id);
 
                 // Insert new language
                 if($language && $request->language_proficiency[$index])
-                GuideLanguage::create([
+                $newGuideLanguage = GuideLanguage::create([
                     'guide_id' => $guide->guide_id,
                     'language' => $language,
-                    'language_id' => $language_id,
+                    // 'language_id' => $language_id,
                     'proficiency' => $request->language_proficiency[$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
         }
 

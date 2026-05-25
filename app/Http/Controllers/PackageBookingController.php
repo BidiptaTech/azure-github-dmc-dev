@@ -400,12 +400,7 @@ class PackageBookingController extends Controller
         try {
             DB::beginTransaction();
 
-            $lastBooking = PackageBooking::withTrashed()->orderBy('id', 'desc')->first();
-            $bookingIdRaw = (string) ($lastBooking->booking_id ?? '');
-            $bookingNumeric = (int) preg_replace('/\D+/', '', $bookingIdRaw);
-            $nextNumeric = CommonHelper::createId($bookingNumeric);
-            $bookingId = 'PB' . str_pad((string) $nextNumeric, 5, '0', STR_PAD_LEFT);
-
+           
             $user = Auth::user();
             $dmcId = null;
             if ($user) {
@@ -434,6 +429,14 @@ class PackageBookingController extends Controller
                 'end_date' => $endDate->format('Y-m-d'),
                 'duration_days' => $duration,
             ];
+
+            $next = DB::selectOne(
+                "SELECT nextval('package_booking_id_seq') as seq"
+            )->seq;
+
+
+        
+            $bookingId = 'PB' . str_pad($next, 5, '0', STR_PAD_LEFT);
 
             PackageBooking::create([
                 'booking_id' => $bookingId,
