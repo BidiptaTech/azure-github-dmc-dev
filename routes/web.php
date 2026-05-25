@@ -62,6 +62,9 @@ use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 use App\Helpers\CommonHelper;
+use App\Http\Controllers\DayLevelController;
+use App\Http\Controllers\ExternalApiReceiveController;
+
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -76,6 +79,10 @@ use App\Helpers\CommonHelper;
 |
 */
 Auth::routes();
+// Browser-friendly fallback for legacy external endpoints (GET only).
+Route::get('/api/v1/external/receive', [ExternalApiReceiveController::class, 'index']);
+Route::get('/api/v1/external/received', [ExternalApiReceiveController::class, 'index']);
+
 Route::get('/clear', function () {
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
@@ -1209,9 +1216,37 @@ Route::middleware(['auth'])->group(function () {
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
     Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
     Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
-});
 
-Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
+// Route::get('/dmcf', function () {
+//     return view('dmc/index');
+// 
+Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
+    ->name('day-level.by-city');
+
+Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
+    ->name('day-level.hotels-by-rating');
+
+Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
+    ->name('day-level.meal-plans-by-hotel');
+
+Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
+    ->name('day-level.transfer-options');
+
+Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
+    ->name('day-level.tickets-by-attraction');
+
+Route::get('day-level/cities-by-country', [DayLevelController::class, 'citiesByCountry'])
+    ->name('day-level.cities-by-country');
+
+// Must be declared before resource route to avoid being captured by day-level/{day_level}
+Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'combinedJsonFile'])
+    ->name('day-level.combined-json-file');
+
+// Resource route AFTER
+Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
+    ->where('routeName', '^(?!api$).+');
+});
 
 
 
