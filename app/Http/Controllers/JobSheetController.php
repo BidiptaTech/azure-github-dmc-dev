@@ -81,8 +81,9 @@ class JobSheetController extends Controller
             return null;
         }
 
-        $driver = Driver::with('user')->where('driver_id', $driverId)->first();
-        $email = $driver?->user?->email ?? null;
+        $email = Driver::query()
+            ->where('driver_id', $driverId)
+            ->value('email');
 
         return is_string($email) && trim($email) !== '' ? trim($email) : null;
     }
@@ -93,60 +94,95 @@ class JobSheetController extends Controller
             return null;
         }
 
-        $guide = Guide::with('user')->where('guide_id', $guideId)->first();
-        $email = $guide?->user?->email ?? null;
+        $email = Guide::query()
+            ->where('guide_id', $guideId)
+            ->value('email');
 
         return is_string($email) && trim($email) !== '' ? trim($email) : null;
     }
 
     private function syncChatAssignmentToFirebase($tourId, $dmcId, $orderId, $driverId = null, $guideId = null)
     {
+        if (empty($tourId) || empty($dmcId)) {
+            return null;
+        }
+
+        $firebase = app(FirebaseService::class);
+        $result = [];
+
         $payload = array_filter([
             'driverId' => !empty($driverId) ? (int) $driverId : null,
             'guideId' => !empty($guideId) ? (int) $guideId : null,
         ], static fn ($value) => !is_null($value));
 
-        if (empty($payload) || empty($tourId) || empty($dmcId) || empty($orderId)) {
-            return null;
+        if (!empty($payload) && !empty($orderId)) {
+            try {
+                $result = $firebase->upsertChatAssignment(
+                    (int) $tourId,
+                    (int) $dmcId,
+                    (string) $orderId,
+                    $payload
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                \Log::error('Firebase chat assignment sync failed', [
+                    'tour_id' => $tourId,
+                    'order_id' => $orderId,
+                    'driver_id' => $driverId,
+                    'guide_id' => $guideId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $result = [
+                    'success' => false,
+                    'message' => 'Jobsheet updated but Firebase chat assignment sync failed.',
+                    'error' => $e->getMessage(),
+                ];
+            }
         }
 
-        try {
-            $firebase = app(FirebaseService::class);
-            $result = $firebase->upsertChatAssignment(
-                (int) $tourId,
-                (int) $dmcId,
-                (string) $orderId,
-                $payload
-            );
+        $emails = array_values(array_filter([
+            $this->resolveDriverEmail($driverId),
+            $this->resolveGuideEmail($guideId),
+        ]));
 
-            $emails = array_filter([
-                $this->resolveDriverEmail($driverId),
-                $this->resolveGuideEmail($guideId),
-            ]);
-
-            if (!empty($emails)) {
+        if (!empty($emails)) {
+            try {
                 $emailSync = $firebase->mergeChatEmails((int) $tourId, (int) $dmcId, $emails);
                 $result['email_sync'] = $emailSync;
+
+                \Log::info('Firebase chat emails merged', [
+                    'tour_id' => $tourId,
+                    'driver_id' => $driverId,
+                    'guide_id' => $guideId,
+                    'emails' => $emailSync['data']['emails'] ?? $emails,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+
+                \Log::error('Firebase chat emails sync failed', [
+                    'tour_id' => $tourId,
+                    'driver_id' => $driverId,
+                    'guide_id' => $guideId,
+                    'emails' => $emails,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $result['email_sync'] = [
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ];
             }
-
-            return $result;
-        } catch (\Throwable $e) {
-            report($e);
-
-            \Log::error('Firebase chat assignment sync failed', [
+        } elseif (!empty($driverId) || !empty($guideId)) {
+            \Log::warning('No email found on driver/guide row for Firebase sync', [
                 'tour_id' => $tourId,
-                'order_id' => $orderId,
                 'driver_id' => $driverId,
                 'guide_id' => $guideId,
-                'error' => $e->getMessage(),
             ]);
-
-            return [
-                'success' => false,
-                'message' => 'Jobsheet updated but Firebase chat sync failed.',
-                'error' => $e->getMessage(),
-            ];
         }
+
+        return empty($result) ? null : $result;
     }
 
     /**
