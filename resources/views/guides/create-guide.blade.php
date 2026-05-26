@@ -1,3 +1,4 @@
+
 @extends('layouts.layout')
 @section('content')
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
@@ -72,7 +73,7 @@
 
     /* Select2 Custom Styling for Bootstrap 5 Integration */
     .select2-container--default .select2-selection--single {
-        height: 100% !important;
+        height: 40px !important;
         border: 1px solid #d9dee3 !important;
         border-radius: 0.375rem !important;
         padding: 0.375rem 0.75rem !important;
@@ -87,8 +88,13 @@
     }
 
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px !important;
+        height: 40px !important;
         right: 5px !important;
+    }
+
+    /* Ensure Select2 takes full width inside Bootstrap grid */
+    .select2-container {
+        width: 100% !important;
     }
 
     .select2-container--default .select2-selection--single:hover {
@@ -127,6 +133,25 @@
     .select2-container--default .select2-search--dropdown .select2-search__field:focus {
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+    }
+
+    #language-container .proficiency-select,
+    #language-container .language-select {
+        height: 40px;
+    }
+
+    #language-container .proficiency-select {
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+        line-height: 1.5;
+    }
+
+    #language-container .remove-language {
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
     }
 
     /* Auto-calculated field styles */
@@ -179,6 +204,20 @@
                         <div>
                             <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
                             <ul class="mb-0 ps-3"><li class="small">{{ session('error') }}</li></ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                        <div>
+                            <h6 class="mb-2 fw-semibold text-danger">Please fix the following errors:</h6>
+                            <ul class="mb-0 ps-3">
+                                <li class="small">{{ $errors->first() }}</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -299,7 +338,7 @@
                                     </select>
                                 @else
                                     <input type="text" class="form-control" id="country" onchange="validateDriverAge(document.getElementById('driver_age'))" 
-                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) ? $userCountry : ''}}"
+                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? $userCountry : ''}}"
                                         placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
                                         name="country" required 
                                         {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
@@ -316,7 +355,7 @@
                                 @php
                                     $roleId = auth()->user()->role_id;
                                     $placeholder = 'Select Country First';
-                                    $isDmcWithCities = in_array($roleId, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
+                                    $isDmcWithCities = in_array($roleId, [11, 35, 75, 130, 132, 133, 135, 136, 137, 138, 102, 139, 140]) && isset($cities) && count($cities) > 0;
                                 @endphp
                                 
                                 <select name="city" id="citySelect" class="form-control" required {{ !$isDmcWithCities ? 'disabled' : '' }}>
@@ -388,10 +427,10 @@
                             <div id="guide_language" class="col-md-12 mb-3">
                                 <fieldset>
                                     <h5 class="card-title mb-3">Languages & Proficiency</h5>
-                                    <div class="row" id="language-container">
+                                    <div id="language-container">
                                         @if(old('languages'))
                                             @foreach(old('languages') as $index => $language)
-                                                <div class="language-row d-flex mb-3">
+                                                <div class="language-row row g-2 mb-3 align-items-end">
                                                     <!-- Languages Dropdown -->
                                                     <div class="col-md-5">
                                                         <label for="languages" class="form-label"><strong>Languages</strong>
@@ -409,7 +448,7 @@
                                                     </div>
                                             
                                                     <!-- Language Proficiency Dropdown -->
-                                                    <div class="col-md-5 ms-2">
+                                                    <div class="col-md-5">
                                                         <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                             <span class="text-danger">*</span>
                                                         </label>
@@ -427,13 +466,13 @@
                                                     </div>
                                             
                                                     <!-- Remove Button (Hidden for First Row) -->
-                                                    <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                    <div class="col-md-2 d-flex align-items-end">
                                                         <button type="button" class="btn btn-danger remove-language {{ $index == 0 ? 'd-none' : '' }}">Remove</button>
                                                     </div>
                                                 </div>
                                             @endforeach
                                         @else
-                                            <div class="language-row d-flex mb-3">
+                                            <div class="language-row row g-2 mb-3 align-items-end">
                                                 <!-- Languages Dropdown -->
                                                 <div class="col-md-5">
                                                     <label for="languages" class="form-label"><strong>Languages</strong>
@@ -451,7 +490,7 @@
                                                 </div>
                                         
                                                 <!-- Language Proficiency Dropdown -->
-                                                <div class="col-md-5 ms-2">
+                                                <div class="col-md-5">
                                                     <label for="language_proficiency" class="form-label"><strong>Proficiency</strong>
                                                         <span class="text-danger">*</span>
                                                     </label>
@@ -469,7 +508,7 @@
                                                 </div>
                                         
                                                 <!-- Remove Button (Hidden for First Row) -->
-                                                <div class="col-md-1 mb-2 d-flex align-items-end">
+                                                <div class="col-md-2 d-flex align-items-end">
                                                     <button type="button" class="btn btn-danger remove-language d-none">Remove</button>
                                                 </div>
                                             </div>
@@ -477,8 +516,11 @@
                                     </div>
                             
                                     <!-- Add More Button -->
-                                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                                        <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <button type="button" id="addmore" class="btn btn-primary">Add More</button>
+                                        </div>
+                                        <div class="col-md-7"></div>
                                     </div>
                                 </fieldset>
                             </div>
@@ -769,6 +811,19 @@ $(document).ready(function() {
 
 <script>
     $(document).ready(function() {
+        function initLanguageSelect2(scope) {
+            const $scope = scope ? $(scope) : $(document);
+            $scope.find('select.language-select').each(function () {
+                const $el = $(this);
+                if ($el.hasClass('select2-hidden-accessible')) return; // already initialized
+                $el.select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+        }
+
         // Initialize Select2 for DMC dropdown
         $('#dmc').select2({
             placeholder: "Search and Select DMC",
@@ -784,6 +839,9 @@ $(document).ready(function() {
             width: '100%'
         });
         @endif
+
+        // Initialize Select2 for Languages dropdown(s)
+        initLanguageSelect2();
     });
 </script>
 
@@ -936,7 +994,7 @@ $(document).ready(function() {
         
         // Initialize Select2 for city (disabled until country is selected)
         @php
-            $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) && isset($cities) && count($cities) > 0;
+            $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) && isset($cities) && count($cities) > 0;
         @endphp
         $('#citySelect').select2({
             placeholder: "Select Country First",
@@ -1220,10 +1278,11 @@ $(document).ready(function() {
     
         addMoreBtn.addEventListener("click", function () {
             const newRow = document.createElement("div");
-            newRow.classList.add("language-row", "d-flex", "mb-3");
+            newRow.classList.add("language-row", "row", "g-2", "mb-3", "align-items-end");
     
             newRow.innerHTML = `
                 <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Languages</strong><span class="text-danger">*</span></label>
                     <select class="form-control language-select" name="languages[]" required>
                         <option value="">Select Language</option>
                         @foreach($languages as $c)
@@ -1232,7 +1291,8 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-5 ms-2">
+                <div class="col-md-5">
+                    <label class="form-label invisible"><strong>Proficiency</strong><span class="text-danger">*</span></label>
                     <select class="form-select proficiency-select" name="language_proficiency[]" required>
                         <option value="">Select</option>
                         <option value="Beginner">Beginner</option>
@@ -1243,12 +1303,20 @@ $(document).ready(function() {
                     </select>
                 </div>
     
-                <div class="col-md-2 ms-2 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
+                    <label class="form-label invisible">Remove</label>
                     <button type="button" class="btn btn-danger remove-language">Remove</button>
                 </div>
             `;
     
             languageContainer.appendChild(newRow);
+            if (window.jQuery && typeof $(newRow).find('.language-select').select2 === 'function') {
+                $(newRow).find('.language-select').select2({
+                    placeholder: "Search and Select Language",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
             updateRemoveButtons();
         });
     
@@ -1303,7 +1371,13 @@ $(document).ready(function() {
     licenseDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         licenseDropArea.style.backgroundColor = 'white';
-        licenseHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            licenseFileInput.files = dt.files;
+        }
+        licenseHandleFiles(licenseFileInput.files);
     });
 
     // Handle file input change
@@ -1430,7 +1504,13 @@ $(document).ready(function() {
     masterDropArea.addEventListener('drop', (e) => {
         e.preventDefault();
         masterDropArea.style.backgroundColor = 'white';
-        masterHandleFiles(e.dataTransfer.files);
+        // Ensure dropped files are actually submitted with the form
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            Array.from(e.dataTransfer.files).forEach((file) => dt.items.add(file));
+            masterFileInput.files = dt.files;
+        }
+        masterHandleFiles(masterFileInput.files);
     });
 
     // Handle file input change
@@ -1533,43 +1613,10 @@ $(document).ready(function() {
     }
 </script>
 <script>
-    document.getElementById('addmore').addEventListener('click', function() {
-        // Get the container that holds the language and proficiency fields
-        const container = document.getElementById('language-container');
-
-        // Clone the language and proficiency fields
-        const languageField = container.querySelector('.language-fields').cloneNode(true);
-        const proficiencyField = container.querySelector('.proficiency-fields').cloneNode(true);
-
-        // Clear the values for the new fields
-        languageField.querySelector('input').value = '';
-        proficiencyField.querySelector('select').value = '';
-
-        // Create a remove button and append it to the language fields
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.classList.add('btn', 'btn-danger', 'remove-btn');
-        removeButton.textContent = 'Remove';
-
-        // Create a div to hold both language fields and the remove button
-        const fieldsWrapper = document.createElement('div');
-        fieldsWrapper.classList.add('d-flex', 'justify-content-between', 'align-items-center');
-
-        // Append the language field and proficiency field to the wrapper
-        fieldsWrapper.appendChild(languageField);
-        fieldsWrapper.appendChild(proficiencyField);
-        fieldsWrapper.appendChild(removeButton);
-
-        // Append the wrapper to the container
-        container.appendChild(fieldsWrapper);
-
-        // Add event listener for remove button
-        removeButton.addEventListener('click', function() {
-            // Remove the entire wrapper when remove is clicked
-            fieldsWrapper.remove();
-        });
-    });
-</script> 
+    // Note: there is already a working "Add More" implementation above.
+    // This older block referenced `.language-fields` / `.proficiency-fields` which don't exist
+    // and could throw runtime JS errors, so it is intentionally disabled.
+</script>
 
 <script>
     $(document).ready(function() {

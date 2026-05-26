@@ -113,19 +113,13 @@
                                 <input type="hidden" name="hotel_id" value="{{$hotel->hotel_unique_id}}">
                                 
                                 @if($selectedRestaurant)
-                                    <!-- Selected Restaurant Display (Read-only) -->
+                                    <!-- Selected Restaurant Display (Read-only/Disabled format) -->
                                     <input type="hidden" name="restaurant_id" value="{{ $selectedRestaurant->restaurant_id }}">
-                                                                         <div class="col-md-3 mb-3">
-                                         <label class="form-label"><strong>Restaurant</strong></label>
-                                         <div class="form-control bg-light d-flex align-items-center" style="background-color: #f8f9fa !important; border: 2px solid #28a745; border-radius: 8px;">
-                                             <i class="fas fa-utensils text-primary me-2"></i>
-                                             <span class="fw-bold text-dark">{{ $selectedRestaurant->name }}</span>
-                                             <span class="badge bg-success ms-auto">
-                                                 <i class="fas fa-check me-1"></i>Selected
-                                             </span>
-                                         </div>
-                                         <small class="text-success"><i class="fas fa-info-circle me-1"></i>Meals will be added to this restaurant</small>
-                                     </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" value="{{ $selectedRestaurant->name }}" disabled readonly style="background-color: #e9ecef; cursor: not-allowed; opacity: 1;">
+                                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Restaurant is pre-selected</small>
+                                    </div>
                                 @else
                                     <!-- Restaurant Dropdown (when no specific restaurant is selected) -->
                                     <div class="col-md-3 mb-3">
@@ -189,9 +183,9 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <!-- Item Price -->
+                                <!-- Item Sell Price -->
                                 <div class="col-md-3 mb-3" id="item_price_container" style="display: none;">
-                                    <label for="price" class="form-label"><strong>Item Price</strong><span class="text-danger">*</span></label>
+                                    <label for="price" class="form-label"><strong>Item SellPrice</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="price" name="price" 
                                            placeholder="Enter Item Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
@@ -200,10 +194,22 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
+
+                                <!-- Item Cost Price -->
+                                <div class="col-md-3 mb-3" id="item_cost_price_container" style="display: none;">
+                                    <label for="item_cost_price" class="form-label"><strong>Item Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="item_cost_price" name="item_cost_price"
+                                           placeholder="Enter Item Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="item_cost_price-validation-message"></small>
+                                    @error('item_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
                                 
-                                <!-- Adult Price -->
+                                <!-- Adult Sell Price -->
                                 <div class="col-md-3 mb-3" id="adult_price_container" style="display: none;">
-                                    <label for="adult_price" class="form-label"><strong>Adult Price</strong><span class="text-danger">*</span></label>
+                                    <label for="adult_price" class="form-label"><strong>Adult Sell Price</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="adult_price" name="adult_price" 
                                            placeholder="Enter Adult Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
@@ -213,14 +219,38 @@
                                     @enderror
                                 </div>
 
-                                <!-- Child Price -->
+                                <!-- Adult Cost Price -->
+                                <div class="col-md-3 mb-3" id="adult_cost_price_container" style="display: none;">
+                                    <label for="adult_cost_price" class="form-label"><strong>Adult Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="adult_cost_price" name="adult_cost_price"
+                                           placeholder="Enter Adult Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="adult_cost_price-validation-message"></small>
+                                    @error('adult_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Sell Price -->
                                 <div class="col-md-3 mb-3" id="child_price_container" style="display: none;">
-                                    <label for="child_price" class="form-label"><strong>Child Price</strong><span class="text-danger">*</span></label>
+                                    <label for="child_price" class="form-label"><strong>Child Sell Price</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="child_price" name="child_price" 
                                            placeholder="Enter Child Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="child_price-validation-message"></small>
                                     @error('child_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Cost Price -->
+                                <div class="col-md-3 mb-3" id="child_cost_price_container" style="display: none;">
+                                    <label for="child_cost_price" class="form-label"><strong>Child Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="child_cost_price" name="child_cost_price"
+                                           placeholder="Enter Child Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="child_cost_price-validation-message"></small>
+                                    @error('child_cost_price')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -238,7 +268,7 @@
                                 </div>
 
                                 <!-- Item File -->
-                                <div class="col-md-3 mb-3"  style="display: none;">
+                                <div class="col-md-3 mb-3" id="item_file_container" style="display: none;">
                                     <label for="item_file" class="form-label"><strong>Add Menu</strong></label>
                                     <input type="file" class="form-control" name="item_file">
                                     @error('item_file')
@@ -333,10 +363,12 @@
                                 <th>No</th>
                                 <th>Restaurant Name</th>
                                 <th>Meal Type</th>
+                                <th>Type</th>
+                                <th>Beverage</th>
                                 <th>Item Description</th>
                                 <th>Status</th>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
-                                    <th>Action</th>
+                                    <th style="width: 100px;">Action</th>
                                 @endif
                             </tr>
                         </thead>
@@ -344,43 +376,55 @@
                             @foreach($meals as $key => $meal)
                                 <tr>
                                     <td>{{ ++$key }}</td>
-                                    <td>
-                                        @if($meal->restaurant)
-                                            {{$meal->restaurant->name}}
-                                        @else
-                                            Unknown
-                                        @endif
-                                    </td>
-                                    
-                                    <td>
-                                        @if($meal->type == 1)
-                                            Buffet
-                                        @elseif($meal->type == 2)
-                                            Set Buffet
-                                        @elseif($meal->type == 3)
-                                            A-La-carte
-                                        @else
-                                            Unknown
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @php
-                                            $lines = explode("\n", $meal->item_description);
-                                            $firstTwoLines = array_slice($lines, 0, 2);
-                                            $displayText = implode("\n", $firstTwoLines);
-                                            $hasMoreLines = count($lines) > 2;
-                                        @endphp
-                                        <span title="{{ $meal->item_description }}">
-                                            {{ $displayText }}@if($hasMoreLines)...@endif
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if($meal->is_active == 1)
-                                            <span class="badge bg-success">Active</span>
-                                        @else
-                                            <span class="badge bg-danger">Inactive</span>
-                                        @endif
-                                    </td>
+                                <td>
+                                    @if($meal->restaurant)
+                                        {{$meal->restaurant->name}}
+                                    @else
+                                        Unknown
+                                    @endif
+                                </td>
+                                <td class="category-name">
+                                    @if($meal->meal_period == 1)
+                                        Breakfast
+                                    @elseif($meal->meal_period == 2)
+                                        Lunch
+                                    @elseif($meal->meal_period == 3)
+                                        Dinner
+                                    @else
+                                        Unknown
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($meal->type == 1) 
+                                        Buffet
+                                    @elseif($meal->type == 2)
+                                        Set Menu
+                                    @elseif($meal->type == 3)
+                                        A-La-carte
+                                    @else
+                                        Unknown
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($meal->category == 1)
+                                        Alcoholic
+                                    @elseif($meal->category == 2)
+                                        Non Alcoholic
+                                    @elseif($meal->category == 3)
+                                        No Beverage
+                                    @else
+                                        Unknown
+                                    @endif
+                                <td>
+                                    {{$meal->item_description}}
+                                </td>
+                                <td>
+                                    @if($meal->is_active == 1)
+                                        <span class="badge bg-success">Active</span>
+                                    @else
+                                        <span class="badge bg-danger">Inactive</span>
+                                    @endif
+                                </td>
                                     @php
                                         $canEditDelete = false;
                                         if($auth_user->role_id == 1 || $auth_user->role_id == 20) {
@@ -555,84 +599,108 @@ $(document).ready(function() {
         var itemNameContainer = document.getElementById("item_name_container");
         var itemFileContainer = document.getElementById("item_file_container");
         var itemPriceContainer = document.getElementById("item_price_container");
+        var itemCostPriceContainer = document.getElementById("item_cost_price_container");
         var adultPriceContainer = document.getElementById("adult_price_container");
+        var adultCostPriceContainer = document.getElementById("adult_cost_price_container");
         var childPriceContainer = document.getElementById("child_price_container");
+        var childCostPriceContainer = document.getElementById("child_cost_price_container");
         var vegContainer = document.getElementById("veg_container");
         var vegSelect = document.getElementById("veg_type");
 
         var itemNameInput = document.querySelector("input[name='name']");
         var itemFileInput = document.querySelector("input[name='item_file']");
         var itemPriceInput = document.querySelector("input[name='price']");
+        var itemCostPriceInput = document.querySelector("input[name='item_cost_price']");
         var adultPriceInput = document.querySelector("input[name='adult_price']");
+        var adultCostPriceInput = document.querySelector("input[name='adult_cost_price']");
         var childPriceInput = document.querySelector("input[name='child_price']");
+        var childCostPriceInput = document.querySelector("input[name='child_cost_price']");
+
+        if (!itemFileContainer) return;
 
         if (mealType === "1" || mealType === "2") { // Buffet or Set Menu
             itemFileContainer.style.display = "block";
-            itemNameContainer.style.display = "none";
-            
-            if(mealType === "1"){
-                adultPriceContainer.style.display = "block";
-                childPriceContainer.style.display = "block";
-                vegContainer.style.display = "none";
-                itemPriceContainer.style.display = "none";
-                vegSelect.removeAttribute("required");
-                itemNameInput.removeAttribute("required");
-                
-                // Set validation for adult and child prices
-                adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
-                childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
-            }
-            else{
-                adultPriceContainer.style.display = "none";
-                childPriceContainer.style.display = "none";
-                itemPriceContainer.style.display = "block";
-                vegContainer.style.display = "block";
-                
-                // Set validation for item price
-                itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
+            if (itemNameContainer) itemNameContainer.style.display = "none";
+
+            if (mealType === "1") { // Buffet: show adult_price, child_price
+                if (adultPriceContainer) adultPriceContainer.style.display = "block";
+                if (childPriceContainer) childPriceContainer.style.display = "block";
+                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
+                if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
+                if (vegContainer) vegContainer.style.display = "none";
+                if (itemPriceContainer) itemPriceContainer.style.display = "none";
+                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+                if (vegSelect) vegSelect.removeAttribute("required");
+                if (itemNameInput) itemNameInput.removeAttribute("required");
+                if (adultPriceInput) adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
+                if (childPriceInput) childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
+                if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
+                if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
+                if (itemPriceInput) itemPriceInput.removeAttribute("required");
+                if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
+            } else { // Set Menu: show item_price
+                if (adultPriceContainer) adultPriceContainer.style.display = "none";
+                if (childPriceContainer) childPriceContainer.style.display = "none";
+                if (itemPriceContainer) itemPriceContainer.style.display = "block";
+                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+                if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
+                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
+                if (vegContainer) vegContainer.style.display = "block";
+                if (itemPriceInput) {
+                    itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
+                    itemPriceInput.setAttribute("required", "required");
+                }
+                if (itemCostPriceInput) {
+                    itemCostPriceInput.dataset.interacted = itemCostPriceInput.value.trim() === '' ? "true" : "false";
+                    itemCostPriceInput.setAttribute("required", "required");
+                }
             }
 
-            // Clear hidden fields
-            itemNameInput.value = "";
-            itemPriceInput.value = ""; // Clear price because it's hidden
-
-            // Set required attribute correctly
-            itemFileInput.setAttribute("required", "required");
-            itemNameInput.removeAttribute("required");
-            itemPriceInput.removeAttribute("required");
+            if (itemNameInput) itemNameInput.value = "";
+            if (mealType === "1" && itemPriceInput) itemPriceInput.value = "";
+            if (mealType === "1" && itemCostPriceInput) itemCostPriceInput.value = "";
+            if (itemFileInput) itemFileInput.removeAttribute("required"); // Add Menu is optional
+            if (itemNameInput) itemNameInput.removeAttribute("required");
         } else if (mealType === "3") { // A-La-Carte
-            itemFileContainer.style.display = "none";
-            itemNameContainer.style.display = "block";
-            itemPriceContainer.style.display = "block";
-            adultPriceContainer.style.display = "none";
-            childPriceContainer.style.display = "none";
-            vegContainer.style.display = "block";
-            // Clear hidden file input
-            itemFileInput.value = "";
-
-            // Set required attribute correctly
-            itemNameInput.setAttribute("required", "required");
-            itemPriceInput.setAttribute("required", "required");
-            itemFileInput.removeAttribute("required");
-            
-            // Set validation for item price
-            itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-        } else { // Default case (no selection)
-            itemFileContainer.style.display = "none";
-            itemNameContainer.style.display = "none";
-            itemPriceContainer.style.display = "none";
-
-            // Clear all fields
-            itemNameInput.value = "";
-            itemFileInput.value = "";
-            itemPriceInput.value = "";
-
-            // Remove required attributes
-            itemNameInput.removeAttribute("required");
-            // itemFileInput.removeAttribute("required");
-            itemPriceInput.removeAttribute("required");
+            if (itemFileContainer) itemFileContainer.style.display = "none";
+            if (itemNameContainer) itemNameContainer.style.display = "block";
+            if (itemPriceContainer) itemPriceContainer.style.display = "block";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
+            if (vegContainer) vegContainer.style.display = "block";
+            if (itemFileInput) itemFileInput.value = "";
+            if (itemNameInput) itemNameInput.setAttribute("required", "required");
+            if (itemPriceInput) itemPriceInput.setAttribute("required", "required");
+            if (itemCostPriceInput) itemCostPriceInput.setAttribute("required", "required");
+            if (itemFileInput) itemFileInput.removeAttribute("required");
+            if (itemPriceInput) itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
+            if (itemCostPriceInput) itemCostPriceInput.dataset.interacted = itemCostPriceInput.value.trim() === '' ? "true" : "false";
+        } else { // Default (no selection)
+            if (itemFileContainer) itemFileContainer.style.display = "none";
+            if (itemNameContainer) itemNameContainer.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "none";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
+            if (itemNameInput) itemNameInput.value = "";
+            if (itemFileInput) itemFileInput.value = "";
+            if (itemPriceInput) itemPriceInput.value = "";
+            if (itemCostPriceInput) itemCostPriceInput.value = "";
+            if (adultCostPriceInput) adultCostPriceInput.value = "";
+            if (childCostPriceInput) childCostPriceInput.value = "";
+            if (itemNameInput) itemNameInput.removeAttribute("required");
+            if (itemPriceInput) itemPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
         }
     }
+    document.addEventListener("DOMContentLoaded", function () {
+        toggleFields();
+    });
 </script>
 
 <!-- Add validation script -->
@@ -820,6 +888,9 @@ $(document).ready(function() {
         const adultPriceInput = document.querySelector("input[name='adult_price']");
         const childPriceInput = document.querySelector("input[name='child_price']");
         const itemPriceInput = document.querySelector("input[name='price']");
+        const itemCostPriceInput = document.querySelector("input[name='item_cost_price']");
+        const adultCostPriceInput = document.querySelector("input[name='adult_cost_price']");
+        const childCostPriceInput = document.querySelector("input[name='child_cost_price']");
         
         // Add ID and validation message elements for each price field
         if (adultPriceInput) {
@@ -887,6 +958,28 @@ $(document).ready(function() {
             // Clear classes initially
             itemPriceInput.classList.remove('is-valid', 'is-invalid');
         }
+
+        const setupCostValidation = (inputEl, id) => {
+            if (!inputEl) return;
+            inputEl.id = id;
+            if (!document.getElementById(`${id}-validation-message`)) {
+                inputEl.insertAdjacentHTML('afterend', `<small class="validation-message" id="${id}-validation-message"></small>`);
+            }
+            inputEl.dataset.interacted = "false";
+            inputEl.addEventListener('input', function() { validatePrice(this); });
+            inputEl.addEventListener('focus', function() { this.dataset.focused = "true"; });
+            inputEl.addEventListener('blur', function() {
+                if (this.dataset.focused === "true") {
+                    this.dataset.interacted = "true";
+                    validatePrice(this);
+                }
+            });
+            inputEl.classList.remove('is-valid', 'is-invalid');
+        };
+
+        setupCostValidation(itemCostPriceInput, 'item_cost_price');
+        setupCostValidation(adultCostPriceInput, 'adult_cost_price');
+        setupCostValidation(childCostPriceInput, 'child_cost_price');
         
         // Call toggleFields to ensure proper initial state
         toggleFields();

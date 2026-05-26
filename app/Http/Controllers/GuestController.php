@@ -11,6 +11,8 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
 use App\Models\Setting;
+use App\Models\Tour;
+use App\Services\FirebaseService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Order;
@@ -18,6 +20,158 @@ use App\Models\User;
 
 class GuestController extends Controller
 {
+    private function normalizeTourIds($tourIds): array
+    {
+        if (is_null($tourIds) || $tourIds === '') {
+            return [];
+        }
+
+        if (!is_array($tourIds)) {
+            $tourIds = strpos((string) $tourIds, ',') !== false
+                ? explode(',', (string) $tourIds)
+                : [$tourIds];
+        }
+
+        $normalized = [];
+
+        foreach ($tourIds as $tourId) {
+            $tourId = is_string($tourId) ? trim($tourId) : $tourId;
+
+            if ($tourId === '' || is_null($tourId)) {
+                continue;
+            }
+
+            $normalized[] = is_numeric($tourId) ? (int) $tourId : $tourId;
+        }
+
+        return array_values(array_unique($normalized, SORT_REGULAR));
+    }
+
+    /**
+     * Parse tour_id from request input: comma-separated string, JSON array string, or array.
+     */
+    private function parseTourIdsFromInput($tourIdInput): array
+    {
+        if ($tourIdInput === null || $tourIdInput === '') {
+            return [];
+        }
+
+        if (is_array($tourIdInput)) {
+            return $this->normalizeTourIds($tourIdInput);
+        }
+
+        $str = trim((string) $tourIdInput);
+        if ($str === '') {
+            return [];
+        }
+
+        if ($str !== '' && $str[0] === '[') {
+            $decoded = json_decode($str, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $this->normalizeTourIds($decoded);
+            }
+        }
+
+        if (strpos($str, ',') !== false) {
+            $parsed = [];
+            foreach (explode(',', $str) as $part) {
+                $part = trim($part);
+                if ($part === '') {
+                    continue;
+                }
+                $parsed[] = is_numeric($part) ? (int) $part : $part;
+            }
+
+            return $this->normalizeTourIds($parsed);
+        }
+
+        return $this->normalizeTourIds([is_numeric($str) ? (int) $str : $str]);
+    }
+
+    private function syncGuestIdsToFirebase(array $tourIds, $guestId, ?string $guestEmail = null): array
+    {
+        $results = [];
+
+        if ($guestEmail === null) {
+            $guestRow = Guest::query()
+                ->where('guest_id', $guestId)
+                ->value('email');
+            $guestEmail = is_string($guestRow) && trim($guestRow) !== '' ? trim($guestRow) : null;
+        }
+
+        foreach ($this->normalizeTourIds($tourIds) as $tourId) {
+            $tour = Tour::query()
+                ->select(['tour_id', 'dmc_id'])
+                ->where('tour_id', $tourId)
+                ->first();
+
+            if (!$tour || empty($tour->dmc_id)) {
+                Log::warning('Skipping Firebase guest sync due to missing tour or DMC ID', [
+                    'tour_id' => $tourId,
+                    'guest_id' => $guestId,
+                ]);
+                continue;
+            }
+
+            try {
+                $results[] = app(FirebaseService::class)->upsertChatGuest(
+                    (int) $tour->tour_id,
+                    (int) $tour->dmc_id,
+                    (int) $guestId,
+                    $guestEmail
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                Log::error('Firebase guest sync failed', [
+                    'tour_id' => $tourId,
+                    'guest_id' => $guestId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $results[] = [
+                    'success' => false,
+                    'tour_id' => $tourId,
+                    'guest_id' => (int) $guestId,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    private function removeGuestIdsFromFirebase(array $tourIds, $guestId): array
+    {
+        $results = [];
+
+        foreach ($this->normalizeTourIds($tourIds) as $tourId) {
+            try {
+                $results[] = app(FirebaseService::class)->removeChatGuest(
+                    $tourId,
+                    (int) $guestId
+                );
+            } catch (\Throwable $e) {
+                report($e);
+
+                Log::error('Firebase guest removal failed', [
+                    'tour_id' => $tourId,
+                    'guest_id' => $guestId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $results[] = [
+                    'success' => false,
+                    'tour_id' => $tourId,
+                    'guest_id' => (int) $guestId,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return $results;
+    }
+
     /**
      * Display the guest management page.
      */
@@ -158,6 +312,8 @@ class GuestController extends Controller
             
             // If guest exists with this email
             if ($existingGuest) {
+                $firebaseSync = [];
+
                 // If tour_id is provided and different, add it to the array
                 if ($request->tour_id) {
                     $tourId = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
@@ -172,6 +328,8 @@ class GuestController extends Controller
                             'all_tour_ids' => $existingGuest->tour_id
                         ]);
                     }
+
+                    $firebaseSync = $this->syncGuestIdsToFirebase([$tourId], $existingGuest->guest_id);
                 }
                 
                 // Update password if provided
@@ -188,7 +346,14 @@ class GuestController extends Controller
                 // Send credentials email with updated information
                 if ($existingGuest->email && $plainPassword) {
                     try {
-                        $this->sendGuestCredentialsEmail($existingGuest, $plainPassword);
+                        // Resolve display_id for the current tour context if provided
+                        $currentTourDisplayId = null;
+                        if ($request->tour_id) {
+                            $tourIdForEmail = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
+                            $currentTourDisplayId = Tour::where('tour_id', $tourIdForEmail)->value('display_id');
+                        }
+
+                        $this->sendGuestCredentialsEmail($existingGuest, $plainPassword, $currentTourDisplayId);
                         Log::info('Credentials email sent to existing guest', [
                             'guest_id' => $existingGuest->guest_id,
                             'email' => $existingGuest->email
@@ -203,19 +368,20 @@ class GuestController extends Controller
                     'success' => true,
                     'message' => 'Guest already exists. Tour ID added and credentials updated.',
                     'data' => $existingGuest,
-                    'existing_guest' => true
+                    'existing_guest' => true,
+                    'firebase_sync' => $firebaseSync,
                 ], 200);
             }
 
             // Generate unique guest_id for new guest
             $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-            $lastGuestId = $lastGuest->guest_id ?? 0;
-            $guestId = CommonHelper::createId($lastGuestId);
+                // $lastGuestId = $lastGuest->guest_id ?? 0;
+                // $guestId = CommonHelper::createId($lastGuestId);
             
             // Ensure uniqueness
-            while (Guest::where('guest_id', $guestId)->exists()) {
-                $guestId = CommonHelper::createId($guestId);
-            }
+            // while (Guest::where('guest_id', $guestId)->exists()) {
+            //     $guestId = CommonHelper::createId($guestId);
+            // }
 
             // Use default avatar image from project root (deployed with code)
             $defaultAvatarPath = base_path('avatar-1577909_1280.png');
@@ -256,7 +422,7 @@ class GuestController extends Controller
             }
 
             $guest = Guest::create([
-                'guest_id' => $guestId,
+                // 'guest_id' => $guestId,
                 'tour_id' => $tourIds,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
@@ -266,11 +432,20 @@ class GuestController extends Controller
                 'app_password' => $plainPassword ? Hash::make($plainPassword) : null,
                 'image' => $imagePath,
             ]);
+            $guest->refresh();
+            $firebaseSync = $this->syncGuestIdsToFirebase($tourIds, $guest->guest_id);
 
             // Send credentials email if email is provided
             if ($guest->email && $plainPassword) {
                 try {
-                    $this->sendGuestCredentialsEmail($guest, $plainPassword);
+                    // Resolve display_id for the current tour context if available
+                    $currentTourDisplayId = null;
+                    if (!empty($tourIds)) {
+                        $tourIdForEmail = end($tourIds);
+                        $currentTourDisplayId = Tour::where('tour_id', $tourIdForEmail)->value('display_id');
+                    }
+
+                    $this->sendGuestCredentialsEmail($guest, $plainPassword, $currentTourDisplayId);
                 } catch (\Exception $e) {
                     Log::warning('Failed to send guest credentials email: ' . $e->getMessage());
                     // Don't fail the request if email sending fails
@@ -281,7 +456,8 @@ class GuestController extends Controller
                 'success' => true,
                 'message' => 'Guest created successfully',
                 'data' => $guest,
-                'existing_guest' => false
+                'existing_guest' => false,
+                'firebase_sync' => $firebaseSync,
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error creating guest: ' . $e->getMessage());
@@ -324,6 +500,8 @@ class GuestController extends Controller
                     'message' => 'Guest not found'
                 ], 404);
             }
+
+            $previousTourIds = $this->normalizeTourIds($guest->tour_id);
             
             // Store plain password for email before hashing
             $plainPassword = $request->app_password;
@@ -342,34 +520,22 @@ class GuestController extends Controller
                 $updateData['app_password'] = Hash::make($plainPassword);
             }
             
-            // Handle tour_id separately - it could be comma-separated or single value
-            if ($request->has('tour_id') && $request->tour_id) {
-                // Split by comma if multiple tour IDs are provided
-                $tourIdInput = $request->tour_id;
-                $tourIdArray = [];
-                
-                // Check if it contains commas (multiple tour IDs)
-                if (strpos($tourIdInput, ',') !== false) {
-                    // Split and trim
-                    $tourIdParts = explode(',', $tourIdInput);
-                    foreach ($tourIdParts as $part) {
-                        $part = trim($part);
-                        if (!empty($part)) {
-                            $tourIdArray[] = is_numeric($part) ? (int)$part : $part;
-                        }
-                    }
-                } else {
-                    // Single tour ID
-                    $tourIdInput = trim($tourIdInput);
-                    if (!empty($tourIdInput)) {
-                        $tourIdArray[] = is_numeric($tourIdInput) ? (int)$tourIdInput : $tourIdInput;
-                    }
-                }
-                
-                $updateData['tour_id'] = $tourIdArray;
+            // Handle tour_id separately (comma-separated, JSON array string, or array — same idea as store)
+            if ($request->filled('tour_id')) {
+                $updateData['tour_id'] = $this->parseTourIdsFromInput($request->tour_id);
             }
-            
+
             $guest->update($updateData);
+            $guest->refresh();
+
+            $currentTourIds = $this->normalizeTourIds($guest->tour_id);
+            $removedTourIds = array_values(array_diff($previousTourIds, $currentTourIds));
+            $syncGuestId = $guest->guest_id;
+
+            // Push this guest_id onto Firebase for every tour they remain linked to (upsertChatGuest), like store()
+            $firebaseSync = $this->syncGuestIdsToFirebase($currentTourIds, $syncGuestId);
+            // Drop guest_id from chat nodes for tours they were removed from
+            $firebaseRemoved = $this->removeGuestIdsFromFirebase($removedTourIds, $syncGuestId);
 
             // Send update notification email if email and password are provided
             if ($guest->email && $plainPassword) {
@@ -388,7 +554,9 @@ class GuestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Guest updated successfully',
-                'data' => $guest
+                'data' => $guest,
+                'firebase_sync' => $firebaseSync,
+                'firebase_removed' => $firebaseRemoved,
             ]);
         } catch (\Exception $e) {
             Log::error('Error updating guest: ' . $e->getMessage());
@@ -414,11 +582,19 @@ class GuestController extends Controller
                 ], 404);
                 // $guest = Guest::findOrFail($guestId);
             }
+
+            $tourIds = $this->normalizeTourIds($guest->tour_id);
+            $syncGuestId = $guest->guest_id;
+
+            // Clear guest_id from Firebase chat nodes before soft-delete (same guest_id as store/update use)
+            $firebaseRemoved = $this->removeGuestIdsFromFirebase($tourIds, $syncGuestId);
+
             $guest->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Guest deleted successfully'
+                'message' => 'Guest deleted successfully',
+                'firebase_removed' => $firebaseRemoved,
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting guest: ' . $e->getMessage());
@@ -431,13 +607,16 @@ class GuestController extends Controller
 
     /**
      * Send guest credentials email
-     * This method sends a welcome email with login credentials to the newly created guest
+     * This method sends a welcome email with login credentials to the newly created guest.
+     * Optionally accepts the current tour display ID to avoid ambiguity when a guest
+     * is linked to multiple tours.
      * 
      * @param Guest $guest
      * @param string $plainPassword
+     * @param string|null $currentTourDisplayId
      * @return bool
      */
-    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword)
+    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null)
     {
         try {
             // Get company settings for branding
@@ -455,7 +634,20 @@ class GuestController extends Controller
             $dmcId = CommonHelper::getDmcId(auth()->user());
             $dmc = User::where('userId', $dmcId)->first();
             $dmcCompanyName = $dmc->company_name ?? null;
-            
+
+            // Prefer explicitly provided tour display ID (from the current context)
+            $tourDisplayId = $currentTourDisplayId;
+
+            // Fallback: derive display_id from guest->tour_id if not provided
+            if ($tourDisplayId === null && !empty($guest->tour_id)) {
+                $tourIdValue = $guest->tour_id;
+                // tour_id may be stored as an array of IDs
+                if (is_array($tourIdValue)) {
+                    $tourIdValue = end($tourIdValue);
+                }
+                $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
+            }
+
             // Prepare email data (use plain password for email, not the hashed one)
             $emailData = [
                 'guest_name' => $guest->guest_name,
@@ -463,7 +655,7 @@ class GuestController extends Controller
                 'app_password' => $plainPassword,
                 'country_code' => $guest->country_code ?? '+91',
                 'contact' => $guest->contact,
-                'tour_id' => $guest->tour_id,
+                'tour_id' => $tourDisplayId,
                 'company_name' => $companyName,
                 'company_logo' => $companyLogo,
                 'support_email' => $supportEmail,

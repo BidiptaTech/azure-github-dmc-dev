@@ -57,7 +57,7 @@
         <div class="card-body">
             <div class="alert alert-info mb-4">
                 <i class="ri-information-line me-2"></i>
-                Configure default values for your services. Each DMC can set one default for each service type (Hotel, Restaurant, Attraction, Car Private, Car Shared, Port, Guide).
+                Configure default values for your services. Each DMC can set one default for each service type (Hotel, Restaurant, Attraction, Port, Guide).
             </div>
 
             <div class="table-responsive text-nowrap">
@@ -166,7 +166,7 @@
             <div class="mt-3">
                 <div class="alert alert-secondary">
                     <strong>Available Types:</strong>
-                    @foreach(['hotel' => 'Hotel', 'restaurant' => 'Restaurant', 'attraction' => 'Attraction', 'car_private' => 'Car (Private)', 'car_shared' => 'Car (Shared)', 'port' => 'Port', 'guide' => 'Guide'] as $key => $label)
+                    @foreach(['hotel' => 'Hotel', 'restaurant' => 'Restaurant', 'attraction' => 'Attraction', 'port' => 'Port', 'guide' => 'Guide'] as $key => $label)
                         @if(in_array($key, $availableTypes))
                             <span class="badge bg-light text-dark me-1">{{ $label }}</span>
                         @endif

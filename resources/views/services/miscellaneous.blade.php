@@ -75,7 +75,7 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @if($item->image)
-                                                    <img src="{{ asset('storage/' . $item->image) }}" 
+                                                    <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                                          alt="{{ $item->item_name }}" 
                                                          class="rounded me-2" 
                                                          style="width: 40px; height: 40px; object-fit: cover;">
@@ -172,7 +172,7 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($item->image)
-                                                <img src="{{ asset('storage/' . $item->image) }}" 
+                                                <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                                      alt="{{ $item->item_name }}" 
                                                      class="rounded me-2" 
                                                      style="width: 40px; height: 40px; object-fit: cover;">
@@ -267,6 +267,7 @@
             data: {
                 _token: '{{ csrf_token() }}',
                 item_id: itemId,
+                preserve_existing_prices: 1,
                 adult_price: 0,
                 child_price: 0,
                 infant_price: 0
@@ -276,15 +277,19 @@
                 if (response.success) {
                     // Show success message
                     if (typeof Swal !== 'undefined') {
+                        const successMessage = response.action === 'restored'
+                            ? itemName + ' has been restored with previous prices.'
+                            : itemName + ' has been added. Please set prices and save.';
+
                         Swal.fire({
                             icon: 'success',
                             title: 'Success!',
-                            text: itemName + ' has been added. Please set prices and save.',
+                            text: successMessage,
                             timer: 2000,
                             showConfirmButton: false
                         });
                     } else {
-                        alert(itemName + ' has been added successfully!');
+                        alert(response.message || (itemName + ' has been added successfully!'));
                     }
                     
                     // Reload page to show updated lists
@@ -346,7 +351,7 @@
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Removed!',
-                                text: 'Item has been removed.',
+                                text: response.message || 'Item has been removed.',
                                 timer: 2000,
                                 showConfirmButton: false
                             });

@@ -1,6 +1,6 @@
 .github
 /.phpunit.cache
-/node_modules
+/node_modules  
 /storage/*.key
 /vendor
 .env
@@ -20,7 +20,7 @@ yarn-error.log
 
 # Storage link (should be created during deployment, not committed)
 /public/storage
-
+/storage/app/firebase/firebase_crendentials.json
 # Deployment logs
 deploy.log
 

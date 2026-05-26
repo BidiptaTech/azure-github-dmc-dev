@@ -122,6 +122,16 @@
                                 Price</option>
                         </select>
                     </div>
+                    <!-- Child with bed price -->
+                    <div class="col-md-3">
+                        <label for="children_with_bed_price" class="form-label"><strong>Child with Bed Price</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Price" value="{{ $room->child_with_bed ?? 0 }}">
+                    </div>
+                    <!-- Child without bed price -->
+                    <div class="col-md-3">
+                        <label for="children_without_bed_price" class="form-label"><strong>Child without Bed Price</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Price" value="{{ $room->child_without_bed ?? 0 }}">
+                    </div>
 
                     <!-- Single weekday weekend price -->
                     <div class="col-md-6" id="single_price" style="display: none;">
@@ -133,14 +143,14 @@
                                         <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice" class="form-control" placeholder=" ">
                                         <label for="singleWeekdayPrice">Weekday Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekdayPrice">{{ $single_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekdayPrice">{{ $single_weekday_price }}</span></span>
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice" class="form-control" placeholder=" ">
                                         <label for="singleWeekendPrice">Weekend Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekendPrice">{{ $single_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>
@@ -158,7 +168,7 @@
                                         <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice" class="form-control" placeholder=" ">
                                         <label for="doubleWeekdayPrice">Weekday Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalSingleWeekdayPrice">{{ $double_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalSingleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
                                         
                                     </div>
@@ -166,7 +176,7 @@
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice" class="form-control" placeholder=" ">
                                         <label for="doubleWeekendPrice">Weekend Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>
@@ -184,7 +194,7 @@
                                         <input type="text" id="baseSingleWeekdayPrice" name="baseSingleWeekdayPrice" class="form-control" placeholder=" ">
                                         <label for="baseSingleWeekdayPrice">Base Weekday Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalWeekdayPrice"> {{ $single_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekdayPrice"> {{ $single_weekday_price }}</span></span>
                                         @endif
                                         
                                     </div>
@@ -192,7 +202,7 @@
                                         <input type="text" id="baseSingleWeekendPrice" name="baseSingleWeekendPrice" class="form-control" placeholder=" ">
                                         <label for="baseSingleWeekendPrice">Base Weekend Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalWeekendPrice">{{ $single_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalWeekendPrice">{{ $single_weekend_price }}</span></span>
                                         @endif
                                       
                                     </div>
@@ -211,14 +221,14 @@
                                         <input type="text" id="baseDoubleWeekdayPrice" name="baseDoubleWeekdayPrice" class="form-control" placeholder=" ">
                                         <label for="baseDoubleWeekdayPrice">Base Weekday Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalBaseDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekdayPrice">{{ $double_weekday_price }}</span></span>
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="baseDoubleWeekendPrice" name="baseDoubleWeekendPrice" class="form-control" placeholder=" ">
                                         <label for="baseDoubleWeekendPrice">Base Weekend Price</label>
                                         @if($auth_user->user_type == 2)
-                                        <span class="text-primary">Your calculated price: <span id="totalBaseDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
+                                        <span class="text-primary" style="font-size: 10px;">calculated price: <span id="totalBaseDoubleWeekendPrice">{{ $double_weekend_price }}</span></span>
                                         @endif
                                     </div>
                                 </div>

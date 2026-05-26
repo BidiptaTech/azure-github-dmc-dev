@@ -67,7 +67,7 @@ class AgencyController extends Controller
             'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
-            'id_card_type' => 'string|max:255',
+            // 'id_card_type' => 'string|max:255',
             'card_number' => 'string|max:50',
             'agency_logo' => 'required|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
@@ -122,7 +122,7 @@ class AgencyController extends Controller
                 'contact_person' => $request->input('contact_person'),
                 'address' => $request->input('address'),
                 'postal_code' => $request->input('postal_code'),
-                'id_card_type' => $request->input('id_card_type'),
+                // 'id_card_type' => $request->input('id_card_type'),
                 'card_number' => $request->input('card_number'),
                 'branches' => $this->normalizeBranches($request->input('branches', [])),
                 'logo' => $logoPath,
@@ -145,17 +145,17 @@ class AgencyController extends Controller
         }
 
         // Generate unique agency_id following the same pattern as AgentController
-        $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
-        $agency_max_id = $lastAgency->agency_id ?? 1;
-        $agencyId = CommonHelper::createId($agency_max_id);
+        // $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $agency_max_id = $lastAgency->agency_id ?? 1;
+        // $agencyId = CommonHelper::createId($agency_max_id);
         
-        while (Agency::where('agency_id', $agencyId)->exists()) {
-            $agencyId = CommonHelper::createId($agencyId);
-        }
+        // while (Agency::where('agency_id', $agencyId)->exists()) {
+        //     $agencyId = CommonHelper::createId($agencyId);
+        // }
 
         // Create new agency
         $agency = new Agency();
-        $agency->agency_id = $agencyId;
+        // $agency->agency_id = $agencyId;
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
@@ -165,17 +165,18 @@ class AgencyController extends Controller
         $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
-        $agency->id_card_type = $request->input('id_card_type');
+        // $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
         $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->logo = $logoPath;
         $agency->created_by = Auth::user()->userId;
         $agency->dmc_id = is_array($dmc_id) ? $dmc_id : [$dmc_id];
-
-        if ($agency->save()) {
+        $isSaved = $agency->save();
+        $agency->refresh();
+        if ($isSaved) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
         }
-        return redirect()->back()->with('error', 'Failed to create agency. Please try again.');
+        return redirect()->back()->withInput()->with('error', 'Failed to create agency. Please try again.');
     }
 
     /**
@@ -214,7 +215,7 @@ class AgencyController extends Controller
             'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
-            'id_card_type' => 'string|max:255',
+            // 'id_card_type' => 'string|max:255',
             'card_number' => 'string|max:50',
             'agency_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
@@ -254,7 +255,7 @@ class AgencyController extends Controller
         $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
-        $agency->id_card_type = $request->input('id_card_type');
+        // $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
         $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->updated_by = Auth::user()->userId;

@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\MiscellaneousItem;
 use App\Models\MiscellaneousPrice;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Crypt;
+use App\Helpers\CommonHelper;
 class MiscellaneousItemController extends Controller
 {
     /**
@@ -42,12 +42,12 @@ class MiscellaneousItemController extends Controller
             'status' => 'required|boolean'
         ]);
 
-        // Handle image upload
+        // Handle image upload (like AttractionController - using CommonHelper)
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = 'misc_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('miscellaneous', $imageName, 'public');
-            $validated['image'] = $imagePath;
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $validated['image'] = $pathData['master_value'];
+            }
         }
 
         $item = MiscellaneousItem::create($validated);
@@ -62,7 +62,7 @@ class MiscellaneousItemController extends Controller
      */
     public function show(string $id)
     {
-        $item = MiscellaneousItem::with('prices')->findOrFail($id);
+        $item = MiscellaneousItem::with('prices')->where('mis_id', Crypt::decrypt($id))->firstOrFail();
         return view('admin.miscellaneous.show', compact('item'));
     }
 
@@ -71,7 +71,7 @@ class MiscellaneousItemController extends Controller
      */
     public function edit(string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
         return view('admin.miscellaneous.edit', compact('item'));
     }
 
@@ -80,28 +80,37 @@ class MiscellaneousItemController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
 
         $validated = $request->validate([
             'item_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'remove_image' => 'nullable|in:0,1',
             'status' => 'required|boolean'
         ]);
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            // Delete old image
+        // Handle remove image (cross button clicked)
+        if ($request->input('remove_image') == '1') {
             if ($item->image) {
-                Storage::disk('public')->delete($item->image);
+                CommonHelper::deleteAzureImage($item->image);
+            }
+            $validated['image'] = null;
+        }
+        // Handle image upload (like AttractionController - using CommonHelper)
+        elseif ($request->hasFile('image')) {
+            // Delete old image from Azure before uploading new one
+            if ($item->image) {
+                CommonHelper::deleteAzureImage($item->image);
             }
 
-            $image = $request->file('image');
-            $imageName = 'misc_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('miscellaneous', $imageName, 'public');
-            $validated['image'] = $imagePath;
+            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+            if (!empty($pathData['master_value'])) {
+                $validated['image'] = $pathData['master_value'];
+            }
         }
 
+        unset($validated['remove_image']);
         $item->update($validated);
 
         return redirect()
@@ -114,11 +123,11 @@ class MiscellaneousItemController extends Controller
      */
     public function destroy(string $id)
     {
-        $item = MiscellaneousItem::findOrFail($id);
-        
-        // Delete image if exists
+        $item = MiscellaneousItem::where('mis_id', Crypt::decrypt($id))->firstOrFail();
+
+        // Delete image from Azure if exists
         if ($item->image) {
-            Storage::disk('public')->delete($item->image);
+            CommonHelper::deleteAzureImage($item->image);
         }
 
         $item->delete();
@@ -208,9 +217,17 @@ class MiscellaneousItemController extends Controller
         // Handle selected items and prices
         if ($request->has('selected_items')) {
             foreach ($request->selected_items as $itemId => $data) {
-                MiscellaneousPrice::updateOrCreate(
-                    ['mis_id' => $itemId, 'dmc_id' => $dmc_id],
-                    [
+                $price = MiscellaneousPrice::withTrashed()
+                    ->where('mis_id', $itemId)
+                    ->where('dmc_id', $dmc_id)
+                    ->first();
+
+                if ($price) {
+                    if ($price->trashed()) {
+                        $price->restore();
+                    }
+
+                    $price->update([
                         'adult_price' => $data['adult_price'] ?? 0,
                         'child_price' => $data['child_price'] ?? 0,
                         'infant_price' => $data['infant_price'] ?? 0,
@@ -218,13 +235,29 @@ class MiscellaneousItemController extends Controller
                         'child_cost' => 0,
                         'infant_cost' => 0,
                         'status' => 1
-                    ]
-                );
+                    ]);
+                } else {
+                    MiscellaneousPrice::create([
+                        'mis_id' => $itemId,
+                        'dmc_id' => $dmc_id,
+                        'adult_price' => $data['adult_price'] ?? 0,
+                        'child_price' => $data['child_price'] ?? 0,
+                        'infant_price' => $data['infant_price'] ?? 0,
+                        'adult_cost' => 0,  // Cost fields not required
+                        'child_cost' => 0,
+                        'infant_cost' => 0,
+                        'status' => 1
+                    ]);
+                }
             }
         }
 
         // Remove unselected items
         if ($request->has('removed_items')) {
+            MiscellaneousPrice::where('dmc_id', $dmc_id)
+                ->whereIn('mis_id', $request->removed_items)
+                ->update(['status' => 0]);
+
             MiscellaneousPrice::where('dmc_id', $dmc_id)
                 ->whereIn('mis_id', $request->removed_items)
                 ->delete();
@@ -301,9 +334,39 @@ class MiscellaneousItemController extends Controller
                 ], 404);
             }
             
-            $price = MiscellaneousPrice::updateOrCreate(
-                ['mis_id' => $itemId, 'dmc_id' => $dmc_id],
-                [
+            $preserveExistingPrices = $request->boolean('preserve_existing_prices', false);
+            $price = MiscellaneousPrice::withTrashed()
+                ->where('mis_id', $itemId)
+                ->where('dmc_id', $dmc_id)
+                ->first();
+
+            $action = 'added';
+
+            if ($price) {
+                if ($price->trashed()) {
+                    $price->restore();
+                    $action = 'restored';
+                } else {
+                    $action = 'updated';
+                }
+
+                $price->status = 1;
+
+                // Preserve previous prices only when adding an item back from Available list.
+                if (!$preserveExistingPrices) {
+                    $price->adult_price = $request->adult_price ?? 0;
+                    $price->child_price = $request->child_price ?? 0;
+                    $price->infant_price = $request->infant_price ?? 0;
+                    $price->adult_cost = 0;
+                    $price->child_cost = 0;
+                    $price->infant_cost = 0;
+                }
+
+                $price->save();
+            } else {
+                $price = MiscellaneousPrice::create([
+                    'mis_id' => $itemId,
+                    'dmc_id' => $dmc_id,
                     'adult_price' => $request->adult_price ?? 0,
                     'child_price' => $request->child_price ?? 0,
                     'infant_price' => $request->infant_price ?? 0,
@@ -311,8 +374,8 @@ class MiscellaneousItemController extends Controller
                     'child_cost' => 0,
                     'infant_cost' => 0,
                     'status' => 1
-                ]
-            );
+                ]);
+            }
 
             \Log::info('Item added successfully', [
                 'item_id' => $itemId,
@@ -322,7 +385,10 @@ class MiscellaneousItemController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Miscellaneous item added successfully!',
+                'message' => $action === 'restored'
+                    ? 'Miscellaneous item restored with previous prices.'
+                    : 'Miscellaneous item added successfully!',
+                'action' => $action,
                 'data' => [
                     'item_id' => $itemId,
                     'dmc_id' => $dmc_id,
@@ -370,11 +436,15 @@ class MiscellaneousItemController extends Controller
             
             MiscellaneousPrice::where('mis_id', $itemId)
                 ->where('dmc_id', $dmc_id)
+                ->update(['status' => 0]);
+
+            MiscellaneousPrice::where('mis_id', $itemId)
+                ->where('dmc_id', $dmc_id)
                 ->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Miscellaneous item removed successfully!'
+                'message' => 'Miscellaneous item removed successfully. You can add it again to restore previous prices.'
             ]);
 
         } catch (\Exception $e) {
@@ -415,7 +485,7 @@ class MiscellaneousItemController extends Controller
                     'mis_id' => $item->mis_id,
                     'item_name' => $item->item_name,
                     'description' => $item->description,
-                    'image' => $item->image ? asset('storage/' . $item->image) : null,
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image)) : null,
                     'adult_price' => $item->priceForDmc->adult_price ?? 0,
                     'child_price' => $item->priceForDmc->child_price ?? 0,
                     'infant_price' => $item->priceForDmc->infant_price ?? 0

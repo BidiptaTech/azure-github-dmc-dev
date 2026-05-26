@@ -119,7 +119,7 @@ use Illuminate\Support\Facades\Auth;
         <div class="row mb-4">
             <div class="col-12">
                 <!-- Enhanced Filter Card -->
-                <div class="card shadow-sm border-0 mb-4">
+                <div class="card shadow-sm border-0 mb-4" id="advancedFiltersCard">
                     <div class="card-header bg-gradient-primary text-white">
                         <h6 class="mb-0 fw-bold">
                             <i class="ri-filter-3-line me-2"></i>Advanced Filters & Currency Settings
@@ -644,23 +644,25 @@ use Illuminate\Support\Facades\Auth;
                 var table = $('.datatables-basic').DataTable({
                     responsive: false, // Disable responsive to avoid column issues
                     autoWidth: false,
-                    scrollX: true, // Add horizontal scroll instead of responsive
+                    scrollX: false,
                     dom: 'frtip', // Remove 'B' to hide default buttons
                     buttons: [
                         'copy', 'csv', 'excel', 'pdf', 'print'
                     ],
                     columnDefs: [
-                        { width: "50px", targets: 0, className: "text-center" }, // # column
-                        { width: "120px", targets: 1 }, // Date & Time
-                        { width: "100px", targets: 2 }, // Booking ID
-                        { width: "150px", targets: 3 }, // Agent Name
-                        { width: "120px", targets: 4 }, // Service Type
-                        { width: "180px", targets: 5 }, // Customer Details
-                        { width: "120px", targets: 6, className: "text-end" }, // Opening Balance
-                        { width: "120px", targets: 7, className: "text-end" }, // Transaction Amount
-                        { width: "120px", targets: 8, className: "text-end" }, // Closing Balance
-                        { width: "100px", targets: 9, orderable: false, className: "text-center" } // Actions
-                    ],
+    { width: "30px",  targets: 0, className: "text-center" }, // #
+    { width: "75px",  targets: 1 },  // Date & Time
+    { width: "70px",  targets: 2 },  // Booking ID
+    { width: "110px", targets: 3 },  // Agency Name
+    { width: "75px",  targets: 4 },  // Service Type
+    { width: "120px", targets: 5 },  // Customer Details
+    { width: "85px",  targets: 6, className: "text-end" }, // Opening Balance
+    { width: "85px",  targets: 7, className: "text-end" }, // Transaction Amount
+    { width: "85px",  targets: 8, className: "text-end" }, // Closing Balance
+    { width: "55px",  targets: 9, orderable: false, className: "text-center" } // Actions
+],
+scrollX: false,
+autoWidth: false,
                     language: {
                         search: "_INPUT_",
                         searchPlaceholder: "Search...",
@@ -875,7 +877,7 @@ use Illuminate\Support\Facades\Auth;
                         ordering: true,
                         info: true,
                         autoWidth: false,
-                        scrollX: true,
+                        scrollX: false,
                         lengthMenu: [10, 25, 50, 100],
                         pageLength: 25,
                         order: [[1, 'desc']],
@@ -2342,7 +2344,7 @@ use Illuminate\Support\Facades\Auth;
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; }
                         .card { border: 1px solid #ddd; margin-bottom: 20px; }
-                        .card-header { background: #f8f9fa; padding: 10px; font-weight: bold; }
+                        .card-header { background: #f8f9fa; padding: 10px; font-weight: bold;}
                         .card-body { padding: 15px; }
                         .table { width: 100%; border-collapse: collapse; }
                         .table td { padding: 8px; border-bottom: 1px solid #eee; }
@@ -2378,7 +2380,7 @@ use Illuminate\Support\Facades\Auth;
 </script>
 @endsection
 
-@section('styles')
+@section('css')
 <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
 <style>
     .card .card-body .input-group-text {
@@ -2408,6 +2410,7 @@ use Illuminate\Support\Facades\Auth;
     
     .card-header {
         border-bottom: 2px solid rgba(0,0,0,0.05);
+        color: #ffffff ;
     }
     
     .form-label.fw-semibold {
@@ -2450,15 +2453,15 @@ use Illuminate\Support\Facades\Auth;
     }
     
     .table thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 0.85rem;
-    }
-    
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.4rem;
+}
     .table tbody tr:hover {
         background-color: rgba(102, 126, 234, 0.05);
         transform: scale(1.01);
@@ -2469,6 +2472,86 @@ use Illuminate\Support\Facades\Auth;
         background: #f8f9fa;
         border-top: 2px solid #dee2e6;
         font-weight: 700;
+    }
+
+    /* Compact ledger table */
+    #ledgerTable {
+        width: 100% !important;
+        table-layout: fixed;
+        font-size: 0.82rem;
+    }
+
+    #ledgerTable th,
+    #ledgerTable td {
+        padding: 0.36rem 0.48rem;
+        line-height: 1.25;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #ledgerTable.table-bordered > :not(caption) > * > * {
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #ledgerTable thead th {
+        background: #fff !important;
+        color: #495057 !important;
+        font-size: 0.76rem;
+        letter-spacing: 0.2px;
+        text-align: left !important;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        word-break: normal;
+        overflow-wrap: normal;
+        hyphens: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* Keep separate space for DataTables sort icons */
+    #ledgerTable.dataTable thead th.sorting,
+    #ledgerTable.dataTable thead th.sorting_asc,
+    #ledgerTable.dataTable thead th.sorting_desc {
+        text-align: left !important;
+        padding-right: 0.55rem !important;
+    }
+
+    #ledgerTable.dataTable thead th.sorting::before,
+    #ledgerTable.dataTable thead th.sorting_asc::before,
+    #ledgerTable.dataTable thead th.sorting_desc::before,
+    #ledgerTable.dataTable thead th.sorting::after,
+    #ledgerTable.dataTable thead th.sorting_asc::after,
+    #ledgerTable.dataTable thead th.sorting_desc::after {
+        right: 0.10rem !important;
+    }
+
+    #ledgerTable td small {
+        font-size: 0.72rem;
+        line-height: 1.15;
+        display: block;
+    }
+
+    #ledgerTable .badge {
+        font-size: 0.7rem;
+        padding: 0.24em 0.46em;
+    }
+
+    #ledgerTable tbody tr:hover {
+        transform: none;
+    }
+
+    #ledgerTable tbody tr,
+    #ledgerTable.table-striped > tbody > tr:nth-of-type(odd),
+    #ledgerTable.table-striped > tbody > tr:nth-of-type(even) {
+        background-color: #fff !important;
+        --bs-table-accent-bg: #fff !important;
+    }
+
+    #ledgerTable .btn-sm {
+        padding: 0.16rem 0.38rem;
+        font-size: 0.74rem;
     }
     
     .badge.bg-info {
@@ -2532,6 +2615,59 @@ use Illuminate\Support\Facades\Auth;
     
     #editRateBtn {
         border-left: 1px solid #dee2e6;
+    }
+
+    /* Compact advanced filters section */
+    #advancedFiltersCard .card-header {
+        padding: 0.6rem 0.9rem;
+        color:#fff !important;
+    }
+
+    #advancedFiltersCard .card-header h6 {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        color: #fff !important;
+    }
+
+    #advancedFiltersCard .card-body {
+        padding: 0.75rem 0.9rem;
+    }
+
+    #advancedFiltersCard #ledgerFilterForm .row.g-3 {
+        --bs-gutter-x: 0.7rem;
+        --bs-gutter-y: 0.55rem;
+    }
+
+    #advancedFiltersCard .form-label.fw-semibold {
+        font-size: 0.78rem;
+        margin-bottom: 0.2rem;
+    }
+
+    #advancedFiltersCard .input-group-text {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.78rem;
+    }
+
+    #advancedFiltersCard .form-control,
+    #advancedFiltersCard .form-select {
+        min-height: calc(1.8rem + 2px);
+        padding: 0.26rem 0.5rem;
+        font-size: 0.78rem;
+    }
+
+    #advancedFiltersCard .btn {
+        padding: 0.28rem 0.56rem;
+        font-size: 0.76rem;
+    }
+
+    #advancedFiltersCard .btn-sm {
+        padding: 0.2rem 0.42rem;
+        font-size: 0.72rem;
+    }
+
+    #advancedFiltersCard #rateEditSection {
+        padding: 0.38rem;
+        margin-top: 0.32rem !important;
     }
     
     /* Hide DataTables default buttons */

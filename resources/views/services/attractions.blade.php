@@ -505,20 +505,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Populate country dropdown from DOM
     const countrySelect = document.getElementById('attractionCountrySelect');
     const items = document.querySelectorAll('.attraction-item');
+    const allowedCountriesFromServer = @json($allowedCountries ?? []);
+    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
+        ? allowedCountriesFromServer
+            .map(c => String(c || '').trim())
+            .filter(Boolean)
+            .map(c => c.toLowerCase())
+        : [];
+
     const countrySet = new Set();
-    items.forEach(item => {
-        const c = item.getAttribute('data-country');
-        if (c) countrySet.add(c);
-    });
+    if (normalizedAllowed.length > 0) {
+        normalizedAllowed.forEach(c => countrySet.add(c));
+    } else {
+        items.forEach(item => {
+            const c = item.getAttribute('data-country');
+            if (c) countrySet.add(c);
+        });
+    }
     Array.from(countrySet).sort().forEach(country => {
         const opt = document.createElement('option');
         opt.value = country;
         opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
         countrySelect.appendChild(opt);
     });
-    if (defaultAttractionCountry && Array.from(countrySet).includes(defaultAttractionCountry)) {
+    // Only auto-filter to user's country when there's a single option.
+    // Otherwise show all Master DMC countries by default.
+    if (defaultAttractionCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultAttractionCountry)) {
         countrySelect.value = defaultAttractionCountry;
         onAttractionCountryChange();
+    } else {
+        applyAttractionFilters();
     }
 
     // Selected Attractions: client-side pagination + search

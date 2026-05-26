@@ -17,6 +17,10 @@
 
 @yield('content')  
 @include('layouts.footer') 
+<!-- Close layout wrappers (opened in sidebar/topbar) -->
+</div>
+</div>
+</div>
 @yield('scripts')
 @stack('scripts')
 

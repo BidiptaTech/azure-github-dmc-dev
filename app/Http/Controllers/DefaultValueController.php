@@ -94,7 +94,7 @@ class DefaultValueController extends Controller
 
         // Get available types (types that haven't been set yet)
         $existingTypes = $defaultValues->pluck('name')->toArray();
-        $allTypes = ['hotel', 'restaurant', 'attraction', 'car_private', 'car_shared', 'port', 'guide'];
+        $allTypes = ['hotel', 'restaurant', 'attraction', 'port', 'guide'];
         $availableTypes = array_diff($allTypes, $existingTypes);
 
         return view('default-values.index', compact('defaultValues', 'availableTypes', 'dmcId'));
@@ -114,7 +114,7 @@ class DefaultValueController extends Controller
 
         // Get existing types for this DMC
         $existingTypes = DefaultValue::where('dmc_id', $dmcId)->pluck('name')->toArray();
-        $allTypes = ['hotel', 'restaurant', 'attraction', 'car_private', 'car_shared', 'port', 'guide'];
+        $allTypes = ['hotel', 'restaurant', 'attraction', 'port', 'guide'];
         $availableTypes = array_diff($allTypes, $existingTypes);
 
         if (empty($availableTypes)) {
@@ -212,7 +212,7 @@ class DefaultValueController extends Controller
 
         // Validate input
         $validator = Validator::make($request->all(), [
-            'name' => 'required|in:hotel,restaurant,attraction,car_private,car_shared,port,guide',
+            'name' => 'required|in:hotel,restaurant,attraction,port,guide',
             'service_id' => 'required|string',
             'status' => 'required|integer|in:0,1',
         ]);
@@ -253,18 +253,18 @@ class DefaultValueController extends Controller
         }
 
         // Generate unique default_id (include soft-deleted rows so we never reuse an existing default_id)
-        $maxDefaultId = DefaultValue::withTrashed()->max('default_id') ?? 0;
-        $defaultId = CommonHelper::createId($maxDefaultId);
+        // $maxDefaultId = DefaultValue::withTrashed()->max('default_id') ?? 0;
+        // $defaultId = CommonHelper::createId($maxDefaultId);
 
         // Create default value
-        DefaultValue::create([
-            'default_id' => $defaultId,
+        $defaultValue = DefaultValue::create([
+            // 'default_id' => CommonHelper::createId(),   
             'dmc_id' => $dmcId,
             'name' => $request->name,
             'service_id' => $request->service_id,
             'status' => $request->status,
         ]);
-
+        $defaultValue->refresh();
         return redirect()->route('default-values.index')
             ->with('success', 'Default value created successfully.');
     }

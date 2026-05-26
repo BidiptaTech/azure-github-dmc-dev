@@ -32,6 +32,8 @@
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/rtl/core.css' }}" class="template-customizer-core-css" />
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/rtl/theme-bordered.css' }}" class="template-customizer-theme-css" />
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/css/demo.css' }}" />
+<!-- Custom local styles -->
+<link rel="stylesheet" href="{{ asset('css/style.css') }}" />
 
 <!-- Vendors CSS -->
 <link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' }}" />

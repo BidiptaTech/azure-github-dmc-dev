@@ -310,28 +310,26 @@
     --}}
     <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card border-0 shadow-sm" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.75rem 2rem;">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap">
-                            <div class="d-flex align-items-center">
-                                <div class="icon-wrapper me-3" style="width: 56px; height: 56px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-map-pin-line fs-3 text-white"></i>
-                                </div>
+                <div class="accordion-item border-0">
+                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <!-- <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                    <i class="ri-map-pin-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                </div> -->
                                 <div>
-                                    <h4 class="mb-1 text-white fw-bold" style="font-size: 1.5rem; letter-spacing: -0.02em;">Create Single Tour Package</h4>
-                                    <p class="mb-0 text-white-75" style="color: rgba(255, 255, 255, 0.85); font-size: 0.9rem;">Design personalized tour experiences for your clients</p>
+                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                        Create Single Tour Package
+                                    </h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Design personalized tour experiences for your clients</small>
                                 </div>
                             </div>
-
                         </div>
-                        
                     </div>
                 </div>
-                
             </div>
         </div>
 
@@ -344,31 +342,42 @@
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
-                        <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <h6 class="mb-0 fw-bold d-flex align-items-center text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
-                                    <i class="ri-settings-3-line me-2 fs-5 text-white" style="color: #ffffff !important;"></i>
-                                    <span style="color: #ffffff !important;">Tour Package Configuration</span>
-                                </h6>
-                                
-                                <div class="tour-type-wrapper mt-2 mt-md-0" style="min-width: 200px;">
-                                    <div class="tour-toggle">
-                                        <input type="radio" name="tour_type" id="fit" value="FIT" checked>
-                                        <label for="fit">FIT</label>
-                                
-                                        <input type="radio" name="tour_type" id="group" value="GROUP">
-                                        <label for="group">GROUP</label>
-                                
-                                        <span class="slider"></span>
+                    <div class="accordion-item border-0">
+                        <div class="card shadow-sm border-0" style="background: #ffffff; border-radius: 12px; overflow: hidden;">
+                            <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#tourPackageConfigurationSection" aria-expanded="true" aria-controls="tourPackageConfigurationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem; transition: all 0.3s ease;">
+                                <div class="d-flex align-items-center flex-grow-1">
+                                    <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
+                                        <i class="ri-settings-3-line fs-5 text-white" style="color: #ffffff !important; display: flex; align-items: center;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-white" style="font-size: 1.1rem; letter-spacing: -0.01em; color: #ffffff !important;">
+                                            Tour Package Configuration
+                                        </h6>
+                                        <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Configure tour type and package details</small>
                                     </div>
                                 </div>
+                                
+                                <div class="d-flex align-items-center ms-3">
+                                    <div class="tour-type-wrapper" style="min-width: 200px;">
+                                        <div class="tour-toggle">
+                                            <input type="radio" name="tour_type" id="fit" value="FIT" checked>
+                                            <label for="fit">FIT</label>
+                                    
+                                            <input type="radio" name="tour_type" id="group" value="GROUP">
+                                            <label for="group">GROUP</label>
+                                    
+                                            <span class="slider"></span>
+                                        </div>
+                                    </div>
+                                    <i class="ri-arrow-up-s-line ms-3 fs-5 text-white transition-transform" style="color: #ffffff !important;"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                            <div id="tourPackageConfigurationSection" class="collapse show">
+                                <div class="card-body" style="background: #ffffff; padding: 1.75rem;">
+                            @if($enquiry)
+                            {{-- Two-row layout when form is in 8 columns (with enquiry sidebar) for proper alignment --}}
                             <div class="row g-3">
-                                <!-- Country Selection -->
-                                <div class="col-md-2">
+                                <div class="col-12 col-sm-4">
                                     <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
@@ -383,9 +392,7 @@
                                     @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
-
-                                <!-- Travel Dates -->
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-4">
                                     <label for="travel_dates" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
@@ -396,44 +403,30 @@
                                     <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
                                     <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
                                 </div>
-
-                                <!-- Guests -->
-                                <div class="col-md-3">
+                                <div class="col-12 col-sm-4">
                                     <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display border rounded" style="min-height: 40px; padding: 0.5rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; {{ $enquiry ? 'cursor:not-allowed;opacity:0.8;' : '' }}">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="guest-info">
-                                                    <span id="mainGuestSummary" class="text-muted small" style="font-size: 0.85rem; color: #6c757d;">
-                                                        @if($enquiry)
-                                                            {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
-                                                        @else
-                                                            1 adults (0 male, 0 female), 0 children - 0 infants
-                                                        @endif
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px; cursor:not-allowed;opacity:0.8;">
+                                            <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                <span id="mainGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->adult ?? 1 }} Adults</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->male_count ?? 0 }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->female_count ?? 0 }}</span></span>
                                                     </span>
-                                                </div>
-                                                @if(!$enquiry)
-                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem;">
-                                                    <i class="ri-edit-line"></i>
-                                                </button>
-                                                @else
-                                                <span class="text-muted small">
-                                                    <i class="ri-lock-line"></i>
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->child ?? 0 }}</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>{{ $enquiry->infant ?? 0 }}</span></span>
+                                                    </span>
                                                 </span>
-                                                @endif
-                                    </div>
-                                            <div class="guest-badges mt-1">
-                                                <span class="badge" style="background: #667eea; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
-                                                <span class="badge" style="background: #28a745; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
-                                                <span class="badge" style="background: #ffc107; color: #000; border-radius: 6px; font-size: 0.75rem;">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
+                                            <span class="text-muted small" style="margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-lock-line"></i>
+                                            </span>
                                         </div>
                                     </div>
-
-                                    
-                                    <!-- Hidden Fields -->
                                     <input type="hidden" name="adults" id="adults" value="{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}">
                                     <input type="hidden" name="male" id="male" value="{{ $enquiry ? ($enquiry->male_count ?? 0) : 0 }}">
                                     <input type="hidden" name="female" id="female" value="{{ $enquiry ? ($enquiry->female_count ?? 0) : 0 }}">
@@ -441,8 +434,9 @@
                                     <input type="hidden" name="infants" id="infants" value="{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}">
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
-
-                                <div class="col-md-2">
+                            </div>
+                            <div class="row g-3 mt-0">
+                                <div class="col-12 col-sm-6">
                                     <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-building-line me-1"></i>Agency Company
                                     </label>
@@ -456,9 +450,7 @@
                                         <input type="hidden" name="agency_id" value="{{ $enquiry->agent->agency_id ?? '' }}">
                                     @endif
                                 </div>
-
-                                <!-- Agent Selection -->
-                                <div class="col-md-2">
+                                <div class="col-12 col-sm-6">
                                     <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
@@ -472,9 +464,94 @@
                                         <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
                                     @endif
                                 </div>
+                            </div>
+                            @else
+                            {{-- Single row layout when form is full 12 columns --}}
+                            <div class="row g-3">
+                                <!-- Country Selection -->
+                                <div class="col-md-2">
+                                    <label for="user_country" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-earth-line me-1"></i>Country
+                                    </label>
+                                    <select name="user_country" id="user_country" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
+                                        <option value="">Choose a country...</option>
+                                        @foreach($countries as $country)
+                                            <option value="{{ $country->name }}" data-country-id="{{ $country->id }}">{{ $country->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input type="hidden" name="country_id" id="country_id">
+                                </div>
 
-                                
+                                <!-- Travel Dates -->
+                                <div class="col-md-3">
+                                    <label for="travel_dates" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-calendar-line me-1"></i>Travel Dates
+                                    </label>
+                                    <input type="text" id="travel_dates" class="form-control" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Select dates" readonly>
+                                    <input type="hidden" name="start_date" id="start_date" value="">
+                                    <input type="hidden" name="end_date" id="end_date" value="">
+                                </div>
 
+                                <!-- Guests -->
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-group-line me-1"></i>Guests
+                                    </label>
+                                    <div class="guest-selector">
+                                        <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                            <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                <span id="mainGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                    </span>
+                                                    <span class="d-flex align-items-center gap-1">
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                <i class="ri-edit-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="adults" id="adults" value="1">
+                                    <input type="hidden" name="male" id="male" value="0">
+                                    <input type="hidden" name="female" id="female" value="0">
+                                    <input type="hidden" name="children" id="children" value="0">
+                                    <input type="hidden" name="infants" id="infants" value="0">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
+                                </div>
+
+                                <div class="col-md-2">
+                                    <label for="agency_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-building-line me-1"></i>Agency Company
+                                    </label>
+                                    <select name="agency_id" id="agency_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
+                                        <option value="">Choose agency...</option>
+                                        @foreach($agency as $agnc)
+                                            <option value="{{ $agnc->agency_id }}">{{ $agnc->agency_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <!-- Agent Selection -->
+                                <div class="col-md-2">
+                                    <label for="agent_id" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                        <i class="ri-user-star-line me-1"></i>Agent
+                                    </label>
+                                    <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
+                                        <option value="">Choose agent...</option>
+                                        @foreach($agents as $agent)
+                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -486,20 +563,23 @@
             <div class="accordion mb-4" id="servicesAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="true" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-hotel-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(108, 117, 125, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-hotel-line" style="color: #6c757d; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Hotel Accommodations</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage hotel bookings and room configurations</small>
+                                    <h6 class="mb-0 fw-semibold text-dark" style="color: #212529 !important; font-size: 0.85rem;">
+                                        Hotel Accommodations
+                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
+                                    </h6>
+                                    <small class="text-muted" style="color: #6c757d !important; font-size: 0.75rem;">Manage hotel bookings and room configurations</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center">
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
-                                <span class="badge me-2" style="background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; font-size: 0.8rem; padding: 0.375rem 0.75rem;" id="hotelNights">4 Nights Selected</span>
-                                <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="tourDates">Aug 03 - Aug 07, 2025</span>
+                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="hotelNights">4 Nights Selected</span>
+                                <i class="ri-arrow-up-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
                             </div>
                         </div>
                         <div id="hotelAccommodationsSection" class="collapse show">
@@ -561,7 +641,7 @@
                                     </div>
                                     <input type="hidden" id="selectedPersons" value="1">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3" id="mealPlanSection">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-restaurant-line me-1"></i>Meal Plan
                                     </label>
@@ -569,19 +649,35 @@
                                         <option value="">Select Meal Plans</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms
                                     </label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: center; max-width: 100px;"> 
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
                                     <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
                                         <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
                                         <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Child pricing (shown only when selected room has child_with_bed/child_without_bed prices) -->
+                            <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
+                                <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed">
+                                        <label class="form-check-label" for="chkChildWithBed">Child with Bed <small class="text-muted" id="childWithBedPriceLabel"></small></label>
+                                    </div>
+                                </div>
+                                <div id="hotelChildWithoutBedWrap" class="col-md-6" style="display: none;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed">
+                                        <label class="form-check-label" for="chkChildWithoutBed">Child without Bed <small class="text-muted" id="childWithoutBedPriceLabel"></small></label>
                                     </div>
                                 </div>
                             </div>
@@ -733,7 +829,7 @@
             <div class="row mb-4" id="transportSection">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
+                        <div class="card-header bg-gradient-primary text-white" style="display: none;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h6 class="mb-0 fw-bold">
                                     <i class="ri-car-line me-2"></i>Transports and Other Services
@@ -744,7 +840,6 @@
                         <div class="card-body p-0">
                             <div class="accordion" id="servicesAccordionInner">
                                 <div id="dailyServicesContainer">
-                                    <!-- Daily services will be populated by JavaScript -->
                                 </div>
                             </div>
                         </div>
@@ -833,34 +928,58 @@
             <div class="accordion mb-4" id="customerAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#customerInformationSection" aria-expanded="false" aria-controls="customerInformationSection" style="cursor: pointer; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-user-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-user-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Lead Guest information</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">Manage customer details and contact information</small>
+                                    <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Lead Guest information</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">Manage customer details and contact information</small>
                                 </div>
                             </div>
-                            <i class="ri-arrow-down-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                            <i class="ri-arrow-down-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                         </div>
                         <div id="customerInformationSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 0.75rem 1rem;">
                                 <div class="row g-2">
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Salutation</label>
+                                        <select class="form-select form-select-sm" id="customerSalutation" name="customer_salutation" style="font-size: 0.85rem;">
+                                            <option value="">Select</option>
+                                            <option value="Mr.">Mr.</option>
+                                            <option value="Mrs.">Mrs.</option>
+                                            <option value="Ms.">Ms.</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Dr.">Dr.</option>
+                                            <option value="Prof.">Prof.</option>
+                                        </select>
+                                    </div>
                                     <div class="col-md-3">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Full Name</label>
                                         <input type="text" class="form-control form-control-sm" id="customerFullName" name="customer_full_name" placeholder="Enter full name" style="font-size: 0.85rem;">
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
                                         <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" style="font-size: 0.85rem;">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
-                                        <input type="number" class="form-control form-control-sm" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" style="font-size: 0.85rem;">
+                                        @php
+                                            $country_cod = App\Models\Country::where('is_active', 1)->get();
+                                            $singapore = $country_cod->firstWhere('name', 'Singapore');
+                                            $defaultCountryCode = $singapore ? $singapore->country_code : ($country_cod->first()->country_code ?? '');
+                                        @endphp
+                                            <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
+                                                <option value="">Select</option>
+                                                @foreach($country_cod as $country)
+                                                @if(!empty($country->country_code))
+                                                    <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Phone Number</label>
                                         <input type="number" class="form-control form-control-sm" id="customerPhone" name="customer_phone" placeholder="Enter phone number" style="font-size: 0.85rem;">
                                     </div>
@@ -880,6 +999,14 @@
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">ZIP Code</label>
                                         <input type="number" class="form-control form-control-sm" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" style="font-size: 0.85rem;">
                                     </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport</label>
+                                        <input type="text" class="form-control form-control-sm" id="customerPassport" name="customer_passport" placeholder="Passport number" style="font-size: 0.85rem;">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label mb-1" style="font-size: 0.8rem;">Passport Expiry Date</label>
+                                        <input type="date" class="form-control form-control-sm" id="customerPassportExpiry" name="customer_passport_expiry" placeholder="Passport expiry date" style="font-size: 0.85rem;">
+                                    </div>
                                     <div class="col-md-6">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Special Requests</label>
                                         <textarea class="form-control form-control-sm" id="customerSpecialRequests" name="customer_special_requests" rows="2" placeholder="Enter any special requests or notes" style="font-size: 0.85rem;"></textarea>
@@ -895,19 +1022,19 @@
             <div class="accordion mb-4" id="additionalGuestsAccordion">
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 1.25rem 1.75rem;">
+                        <div class="card-header text-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#additionalGuestsSection" aria-expanded="true" aria-controls="additionalGuestsSection" style="cursor: pointer; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); border: none; padding: 0.875rem 1.25rem;">
                             <div class="d-flex align-items-center">
-                                <div style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                    <i class="ri-group-line fs-5 text-white" style="color: #ffffff !important;"></i>
+                                <div style="width: 35px; height: 35px; background: rgba(255, 255, 255, 0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="ri-group-line text-white" style="color: #ffffff !important; font-size: 1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-white" style="color: #ffffff !important; font-size: 1.1rem;">Additional Guest(s)</h6>
-                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.85rem;">
+                                    <h6 class="mb-0 fw-semibold text-white" style="color: #ffffff !important; font-size: 0.85rem;">Additional Guest(s)</h6>
+                                    <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.75rem;">
                                         Add guest details up to the tour pax (Adults + Children)
                                     </small>
                                 </div>
                             </div>
-                            <i class="ri-arrow-up-s-line ms-2 fs-5 text-white" style="color: #ffffff !important;"></i>
+                            <i class="ri-arrow-up-s-line ms-2 text-white" style="color: #ffffff !important; font-size: 0.9rem;"></i>
                         </div>
                         <div id="additionalGuestsSection" class="collapse show">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -1975,7 +2102,21 @@
                                 }]
                             }],
                             
-                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs
+                            // Child pricing (child_with_bed, child_without_bed) - include in JSON when present
+                            child_with_bed: (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? {
+                                enabled: true,
+                                price: parseFloat(hotel.childWithBedPrice) || 0,
+                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                total_cost: (parseFloat(hotel.childWithBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            } : null,
+                            child_without_bed: (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? {
+                                enabled: true,
+                                price: parseFloat(hotel.childWithoutBedPrice) || 0,
+                                children: Math.max(children || (parseInt(hotel.children) || 0), 1),
+                                total_cost: (parseFloat(hotel.childWithoutBedPrice) || 0) * Math.max(children || (parseInt(hotel.children) || 0), 1) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            } : null,
+                            
+                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs + child costs
                             totalPrice: (() => {
                                 // Use the stored price from when the hotel was added
                                 // This price already includes the correct weekday/weekend calculation for all nights
@@ -1990,6 +2131,8 @@
                                 
                                 const numRooms = parseInt(hotel.numberOfRooms) || 1;
                                 const numNights = parseInt(hotel.totalNights) || 1;
+                                const numChildrenForCwb = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
+                                const numChildrenForCnb = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(children || (parseInt(hotel.children) || 0), 1) : 0;
                                 
                                 // Calculate room cost (price already includes all nights, just multiply by rooms)
                                 const roomCost = totalRoomPrice * numRooms;
@@ -2010,8 +2153,12 @@
                                     console.log(`Extra bed cost: ${extraPersons} extra persons × $${hotel.extraBedPrice} × ${numRooms} rooms × ${numNights} nights = $${extraBedCost}`);
                                 }
                                 
-                                const total = roomCost + mealCost + extraBedCost;
-                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Total: $${total}`);
+                                // Calculate child with bed and child without bed costs
+                                const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * numChildrenForCwb * numRooms * numNights : 0;
+                                const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
+                                
+                                const total = roomCost + mealCost + extraBedCost + cwbCost + cnbCost;
+                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
                                 
                                 // Log weekday/weekend breakdown if available
                                 if (hotel.weekdayNights || hotel.weekendNights) {
@@ -2040,6 +2187,8 @@
                         hotelDataArray.forEach((hotel, index) => {
                             console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
                             console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
+                            if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
+                            if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
                             console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
                             console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
                             console.log(`  - Tour ID: ${hotel.tour_id}`);
@@ -2133,10 +2282,10 @@
                                 
                                 const timeSlot = document.getElementById(`day${day}_attraction_${index}_time`)?.value || '';
                                 const ticket = document.getElementById(`day${day}_attraction_${index}_ticket`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_attraction_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML so children counts are accurate
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get attraction details from the selected option and fetch dynamic data
                                 const selectedOption = select.options[select.selectedIndex];
@@ -2185,6 +2334,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2193,7 +2344,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -2368,10 +2520,10 @@
                                 
                                 const pickupTime = document.getElementById(`day${day}_guide_${index}_pickup_time`)?.value || '';
                                 const packageType = document.getElementById(`day${day}_guide_${index}_package`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_guide_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_guide_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get guide details from the selected option
                                 const selectedOption = select.options[select.selectedIndex];
@@ -2526,10 +2678,10 @@
                                 
                                 const mealType = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
                                 const timeSlot = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
-                                const guestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`)?.textContent || '';
+                                const guestSummaryEl = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
                                 
-                                // Parse guest info from summary text
-                                const guestInfo = parseGuestSummary(guestSummary);
+                                // Parse guest info from summary badges/HTML
+                                const guestInfo = parseGuestSummary(guestSummaryEl?.innerHTML || guestSummaryEl?.textContent || '');
                                 
                                 // Get restaurant details from the selected option
                                 const selectedOption = select.options[select.selectedIndex];
@@ -2584,6 +2736,8 @@
                                         }
                                     }
                                     
+                                    const transferPickupTime = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`)?.value || '';
+                                    
                                     transferOptions = {
                                         transfer_required: true,
                                         type: transferType,
@@ -2592,7 +2746,8 @@
                                         vehicle_details: vehicleDetails,
                                         cost: transferCost,
                                         pickup_location_id: transferPickupLocation,
-                                        pickup_location_name: pickupLocationName
+                                        pickup_location_name: pickupLocationName,
+                                        pickup_time: transferPickupTime
                                     };
                                 }
                                 
@@ -2763,7 +2918,7 @@
                                 // Get the main entry port pickup/dropoff data (they're shared)
                                 const pickupZoneSelect = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`);
                                 const dropoffZoneSelect = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_entry_pickup_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_entry_pickup_date"]`);
                                 
                                 if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
@@ -2884,7 +3039,7 @@
                                 // Get the main exit port pickup/dropoff data (they're shared)
                                 const pickupZoneSelect = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`);
                                 const dropoffZoneSelect = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_exit_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_exit_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_exit_date"]`);
                                 
                                 if (pickupZoneSelect && dropoffZoneSelect && serviceTypeSelect && vehicleSelect.value) {
@@ -3052,12 +3207,14 @@
                                 const dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3092,7 +3249,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_point",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3139,13 +3296,15 @@
                                 
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
+                                const timeSelect = document.querySelector(`[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
                                 const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
                                 const selectedHours = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_selected_hours"]`);
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value) {
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adult_count
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adult_count')?.value || 1);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3180,7 +3339,7 @@
                                         vehicles_name: vehicle.text,
                                         type: serviceTypeSelect.value || "Private",
                                         travel_type: "travel_hourly",
-                                        adults: parseInt(adultCount) || 0,
+                                        adults: parseInt(adultCount) || 1,
                                         children: parseInt(childCount) || 0,
                                         specialRequests: customerData.specialRequests || null,
                                         image: vehicle.dataset.image || null,
@@ -3232,7 +3391,7 @@
                                     // Dynamic transport - use indexed field names
                                     vehicleSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_vehicle_id"]`);
                                     serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_service_type"]`);
-                                    timeSelect = document.querySelector(`select[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
+                                    timeSelect = document.querySelector(`[name="day${day}_${section}_${transportIndex}_pickup_time"]`);
                                     dateInput = document.querySelector(`input[name="day${day}_${section}_${transportIndex}_date"]`);
                                 } else {
                                     // Static transport - use non-indexed field names
@@ -3240,7 +3399,7 @@
                                     // For static transport, service type is a radio button, not a select
                                     const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}_service_type"]:checked`);
                                     serviceTypeSelect = serviceTypeRadio ? { value: serviceTypeRadio.value } : null;
-                                    timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
+                                    timeSelect = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
                                     dateInput = document.querySelector(`input[name="day${day}_${section}_date"]`);
                                 }
                                 
@@ -3258,8 +3417,10 @@
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    // Use transport_passengers field if available, otherwise fallback to adults
+                                    const passengersField = document.getElementById(`day${day}_transport_passengers`);
+                                    const adultCount = passengersField ? parseInt(passengersField.value || 1) : parseInt(document.getElementById('adults')?.value || 1);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     
                                     // Handle total price field for both static and dynamic
                                     let totalPriceField;
@@ -3280,35 +3441,37 @@
                                         return `${displayHour}:${minutes} ${ampm}`;
                                     };
                                     
+                                    // Get selected hours if available (for hourly service)
+                                    const selectedHours = document.getElementById(`day${day}_${section}_${transportIndex}_selected_hours`)?.value || 
+                                                          document.getElementById(`day${day}_${section}_selected_hours`)?.value || 
+                                                          "1";
+                                    
+                                    // Get pickup and dropoff zone IDs
+                                    const pickupZoneId = pickupZone?.dataset?.zoneId || pickupZone?.value || "";
+                                    const dropoffZoneId = dropoffZone?.dataset?.zoneId || dropoffZone?.value || "";
+                                    
+                                    // Get tour_id if available
+                                    const tourId = document.getElementById('tour_id')?.value || 
+                                                   document.getElementById('hiddenTourId')?.value || 
+                                                   "";
+                                    
+                                    // Get night time settings if available
+                                    const nightStartTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_start_time`)?.value || 
+                                                           document.getElementById(`day${day}_${section}_night_start_time`)?.value || 
+                                                           null;
+                                    const nightEndTime = document.getElementById(`day${day}_${section}_${transportIndex}_night_end_time`)?.value || 
+                                                         document.getElementById(`day${day}_${section}_night_end_time`)?.value || 
+                                                         null;
+                                    
                                     const transportData = {
-                                        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                        Mode: "dmc",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                        fullName: customerData.fullName,
-                                        email: customerData.email,
-                                        phone: customerData.phone,
-                                        country: pickupZone.dataset.country || "Singapore",
-                                        countryCode: customerData.countryCode,
-                                        state: customerData.state || null,
-                                        city: pickupZone.dataset.city || "Singapore",
-                                        zip: customerData.zip,
-                                        address1: customerData.address1,
-                                        address2: customerData.address2 || null,
                                         bookingDate: dateInput?.value || getTourDateForDay(day),
-                                        pickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: formatEntryTime(timeSelect?.value),
-                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_id: String(vehicleSelect.value || "0"),
                                         vehicles_name: vehicle.text,
-                                        type: serviceTypeSelect.value || "Private",
-                                        travel_type: "local_transfer",
-                                        adults: parseInt(adultCount) || 0,
-                                        children: parseInt(childCount) || 0,
-                                        specialRequests: customerData.specialRequests || null,
-                                        image: vehicle.dataset.image || null,
-                                        totalPrice: parseFloat(totalPrice) || 0,
-                                        componentDayIndex: parseInt(day) - 1,
+                                        image: vehicle.dataset.image || "",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        Mode: "dmc",
+                                        type: serviceTypeSelect.value || "Private", // Service type: Private/Shared
                                         entrypickup: pickupZone.text,
-                                        entrydropoff: dropoffZone.text,
                                         PickupPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lat`)?.value || "" :
@@ -3317,6 +3480,7 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_pickup_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_pickup_lng`)?.value || ""
                                         },
+                                        dropoffLocation: dropoffZone.text,
                                         DropoffPlaceid: {
                                             lat: transportIndex ? 
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lat`)?.value || "" :
@@ -3325,15 +3489,42 @@
                                                 document.getElementById(`day${day}_${section}_${transportIndex}_dropoff_lng`)?.value || "" :
                                                 document.getElementById(`day${day}_${section}_dropoff_lng`)?.value || ""
                                         },
-                                        distance: parseFloat(transportIndex ? 
-                                            document.getElementById(`day${day}_${section}_${transportIndex}_distance`)?.value || "0" :
-                                            document.getElementById(`day${day}_${section}_distance`)?.value || "0"),
-                                        Tax: parseFloat(transportIndex ? 
+                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        adults: String(parseInt(adultCount) || 0),
+                                        children: String(parseInt(childCount) || 0),
+                                        selectedHours: selectedHours,
+                                        totalPrice: parseFloat(totalPrice || 0).toFixed(2),
+                                        Tax: String(parseFloat(transportIndex ? 
                                             document.getElementById(`day${day}_${section}_${transportIndex}_tax`)?.value || "0.00" :
-                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        bookingType: "enquiry"
+                                            document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
+                                        Night_Start_Time: nightStartTime || null,
+                                        Night_End_Time: nightEndTime || null,
+                                        country: pickupZone.dataset.country || "Singapore",
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        countryCode: customerData.countryCode,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        state: customerData.state || null,
+                                        zip: customerData.zip,
+                                        specialRequests: customerData.specialRequests || null,
+                                        userInfo: {
+                                            fullName: customerData.fullName,
+                                            email: customerData.email,
+                                            phone: customerData.phone,
+                                            address1: customerData.address1,
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
+                                            zip: customerData.zip
+                                        },
+                                        bookingType: "enquiry",
+                                        service_category: "local_transport",
+                                        travel_type: "local_transport", // This will be used by backend to set type field
+                                        tour_id: tourId,
+                                        pickup_zone_id: pickupZoneId,
+                                        dropoff_zone_id: dropoffZoneId
                                     };
                                     
                                     transportDataArray.push(transportData);
@@ -3386,7 +3577,8 @@
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
                                 // Handle different time and date field names for entry vs exit
                                 const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
-                                const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
+                                // Entry uses hidden input [name="dayN_entry_pickup_time"]; exit may use select - query by name only
+                                const timeSelect = document.querySelector(`[name="${timeFieldName}"]`);
                                 
                                 // Date field handling - try section-specific date first, then fallback to travel_dates
                                 let dateInput;
@@ -3429,8 +3621,8 @@
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                     // For main entry/exit vehicles, get passenger count from the correct field
                                     const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
-                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adult_count')?.value || 0);
-                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const passengerCount = parseInt(passengerField?.value || document.getElementById('adults')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('children')?.value || 0);
                                     // For main entry/exit vehicles, use the correct naming pattern with _0_ index
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
@@ -3628,7 +3820,7 @@
                                                     // Find related fields for this specific vehicle
                                                     const serviceTypeSelect = document.querySelector(`select[name="day${vehicleDay}_entry_${vehicleIndex}_service_type"]`) || 
                                                                              document.querySelector(`select[name="day${vehicleDay}_entry_service_type"]`);
-                                                    const timeSelect = document.querySelector(`select[name="day${vehicleDay}_entry_pickup_time"]`);
+                                                    const timeSelect = document.querySelector(`[name="day${vehicleDay}_entry_pickup_time"]`);
                                                     const dateInput = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_date"]`);
                                                     
                                                     // Get coordinates from hidden fields (shared for all vehicles)
@@ -4206,13 +4398,53 @@
                 function parseGuestSummary(summaryText) {
                     console.log('Parsing guest summary:', summaryText);
                     
-                    const adultMatch = summaryText.match(/(\d+)\s+adults/);
-                    const maleMatch = summaryText.match(/(\d+)\s+male/);
-                    const femaleMatch = summaryText.match(/(\d+)\s+female/);
-                    const childMatch = summaryText.match(/(\d+)\s+children/);
-                    const infantMatch = summaryText.match(/(\d+)\s+infants/);
+                    // Handle both old text format and new HTML format
+                    // For HTML format, extract text content first
+                    let textToParse = summaryText;
+                    if (typeof summaryText === 'string' && summaryText.includes('<')) {
+                        // Create a temporary element to extract text
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = summaryText;
+                        textToParse = tempDiv.textContent || tempDiv.innerText || '';
+                    }
                     
-                    const adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                    const adultMatch = textToParse.match(/(\d+)\s+Adults/i) || textToParse.match(/(\d+)\s+adults/i);
+                    const maleMatch = textToParse.match(/(\d+)\s+male/i);
+                    const femaleMatch = textToParse.match(/(\d+)\s+female/i);
+                    const childMatch = textToParse.match(/(\d+)\s+children/i);
+                    const infantMatch = textToParse.match(/(\d+)\s+infants/i);
+                    
+                    // If no matches found, try to extract from badge spans directly
+                    let adults = adultMatch ? parseInt(adultMatch[1]) : 0;
+                    let male = maleMatch ? parseInt(maleMatch[1]) : 0;
+                    let female = femaleMatch ? parseInt(femaleMatch[1]) : 0;
+                    let children = childMatch ? parseInt(childMatch[1]) : 0;
+                    let infants = infantMatch ? parseInt(infantMatch[1]) : 0;
+                    
+                    // If parsing from HTML, try to get values from badge spans
+                    if (typeof summaryText === 'string' && summaryText.includes('<span')) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = summaryText;
+                        const badges = tempDiv.querySelectorAll('.badge span:last-child');
+                        if (badges.length >= 5) {
+                            // Format: Adults badge, Male badge, Female badge, Children badge, Infants badge
+                            const adultsText = badges[0].textContent.trim();
+                            adults = parseInt(adultsText.match(/\d+/)?.[0] || '0');
+                            male = parseInt(badges[1].textContent.trim() || '0');
+                            female = parseInt(badges[2].textContent.trim() || '0');
+                            children = parseInt(badges[3].textContent.trim() || '0');
+                            infants = parseInt(badges[4].textContent.trim() || '0');
+                        }
+                        // Fallback: find Children badge by title so child count is never missed
+                        const childrenBadge = tempDiv.querySelector('.badge[title="Children"]');
+                        if (childrenBadge) {
+                            const childSpan = childrenBadge.querySelector('span:last-child');
+                            if (childSpan) {
+                                const n = parseInt(childSpan.textContent.trim(), 10);
+                                if (!isNaN(n)) children = n;
+                            }
+                        }
+                    }
                     
                     // For now, assume seniors are part of adults (this can be enhanced later with age-based logic)
                     // In a real implementation, you might want to add a senior age input field
@@ -4221,10 +4453,10 @@
                     
                     const result = {
                         adults: regularAdults,
-                        male: maleMatch ? parseInt(maleMatch[1]) : 0,
-                        female: femaleMatch ? parseInt(femaleMatch[1]) : 0,
-                        children: childMatch ? parseInt(childMatch[1]) : 0,
-                        infants: infantMatch ? parseInt(infantMatch[1]) : 0,
+                        male: male,
+                        female: female,
+                        children: children,
+                        infants: infants,
                         seniors: seniors
                     };
                     
@@ -4664,6 +4896,37 @@
                         tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
                         tourFormData.append('mainguest', JSON.stringify(mainGuestData));
                         tourFormData.append('additionalguest', JSON.stringify(additionalGuests));
+                        
+                        // Get tour_type - use global variable first, then fallback to radio buttons
+                        let tourType = window.selectedTourType || 'FIT';
+                        
+                        // Double-check by reading radio buttons directly
+                        const tourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+                        if (tourTypeRadio && tourTypeRadio.value) {
+                            tourType = tourTypeRadio.value;
+                            // Update global variable to keep it in sync
+                            window.selectedTourType = tourType;
+                        }
+                        
+                        // Final fallback: check all radio buttons
+                        if (!tourType || tourType === 'FIT') {
+                            const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+                            for (let radio of tourTypeRadios) {
+                                if (radio.checked) {
+                                    tourType = radio.value;
+                                    window.selectedTourType = tourType;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        console.log('=== TOUR TYPE DEBUG ===');
+                        console.log('Window.selectedTourType:', window.selectedTourType);
+                        console.log('Radio checked value:', tourTypeRadio?.value);
+                        console.log('Final tourType being sent:', tourType);
+                        console.log('All radio buttons:', Array.from(document.querySelectorAll('input[name="tour_type"]')).map(r => ({id: r.id, value: r.value, checked: r.checked})));
+                        
+                        tourFormData.append('tour_type', tourType);
                         
                         // Send AJAX request to create tour
                         try {
@@ -5602,7 +5865,19 @@
             const arrow = header.find('i[class*="ri-arrow"]');
             arrow.removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
         });
-        
+
+        // One accordion open at a time: when any accordion opens, close all others
+        $(document).on('show.bs.collapse', '.collapse', function (e) {
+            var $opening = $(e.target);
+            $('.collapse').not($opening).filter('.show').collapse('hide');
+        });
+        $(document).on('show.bs.collapse', '.collapse', function (e) {
+            $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-down-s-line').addClass('ri-arrow-up-s-line');
+        });
+        $(document).on('hide.bs.collapse', '.collapse', function (e) {
+            $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
+        });
+
         // Hotel City Select
         $('#hotelCitySelect').select2({
             placeholder: "Select country first",
@@ -6223,6 +6498,8 @@
                 existingChildAges = enquiry.child_ages;
             }
         }
+        // Reset last selected hotel reference
+        lastSelectedHotelId = null;
         console.log('Existing child ages:', existingChildAges);
         
         // Create dropdowns for each child
@@ -6288,29 +6565,22 @@
         if (infantsInput) infantsInput.value = infants;
         if (childAgesInput) childAgesInput.value = JSON.stringify(childAges);
         
-        // Update summary display with child ages
+        // Update summary display with badges
         const guestSummary = document.getElementById('mainGuestSummary');
         console.log('Guest summary element:', guestSummary);
         
         if (guestSummary) {
-            let summaryText = `${adults} adults (${male} male, ${female} female), ${children} children`;
-            if (children > 0 && childAges.length > 0) {
-                summaryText += ` (ages: ${childAges.join(', ')})`;
-            }
-            summaryText += ` - ${infants} infants`;
-            guestSummary.textContent = summaryText;
-            console.log('Updated guest summary text');
-        }
-        
-        // Update badges
-        const badgeContainer = guestSummary.closest('.guest-display').querySelector('.guest-badges');
-        if (badgeContainer) {
-            const badges = badgeContainer.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Total adults
-                badges[1].textContent = children; // Children
-                badges[2].textContent = infants; // Infants
-            }
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            guestSummary.innerHTML = summaryHTML;
+            console.log('Updated guest summary with badges');
         }
         
          // Refresh meal plans if a hotel is already selected
@@ -6342,24 +6612,22 @@
          allGuestSummaries.forEach(summaryElement => {
              const summaryId = summaryElement.id;
              
-             // Skip main guest summary
-             if (summaryId === 'mainGuestSummary' || summaryId === 'guestSummary') {
-                 return;
-             }
-             
-             // Update summary text
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
-             
-             // Update badges
-             const serviceContainer = summaryElement.closest('.guest-display');
-             if (serviceContainer) {
-                 const badges = serviceContainer.querySelectorAll('.guest-badges .badge');
-                 if (badges.length >= 3) {
-                     badges[0].textContent = adults; // Total adults
-                     badges[1].textContent = children; // Children
-                     badges[2].textContent = infants; // Infants
-                 }
-             }
+            // Skip main guest summary
+            if (summaryId === 'mainGuestSummary' || summaryId === 'guestSummary') {
+                return;
+            }
+            
+            // Update summary with new icon-based format
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryElement.innerHTML = summaryHTML;
              
              // Update attraction pricing if this is an attraction service
              if (summaryId.includes('attraction')) {
@@ -6372,6 +6640,15 @@
                              updateAttractionPricing(day, index);
                          }, 100);
                      }
+                 }
+             }
+             // Update restaurant pricing when pax changes so price grid updates
+             if (summaryId.includes('restaurant')) {
+                 const dayMatch = summaryId.match(/day(\d+)_restaurant_(\d+)_guest_summary/);
+                 if (dayMatch && typeof updateRestaurantPricing === 'function') {
+                     setTimeout(() => {
+                         updateRestaurantPricing(dayMatch[1], dayMatch[2]);
+                     }, 100);
                  }
              }
          });
@@ -6417,6 +6694,7 @@
 </script>
 
 <script>
+var hasEnquiryLayout = @json(!empty($enquiry));
 // Function to save customer information
 function saveCustomerInfo() {
     const customerData = {
@@ -6748,6 +7026,7 @@ let selectedRestaurants = [];
 let selectedGuides = [];
 let tourNights = 0;
 let hotelData = [];
+let lastSelectedHotelId = null;
 
 // Helper function to get tour date for a specific day
 function getTourDateForDay(day) {
@@ -6758,7 +7037,104 @@ function getTourDateForDay(day) {
     return moment(tourStartDate).add(day-1, 'days').format('YYYY-MM-DD');
 }
 
+// ------------------------- Hotel Helper Utilities -------------------------
+function parseWeekendDays(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    if (typeof raw === 'string') {
+        return raw.split(',').map(d => d.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function getSelectedHotelWeekendDays() {
+    try {
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (!hotelSelect || !hotelSelect.value || !Array.isArray(hotelData) || hotelData.length === 0) {
+            return [];
+        }
+
+        const selectedHotel = hotelData.find(h => h.hotel_unique_id == hotelSelect.value);
+        if (!selectedHotel || !selectedHotel.weekend_days) {
+            return [];
+        }
+
+        return parseWeekendDays(selectedHotel.weekend_days);
+    } catch (e) {
+        console.error('Error getting selected hotel weekend days:', e);
+        return [];
+    }
+}
+
+/**
+ * Determine if a given moment date should be treated as weekend
+ * based on the selected hotel's configured weekend_days.
+ * Falls back to Saturday/Sunday if config is missing.
+ */
+function isWeekendForSelectedHotel(nightDate) {
+    if (!nightDate || typeof moment === 'undefined') {
+        return false;
+    }
+
+    const weekendDays = getSelectedHotelWeekendDays();
+
+    // If hotel has no specific weekend_days configured, fall back to Sat/Sun
+    if (!weekendDays || weekendDays.length === 0) {
+        const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }
+
+    const normalizedConfig = weekendDays.map(d => String(d).toLowerCase());
+    const dayName = nightDate.format('dddd'); // e.g. "Sunday"
+    const dayNameLower = dayName.toLowerCase();
+
+    return normalizedConfig.includes(dayNameLower);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+
+    // Store tour_type globally and update it when changed
+    // Initialize with the checked radio button value (FIT by default)
+    const initialTourTypeRadio = document.querySelector('input[name="tour_type"]:checked');
+    window.selectedTourType = initialTourTypeRadio ? initialTourTypeRadio.value : 'FIT';
+    console.log('Initial tour type:', window.selectedTourType);
+    
+    // Ensure tour_type radio buttons are properly checked when labels are clicked
+    const tourTypeLabels = document.querySelectorAll('.tour-toggle label');
+    const tourTypeRadios = document.querySelectorAll('input[name="tour_type"]');
+    
+    // Add click handlers to labels
+    tourTypeLabels.forEach(label => {
+        label.addEventListener('click', function(e) {
+            const radioId = this.getAttribute('for');
+            const radio = document.getElementById(radioId);
+            if (radio) {
+                // Uncheck all radios first
+                tourTypeRadios.forEach(r => r.checked = false);
+                // Check the selected one
+                radio.checked = true;
+                // Update global variable
+                window.selectedTourType = radio.value;
+                // Trigger change event
+                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Tour type changed to:', radio.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
+    
+    // Also listen to radio button change events directly
+    tourTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                window.selectedTourType = this.value;
+                console.log('Tour type radio changed to:', this.value, 'Stored in window.selectedTourType:', window.selectedTourType);
+            }
+        });
+    });
 
     // Initialize tour dates and daily services if dates are pre-filled (enquiry scenario)
     const startDateField = document.getElementById('start_date');
@@ -7379,17 +7755,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
                 }
                 
-                // Update total price
+                // Reset hidden guide price fields FIRST so total is recalculated without guide cost
+                const guidePickupTimeEl = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+                const guideBasePriceEl = document.getElementById(`day${day}_attraction_${index}_guide_base_price`);
+                const guideHoursEl = document.getElementById(`day${day}_attraction_${index}_guide_hours`);
+                const guideSurchargeEl = document.getElementById(`day${day}_attraction_${index}_guide_surcharge`);
+                const guideTotalPriceEl = document.getElementById(`day${day}_attraction_${index}_guide_total_price`);
+                if (guidePickupTimeEl) guidePickupTimeEl.value = '';
+                if (guideBasePriceEl) guideBasePriceEl.value = '0';
+                if (guideHoursEl) guideHoursEl.value = '0';
+                if (guideSurchargeEl) guideSurchargeEl.value = '0';
+                if (guideTotalPriceEl) guideTotalPriceEl.value = '0';
+                
+                // Now update total price and section summary (header/footer) so they refresh
                 if (typeof updateAttractionTotalPrice === 'function') {
                     updateAttractionTotalPrice(day, index);
                 }
-                
-                // Reset hidden fields
-                document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`).value = '';
-                document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
-                document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
-                document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
-                document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
             }
         }
     };
@@ -8235,6 +8616,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.textContent = hotel.name;
                     option.setAttribute('data-type', 'Hotel');
                     option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    if (hotel.zone_id) {
+                        option.setAttribute('data-zone-id', hotel.zone_id);
+                    }
                     hotelGroup.appendChild(option);
                 });
                 
@@ -8276,6 +8660,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             pickupSelect.disabled = false;
+
+            // If user has selected a hotel previously, default pickup to that hotel (last one)
+            if (lastSelectedHotelId) {
+                let defaultValue = null;
+                Array.from(pickupSelect.options).forEach(opt => {
+                    if (opt.value === String(lastSelectedHotelId)) {
+                        defaultValue = opt.value;
+                    }
+                });
+
+                if (defaultValue) {
+                    pickupSelect.value = defaultValue;
+                    // Trigger change so pricing updates
+                    pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
             console.log(`Loaded pickup locations for attraction transfer in ${cityName}`);
         })
         .catch(error => {
@@ -8436,9 +8837,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get selected values
         const vehicleId = vehicleSelect.value;
         const attractionId = attractionSelect.value;
-        const pickupLocationId = pickupLocationSelect.value;
         const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
         const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
+        const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
+        const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
         const transferType = transferTypeSelect.value; // Private or Shared
         const transferWay = transferWaySelect.value; // One Way or Both Way
         const cityName = citySelect ? citySelect.value : '';
@@ -8841,9 +9244,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get selected values
         const vehicleId = vehicleSelect.value;
         const restaurantId = restaurantSelect.value;
-        const pickupLocationId = pickupLocationSelect.value;
         const pickupLocationOption = pickupLocationSelect.options[pickupLocationSelect.selectedIndex];
         const pickupLocationType = pickupLocationOption ? pickupLocationOption.getAttribute('data-type') : '';
+        // Prefer zone_id when available (zone-based pricing), otherwise fall back to raw value
+        const pickupLocationZoneId = pickupLocationOption ? pickupLocationOption.getAttribute('data-zone-id') : '';
+        const pickupLocationId = pickupLocationZoneId || pickupLocationSelect.value;
         const transferType = transferTypeSelect.value; // Private or Shared
         const transferWay = transferWaySelect.value; // One Way or Both Way
         const cityName = citySelect ? citySelect.value : '';
@@ -8987,16 +9392,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        let cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
         const type = transferType ? transferType.value : '';
         const way = transferWay ? transferWay.value : '';
         const vehicleSelect = transferVehicle;
         let vehicleName = 'N/A';
+        let baseCost = cost;
+        let guestCount = 1;
         
         if (vehicleSelect && vehicleSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
             if (selectedOption) {
                 vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // For Shared transfer: multiply base cost by restaurant pax (guest count)
+        if (type === 'Shared' && cost > 0) {
+            const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                if (guestCount === 0) guestCount = 1;
+                cost = baseCost * guestCount;
             }
         }
         
@@ -9011,6 +9429,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div><strong>Way:</strong> ${way || 'N/A'}</div>
                     <div><strong>Vehicle:</strong> ${vehicleName}</div>
                     ${isAjaxPrice ? '<div class="text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
                     <div class="mt-2"><strong class="text-success">$${cost.toFixed(2)}${priceSource}</strong></div>
                 </div>
             `;
@@ -9053,13 +9472,111 @@ document.addEventListener('DOMContentLoaded', function() {
         const restaurantTotalField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
         const restaurantTotal = restaurantTotalField ? (parseFloat(restaurantTotalField.value) || 0) : 0;
         
-        // Get transport pricing from cost field
+        // Get transport pricing: for Shared, multiply base cost by restaurant pax
+        let transportTotal = 0;
         const transportCostField = document.getElementById(`day${day}_restaurant_${index}_transfer_cost`);
-        const transportTotal = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        const transferType = document.getElementById(`day${day}_restaurant_${index}_transfer_type`);
+        if (transportCostField && transportCostField.value) {
+            const baseTransport = parseFloat(transportCostField.value) || 0;
+            if (transferType && transferType.value === 'Shared' && baseTransport > 0) {
+                const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+                if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                    const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                    const pax = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                    transportTotal = pax > 0 ? baseTransport * pax : baseTransport;
+                } else {
+                    transportTotal = baseTransport;
+                }
+            } else {
+                transportTotal = baseTransport;
+            }
+        }
         
         // Calculate and display total
         const grandTotal = restaurantTotal + transportTotal;
         totalDisplay.textContent = grandTotal.toFixed(2);
+
+        // Also refresh restaurant header summary (all restaurants)
+        if (typeof window.updateRestaurantSectionSummary === 'function') {
+            window.updateRestaurantSectionSummary(day);
+        }
+    }
+
+    // Overall restaurant section summary (names + total incl. transport)
+    window.updateRestaurantSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('restaurantHeaderSummary');
+            const container = document.getElementById(`day${day}_restaurants_container`);
+            if (!headerSpan || !container) return;
+
+            const items = container.querySelectorAll('.restaurant-item');
+            if (!items.length) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-restaurant-index');
+                if (!idx) return;
+
+                const restaurantSelect = document.getElementById(`day${day}_restaurant_${idx}`);
+                const totalDisplay = document.getElementById(`day${day}_restaurant_${idx}_total_display`);
+
+                if (restaurantSelect && restaurantSelect.value) {
+                    const txt = restaurantSelect.options[restaurantSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                if (totalDisplay && totalDisplay.textContent) {
+                    const match = totalDisplay.textContent.match(/([\d,.]+)/);
+                    if (match) {
+                        grandTotal += parseFloat(match[1].replace(/,/g, '')) || 0;
+                    }
+                }
+            });
+
+            if (!names.length && grandTotal === 0) {
+                headerSpan.textContent = '';
+                // Update right side price display to 0
+                const restaurantTotalPriceEl = document.getElementById('restaurantTotalPrice');
+                if (restaurantTotalPriceEl) {
+                    restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                }
+                return;
+            }
+
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const restaurantTotalPriceEl = document.getElementById('restaurantTotalPrice');
+            if (restaurantTotalPriceEl) {
+                restaurantTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
+        } catch (e) {
+            console.error('Error updating restaurant section summary:', e);
+        }
     }
     
     // ==================== END RESTAURANT TRANSFER PRICING FUNCTIONS ====================
@@ -9197,38 +9714,50 @@ document.addEventListener('DOMContentLoaded', function() {
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
         const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
         
+        function prependMultiRestaurantOptions(selectEl) {
+            const list = window.multiRestaurants || [];
+            list.forEach(m => {
+                const price = m.adult_price ?? m.price ?? 0;
+                const name = m.package_name || 'Buffet';
+                const option = document.createElement('option');
+                option.value = 'multi_restaurant_' + m.id;
+                option.textContent = name;
+                option.dataset.adultPrice = String(price);
+                option.dataset.packageName = name;
+                selectEl.appendChild(option);
+            });
+        }
+
         if (cityName) {
             restaurantSelect.disabled = false;
             restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
             cityMessage.style.display = 'none';
             
-            // Load restaurants for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
             
             fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(response => response.json())
                 .then(data => {
                     restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+                    prependMultiRestaurantOptions(restaurantSelect);
                     
                     if (data.success && data.restaurants) {
-                        console.log('Restaurant data received:', data.restaurants);
                         data.restaurants.forEach(restaurant => {
-                            console.log('Processing restaurant:', restaurant);
                             const option = document.createElement('option');
                             option.value = restaurant.restaurant_id;
-                            option.textContent = `${restaurant.name}`;
+                            option.textContent = restaurant.name;
                             option.dataset.city = restaurant.city;
                             option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
                             restaurantSelect.appendChild(option);
                         });
-                        console.log(`Loaded ${data.restaurants.length} restaurants for ${cityName}`);
                     } else {
-                        restaurantSelect.innerHTML += '<option disabled>No restaurants found in this city</option>';
+                        if ((window.multiRestaurants || []).length === 0) {
+                            restaurantSelect.innerHTML += '<option disabled>No restaurants found in this city</option>';
+                        }
                     }
                     
                     restaurantSelect.disabled = false;
                     
-                    // Load vehicles for transfer if transfer is enabled
                     const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                     if (transferRequired && transferRequired.value === 'Yes') {
                         loadRestaurantTransferVehicles(day, cityName, index);
@@ -9237,12 +9766,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error loading restaurants for city:', error);
-                    restaurantSelect.innerHTML = '<option disabled>Error loading restaurants</option>';
+                    restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+                    prependMultiRestaurantOptions(restaurantSelect);
+                    restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                     restaurantSelect.disabled = false;
                 });
         } else {
-            restaurantSelect.disabled = true;
-            restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+            restaurantSelect.disabled = false;
+            restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+            prependMultiRestaurantOptions(restaurantSelect);
             cityMessage.style.display = 'block';
         }
     }
@@ -9301,6 +9833,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (vehicleSelect) vehicleSelect.innerHTML = '<option value="">Select Vehicle</option>';
                 if (costInput) costInput.value = '';
                 if (pickupSelect) pickupSelect.innerHTML = '<option value="">Select Pickup Location</option>';
+
+                // After clearing transfer fields, immediately refresh pricing/section totals
+                if (typeof window.updateRestaurantTransportPricing === 'function') {
+                    window.updateRestaurantTransportPricing(day, index);
+                }
             }
         }
     }
@@ -9390,6 +9927,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.textContent = hotel.name;
                     option.setAttribute('data-type', 'Hotel');
                     option.setAttribute('data-hotel', JSON.stringify(hotel));
+                    if (hotel.zone_id) {
+                        option.setAttribute('data-zone-id', hotel.zone_id);
+                    }
                     hotelGroup.appendChild(option);
                 });
                 
@@ -9431,6 +9971,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             pickupSelect.disabled = false;
+
+            // If user has selected a hotel previously, default pickup to that hotel (last one)
+            if (lastSelectedHotelId) {
+                let defaultValue = null;
+                Array.from(pickupSelect.options).forEach(opt => {
+                    if (opt.value === String(lastSelectedHotelId)) {
+                        defaultValue = opt.value;
+                    }
+                });
+
+                if (defaultValue) {
+                    pickupSelect.value = defaultValue;
+                    // Trigger change so pricing updates
+                    pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
             console.log(`Loaded pickup locations for restaurant transfer in ${cityName}`);
         })
         .catch(error => {
@@ -9514,7 +10071,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         if (data.success && data.zones) {
                             data.zones.forEach(zone => {
-                                pickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                                const zId = zone.zone_id ?? zone.id;
+                                const zName = zone.zone_name ?? zone.name;
+                                const zType = (zone.zone_type ?? zone.type ?? '').toLowerCase();
+                                const option = document.createElement('option');
+                                option.value = zId;
+                                option.textContent = `${zName} (${zType || 'zone'})`;
+                                if (zType) option.setAttribute('data-type', zType);
+                                pickupSelect.appendChild(option);
                             });
                             console.log(`Loaded ${data.zones.length} zones for ${cityName} into ${pickupSelect.name}`);
                         } else {
@@ -9590,8 +10154,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         newNights.forEach(nightNum => {
             const nightDate = moment(tourStartDate).add(nightNum - 1, 'days');
-            const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
             
             const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
             totalRoomPrice += nightPrice;
@@ -10914,11 +11479,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const hasLunch = roomsToUse.some(room => room.lunch == 1 || room.lunch === true);
                     const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
                     
+                    // Check if any room has rooms_only = 1 (if so, don't show "room only" option)
+                    const hasRoomsOnly = roomsToUse.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+                    
                     // Generate meal plan options - only show "1 room" options based on database values
                     const roomText = "room";
                     
-                    // Add "Room Only" option first
-                    mealPlans.add(`${roomText} only`);
+                    // Add "Room Only" option only if rooms_only is NOT 1
+                    if (!hasRoomsOnly) {
+                        mealPlans.add(`${roomText} only`);
+                    }
                     
                     // Add specific meal options based on database values (breakfast/lunch/dinner = 1)
                     if (hasBreakfast) {
@@ -11003,6 +11573,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 option.dataset.breakfast = sampleRoom.breakfast || 0;
                                 option.dataset.lunch = sampleRoom.lunch || 0;
                                 option.dataset.dinner = sampleRoom.dinner || 0;
+                                option.dataset.childWithBed = sampleRoom.child_with_bed || 0;
+                                option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
                                 roomTypeSelect.appendChild(option);
                                 
                                 console.log(`Added room type option: ${roomType} with price $${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
@@ -11025,6 +11597,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         roomTypeSelect.onchange = function() {
                             clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
+                            // Refresh meal plans based on the selected room type's meal availability
+                            if (typeof window.updateMealPlansForRoomType === 'function') {
+                                window.updateMealPlansForRoomType(this.value);
+                            }
                             updateRoomPriceDisplay(true); // Force update when room type changes
                         };
                     }
@@ -11187,6 +11763,44 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
+    window.updateHotelChildPricingVisibility = function(roomType) {
+        const section = document.getElementById('hotelChildPricingSection');
+        const cwbWrap = document.getElementById('hotelChildWithBedWrap');
+        const cnbWrap = document.getElementById('hotelChildWithoutBedWrap');
+        const chkCwb = document.getElementById('chkChildWithBed');
+        const chkCnb = document.getElementById('chkChildWithoutBed');
+        const cwbLabel = document.getElementById('childWithBedPriceLabel');
+        const cnbLabel = document.getElementById('childWithoutBedPriceLabel');
+        if (!section || !cwbWrap || !cnbWrap) return;
+        if (!roomType || !window.roomData || !Array.isArray(window.roomData)) {
+            section.style.display = 'none';
+            cwbWrap.style.display = 'none';
+            cnbWrap.style.display = 'none';
+            if (chkCwb) chkCwb.checked = false;
+            if (chkCnb) chkCnb.checked = false;
+            return;
+        }
+        const room = window.roomData.find(function(r){ return r.room_type === roomType; });
+        if (!room) {
+            section.style.display = 'none';
+            cwbWrap.style.display = 'none';
+            cnbWrap.style.display = 'none';
+            if (chkCwb) chkCwb.checked = false;
+            if (chkCnb) chkCnb.checked = false;
+            return;
+        }
+        const cwbPrice = parseFloat(room.child_with_bed) || 0;
+        const cnbPrice = parseFloat(room.child_without_bed) || 0;
+        cwbWrap.style.display = cwbPrice > 0 ? 'block' : 'none';
+        cnbWrap.style.display = cnbPrice > 0 ? 'block' : 'none';
+        section.style.display = (cwbPrice > 0 || cnbPrice > 0) ? 'flex' : 'none';
+        if (chkCwb) chkCwb.checked = false;
+        if (chkCnb) chkCnb.checked = false;
+        if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
+        if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+    };
+
     // Update bed types for selected room type
     window.updateBedTypesForRoom = function(roomType) {
         const bedTypeSelect = document.getElementById('bedTypeSelect');
@@ -11194,8 +11808,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!roomType || !window.roomData) {
             if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+            if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
             return;
         }
+        if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(roomType);
         
         // Get the selected room type option to access pricing data
         const selectedRoomOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
@@ -11212,6 +11828,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedRooms.length === 0) {
             if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
             return;
         }
         
@@ -11223,8 +11840,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the first room ID to fetch beds (since all rooms of same type should have similar bed options)
         const firstRoom = selectedRooms[0];
         const roomId = firstRoom.room_id;
+        // Get rooms_only value from the first room (all rooms of same type should have same rooms_only value)
+        const roomsOnlyValue = firstRoom.rooms_only || 0;
         
         console.log('Fetching beds for room ID:', roomId);
+        console.log('Room rooms_only value from controller:', roomsOnlyValue);
         
         // Fetch beds from the beds table using the existing API endpoint
         fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
@@ -11247,8 +11867,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             let bedTypeText = bed.room_type || 'Standard Bed';
                             
                             // Add occupancy info if available
-                            if (bed.max_occupancy) {
-                                bedTypeText += ` - Max ${bed.max_occupancy} guests`;
+                            // When extra bed is available, max_occupancy from DB usually includes the extra bed capacity.
+                            // For display and selection we want:
+                            //   base room capacity (without extra bed) + explicit "+ Extra Bed" (1 pax).
+                            let baseMaxOccupancy = bed.max_occupancy;
+                            if (bed.max_occupancy && bed.extra_bed) {
+                                // Treat 1 of the occupancy slots as coming from the extra bed
+                                baseMaxOccupancy = Math.max(1, bed.max_occupancy - 1);
+                            }
+                            if (baseMaxOccupancy) {
+                                bedTypeText += ` - Max ${baseMaxOccupancy} guests`;
                             }
                             
                             // Add adult/child info if available
@@ -11279,7 +11907,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             option.dataset.bedId = bed.bed_id;
                             option.dataset.roomId = bed.room_id;
                             option.dataset.bedType = bed.room_type || '';
-                            option.dataset.maxOccupancy = bed.max_occupancy || '';
+                            // Store base max occupancy (excluding the extra bed seat) for UI logic
+                            option.dataset.maxOccupancy = baseMaxOccupancy || '';
                             option.dataset.noOfRooms = bed.no_of_rooms || '';
                             option.dataset.extraBedPrice = bed.extra_bed_price || '';
                             option.dataset.babyCotPrice = bed.baby_cot_price || '';
@@ -11342,6 +11971,94 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.reinitializeSelect2('bedTypeSelect', 'Error loading bed types');
                 }
             });
+    };
+
+    // Update meal plans for selected room type so that
+    // options like "room with breakfast" only appear when
+    // the chosen room type actually has those meals configured.
+    window.updateMealPlansForRoomType = function(roomType) {
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+
+        if (!mealPlanSelect) {
+            return;
+        }
+
+        // If no room type chosen or no room data yet, reset to default prompt
+        if (!roomType || !window.roomData || !Array.isArray(window.roomData) || window.roomData.length === 0) {
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        // Filter rooms for the selected room type
+        const roomsOfType = window.roomData.filter(room => room.room_type === roomType);
+
+        if (roomsOfType.length === 0) {
+            // No matching rooms for this type – show only a neutral option
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+            if (typeof window.reinitializeSelect2 === 'function') {
+                window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+            }
+            return;
+        }
+
+        console.log('Updating meal plans for room type:', roomType, 'Rooms:', roomsOfType);
+
+        // Determine meal availability for this specific room type
+        const hasBreakfast = roomsOfType.some(room => room.breakfast == 1 || room.breakfast === true);
+        const hasLunch = roomsOfType.some(room => room.lunch == 1 || room.lunch === true);
+        const hasDinner = roomsOfType.some(room => room.dinner == 1 || room.dinner === true);
+        const hasRoomsOnly = roomsOfType.some(room => room.rooms_only == 1 || room.rooms_only === true || room.rooms_only === '1');
+
+        const mealPlans = new Set();
+        const roomText = 'room';
+
+        // Follow the same rooms_only rule used when building hotel-wide plans
+        if (!hasRoomsOnly) {
+            mealPlans.add(`${roomText} only`);
+        }
+
+        // Add specific meal options only when that meal exists for this room type
+        if (hasBreakfast) {
+            mealPlans.add(`${roomText} with breakfast`);
+        }
+        if (hasLunch) {
+            mealPlans.add(`${roomText} with lunch`);
+        }
+        if (hasDinner) {
+            mealPlans.add(`${roomText} with dinner`);
+        }
+
+        // Add combination options based on availability for this room type
+        if (hasBreakfast && hasLunch) {
+            mealPlans.add(`${roomText} with breakfast + lunch`);
+        }
+        if (hasBreakfast && hasDinner) {
+            mealPlans.add(`${roomText} with breakfast + dinner`);
+        }
+        if (hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with lunch + dinner`);
+        }
+        if (hasBreakfast && hasLunch && hasDinner) {
+            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
+        }
+
+        // Clean and sort options using existing helper
+        const cleanedMealPlans = typeof cleanMealPlanOptions === 'function'
+            ? cleanMealPlanOptions([...mealPlans])
+            : [...mealPlans];
+
+        // Rebuild dropdown
+        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        cleanedMealPlans.forEach(mealPlan => {
+            mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
+        });
+
+        if (typeof window.reinitializeSelect2 === 'function') {
+            window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
+        }
     };
 
     // Update pricing when bed type is selected
@@ -11528,8 +12245,9 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedNights.forEach(nightBtn => {
                 const nightNum = parseInt(nightBtn.dataset.night);
                 const nightDate = moment(startDate).add(nightNum - 1, 'days');
-                const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                
+                // Determine weekend based on hotel's configured weekend_days
+                const isWeekend = isWeekendForSelectedHotel(nightDate);
                 const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
                 totalPrice += nightPrice;
                 
@@ -12067,6 +12785,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear selected bed info
         window.selectedBedInfo = null;
         
+        // Hide child pricing checkboxes
+        if (typeof window.updateHotelChildPricingVisibility === 'function') window.updateHotelChildPricingVisibility(null);
+        
         console.log('Room type dependent fields cleared');
     }
 
@@ -12150,29 +12871,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? parseFloat(selectedOption.dataset.weekendPrice) || 0
                     : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
                 
-                // Calculate price for each selected night
-                nightNumbers.forEach(nightNum => {
-                    const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
-                    const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                    
-                    const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
-                    totalRoomPrice += nightPrice;
-                    
-                    if (isWeekend) {
-                        weekendNights++;
-                    } else {
-                        weekdayNights++;
-                    }
-                    
-                    priceBreakdown.push({
-                        night: nightNum,
-                        date: nightDate.format('MMM DD'),
-                        dayOfWeek: nightDate.format('ddd'),
-                        isWeekend: isWeekend,
-                        price: nightPrice
-                    });
-                });
+        // Calculate price for each selected night
+        nightNumbers.forEach(nightNum => {
+            const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
+            
+            // Determine weekend based on hotel's configured weekend_days
+            const isWeekend = isWeekendForSelectedHotel(nightDate);
+            
+            const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
+            totalRoomPrice += nightPrice;
+            
+            if (isWeekend) {
+                weekendNights++;
+            } else {
+                weekdayNights++;
+            }
+            
+            priceBreakdown.push({
+                night: nightNum,
+                date: nightDate.format('MMM DD'),
+                dayOfWeek: nightDate.format('ddd'),
+                isWeekend: isWeekend,
+                price: nightPrice
+            });
+        });
                 
                 console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
                 console.log(`Total nights: ${nightNumbers.length}`);
@@ -12264,25 +12986,40 @@ document.addEventListener('DOMContentLoaded', function() {
         // SGD is now a fixed prefix, value is already numeric
         const customRoomPriceNum = parseFloat(customRoomPrice);
 
+        // Child pricing from rooms table (child_with_bed, child_without_bed)
+        let childWithBedPrice = 0, childWithoutBedPrice = 0;
+        const rtVal = roomTypeSelect ? roomTypeSelect.value : '';
+        const rtOpt = rtVal ? Array.from(roomTypeSelect.options || []).find(function(o){ return o.value === rtVal; }) : null;
+        if (rtOpt && rtOpt.dataset) {
+            childWithBedPrice = parseFloat(rtOpt.dataset.childWithBed) || 0;
+            childWithoutBedPrice = parseFloat(rtOpt.dataset.childWithoutBed) || 0;
+        }
+        if ((childWithBedPrice === 0 || childWithoutBedPrice === 0) && window.roomData && Array.isArray(window.roomData)) {
+            const room = window.roomData.find(function(r){ return r.room_type === roomType; });
+            if (room) {
+                if (childWithBedPrice === 0) childWithBedPrice = parseFloat(room.child_with_bed) || 0;
+                if (childWithoutBedPrice === 0) childWithoutBedPrice = parseFloat(room.child_without_bed) || 0;
+            }
+        }
+        const chkCwb = document.getElementById('chkChildWithBed');
+        const chkCnb = document.getElementById('chkChildWithoutBed');
+        const childWithBedEnabled = chkCwb ? chkCwb.checked : false;
+        const childWithoutBedEnabled = chkCnb ? chkCnb.checked : false;
+        const numChildren = parseInt(document.getElementById('children').value) || 0;
+
         console.log('Custom room price:', customRoomPrice);
-        console.log('Custom room price/numberOfRooms:', customRoomPriceNum/numberOfRooms);
         console.log('Weekday nights*storedWeekdayPrice:', weekdayNights*storedWeekdayPrice);
         console.log('Weekend nights*storedWeekendPrice:', weekendNights*storedWeekendPrice);
-        console.log('Total room price:', totalRoomPrice);
-        if((customRoomPriceNum/numberOfRooms)*(weekdayNights*storedWeekdayPrice+weekendNights*storedWeekendPrice) === totalRoomPrice) {
-            console.log('Custom room price is correct');
-        } else {
-            console.log('totalRoomPrice before correction:', totalRoomPrice);
-            totalRoomPrice = (customRoomPriceNum/numberOfRooms);
-            console.log('totalRoomPrice after correction:', totalRoomPrice);
-            console.log('Custom room price is incorrect',(customRoomPriceNum)*(weekdayNights+weekendNights), totalRoomPrice*numberOfRooms);
-            console.log('custom room price:', customRoomPriceNum);
-            console.log('Weekday nights:', weekdayNights);
-            console.log('Weekend nights:', weekendNights);
-            console.log('Total room price:', totalRoomPrice);
-            console.log('Number of rooms:', numberOfRooms);
-            console.log('Total nights:', nightNumbers.length);
-            console.log('Total nights:', nightNumbers.length);
+        console.log('Total room price (weekday+weekend per room):', totalRoomPrice);
+        // Always use the calculated totalRoomPrice (weekday + weekend) so Cost Summary total is correct.
+        // Do NOT overwrite with roomPriceDisplay value, which may be stale or weekday-only.
+        if (customRoomPriceNum > 0 && Math.abs((customRoomPriceNum / numberOfRooms) - totalRoomPrice) > 0.01) {
+            console.log('Syncing room price display to calculated total:', (totalRoomPrice * numberOfRooms).toFixed(2));
+            const roomPriceDisplayEl = document.getElementById('roomPriceDisplay');
+            if (roomPriceDisplayEl) {
+                roomPriceDisplayEl.value = (totalRoomPrice * numberOfRooms).toFixed(2);
+                roomPriceDisplayEl.dataset.manuallyEdited = 'false';
+            }
         }
 
         
@@ -12312,7 +13049,12 @@ document.addEventListener('DOMContentLoaded', function() {
             checkInDate: checkInDate.format('MMM DD'),
             checkOutDate: checkOutDate.format('MMM DD'),
             totalNights: nightNumbers.length,
-            transferOptions: transferOptions // Store transfer options with this hotel
+            transferOptions: transferOptions,
+            childWithBedEnabled: childWithBedEnabled,
+            childWithoutBedEnabled: childWithoutBedEnabled,
+            childWithBedPrice: childWithBedPrice,
+            childWithoutBedPrice: childWithoutBedPrice,
+            children: numChildren
         };
         
         console.log('=== ADDING HOTEL ===');
@@ -12328,6 +13070,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Price breakdown:', hotelData.priceBreakdown);
          
          selectedHotels.push(hotelData);
+         // Track last selected hotel id for defaulting pickup locations
+         lastSelectedHotelId = hotelData.id;
          displaySelectedHotels();
          
          // Update hotel_data JSON field
@@ -12408,6 +13152,10 @@ document.addEventListener('DOMContentLoaded', function() {
                      width: '100%'
                  });
              }
+             const chkCwb = document.getElementById('chkChildWithBed');
+             const chkCnb = document.getElementById('chkChildWithoutBed');
+             if (chkCwb) chkCwb.checked = false;
+             if (chkCnb) chkCnb.checked = false;
          } catch (error) {
              console.error('Error resetting Select2 dropdowns:', error);
          }
@@ -12537,7 +13285,11 @@ document.addEventListener('DOMContentLoaded', function() {
              `;
          } else {
              let hotelsHtml = '';
+             const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
              selectedHotels.forEach((hotel, index) => {
+                 const numChildren = currentChildren || (parseInt(hotel.children) || 0);
+                 const cwbChildren = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? Math.max(numChildren, 1) : numChildren;
+                 const cnbChildren = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? Math.max(numChildren, 1) : numChildren;
                  hotelsHtml += `
                      <div class="card mb-3" style="border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
                          <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.875rem 1.25rem;">
@@ -12648,7 +13400,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.customRoomPrice ? `
                                                 <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                     <span>Custom Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.customRoomPrice}</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.price}</span>
                                                 </div>
                                             ` : ''}
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
@@ -12679,7 +13431,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
                                                 <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                     <span>Extra Bed Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
+                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                    <span>Child with Bed:</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
+                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
+                                                    <span>Child without Bed:</span>
+                                                    <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
                                                 </div>
                                             ` : ''}
                                             <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
@@ -12707,7 +13471,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     }
                                                     const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
                                                         hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
-                                                    return roomCost + mealCost + extraBedCost;
+                                                    const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
+                                                    const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
+                                                    return (roomCost + mealCost + extraBedCost + cwbCost + cnbCost).toFixed(2);
                                                 })()}</span>
                                             </div>
                                         </div>
@@ -12721,7 +13487,7 @@ document.addEventListener('DOMContentLoaded', function() {
              container.innerHTML = hotelsHtml;
          }
          
-         // Update summary
+         // Update summary badges
          const totalHotelsEl = document.getElementById('totalHotels');
          if (totalHotelsEl) {
              totalHotelsEl.textContent = selectedHotels.length;
@@ -12730,6 +13496,70 @@ document.addEventListener('DOMContentLoaded', function() {
          const totalNightsEl = document.getElementById('totalNights');
          if (totalNightsEl) {
              totalNightsEl.textContent = totalNights + ' Nights';
+         }
+         
+         // Update hotel accordion header summary (first hotel name + total price)
+         const headerSummaryEl = document.getElementById('hotelHeaderSummary');
+         if (headerSummaryEl) {
+             if (selectedHotels.length === 0) {
+                 headerSummaryEl.textContent = '';
+             } else {
+                 // Build a concise list of hotel names
+                 let hotelNames = '';
+                 if (selectedHotels.length === 1) {
+                     hotelNames = selectedHotels[0].name;
+                 } else if (selectedHotels.length === 2) {
+                     hotelNames = `${selectedHotels[0].name} & ${selectedHotels[1].name}`;
+                 } else if (selectedHotels.length === 3) {
+                     hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} & ${selectedHotels[2].name}`;
+                 } else {
+                     const remaining = selectedHotels.length - 2;
+                     hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} + ${remaining} more`;
+                 }
+                 
+                const totalPrice = selectedHotels.reduce((sum, h) => {
+                    // Calculate room cost
+                    const roomCost = (parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1);
+                    
+                    // Calculate meal costs based on meal plan, guest count, and number of rooms
+                    let mealCost = 0;
+                    if (typeof window.calculateCorrectMealCosts === 'function') {
+                        mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1);
+                    } else {
+                        // Fallback calculation if function not available
+                        const totalGuests = h.selectedPersons || 1;
+                        if (h.mealPrices && typeof h.mealPrices === 'object') {
+                            if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
+                                mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('lunch')) {
+                                mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                            if (h.mealPlan && h.mealPlan.includes('dinner')) {
+                                mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                            }
+                        }
+                    }
+                    
+                    // Calculate extra bed cost
+                    const extraBedCost = (h.extraBedPrice && h.extraBedPrice > 0 && h.selectedPersons > h.maxOccupancy) ? 
+                        h.extraBedPrice * (h.selectedPersons - h.maxOccupancy) * (h.numberOfRooms || 1) * (h.totalNights || 1) : 0;
+                    const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
+                    const hNumChildren = headerChildren || (parseInt(h.children) || 0);
+                    const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                    const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                    const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                    const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                    return sum + roomCost + mealCost + extraBedCost + cwbCost + cnbCost;
+                }, 0);
+                 
+                 const formattedPrice = totalPrice.toLocaleString('en-US', {
+                     minimumFractionDigits: 2,
+                     maximumFractionDigits: 2
+                 });
+                 
+                 headerSummaryEl.textContent = `– ${hotelNames} • SGD ${formattedPrice}`;
+             }
          }
     }
 
@@ -12751,6 +13581,7 @@ document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('transportDayCount').textContent = totalDays + ' Days';
          
          let servicesHTML = '';
+         window.multiRestaurants = @json($multiRestaurants ?? []);
          
         // Only show Day 1 and last day with exit port (if more than 1 day)
         const daysToShow = totalDays > 1 ? [1, totalDays] : [1];
@@ -12768,21 +13599,29 @@ document.addEventListener('DOMContentLoaded', function() {
             if (day === 1) {
                 servicesHTML += `
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
-                                  <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
-                                          <i class="ri-login-circle-line fs-5"></i>
+                          <div class="card shadow-sm border-0">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#arrivalTransportSection" aria-expanded="false" aria-controls="arrivalTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
+                                  <div class="d-flex align-items-center flex-grow-1">
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-login-circle-line" style="font-size: 1rem;"></i>
                                       </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">🚌 Arrival Transport Services</h6>
-                                          <small class="text-muted d-block">Edit entry port transfers</small>
+                                      <div class="flex-grow-1">
+                                          <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">🚌 Arrival Transport Services</h6>
+                                          <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                              <span id="day${day}_arrival_vehicle_name" style="font-weight: 500; color: #3b82f6;">No vehicle selected</span>
+                                          </small>
                                       </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="arrivalTransportSection" class="collapse">
-                                  <div class="card-body bg-light p-4">
+                                  <div class="card-body bg-white p-4">
                                  
                                  <!-- Location & Time Information Section -->
                                  <div class="mb-4">
@@ -12790,73 +13629,66 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem;" id="modal_local_transfer_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadPortsForCity(this.value)">
-                                                     <option value="">Select city</option>
+                                                 <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
+                                                     <option value="">Select city...</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative" id="entry_pickup_container">
-                                                 <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative" id="entry_dropoff_container">
-                                                 <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-2">
+                                         <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-time-line me-1 text-primary"></i>Pick Up Time
                                              </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select shadow-sm" name="day${day}_entry_pickup_time" style="padding-left: 40px; padding-right: 8px; border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
-                                                     <option value="">Select Time</option>
-                                                     <option value="12:00 AM">12:00 AM</option>
-                                                     <option value="01:00 AM">01:00 AM</option>
-                                                     <option value="02:00 AM">02:00 AM</option>
-                                                     <option value="03:00 AM">03:00 AM</option>
-                                                     <option value="04:00 AM">04:00 AM</option>
-                                                     <option value="05:00 AM">05:00 AM</option>
-                                                     <option value="06:00 AM">06:00 AM</option>
-                                                     <option value="07:00 AM">07:00 AM</option>
-                                                     <option value="08:00 AM">08:00 AM</option>
-                                                     <option value="09:00 AM">09:00 AM</option>
-                                                     <option value="10:00 AM">10:00 AM</option>
-                                                     <option value="11:00 AM">11:00 AM</option>
-                                                     <option value="12:00 PM">12:00 PM</option>
-                                                     <option value="01:00 PM">01:00 PM</option>
-                                                     <option value="02:00 PM">02:00 PM</option>
-                                                     <option value="03:00 PM">03:00 PM</option>
-                                                     <option value="04:00 PM">04:00 PM</option>
-                                                     <option value="05:00 PM">05:00 PM</option>
-                                                     <option value="06:00 PM">06:00 PM</option>
-                                                     <option value="07:00 PM">07:00 PM</option>
-                                                     <option value="08:00 PM">08:00 PM</option>
-                                                     <option value="09:00 PM">09:00 PM</option>
-                                                     <option value="10:00 PM">10:00 PM</option>
-                                                     <option value="11:00 PM">11:00 PM</option>
-                                                 </select>
-                                                 <i class="ri-time-fill position-absolute text-primary" style="left: 12px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
+                                             <div class="d-flex align-items-center gap-2">
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input
+                                                         type="text"
+                                                         class="form-control text-center border-0"
+                                                         id="day${day}_entry_pickup_time_input"
+                                                         placeholder="00:00"
+                                                         maxlength="5"
+                                                         style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                         oninput="formatTimeInput(this); syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                         onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                     >
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select
+                                                         class="form-select border-0"
+                                                         id="day${day}_entry_pickup_time_ampm"
+                                                         style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                         onchange="syncEntryPickupTime(${day}); enableSearchButton(${day}, 'entry')"
+                                                     >
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
+                                                     </select>
+                                                 </div>
+                                                 <input type="hidden" name="day${day}_entry_pickup_time" id="day${day}_entry_pickup_time">
                                              </div>
                                          </div>
-                                        <div class="col-md-2 d-flex align-items-end">
-                                            <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 40px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 1.5rem 3rem;">
-                                                <i class="ri-search-line me-1"></i> Search
-                                            </button>
-                                        </div>
+                                         <div class="col-12 col-md-2 d-flex align-items-end">
+                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'entry', 0)" id="day${day}_entry_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer;">
+                                                 <i class="ri-search-line me-1"></i> Search
+                                             </button>
+                                         </div>
                                      </div>
                                  </div>
                                  
@@ -12913,16 +13745,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <i class="ri-group-line me-1 text-primary"></i>Number of Passengers
                                                     </label>
                                                     <div class="input-group shadow-sm">
-                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
+                                                        <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
                                                         <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
-                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')" onwheel="event.preventDefault(); return false;"
                                                         style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_entry_0_max_pax">—</span> pax
                                                     </small>
                                                 </div>
                                             </div>
@@ -13040,21 +13872,29 @@ document.addEventListener('DOMContentLoaded', function() {
               if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; transition: all 0.3s ease;">
-                                  <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
-                                          <i class="ri-logout-circle-line fs-5"></i>
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#departureTransportSection" aria-expanded="false" aria-controls="departureTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
+                                  <div class="d-flex align-items-center flex-grow-1">
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                                          <i class="ri-logout-circle-line" style="font-size: 1rem;"></i>
                                       </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">✈️ Departure Transport Services</h6>
-                                          <small class="text-muted d-block">Edit exit port transfers</small>
+                                      <div class="flex-grow-1">
+                                          <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">✈️ Departure Transport Services</h6>
+                                          <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                              <span id="day${day}_departure_vehicle_name" style="font-weight: 500; color: #3b82f6;">No vehicle selected</span>
+                                          </small>
                                       </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="departureTransportSection" class="collapse">
-                                  <div class="card-body bg-light p-4">
+                                  <div class="card-body bg-white p-4">
                                  
                                  <!-- Location & Time Information Section -->
                                  <div class="mb-4">
@@ -13062,18 +13902,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <i class="ri-information-line me-2"></i>Location & Time Information
                                      </h6>
                                      <div class="row g-3">
-                                         <div class="col-md-2">
+                                         <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-building-line me-1 text-primary"></i>City
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
-                                                     <option value="">Select city</option>
+                                                 <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
+                                                     <option value="">Select city...</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-line me-1 text-primary"></i>Pick Up Location
                                              </label>
@@ -13081,7 +13921,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-3">
+                                         <div class="col-12 col-md-3">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-map-pin-2-line me-1 text-primary"></i>Drop Off Location
                                              </label>
@@ -13089,49 +13929,45 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <!-- This will be populated based on zone_on value -->
                                              </div>
                                          </div>
-                                         <div class="col-md-2">
+                                        <div class="col-12 col-md-2">
                                              <label class="form-label fw-semibold text-dark">
                                                  <i class="ri-time-line me-1 text-primary"></i>Exit Time
                                              </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select shadow-sm" name="day${day}_exit_time" style="padding-left: 40px; height: 42px; font-size: 0.735rem; padding-right: 8px; border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;" onchange="enableSearchButton(${day}, 'exit')">
-                                                     <option value="">Select Time</option>
-                                                     <option value="12:00 AM">12:00 AM</option>
-                                                     <option value="01:00 AM">01:00 AM</option>
-                                                     <option value="02:00 AM">02:00 AM</option>
-                                                     <option value="03:00 AM">03:00 AM</option>
-                                                     <option value="04:00 AM">04:00 AM</option>
-                                                     <option value="05:00 AM">05:00 AM</option>
-                                                     <option value="06:00 AM">06:00 AM</option>
-                                                     <option value="07:00 AM">07:00 AM</option>
-                                                     <option value="08:00 AM">08:00 AM</option>
-                                                     <option value="09:00 AM">09:00 AM</option>
-                                                     <option value="10:00 AM">10:00 AM</option>
-                                                     <option value="11:00 AM">11:00 AM</option>
-                                                     <option value="12:00 PM">12:00 PM</option>
-                                                     <option value="01:00 PM">01:00 PM</option>
-                                                     <option value="02:00 PM">02:00 PM</option>
-                                                     <option value="03:00 PM">03:00 PM</option>
-                                                     <option value="04:00 PM">04:00 PM</option>
-                                                     <option value="05:00 PM">05:00 PM</option>
-                                                     <option value="06:00 PM">06:00 PM</option>
-                                                     <option value="07:00 PM">07:00 PM</option>
-                                                     <option value="08:00 PM">08:00 PM</option>
-                                                     <option value="09:00 PM">09:00 PM</option>
-                                                     <option value="10:00 PM">10:00 PM</option>
-                                                     <option value="11:00 PM">11:00 PM</option>
-                                                 </select>
+                                             <div class="d-flex align-items-center gap-2">
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input
+                                                         type="text"
+                                                         class="form-control text-center"
+                                                         id="day${day}_exit_time_input"
+                                                         placeholder="00:00"
+                                                         maxlength="5"
+                                                         style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                         oninput="formatTimeInput(this); syncExitTime(${day}); enableSearchButton(${day}, 'exit')"
+                                                         onchange="syncExitTime(${day}); enableSearchButton(${day}, 'exit')"
+                                                     >
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select
+                                                         class="form-select border-0"
+                                                         id="day${day}_exit_time_ampm"
+                                                         style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                         onchange="syncExitTime(${day}); enableSearchButton(${day}, 'exit')"
+                                                     >
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
+                                                     </select>
+                                                 </div>
+                                <input type="hidden" name="day${day}_exit_time" id="day${day}_exit_time">
                                              </div>
-                                         </div>
-                                         <div class="col-md-2 d-flex align-items-end">
-                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer; padding: 0.5rem 1rem;">
-                                                 <i class="ri-search-line me-1"></i> Search
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
+                                        </div>
+                                         <div class="col-12 col-md-2 d-flex align-items-end">
+                                             <button type="button" class="btn w-100" onclick="searchVehicles(${day}, 'exit', 0)" id="day${day}_exit_search_btn" disabled style="height: 42px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-weight: 500; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3); transition: all 0.2s; cursor: pointer;">
+                                                <i class="ri-search-line me-1"></i> Search
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                                  
-                                                                 <!-- Vehicle Results Section (Hidden Initially) -->
+                                                                <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
                                     <div class="col-12 mb-3">
                                         <div class="p-3 rounded-3 shadow-sm" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid #60a5fa;">
@@ -13188,13 +14024,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6;">
                                                             <i class="ri-user-line"></i>
                                                         </span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_exit_0_passengers" name="day${day}_exit_0_passengers" min="1" max="50" value="" 
                                                         oninput="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         onchange="validatePassengerCapacity(${day}, 'exit_0'); updatePricing(${day}, 'exit_0')"
                                                         style="border: 1px solid #e5e7eb;">
                                                     </div>
                                                     <small class="form-text text-muted mt-1">
-                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service
+                                                        <i class="ri-information-line me-1"></i>Enter number of passengers for this service. Max: <span id="day${day}_exit_0_max_pax">—</span> pax
                                                     </small>
                                                 </div>
                                             </div>
@@ -13271,7 +14107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         </label>
                                                         <div class="input-group">
                                                             <span class="input-group-text">SGD</span>
-                                                            <input type="number" class="form-control" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
                                                             <span class="input-group-text">.00</span>
                                                         </div>
                                                         <small class="form-text text-muted mt-1">
@@ -13319,18 +14155,27 @@ document.addEventListener('DOMContentLoaded', function() {
                   <div class="services-container">
                       <!-- Attraction Tickets -->
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allAttractionsSection" aria-expanded="false" aria-controls="allAttractionsSection" style="cursor: pointer; background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border: 1px solid #c084fc; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
-                                          <i class="ri-ticket-line fs-5"></i>
+                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
+                                          <i class="ri-ticket-line" style="font-size: 1rem;"></i>
                                       </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">🎫 All Attraction Tickets</h6>
-                                          <small class="text-muted d-block">All attractions from all days in one place</small>
-                                      </div>
+                                     <div>
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
+                                             🎫 All Attraction Tickets
+                                             <span id="attractionHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
+                                         </h6>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">All attractions from all days in one place</small>
+                                     </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="attractionTotalPrice">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #a855f7; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="allAttractionsSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -13338,6 +14183,85 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                               <div class="card-body bg-white p-4">
                                  
+                                 ${hasEnquiryLayout ? `
+                                 <div class="row g-3">
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select attraction-city-select" name="day${day}_attraction_city_1" id="day${day}_attraction_city_1" onchange="loadAttractionsForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_attraction_city_message_1">Please select a city first.</small>
+                                     </div>
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Attraction</label>
+                                         <select class="form-select attraction-select" name="day${day}_attraction_1" id="day${day}_attraction_1" onchange="loadAttractionDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
+                                     </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_attraction_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${mainAdults} Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                 </div>
+                                 <div class="row g-2 mb-2 mt-0">
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">Select Time Slot</label>
+                                         <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_attraction_1_time" id="day${day}_attraction_1_time">
+                                             <option value="">Select Time Slot</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-ticket-line me-1"></i>Select Ticket
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
+                                             <option value="">Select Ticket</option>
+                                         </select>
+                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Price grid updates when you choose a ticket</small>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-car-line me-1"></i>Transfer Required?
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_transfer_required" id="day${day}_attraction_1_transfer_required" onchange="toggleAttractionTransferFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12 col-sm-3">
+                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                             <i class="ri-user-star-line me-1"></i>Guide Required?
+                                         </label>
+                                         <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_guide_required" id="day${day}_attraction_1_guide_required" onchange="toggleAttractionGuideFields(${day}, 1)">
+                                             <option value="No">No</option>
+                                             <option value="Yes">Yes</option>
+                                         </select>
+                                     </div>
+                                 </div>
+                                 ` : `
                                  <div class="row g-3">
                                      <div class="col-md-2">
                                          <label class="form-label fw-semibold">
@@ -13354,25 +14278,28 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
-                                                                         <div class="col-md-3">
-                                        <label class="form-label fw-semibold">Select Guests</label>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
                                         <div class="guest-selector">
-                                            <div class="guest-display p-2 border rounded bg-light">
-                                                <div class="d-flex align-items-center justify-content-between">
-                                                    <div class="guest-info">
-                                                        <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
-                                                            ${mainAdults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_attraction_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${mainAdults} Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>
                                                         </span>
-                                                    </div>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
-                                                        <i class="ri-edit-line"></i>
-                                                    </button>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>
+                                                        </span>
+                                                    </span>
                                                 </div>
-                                                <div class="guest-badges mt-1">
-                                                    <span class="badge bg-primary">${mainAdults}</span>
-                                                    <span class="badge bg-success">${mainChildren}</span>
-                                                    <span class="badge bg-warning text-dark">${mainInfants}</span>
-                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -13382,10 +14309,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Time Slot</option>
                                          </select>
                                      </div>
-                                    
                                  </div>
-                                 
-                                 <!-- Main Row: Ticket, Transfer Toggle, Guide Toggle -->
                                  <div class="row g-2 mb-2">
                                      <div class="col-md-4">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -13394,6 +14318,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" name="day${day}_attraction_1_ticket" id="day${day}_attraction_1_ticket" onchange="updateAttractionPricing(${day}, 1)">
                                              <option value="">Select Ticket</option>
                                          </select>
+                                         <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Price grid updates when you choose a ticket</small>
                                      </div>
                                      <div class="col-md-4">
                                          <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
@@ -13414,6 +14339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                      </div>
                                  </div>
+                                 `}
                                  
                                  <!-- Transfer Options Card (Expandable) -->
                                  <div class="card mb-2 attraction-transfer-card" id="day${day}_attraction_1_transfer_card" style="display: none; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); overflow: hidden;">
@@ -13470,7 +14396,21 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-money-dollar-circle-line me-1"></i>Cost
                                                  </label>
-                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_1_transfer_cost" id="day${day}_attraction_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, 1)" oninput="updateAttractionTransportPricing(${day}, 1)">
+                                             </div>
+                                             <div class="col-md-3">
+                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                     <i class="ri-time-line me-1"></i>Pickup Time
+                                                 </label>
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, 1)" onchange="syncAttractionTransferPickupTime(${day}, 1)">
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select class="form-select border-0" id="day${day}_attraction_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, 1)">
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
+                                                     </select>
+                                                 </div>
+                                                 <input type="hidden" name="day${day}_attraction_1_transfer_pickup_time" id="day${day}_attraction_1_transfer_pickup_time">
                                              </div>
                                          </div>
                                      </div>
@@ -13508,12 +14448,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  </select>
                                              </div>
                                              <div class="col-md-4">
-                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.8rem;">
                                                      <i class="ri-time-line me-1"></i>Pickup Time
                                                  </label>
-                                                 <div id="day${day}_attraction_1_guide_pickup_time_options">
-                                                     <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                                         <option value="">Select guide first</option>
+                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                     <input type="text" class="form-control text-center border-0" id="day${day}_attraction_1_guide_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, 1)" onchange="syncAttractionGuidePickupTime(${day}, 1)">
+                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                     <select class="form-select border-0" id="day${day}_attraction_1_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, 1)">
+                                                         <option value="AM">AM</option>
+                                                         <option value="PM">PM</option>
                                                      </select>
                                                  </div>
                                                  <input type="hidden" name="day${day}_attraction_1_guide_pickup_time" id="day${day}_attraction_1_guide_pickup_time">
@@ -13654,18 +14597,27 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                     <!-- Tour Guide Services -->
                       <div class="accordion-item border-0 mb-4">
-                          <div class="card shadow-sm border-0 overflow-hidden">
-                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; transition: all 0.3s ease;">
+                          <div class="card shadow-sm border-0 ">
+                              <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#allGuidesSection" aria-expanded="false" aria-controls="allGuidesSection" style="cursor: pointer; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #34d399; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                   <div class="d-flex align-items-center">
-                                      <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
-                                          <i class="ri-user-star-line fs-5"></i>
-                                      </span>
-                                      <div>
-                                          <h6 class="mb-0 fw-bold text-dark">👤 All Tour Guide Services</h6>
-                                          <small class="text-muted d-block">All guides from all days in one place</small>
-                                      </div>
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                                         <i class="ri-user-star-line" style="font-size: 1rem;"></i>
+                                     </span>
+                                     <div>
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
+                                             👤 All Tour Guide Services
+                                             <span id="guideHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
+                                         </h6>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">All guides from all days in one place</small>
+                                     </div>
                                   </div>
-                                  <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                  <div class="d-flex align-items-center ms-3">
+                                      <div class="text-end me-3">
+                                          <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="guideTotalPrice">SGD 0.00</div>
+                                          <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                      </div>
+                                      <i class="ri-arrow-down-s-line transition-transform" style="color: #10b981; font-size: 0.9rem;"></i>
+                                  </div>
                               </div>
                               <div id="allGuidesSection" class="collapse">
                                   <div class="card-body bg-light p-4">
@@ -13673,6 +14625,86 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card border-0 shadow-sm guide-item mb-4 overflow-hidden" data-guide-index="1" style="border-radius: 12px;">
                               <div class="card-body bg-white p-4">
                                  
+                                 ${hasEnquiryLayout ? `
+                                 <div class="row g-3">
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select guide-city-select" name="day${day}_guide_city_1" id="day${day}_guide_city_1" onchange="loadGuidesForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_1">Please select a city first.</small>
+                                     </div>
+                                     <div class="col-12 col-sm-4">
+                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Guide</label>
+                                         <select class="form-select guide-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
+                                         </select>
+                                     </div>
+                                    <div class="col-12 col-sm-4">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_guide_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                 </div>
+                                 <div class="row g-3 mt-0">
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Pickup Time</label>
+                                        <div id="day${day}_guide_1_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
+                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                <input
+                                                    type="text"
+                                                    class="form-control text-center guide-pickup-time-input"
+                                                    id="day${day}_guide_1_pickup_time_input"
+                                                    placeholder="00:00"
+                                                    maxlength="5"
+                                                    style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                    oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
+                                                    onchange="syncGuidePickupTime(${day}, 1)"
+                                                >
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select
+                                                    class="form-select border-0 guide-pickup-time-ampm"
+                                                    id="day${day}_guide_1_pickup_time_ampm"
+                                                    style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                    onchange="syncGuidePickupTime(${day}, 1)"
+                                                >
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Package</label>
+                                        <select class="form-select" style="height: 42px; font-size: 0.735rem;" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
+                                            <option value="">Select Duration</option>
+                                        </select>
+                                    </div>
+                                 </div>
+                                 ` : `
                                  <div class="row g-3">
                                      <div class="col-md-2">
                                          <label class="form-label fw-semibold">
@@ -13689,34 +14721,56 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Select Guests</label>
-                                         <div class="guest-selector">
-                                             <div class="guest-display p-2 border rounded bg-light">
-                                                 <div class="d-flex align-items-center justify-content-between">
-                                                     <div class="guest-info">
-                                                         <span id="day${day}_guide_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male, 0 female), 0 children - 0 infants
-                                                         </span>
-                                                     </div>
-                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')">
-                                                         <i class="ri-edit-line"></i>
-                                                     </button>
-                                                 </div>
-                                                 <div class="guest-badges mt-1">
-                                                     <span class="badge bg-primary">1</span>
-                                                     <span class="badge bg-success">0</span>
-                                                     <span class="badge bg-warning text-dark">0</span>
-                                                 </div>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                            <i class="ri-group-line me-1"></i>Guests
+                                        </label>
+                                        <div class="guest-selector">
+                                            <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                    <span id="day${day}_guide_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                        <span class="d-flex align-items-center gap-1">
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                            <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                    <i class="ri-edit-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="col-md-2">
                                         <label class="form-label fw-semibold">Pickup Time</label>
-                                        <div id="day${day}_guide_1_pickup_time_options">
-                                            <select class="form-select" style="height: 42px; font-size: 0.735rem;" disabled>
-                                                <option value="">Select guide first</option>
-                                            </select>
+                                        <div id="day${day}_guide_1_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
+                                            <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                <input
+                                                    type="text"
+                                                    class="form-control text-center guide-pickup-time-input"
+                                                    id="day${day}_guide_1_pickup_time_input"
+                                                    placeholder="00:00"
+                                                    maxlength="5"
+                                                    style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                    oninput="formatTimeInput(this); syncGuidePickupTime(${day}, 1)"
+                                                    onchange="syncGuidePickupTime(${day}, 1)"
+                                                >
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select
+                                                    class="form-select border-0 guide-pickup-time-ampm"
+                                                    id="day${day}_guide_1_pickup_time_ampm"
+                                                    style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                    onchange="syncGuidePickupTime(${day}, 1)"
+                                                >
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
                                     </div>
@@ -13726,6 +14780,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <option value="">Select Duration</option>
                                         </select>
                                     </div>
+                                 </div>
+                                 `}
                                      <div class="col-md-12">
                                          
                                          
@@ -13810,7 +14866,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <input type="hidden" id="day${day}_guide_1_surcharge" name="day${day}_guide_1_surcharge" value="0">
                                          <input type="hidden" id="day${day}_guide_1_total_price" name="day${day}_guide_1_total_price" value="0">
                                      </div>
-                                 </div>
+                                
                                  
                                  </div>
                               </div>
@@ -13829,34 +14885,48 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      <!-- Restaurant Services -->
                      <div class="accordion-item border-0 mb-4">
-                         <div class="card shadow-sm border-0 overflow-hidden">
-                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; transition: all 0.3s ease;">
+                         <div class="card shadow-sm border-0">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#restaurantServicesSection" aria-expanded="false" aria-controls="restaurantServicesSection" style="cursor: pointer; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
                                  <div class="d-flex align-items-center">
-                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
-                                         <i class="ri-restaurant-2-line fs-5"></i>
-                                     </span>
-                                     <div>
-                                         <h6 class="mb-0 fw-bold text-dark">🍽️ All Restaurant Services</h6>
-                                         <small class="text-muted d-block">All restaurants from all days in one place</small>
-                                     </div>
+                                    <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                                        <i class="ri-restaurant-2-line" style="font-size: 1rem;"></i>
+                                    </span>
+                                    <div>
+                                        <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">
+                                            🍽️ All Restaurant Services
+                                            <span id="restaurantHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
+                                        </h6>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">All restaurants from all days in one place</small>
+                                    </div>
                                  </div>
-                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                 <div class="d-flex align-items-center ms-3">
+                                     <div class="text-end me-3">
+                                         <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="restaurantTotalPrice">SGD 0.00</div>
+                                         <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                     </div>
+                                     <i class="ri-arrow-down-s-line transition-transform" style="color: #f59e0b; font-size: 0.9rem;"></i>
+                                 </div>
                              </div>
                              <div id="restaurantServicesSection" class="collapse">
                                  <div class="card-body bg-light p-4">
                                      <div class="restaurants-container" id="day${day}_restaurants_container">
                                          <div class="card border-0 shadow-sm restaurant-item mb-4 overflow-hidden" data-restaurant-index="1" style="border-radius: 12px;">
                                              <div class="card-body bg-white p-4">
-                                                 <!-- Basic Information Section -->
-                                                 <div class="mb-4">
-                                                     <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
-                                                         <i class="ri-information-line me-2"></i>Basic Information
-                                                     </h6>
-                                                     <div class="row g-3">
-                                                         <div class="col-md-3">
-                                                             <label class="form-label fw-semibold text-dark">
-                                                                 <i class="ri-building-line me-1 text-primary"></i>City
-                                                             </label>
+                                                 <div class="d-flex justify-content-end mb-2">
+                                                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyRestaurant(${day}, 1)">
+                                                         <i class="ri-file-copy-line me-1"></i>Copy
+                                                     </button>
+                                                 </div>
+                                                <!-- Basic Information Section -->
+                                                <div class="mb-4">
+                                                    <h6 class="text-primary fw-bold mb-3 d-flex align-items-center">
+                                                        <i class="ri-information-line me-2"></i>Basic Information
+                                                    </h6>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-dark">
+                                                                <i class="ri-building-line me-1 text-primary"></i>City
+                                                            </label>
                                                              <select class="form-select restaurant-city-select shadow-sm" name="day${day}_restaurant_city_1" id="day${day}_restaurant_city_1" onchange="loadRestaurantsForCity(${day}, this.value, 1)" style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select City</option>
                                                              </select>
@@ -13866,31 +14936,32 @@ document.addEventListener('DOMContentLoaded', function() {
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-restaurant-line me-1 text-primary"></i>Select Restaurant
                                                              </label>
-                                                             <select class="form-select restaurant-select shadow-sm" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); }" disabled style="border: 1px solid #e5e7eb;">
+                                                             <select class="form-select restaurant-select shadow-sm" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="if(this.value && this.value.startsWith('multi_restaurant_')) { handleMultiRestaurantSelected(${day}, 1, this.value); updateRestaurantPricing(${day}, 1); } else if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); showRestaurantTransferSection(${day}, 1); } else { updateRestaurantPricing(${day}, 1); showRestaurantTransferSection(${day}, 1); }" disabled style="border: 1px solid #e5e7eb;">
                                                                  <option value="">Select city first</option>
                                                              </select>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-5">
                                                              <label class="form-label fw-semibold text-dark">
                                                                  <i class="ri-group-line me-1 text-primary"></i>Select Guests
                                                              </label>
                                                              <div class="guest-selector">
-                                                                 <div class="guest-display p-3 border rounded shadow-sm" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #e2e8f0 !important;">
-                                                                     <div class="d-flex align-items-center justify-content-between mb-2">
-                                                                         <div class="guest-info">
-                                                                             <span id="day${day}_restaurant_1_guest_summary" class="text-dark small fw-medium">
-                                                                                 1 adults (1 male, 0 female), 0 children - 0 infants
+                                                                 <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                                                     <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                                                         <span id="day${day}_restaurant_1_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                                             <span class="d-flex align-items-center gap-1">
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                                                              </span>
-                                                                         </div>
-                                                                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" onclick="openGuestSelector('day${day}_restaurant_1')" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none;">
-                                                                             <i class="ri-edit-line me-1"></i>Edit
-                                                                         </button>
+                                                                             <span class="d-flex align-items-center gap-1">
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                                                 <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                                             </span>
+                                                                         </span>
                                                                      </div>
-                                                                     <div class="guest-badges d-flex gap-2">
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">Adults: 1</span>
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Children: 0</span>
-                                                                         <span class="badge rounded-pill px-3 py-1" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">Infants: 0</span>
-                                                                     </div>
+                                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_1')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                                                         <i class="ri-edit-line"></i>
+                                                                     </button>
                                                                  </div>
                                                              </div>
                                                              
@@ -13935,7 +15006,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <option value="">Select Time Slot</option>
                                                              </select>
                                                          </div>
-                                                         <div class="col-md-3">
+                                                         <div class="col-md-3" id="day${day}_restaurant_1_transfer_required_col">
                                                              <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                  <i class="ri-car-line me-1"></i>Transfer Required?
                                                              </label>
@@ -14002,7 +15073,21 @@ document.addEventListener('DOMContentLoaded', function() {
                                                                  <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                                                      <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                                                  </label>
-                                                                 <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
+                                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_1_transfer_cost" id="day${day}_restaurant_1_transfer_cost" min="0" step="1" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, 1)" oninput="updateRestaurantTransportPricing(${day}, 1)">
+                                                             </div>
+                                                             <div class="col-md-3">
+                                                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                                                     <i class="ri-time-line me-1"></i>Pickup Time
+                                                                 </label>
+                                                                 <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                                     <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_1_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, 1)" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
+                                                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                                     <select class="form-select border-0" id="day${day}_restaurant_1_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, 1)">
+                                                                         <option value="AM">AM</option>
+                                                                         <option value="PM">PM</option>
+                                                                     </select>
+                                                                 </div>
+                                                                 <input type="hidden" name="day${day}_restaurant_1_transfer_pickup_time" id="day${day}_restaurant_1_transfer_pickup_time">
                                                              </div>
                                                          </div>
                                                      </div>
@@ -14106,18 +15191,26 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      <!-- Other Transport Services -->
                      <div class="accordion-item border-0 mb-4">
-                         <div class="card shadow-sm border-0 overflow-hidden">
-                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; transition: all 0.3s ease;">
-                                 <div class="d-flex align-items-center">
-                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 45px; height: 45px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
-                                         <i class="ri-car-line fs-5"></i>
+                         <div class="card shadow-sm border-0">
+                             <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#otherTransportSection" aria-expanded="false" aria-controls="otherTransportSection" style="cursor: pointer; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border: 1px solid #5eead4; padding: 0.875rem 1.25rem; transition: all 0.3s ease;">
+                                 <div class="d-flex align-items-center flex-grow-1">
+                                     <span class="service-icon me-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 35px; height: 35px; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white;">
+                                         <i class="ri-car-line" style="font-size: 1rem;"></i>
                                      </span>
-                                     <div>
-                                         <h6 class="mb-0 fw-bold text-dark">🚗 Other Transport Services</h6>
-                                         <small class="text-muted d-block">Local transfers and other transport services from all days</small>
+                                     <div class="flex-grow-1">
+                                         <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.85rem;">🚗 Other Transport Services</h6>
+                                         <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                             <span id="day${day}_other_transport_vehicle_name" style="font-weight: 500; color: #14b8a6;">No vehicle selected</span>
+                                         </small>
                                      </div>
                                  </div>
-                                 <i class="ri-arrow-down-s-line ms-2 fs-5 transition-transform"></i>
+                                 <div class="d-flex align-items-center ms-3">
+                                     <div class="text-end me-3">
+                                         <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">SGD 0.00</div>
+                                         <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                     </div>
+                                     <i class="ri-arrow-down-s-line transition-transform" style="color: #14b8a6; font-size: 0.9rem;"></i>
+                                 </div>
                              </div>
                              <div id="otherTransportSection" class="collapse">
                                  <div class="card-body bg-light p-4">
@@ -14189,42 +15282,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3 local-transfer-field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                             </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_time" style="padding-left: 35px;">
-                                                     <option value="">Select The Time</option>
-                                                     <option value="12:00 AM">12:00 AM</option>
-                                                     <option value="01:00 AM">01:00 AM</option>
-                                                     <option value="02:00 AM">02:00 AM</option>
-                                                     <option value="03:00 AM">03:00 AM</option>
-                                                     <option value="04:00 AM">04:00 AM</option>
-                                                     <option value="05:00 AM">05:00 AM</option>
-                                                     <option value="06:00 AM">06:00 AM</option>
-                                                     <option value="07:00 AM">07:00 AM</option>
-                                                     <option value="08:00 AM">08:00 AM</option>
-                                                     <option value="09:00 AM">09:00 AM</option>
-                                                     <option value="10:00 AM">10:00 AM</option>
-                                                     <option value="11:00 AM">11:00 AM</option>
-                                                     <option value="12:00 PM">12:00 PM</option>
-                                                     <option value="01:00 PM">01:00 PM</option>
-                                                     <option value="02:00 PM">02:00 PM</option>
-                                                     <option value="03:00 PM">03:00 PM</option>
-                                                     <option value="04:00 PM">04:00 PM</option>
-                                                     <option value="05:00 PM">05:00 PM</option>
-                                                     <option value="06:00 PM">06:00 PM</option>
-                                                     <option value="07:00 PM">07:00 PM</option>
-                                                     <option value="08:00 PM">08:00 PM</option>
-                                                     <option value="09:00 PM">09:00 PM</option>
-                                                     <option value="10:00 PM">10:00 PM</option>
-                                                     <option value="11:00 PM">11:00 PM</option>
-                                                 </select>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3 local-transfer-field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                            </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                    <input
+                                                        type="text"
+                                                        class="form-control text-center"
+                                                        id="day${day}_transport_pickup_time_input"
+                                                        placeholder="00:00"
+                                                        maxlength="5"
+                                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                        oninput="formatTimeInput(this); syncTransportPickupTime(${day}); enableSearchButton(${day}, 'transport')"
+                                                        onchange="syncTransportPickupTime(${day}); enableSearchButton(${day}, 'transport')"
+                                                    >
+                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                    <select
+                                                        class="form-select border-0"
+                                                        id="day${day}_transport_pickup_time_ampm"
+                                                        style="width: 90px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                        onchange="syncTransportPickupTime(${day}); enableSearchButton(${day}, 'transport')"
+                                                    >
+                                                        <option value="AM">AM</option>
+                                                        <option value="PM">PM</option>
+                                                    </select>
+                                                </div>
+                                                <input type="hidden" name="day${day}_transport_pickup_time" id="day${day}_transport_pickup_time">
+                                            </div>
+                                        </div>
+                                    </div>
                                      <div class="col-md-2 local-transfer-field" style="display: none;">
                                          <button type="button" class="btn btn-primary w-100 py-2 px-3" style="height: 42px; font-size: 0.735rem;" onclick="searchVehicles(${day}, 'transport',0)" id="day${day}_transport_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search
@@ -14258,42 +15347,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_time_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                             </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_additional_pickup_time" style="padding-left: 35px;">
-                                                     <option value="">Select time</option>
-                                                     <option value="12:00 AM">12:00 AM</option>
-                                                     <option value="01:00 AM">01:00 AM</option>
-                                                     <option value="02:00 AM">02:00 AM</option>
-                                                     <option value="03:00 AM">03:00 AM</option>
-                                                     <option value="04:00 AM">04:00 AM</option>
-                                                     <option value="05:00 AM">05:00 AM</option>
-                                                     <option value="06:00 AM">06:00 AM</option>
-                                                     <option value="07:00 AM">07:00 AM</option>
-                                                     <option value="08:00 AM">08:00 AM</option>
-                                                     <option value="09:00 AM">09:00 AM</option>
-                                                     <option value="10:00 AM">10:00 AM</option>
-                                                     <option value="11:00 AM">11:00 AM</option>
-                                                     <option value="12:00 PM">12:00 PM</option>
-                                                     <option value="01:00 PM">01:00 PM</option>
-                                                     <option value="02:00 PM">02:00 PM</option>
-                                                     <option value="03:00 PM">03:00 PM</option>
-                                                     <option value="04:00 PM">04:00 PM</option>
-                                                     <option value="05:00 PM">05:00 PM</option>
-                                                     <option value="06:00 PM">06:00 PM</option>
-                                                     <option value="07:00 PM">07:00 PM</option>
-                                                     <option value="08:00 PM">08:00 PM</option>
-                                                     <option value="09:00 PM">09:00 PM</option>
-                                                     <option value="10:00 PM">10:00 PM</option>
-                                                     <option value="11:00 PM">11:00 PM</option>
-                                                 </select>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_time_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                            </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                    <input
+                                                        type="text"
+                                                        class="form-control text-center"
+                                                        id="day${day}_transport_additional_pickup_time_input"
+                                                        placeholder="00:00"
+                                                        maxlength="5"
+                                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                        oninput="formatTimeInput(this); syncTransportAdditionalPickupTime(${day}); enableSearchButton(${day}, 'transport_additional', 0)"
+                                                        onchange="syncTransportAdditionalPickupTime(${day}); enableSearchButton(${day}, 'transport_additional', 0)"
+                                                    >
+                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                    <select
+                                                        class="form-select border-0"
+                                                        id="day${day}_transport_additional_pickup_time_ampm"
+                                                        style="width: 90px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                        onchange="syncTransportAdditionalPickupTime(${day}); enableSearchButton(${day}, 'transport_additional', 0)"
+                                                    >
+                                                        <option value="AM">AM</option>
+                                                        <option value="PM">PM</option>
+                                                    </select>
+                                                </div>
+                                                <input type="hidden" name="day${day}_transport_additional_pickup_time" id="day${day}_transport_additional_pickup_time">
+                                            </div>
+                                        </div>
+                                    </div>
                                      
                                      <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional', 0)" id="day${day}_transport_additional_search_btn" disabled>
@@ -14315,42 +15400,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_time_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                             </label>
-                                             <div class="position-relative">
-                                                 <select class="form-select border-1" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_hourly_pickup_time" style="padding-left: 35px;">
-                                                     <option value="">Select time</option>
-                                                     <option value="12:00 AM">12:00 AM</option>
-                                                     <option value="01:00 AM">01:00 AM</option>
-                                                     <option value="02:00 AM">02:00 AM</option>
-                                                     <option value="03:00 AM">03:00 AM</option>
-                                                     <option value="04:00 AM">04:00 AM</option>
-                                                     <option value="05:00 AM">05:00 AM</option>
-                                                     <option value="06:00 AM">06:00 AM</option>
-                                                     <option value="07:00 AM">07:00 AM</option>
-                                                     <option value="08:00 AM">08:00 AM</option>
-                                                     <option value="09:00 AM">09:00 AM</option>
-                                                     <option value="10:00 AM">10:00 AM</option>
-                                                     <option value="11:00 AM">11:00 AM</option>
-                                                     <option value="12:00 PM">12:00 PM</option>
-                                                     <option value="01:00 PM">01:00 PM</option>
-                                                     <option value="02:00 PM">02:00 PM</option>
-                                                     <option value="03:00 PM">03:00 PM</option>
-                                                     <option value="04:00 PM">04:00 PM</option>
-                                                     <option value="05:00 PM">05:00 PM</option>
-                                                     <option value="06:00 PM">06:00 PM</option>
-                                                     <option value="07:00 PM">07:00 PM</option>
-                                                     <option value="08:00 PM">08:00 PM</option>
-                                                     <option value="09:00 PM">09:00 PM</option>
-                                                     <option value="10:00 PM">10:00 PM</option>
-                                                     <option value="11:00 PM">11:00 PM</option>
-                                                 </select>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_time_field" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold text-muted mb-2">
+                                                <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                            </label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                                    <input
+                                                        type="text"
+                                                        class="form-control text-center"
+                                                        id="day${day}_transport_hourly_pickup_time_input"
+                                                        placeholder="00:00"
+                                                        maxlength="5"
+                                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                                        oninput="formatTimeInput(this); syncTransportHourlyPickupTime(${day}); enableSearchButton(${day}, 'transport_hourly', 0)"
+                                                        onchange="syncTransportHourlyPickupTime(${day}); enableSearchButton(${day}, 'transport_hourly', 0)"
+                                                    >
+                                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                    <select
+                                                        class="form-select border-0"
+                                                        id="day${day}_transport_hourly_pickup_time_ampm"
+                                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                                        onchange="syncTransportHourlyPickupTime(${day}); enableSearchButton(${day}, 'transport_hourly', 0)"
+                                                    >
+                                                        <option value="AM">AM</option>
+                                                        <option value="PM">PM</option>
+                                                    </select>
+                                                </div>
+                                                <input type="hidden" name="day${day}_transport_hourly_pickup_time" id="day${day}_transport_hourly_pickup_time">
+                                            </div>
+                                        </div>
+                                    </div>
                                      
                                      <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_hours_field" style="display: none;">
                                          <div class="form-group">
@@ -14399,10 +15480,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                     </div>
 
-                                    <!-- Vehicle + Service Type in one row -->
+                                    <!-- Vehicle + Service Type + Passengers in one row -->
                                     <div class="col-12">
                                         <div class="row g-3">
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_vehicle_id"
@@ -14412,7 +15493,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 </select>
                                             </div>
 
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Service Type</label>
                                                 <select class="form-select" style="height: 42px; font-size: 0.735rem;" 
                                                         id="day${day}_transport_service_type"
@@ -14423,14 +15504,32 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <option value="Private">Private</option>
                                                 </select>
                                             </div>
+                                            
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group shadow-sm">
+                                                    <span class="input-group-text" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: 1px solid #3b82f6; height: 42px; font-size: 0.735rem;">
+                                                        <i class="ri-user-line"></i>
+                                                    </span>
+                                                    <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="50" value="1" 
+                                                        oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();"
+                                                        onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport'); updateTransportDataField();" 
+                                                        onwheel="event.preventDefault(); return false;"
+                                                        style="border: 1px solid #e5e7eb; height: 42px; font-size: 0.735rem;">
+                                                </div>
+                                                <small class="form-text text-muted mt-1">
+                                                    <i class="ri-information-line me-1"></i>Enter number of passengers (adults)
+                                                </small>
+                                            </div>
+                                            
                                               <!-- Price Field for Point to Point -->
-                                        <div class="col-md-4 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                        <div class="col-md-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
                                           
                                                 <div class="form-group">
                                                     <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
                                                     <div class="input-group">
                                                         <span class="input-group-text" style="height: 42px; font-size: 0.735rem;"><i class="ri-money-dollar-circle-line"></i></span>
-                                                        <input type="number" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
+                                                        <input type="number" onwheel="event.preventDefault(); return false;" style="height: 42px; font-size: 0.735rem;" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updatePricing(${day}, 'transport')" onchange="updatePricing(${day}, 'transport')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter the custom price for this point-to-point service
@@ -14675,20 +15774,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 // Pickup time select (uses name attribute, not id)
-                const pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_additional_pickup_time"]`);
-                if (pickupTimeSelect) {
-                    const validatePointToPoint = () => {
-                        setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
-                    };
-                    pickupTimeSelect.addEventListener('change', validatePointToPoint);
-                    pickupTimeSelect.addEventListener('input', validatePointToPoint);
-                    // Also check if Select2 is initialized
-                    setTimeout(() => {
-                        if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
-                            jQuery(pickupTimeSelect).off('select2:select.pointToPoint').on('select2:select.pointToPoint', validatePointToPoint);
-                            jQuery(pickupTimeSelect).off('select2:unselect.pointToPoint').on('select2:unselect.pointToPoint', validatePointToPoint);
-                        }
-                    }, 500);
+                const additionalPickupTimeInput = document.getElementById(`day${day}_transport_additional_pickup_time_input`);
+                const additionalPickupTimeAmpm = document.getElementById(`day${day}_transport_additional_pickup_time_ampm`);
+                const validatePointToPoint = () => {
+                    setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                };
+                if (additionalPickupTimeInput) {
+                    additionalPickupTimeInput.addEventListener('input', () => { formatTimeInput(additionalPickupTimeInput); syncTransportAdditionalPickupTime(day); validatePointToPoint(); });
+                    additionalPickupTimeInput.addEventListener('change', () => { syncTransportAdditionalPickupTime(day); validatePointToPoint(); });
+                }
+                if (additionalPickupTimeAmpm) {
+                    additionalPickupTimeAmpm.addEventListener('change', () => { syncTransportAdditionalPickupTime(day); validatePointToPoint(); });
                 }
             }
         }, 1000);
@@ -15035,7 +16131,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const guestInfo = parseGuestSummary(guestSummaryElement.textContent);
+        const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
         
         if (guestInfo.adults === 0 && guestInfo.children === 0 && guestInfo.seniors === 0) {
             priceDisplay.style.display = 'block';
@@ -15116,8 +16212,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get transport pricing
         let transportPrice = 0;
         const transportCostField = document.getElementById(`day${day}_attraction_${index}_transfer_cost`);
+        const transferType = document.getElementById(`day${day}_attraction_${index}_transfer_type`);
         if (transportCostField && transportCostField.value) {
-            transportPrice = parseFloat(transportCostField.value) || 0;
+            let baseTransportPrice = parseFloat(transportCostField.value) || 0;
+            // For Shared transfers, multiply by attraction guest count
+            if (transferType && transferType.value === 'Shared' && baseTransportPrice > 0) {
+                const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+                if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                    const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                    const guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                    if (guestCount > 0) {
+                        transportPrice = baseTransportPrice * guestCount;
+                    } else {
+                        transportPrice = baseTransportPrice; // Default to base if no guests found
+                    }
+                } else {
+                    transportPrice = baseTransportPrice;
+                }
+            } else {
+                transportPrice = baseTransportPrice;
+            }
         }
         
         // Calculate total
@@ -15138,6 +16252,96 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         console.log(`Total price updated for day ${day}, index ${index}: Ticket: $${ticketPrice}, Guide: $${guidePrice}, Transport: $${transportPrice}, Total: $${totalPrice}`);
+
+        // After updating this attraction row, refresh header + section totals
+        if (typeof updateAttractionSectionSummary === 'function') {
+            updateAttractionSectionSummary(day);
+        }
+    }
+
+    // Overall attraction section summary (names + total incl. guide + vehicle)
+    window.updateAttractionSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('attractionHeaderSummary');
+            const container = document.getElementById(`day${day}_attractions_container`);
+            if (!container) {
+                if (headerSpan) headerSpan.textContent = '';
+                return;
+            }
+
+            const items = container.querySelectorAll('.attraction-item');
+            if (!items.length) {
+                if (headerSpan) headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-attraction-index');
+                if (!idx) return;
+
+                const attractionSelect = document.getElementById(`day${day}_attraction_${idx}`);
+                const totalDisplay = document.getElementById(`day${day}_attraction_${idx}_total_price_display`);
+
+                // Collect name
+                if (attractionSelect && attractionSelect.value) {
+                    const txt = attractionSelect.options[attractionSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                // Collect total (ticket + guide + transport)
+                if (totalDisplay && totalDisplay.textContent) {
+                    const match = totalDisplay.textContent.match(/([\d,.]+)/);
+                    if (match) {
+                        grandTotal += parseFloat(match[1].replace(/,/g, '')) || 0;
+                    }
+                }
+            });
+
+            if (!headerSpan) return;
+
+            if (!names.length || grandTotal === 0) {
+                headerSpan.textContent = '';
+                // Update right side price display to 0
+                const attractionTotalPriceEl = document.getElementById('attractionTotalPrice');
+                if (attractionTotalPriceEl) {
+                    attractionTotalPriceEl.textContent = 'SGD 0.00';
+                }
+                return;
+            }
+
+            // Build compact names string
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const attractionTotalPriceEl = document.getElementById('attractionTotalPrice');
+            if (attractionTotalPriceEl) {
+                attractionTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
+        } catch (e) {
+            console.error('Error updating attraction section summary:', e);
+        }
     }
     
     // Function to update transport pricing column
@@ -15159,7 +16363,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
+        let cost = transportCostField ? (parseFloat(transportCostField.value) || 0) : 0;
         const type = transferType ? transferType.value : '';
         const way = transferWay ? transferWay.value : '';
         const vehicleSelect = transferVehicle;
@@ -15169,6 +16373,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
             if (selectedOption) {
                 vehicleName = selectedOption.textContent || 'N/A';
+            }
+        }
+        
+        // Get attraction guest count for Shared transfer multiplication
+        let guestCount = 1;
+        let baseCost = cost;
+        if (type === 'Shared' && cost > 0) {
+            const guestSummaryElement = document.getElementById(`day${day}_attraction_${index}_guest_summary`);
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                guestCount = (guestInfo.adults || 0) + (guestInfo.children || 0) + (guestInfo.infants || 0);
+                if (guestCount === 0) guestCount = 1; // Default to 1 if no guests found
+                // Multiply base cost by guest count for Shared transfers
+                cost = baseCost * guestCount;
             }
         }
         
@@ -15183,6 +16401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-1"><strong>Way:</strong> ${way || 'N/A'}</div>
                     <div class="mb-1"><strong>Vehicle:</strong> ${vehicleName}</div>
                     ${isAjaxPrice ? '<div class="mb-1 text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
+                    ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
                     <hr class="my-2">
                     <div class="fw-bold text-success">Total: $${cost.toFixed(2)}${priceSource}</div>
                 </div>
@@ -15277,31 +16496,19 @@ document.addEventListener('DOMContentLoaded', function() {
      
     function initializeServiceGuestSummaries() {
          // Get current guest values from main form
-         const male = parseInt(document.getElementById('male').value) || 0;
-         const female = parseInt(document.getElementById('female').value) || 0;
-         const children = parseInt(document.getElementById('children').value) || 0;
-         const infants = parseInt(document.getElementById('infants').value) || 0;
-         
+         const male = parseInt(document.getElementById('male')?.value) || 0;
+         const female = parseInt(document.getElementById('female')?.value) || 0;
+         const children = parseInt(document.getElementById('children')?.value) || 0;
+         const infants = parseInt(document.getElementById('infants')?.value) || 0;
          const adults = male + female;
          
-         // Create formatted text like your image
-         const summaryText = `${adults} adults (${male} male), ${children} children -${infants} infants`;
+         // Use same badge design as main Guests section (406-436)
+         const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span></span>`;
          
-         // Find all guest summary text elements and update them
          const summaryElements = document.querySelectorAll('[id$="_guest_summary"]');
          summaryElements.forEach(element => {
-             element.textContent = summaryText;
-         });
-         
-         // Update badge displays
-         const guestBadges = document.querySelectorAll('.guest-badges');
-         guestBadges.forEach(badgeContainer => {
-             const badges = badgeContainer.querySelectorAll('.badge');
-             if (badges.length >= 3) {
-                 badges[0].textContent = adults; // Total adults
-                 badges[1].textContent = children; // Children
-                 badges[2].textContent = infants; // Infants
-             }
+             if (element.id === 'mainGuestSummary' || element.id === 'guestSummary') return;
+             element.innerHTML = summaryHTML;
          });
     }
 
@@ -15383,22 +16590,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_attraction_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_attraction_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -15496,6 +16704,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.85rem;" name="day${day}_attraction_${newIndex}_transfer_cost" id="day${day}_attraction_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateAttractionTransportPricing(${day}, ${newIndex})" oninput="updateAttractionTransportPricing(${day}, ${newIndex})">
                                 </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time
+                                    </label>
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionTransferPickupTime(${day}, ${newIndex})" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_attraction_${newIndex}_transfer_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionTransferPickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" name="day${day}_attraction_${newIndex}_transfer_pickup_time" id="day${day}_attraction_${newIndex}_transfer_pickup_time">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -15532,12 +16754,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                    <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.8rem;">
                                         <i class="ri-time-line me-1"></i>Pickup Time
                                     </label>
-                                    <div id="day${day}_attraction_${newIndex}_guide_pickup_time_options">
-                                        <select class="form-select" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis;" disabled>
-                                            <option value="">Select guide first</option>
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncAttractionGuidePickupTime(${day}, ${newIndex})" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_attraction_${newIndex}_guide_pickup_time_ampm" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncAttractionGuidePickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
                                         </select>
                                     </div>
                                     <input type="hidden" name="day${day}_attraction_${newIndex}_guide_pickup_time" id="day${day}_attraction_${newIndex}_guide_pickup_time">
@@ -15556,9 +16781,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_surcharge" name="day${day}_attraction_${newIndex}_guide_surcharge" value="0">
                             <input type="hidden" id="day${day}_attraction_${newIndex}_guide_total_price" name="day${day}_attraction_${newIndex}_guide_total_price" value="0">
                         </div>
-                    </div>
-                    
-                    <!-- Attraction Price Display with 3 columns -->
+                    </div>  
+                </div> 
+            </div>
+            <!-- Attraction Price Display with 3 columns -->
                     <div class="col-12 mt-3">
                         <div id="day${day}_attraction_${newIndex}_price_display" class="card shadow-sm border-0" style="display: none; background: #ffffff; border-radius: 12px; overflow: hidden;">
                             <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 1.25rem;">
@@ -15659,9 +16885,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
-                    
-                </div>
-            </div>
         `;
         
         container.insertAdjacentHTML('beforeend', newAttractionHTML);
@@ -15684,18 +16907,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_attraction_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Attraction Booking #${newIndex} added for Day ${day}`, 'success');
@@ -15889,32 +17102,39 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
             
-            // Clear dish selection when meal type changes
+            const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
+            const restaurantId = restaurantSelect ? restaurantSelect.value : null;
+            
+            // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
+            if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
+                if (dishSelect) {
+                    dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
+                    dishSelect.value = 'buffet';
+                    dishSelect.style.display = 'block';
+                }
+                if (dishContainer) dishContainer.style.display = 'block';
+                const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
+                if (mealType && range) {
+                    const part = String(range).split('-').map(s => s.trim());
+                    if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
+                }
+                updateRestaurantPricing(day, index);
+                return;
+            }
+            
+            // Clear dish selection when meal type changes (normal restaurant)
             if (dishSelect) {
                 dishSelect.value = '';
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
             }
-            
-            // Hide dish container initially - will show only if dishes are available
-            if (dishContainer) {
-                dishContainer.style.display = 'none';
-            }
-            if (dishSelect) {
-                dishSelect.style.display = 'none';
-            }
-            
-            // Update pricing immediately to reset/clear pricing when meal type changes
+            if (dishContainer) dishContainer.style.display = 'none';
+            if (dishSelect) dishSelect.style.display = 'none';
             updateRestaurantPricing(day, index);
             
             if (!mealType || mealType === '') {
-                return; // Exit early if no meal type selected
+                return;
             }
             
-            // Get restaurant ID from the restaurant dropdown
-            const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-            const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-            
-            // Validate restaurant ID before proceeding
             if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                 if (mealPeriod) {
                     loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
@@ -16476,32 +17696,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Main guest selection modal functions
 
 
-    // Function to update all service guest summaries
+    // Function to update all service guest summaries (badge design same as main Guests section)
     function updateAllServiceGuestSummaries(male, female, children, infants) {
         const adults = male + female;
-        const summaryText = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
+        const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span></span>`;
         
-        console.log('Updating all service guest summaries:', summaryText);
+        console.log('Updating all service guest summaries (badge format):', adults, 'adults');
         
-        // Find all guest summary elements across all service sections
         const guestSummaryElements = document.querySelectorAll('[id$="_guest_summary"]');
-        
         guestSummaryElements.forEach(function(element) {
-            element.textContent = summaryText;
+            if (element.id === 'mainGuestSummary' || element.id === 'guestSummary') return;
+            element.innerHTML = summaryHTML;
             console.log('Updated guest summary for:', element.id);
         });
-        
-        // Also update any badge displays (the colored badges showing numbers)
-        const badgeContainers = document.querySelectorAll('.guest-badges');
-        badgeContainers.forEach(function(container) {
-            const badges = container.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Primary badge (adults)
-                badges[1].textContent = children; // Success badge (children)
-                badges[2].textContent = infants; // Warning badge (infants)
-            }
-        });
-        
         console.log('Updated all service guest summaries and badges');
     }
 
@@ -16582,6 +17789,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
             return;
         }
+        // Multi Restaurant is always Buffet – do not overwrite dish dropdown
+        if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
+            return;
+        }
         
         // Check if restaurantId is valid
         if (!restaurantId || restaurantId === '' || restaurantId === 'undefined' || restaurantId === null) {
@@ -16639,16 +17850,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (meal.type == 2) icon = '📋 ';
                         
                         option.textContent = `${icon}${meal.display_name || meal.name}`;
+                        option.dataset.type = meal.type || 1; // 1 = buffet, 2 = set menu
                         option.dataset.adultPrice = meal.adult_price || 0;
                         option.dataset.childPrice = meal.child_price || 0;
+                        option.dataset.price = meal.price || 0; // Price field for set menu
                         
                         // Debug logging
                         console.log('Meal data:', {
                             name: meal.name,
+                            type: meal.type,
                             adult_price: meal.adult_price,
                             child_price: meal.child_price,
+                            price: meal.price,
+                            dataset_type: option.dataset.type,
                             dataset_adultPrice: option.dataset.adultPrice,
-                            dataset_childPrice: option.dataset.childPrice
+                            dataset_childPrice: option.dataset.childPrice,
+                            dataset_price: option.dataset.price
                         });
                         
                         dishSelect.appendChild(option);
@@ -16682,6 +17899,109 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
+    // When Multi Restaurant (Buffet) is selected: hide transfer, set Buffet for dish, meal types with times from DB
+    window.handleMultiRestaurantSelected = function(day, index, value) {
+        const id = value.replace('multi_restaurant_', '');
+        const mr = (window.multiRestaurants || []).find(m => String(m.id) === id);
+        if (!mr) return;
+
+        const transferCol = document.getElementById(`day${day}_restaurant_${index}_transfer_required_col`);
+        const transferCard = document.getElementById(`day${day}_restaurant_${index}_transfer_card`);
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        if (transferCol) transferCol.style.display = 'none';
+        if (transferCard) transferCard.style.display = 'none';
+        if (transferRequired) transferRequired.value = 'No';
+
+        const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
+        const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+        const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+        const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+        const dishNameHidden = document.getElementById('day' + day + '_restaurant_' + index + '_dish_name');
+
+        function formatTimeRangeForLabel(rangeStr) {
+            if (!rangeStr || typeof rangeStr !== 'string') return '';
+            const parts = rangeStr.split('-').map(s => s.trim());
+            if (parts.length >= 2) {
+                const start = parseTime(parts[0]);
+                const end = parseTime(parts[1]);
+                if (start && end) return formatTime12(start) + ' to ' + formatTime12(end);
+            }
+            if (parts.length === 1 && parts[0]) {
+                const t = parseTime(parts[0]);
+                if (t) return formatTime12(t);
+            }
+            return '';
+        }
+
+        if (mealTypeSelect) {
+            let mealOptions = '<option value="">Select Meal Type</option>';
+            if (mr.breakfast && mr.breakfast_time && typeof mr.breakfast_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.breakfast_time);
+                mealOptions += '<option value="Breakfast" data-time-range="' + (mr.breakfast_time || '').replace(/"/g, '&quot;') + '">\uD83C\uDF05 Breakfast - ' + label + '</option>';
+            }
+            if (mr.lunch && mr.lunch_time && typeof mr.lunch_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.lunch_time);
+                mealOptions += '<option value="Lunch" data-time-range="' + (mr.lunch_time || '').replace(/"/g, '&quot;') + '">\u2600 Lunch - ' + label + '</option>';
+            }
+            if (mr.dinner && mr.dinner_time && typeof mr.dinner_time === 'string') {
+                const label = formatTimeRangeForLabel(mr.dinner_time);
+                mealOptions += '<option value="Dinner" data-time-range="' + (mr.dinner_time || '').replace(/"/g, '&quot;') + '">\uD83C\uDF19 Dinner - ' + label + '</option>';
+            }
+            if (mealOptions === '<option value="">Select Meal Type</option>') {
+                mealOptions += '<option value="Buffet">Buffet</option>';
+            }
+            mealTypeSelect.innerHTML = mealOptions;
+            mealTypeSelect._multiRestaurantDay = day;
+            mealTypeSelect._multiRestaurantIndex = index;
+            mealTypeSelect.removeEventListener('change', mealTypeSelect._multiRestaurantTimeHandler);
+            mealTypeSelect._multiRestaurantTimeHandler = function() {
+                const opt = this.options[this.selectedIndex];
+                const range = opt && opt.dataset.timeRange;
+                const d = this._multiRestaurantDay;
+                const idx = this._multiRestaurantIndex;
+                const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
+                if (!slotEl) return;
+                if (range) {
+                    const part = range.split('-').map(s => s.trim());
+                    if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
+                    else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
+                } else {
+                    slotEl.innerHTML = '<option value="">Select Time Slot</option>';
+                }
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._multiRestaurantTimeHandler);
+            if (mealTypeSelect.options.length > 1) {
+                mealTypeSelect.selectedIndex = 1;
+                mealTypeSelect._multiRestaurantTimeHandler.call(mealTypeSelect);
+            }
+        }
+        if (dishContainer) dishContainer.style.display = 'block';
+        if (dishSelect) {
+            dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
+            dishSelect.value = 'buffet';
+        }
+        if (dishNameHidden) dishNameHidden.value = 'Buffet';
+
+        const adultPrice = parseFloat(mr.adult_price ?? mr.price ?? 0);
+        const male = parseInt(document.getElementById('male')?.value || 0);
+        const female = parseInt(document.getElementById('female')?.value || 0);
+        const adults = Math.max(1, male + female);
+        const total = adultPrice * adults;
+        const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        if (totalPriceField) totalPriceField.value = String(total);
+        if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
+    };
+
+    window.showRestaurantTransferSection = function(day, index) {
+        const transferCol = document.getElementById(`day${day}_restaurant_${index}_transfer_required_col`);
+        if (transferCol) transferCol.style.display = 'block';
+        const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+        const transferCard = document.getElementById(`day${day}_restaurant_${index}_transfer_card`);
+        if (transferRequired && transferCard) {
+            transferCard.style.display = transferRequired.value === 'Yes' ? 'block' : 'none';
+        }
+    };
+
     // Function to update restaurant pricing display
     window.updateRestaurantPricing = function(day, index) {
         console.log(`=== UPDATING RESTAURANT PRICING: Day ${day}, Index ${index} ===`);
@@ -16716,8 +18036,69 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!selectedRestaurant || !selectedRestaurant.value) {
             console.log('No restaurant selected, hiding pricing');
             priceDisplay.style.display = 'none';
-            // Update total display (restaurant is 0)
             updateRestaurantTotalDisplay(day, index);
+            return;
+        }
+
+        if (selectedRestaurant.value.startsWith('multi_restaurant_')) {
+            const id = selectedRestaurant.value.replace('multi_restaurant_', '');
+            const mr = (window.multiRestaurants || []).find(m => String(m.id) === id);
+            if (mr && restaurantNameDisplay) restaurantNameDisplay.textContent = mr.package_name || 'Buffet';
+            
+            // Get guest counts from restaurant row's guest summary (not main form)
+            const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+            let adults = 0;
+            let children = 0;
+            if (guestSummaryElement && typeof parseGuestSummary === 'function') {
+                const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+                adults = guestInfo.adults || 0;
+                children = guestInfo.children || 0;
+            }
+            
+            // Get prices from Multi Restaurant data
+            const adultPrice = parseFloat(mr ? (mr.adult_price ?? mr.price ?? 0) : 0);
+            const childPrice = parseFloat(mr ? (mr.child_price ?? 0) : 0); // Read child_price from database
+            
+            // Calculate total: (adultPrice × adults) + (childPrice × children)
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            const total = adultTotal + childTotal;
+            
+            if (pricingDetailsDisplay) {
+                let pricingHTML = '<div class="small"><strong>Buffet</strong></div>';
+                pricingHTML += '<div class="mt-2 border-top pt-2">';
+                pricingHTML += '<div><strong>Rates:</strong></div>';
+                pricingHTML += `<div class="ms-3">Adult: SGD ${adultPrice.toFixed(2)}</div>`;
+                pricingHTML += `<div class="ms-3">Child: SGD ${childPrice.toFixed(2)}</div>`;
+                pricingHTML += '</div>';
+                if (adults > 0 || children > 0) {
+                    pricingHTML += '<div class="mt-2 border-top pt-2">';
+                    pricingHTML += '<div><strong>Calculation:</strong></div>';
+                    if (adults > 0) {
+                        pricingHTML += `<div class="ms-3">${adults} Adults × SGD ${adultPrice.toFixed(2)} = <strong>SGD ${adultTotal.toFixed(2)}</strong></div>`;
+                    }
+                    if (children > 0) {
+                        pricingHTML += `<div class="ms-3">${children} Children × SGD ${childPrice.toFixed(2)} = <strong>SGD ${childTotal.toFixed(2)}</strong></div>`;
+                    }
+                    pricingHTML += `<div class="mt-2"><strong class="text-success">Total: SGD ${total.toFixed(2)}</strong></div>`;
+                    pricingHTML += '</div>';
+                } else {
+                    pricingHTML += '<div class="mt-2 text-muted" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Select guests to calculate total price</div>';
+                }
+                pricingDetailsDisplay.innerHTML = pricingHTML;
+            }
+            
+            const totalDisplay = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+            const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (totalPriceField) {
+                totalPriceField.value = String(total.toFixed(2));
+            }
+            if (totalDisplay && totalPriceField) {
+                totalDisplay.textContent = (parseFloat(totalPriceField.value) || 0).toFixed(2);
+            }
+            priceDisplay.style.display = 'block';
+            if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
+            if (typeof window.updateRestaurantSectionSummary === 'function') window.updateRestaurantSectionSummary(day);
             return;
         }
         
@@ -16741,15 +18122,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Get meal type from the selected dish option (1 = buffet, 2 = set menu)
+        const mealType = parseInt(selectedDish.dataset.type) || 1;
+        
         // Get pricing data from the selected dish option
         let adultPrice = parseFloat(selectedDish.dataset.adultPrice) || 0;
         let childPrice = parseFloat(selectedDish.dataset.childPrice) || 0;
+        let setMenuPrice = parseFloat(selectedDish.dataset.price) || 0; // Price field for set menu
         
         console.log('Dish pricing data:', { 
+            mealType,
             adultPrice, 
             childPrice,
+            setMenuPrice,
             rawAdultPrice: selectedDish.dataset.adultPrice,
             rawChildPrice: selectedDish.dataset.childPrice,
+            rawPrice: selectedDish.dataset.price,
             selectedDish: selectedDish
         });
         
@@ -16760,46 +18148,70 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const guestText = guestSummaryElement.textContent;
-        const adultsMatch = guestText.match(/(\d+)\s+adults/);
-        const childrenMatch = guestText.match(/(\d+)\s+children/);
-        
-        const adults = adultsMatch ? parseInt(adultsMatch[1]) : 0;
-        const children = childrenMatch ? parseInt(childrenMatch[1]) : 0;
+        // Use shared guest summary parser so badge-based children counts are read correctly
+        const guestInfo = parseGuestSummary(guestSummaryElement.innerHTML || guestSummaryElement.textContent || '');
+        const adults = guestInfo.adults || 0;
+        const children = guestInfo.children || 0;
         
         console.log('Guest counts:', { adults, children });
         
-        if (adults > 0 || children > 0) {
-            const adultTotal = adults * adultPrice;
-            const childTotal = children * childPrice;
-            const totalPrice = adultTotal + childTotal;
+        let totalPrice = 0;
+        let pricingHTML = '';
+        
+        // Check if it's a set menu (type = 2)
+        if (mealType === 2) {
+            // For set menu, use the price field directly
+            totalPrice = setMenuPrice;
             
             priceDisplay.style.display = 'block';
             if (pricingDetailsDisplay) {
-                pricingDetailsDisplay.innerHTML = `
+                pricingHTML = `
                     <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
                     <div><strong>Dish: ${selectedDish.text}</strong></div>
-                    ${adults > 0 ? `<div>${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}</div>` : ''}
-                    ${children > 0 ? `<div>${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}</div>` : ''}
+                    <div>Set Menu Price: $${setMenuPrice.toFixed(2)}</div>
                     <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
                 `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
             }
-            
-            // Update hidden total price field
-            const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
-            if (totalPriceField) {
-                totalPriceField.value = totalPrice.toFixed(2);
-            }
-            
-            // Update total display (restaurant + transport)
-            updateRestaurantTotalDisplay(day, index);
-            
-            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
         } else {
-            priceDisplay.style.display = 'none';
-            // Update total display even when no pricing
-            updateRestaurantTotalDisplay(day, index);
+            // For buffet (type = 1), always show adult_price and child_price
+            // Calculate total only when guests are selected
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            totalPrice = adultTotal + childTotal;
+            
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingHTML = `
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div><strong>Dish: ${selectedDish.text}</strong></div>
+                    ${adults > 0 || children > 0 ? `
+                        <div class="mt-2 border-top pt-2">
+                            <div><strong>Calculation:</strong></div>
+                            ${adults > 0 ? `<div class="ms-3">${adults} Adults × $${adultPrice.toFixed(2)} = <strong>$${adultTotal.toFixed(2)}</strong></div>` : ''}
+                            ${children > 0 ? `<div class="ms-3">${children} Children × $${childPrice.toFixed(2)} = <strong>$${childTotal.toFixed(2)}</strong></div>` : ''}
+                            <div class="mt-2"><strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong></div>
+                        </div>
+                    ` : `
+                        <div class="mt-2 text-muted" style="font-size: 0.85rem;">
+                            <i class="ri-information-line me-1"></i>Select guests to calculate total price
+                        </div>
+                    `}
+                `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
+            }
         }
+        
+        // Update hidden total price field
+        const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        if (totalPriceField) {
+            totalPriceField.value = totalPrice.toFixed(2);
+        }
+        
+        // Update total display (restaurant + transport)
+        updateRestaurantTotalDisplay(day, index);
+        
+        console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
     }
     
     // Toggle between dish display modes (buttons/dropdown)
@@ -16818,6 +18230,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Helper: wait for a select to have a specific option, then set and trigger change
+    function waitForSelectOption(selectId, value, callback, attempts = 20, delay = 150) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const hasOption = Array.from(select.options).some(opt => opt.value === value);
+        if (hasOption) {
+            select.value = value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            if (callback) callback();
+        } else if (attempts > 0) {
+            setTimeout(() => waitForSelectOption(selectId, value, callback, attempts - 1, delay), delay);
+        }
+    }
+
+    // Copy a restaurant block to a new one
+    window.copyRestaurant = function(day, index) {
+        const container = document.getElementById(`day${day}_restaurants_container`);
+        if (!container) return;
+
+        // Source field values
+        const cityVal = document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '';
+        const restaurantVal = document.getElementById(`day${day}_restaurant_${index}`)?.value || '';
+        const mealTypeVal = document.getElementById(`day${day}_meal_type_${index}`)?.value || '';
+        const dishVal = document.getElementById(`day${day}_dish_${index}`)?.value || '';
+        const timeSlotVal = document.getElementById(`day${day}_time_slot_${index}`)?.value || '';
+        const transferReqVal = document.getElementById(`day${day}_restaurant_${index}_transfer_required` )?.value || 'No';
+        const transferTypeVal = document.getElementById(`day${day}_restaurant_${index}_transfer_type` )?.value || '';
+        const transferWayVal = document.getElementById(`day${day}_restaurant_${index}_transfer_way` )?.value || '';
+        const transferVehicleVal = document.getElementById(`day${day}_restaurant_${index}_transfer_vehicle` )?.value || '';
+        const transferPickupVal = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_location` )?.value || '';
+        const transferCostVal = document.getElementById(`day${day}_restaurant_${index}_transfer_cost` )?.value || '';
+
+        // Get guest information from source
+        const sourceGuestSummary = document.getElementById(`day${day}_restaurant_${index}_guest_summary`)?.textContent || '';
+        const sourceGuestBadges = document.querySelectorAll(`#day${day}_restaurant_${index}_guest_summary`).length > 0 
+            ? Array.from(document.querySelector(`#day${day}_restaurant_${index}_guest_summary`).closest('.guest-display')?.querySelectorAll('.guest-badges .badge') || []).map(b => b.textContent)
+            : ['1', '0', '0'];
+
+        // Create new restaurant card
+        addMoreRestaurants(day);
+        const newIndex = container.querySelectorAll('.restaurant-item').length;
+
+        // Copy guest information immediately
+        const newGuestSummary = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
+        const newGuestBadges = newGuestSummary?.closest('.guest-display')?.querySelectorAll('.guest-badges .badge');
+        if (newGuestSummary && sourceGuestSummary) {
+            newGuestSummary.textContent = sourceGuestSummary;
+        }
+        if (newGuestBadges && newGuestBadges.length >= 3 && sourceGuestBadges.length >= 3) {
+            newGuestBadges[0].textContent = sourceGuestBadges[0] || '1';
+            newGuestBadges[1].textContent = sourceGuestBadges[1] || '0';
+            newGuestBadges[2].textContent = sourceGuestBadges[2] || '0';
+        }
+
+        // Apply city (will trigger loading restaurants)
+        if (cityVal) {
+            const citySelect = document.getElementById(`day${day}_restaurant_city_${newIndex}`);
+            if (citySelect) {
+                // Wait for city options to be available
+                const waitForCityOptions = (attempts = 20) => {
+                    const hasCityOption = Array.from(citySelect.options).some(opt => opt.value === cityVal);
+                    if (hasCityOption) {
+                        citySelect.value = cityVal;
+                        citySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // Wait for restaurants to load after city change
+                        setTimeout(() => {
+                            waitForSelectOption(`day${day}_restaurant_${newIndex}`, restaurantVal, () => {
+                                // Restaurant selected, now load restaurant details
+                                if (restaurantVal && typeof loadRestaurantDetails === 'function') {
+                                    loadRestaurantDetails(day, restaurantVal, newIndex);
+                                    
+                                    // Wait for meal types to load, then set meal type
+                                    setTimeout(() => {
+                                        if (mealTypeVal) {
+                                            waitForSelectOption(`day${day}_meal_type_${newIndex}`, mealTypeVal, () => {
+                                                // Meal type set, wait for dishes to load
+                                                setTimeout(() => {
+                                                    if (dishVal) {
+                                                        waitForSelectOption(`day${day}_dish_${newIndex}`, dishVal);
+                                                    }
+                                                }, 500);
+                                            });
+                                        }
+                                        
+                                        // Time slot (independent of meal type)
+                                        if (timeSlotVal) {
+                                            setTimeout(() => {
+                                                waitForSelectOption(`day${day}_time_slot_${newIndex}`, timeSlotVal);
+                                            }, 500);
+                                        }
+                                    }, 500);
+                                }
+                                
+                                // Transfer required
+                                if (transferReqVal && transferReqVal !== 'No') {
+                                    setTimeout(() => {
+                                        const trReq = document.getElementById(`day${day}_restaurant_${newIndex}_transfer_required`);
+                                        if (trReq) {
+                                            trReq.value = transferReqVal;
+                                            trReq.dispatchEvent(new Event('change', { bubbles: true }));
+                                            
+                                            // Wait for transfer fields to show, then set transfer values
+                                            setTimeout(() => {
+                                                if (transferTypeVal) {
+                                                    waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_type`, transferTypeVal, () => {
+                                                        if (transferWayVal) {
+                                                            waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_way`, transferWayVal, () => {
+                                                                if (transferVehicleVal) {
+                                                                    waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_vehicle`, transferVehicleVal, () => {
+                                                                        if (transferPickupVal) {
+                                                                            waitForSelectOption(`day${day}_restaurant_${newIndex}_transfer_pickup_location`, transferPickupVal, () => {
+                                                                                const costField = document.getElementById(`day${day}_restaurant_${newIndex}_transfer_cost`);
+                                                                                if (costField && transferCostVal) {
+                                                                                    costField.value = transferCostVal;
+                                                                                    updateRestaurantTransportPricing(day, newIndex);
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            }, 300);
+                                        }
+                                    }, 300);
+                                }
+                            });
+                        }, 800);
+                    } else if (attempts > 0) {
+                        setTimeout(() => waitForCityOptions(attempts - 1), 100);
+                    }
+                };
+                waitForCityOptions();
+            }
+        }
+    }
+
     window.addMoreRestaurants = function(day) {
         const container = document.getElementById(`day${day}_restaurants_container`);
         const existingRestaurants = container.querySelectorAll('.restaurant-item');
@@ -16836,9 +18388,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small class="opacity-75">Select your dining experience</small>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})">
-                            <i class="ri-close-line"></i>
-                        </button>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyRestaurant(${day}, ${newIndex})" title="Copy this restaurant">
+                                <i class="ri-file-copy-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurant(this, ${day}, ${newIndex})" title="Remove this restaurant">
+                                <i class="ri-close-line"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body bg-white">
@@ -16854,29 +18411,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Restaurant</label>
-                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, ${newIndex}); updateRestaurantPricing(${day}, ${newIndex}); }" disabled>
+                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="if(this.value && this.value.startsWith('multi_restaurant_')) { handleMultiRestaurantSelected(${day}, ${newIndex}, this.value); updateRestaurantPricing(${day}, ${newIndex}); } else if(this.value) { loadRestaurantDetails(${day}, this.value, ${newIndex}); updateRestaurantPricing(${day}, ${newIndex}); showRestaurantTransferSection(${day}, ${newIndex}); } else { updateRestaurantPricing(${day}, ${newIndex}); showRestaurantTransferSection(${day}, ${newIndex}); }" disabled>
                                 <option value="">Select city first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guests</label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_restaurant_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_restaurant_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                             
@@ -16910,7 +18468,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <option value="">Select Time Slot</option>
                              </select>
                          </div>
-                         <div class="col-md-3">
+                         <div class="col-md-3" id="day${day}_restaurant_${newIndex}_transfer_required_col">
                              <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
                                  <i class="ri-car-line me-1"></i>Transfer Required?
                              </label>
@@ -16977,6 +18535,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="ri-money-dollar-circle-line me-1"></i>Transfer Cost
                                     </label>
                                     <input type="number" class="form-control" style="height: 36px; border-radius: 6px; border: 1px solid #dee2e6; font-size: 0.8rem; padding: 0.375rem 0.75rem;" name="day${day}_restaurant_${newIndex}_transfer_cost" id="day${day}_restaurant_${newIndex}_transfer_cost" min="0" step="0.01" placeholder="0.00" onchange="updateRestaurantTransportPricing(${day}, ${newIndex})" oninput="updateRestaurantTransportPricing(${day}, ${newIndex})">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.8rem;">
+                                        <i class="ri-time-line me-1"></i>Pickup Time
+                                    </label>
+                                    <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                        <input type="text" class="form-control text-center border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncRestaurantTransferPickupTime(${day}, ${newIndex})" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                        <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                        <select class="form-select border-0" id="day${day}_restaurant_${newIndex}_transfer_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncRestaurantTransferPickupTime(${day}, ${newIndex})">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
+                                    <input type="hidden" name="day${day}_restaurant_${newIndex}_transfer_pickup_time" id="day${day}_restaurant_${newIndex}_transfer_pickup_time">
                                 </div>
                             </div>
                         </div>
@@ -17087,18 +18659,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -17370,6 +18932,85 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPackagePrice: totalPackagePrice.toFixed(2),
             finalTotalPrice: (totalPackagePrice + surcharge).toFixed(2)
         });
+
+        // After updating this guide row, refresh guide header summary
+        if (typeof window.updateGuideSectionSummary === 'function') {
+            window.updateGuideSectionSummary(day);
+        }
+    }
+
+    // Overall guide section summary (names + total guide price)
+    window.updateGuideSectionSummary = function(day = 1) {
+        try {
+            const headerSpan = document.getElementById('guideHeaderSummary');
+            const container = document.getElementById(`day${day}_guides_container`);
+            if (!headerSpan || !container) return;
+
+            const items = container.querySelectorAll('.guide-item');
+            if (!items.length) {
+                headerSpan.textContent = '';
+                return;
+            }
+
+            const names = [];
+            let grandTotal = 0;
+
+            items.forEach(item => {
+                const idx = item.getAttribute('data-guide-index');
+                if (!idx) return;
+
+                const guideSelect = document.getElementById(`day${day}_guide_${idx}`);
+                const totalField = document.getElementById(`day${day}_guide_${idx}_total_price`);
+
+                if (guideSelect && guideSelect.value) {
+                    const txt = guideSelect.options[guideSelect.selectedIndex].text;
+                    if (txt) names.push(txt);
+                }
+
+                if (totalField && totalField.value) {
+                    grandTotal += parseFloat(totalField.value) || 0;
+                }
+            });
+
+            if (!names.length || grandTotal === 0) {
+                headerSpan.textContent = '';
+                // Update right side price display to 0
+                const guideTotalPriceEl = document.getElementById('guideTotalPrice');
+                if (guideTotalPriceEl) {
+                    guideTotalPriceEl.textContent = 'SGD 0.00';
+                }
+                return;
+            }
+
+            const uniqueNames = [...new Set(names)];
+            let nameSummary = '';
+            if (uniqueNames.length === 1) {
+                nameSummary = uniqueNames[0];
+            } else if (uniqueNames.length === 2) {
+                nameSummary = `${uniqueNames[0]} & ${uniqueNames[1]}`;
+            } else if (uniqueNames.length === 3) {
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} & ${uniqueNames[2]}`;
+            } else {
+                const remaining = uniqueNames.length - 2;
+                nameSummary = `${uniqueNames[0]}, ${uniqueNames[1]} + ${remaining} more`;
+            }
+
+            const formattedTotal = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            // Only show names in header, price is shown on right side
+            headerSpan.textContent = `– ${nameSummary}`;
+            
+            // Update right side price display
+            const guideTotalPriceEl = document.getElementById('guideTotalPrice');
+            if (guideTotalPriceEl) {
+                guideTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+            }
+        } catch (e) {
+            console.error('Error updating guide section summary:', e);
+        }
     }
     
     // Load guide details and setup pickup time
@@ -17415,11 +19056,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Setup pickup time dropdown with night hours highlighting
+    // Setup pickup time dropdown with night hours highlighting (skip if guide uses HH:MM + AM/PM input)
     function setupPickupTimeDropdown(day, index, nightStartTime, nightEndTime) {
         const timeOptionsContainer = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_options');
         if (!timeOptionsContainer) {
             console.error('Time options container not found:', 'day' + day + '_guide_' + index + '_pickup_time_options');
+            return;
+        }
+        // If guide section uses time input + AM/PM (e.g. guide_1), do not replace – only optionally add night hours info
+        const timeInput = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_input');
+        if (timeInput) {
+            if (nightStartTime && nightStartTime !== '00:00:00' && nightEndTime && nightEndTime !== '00:00:00') {
+                const nightStart = parseInt(nightStartTime.split(':')[0]);
+                const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
+                let nightInfo = timeOptionsContainer.querySelector('.guide-night-hours-info');
+                if (!nightInfo) {
+                    nightInfo = document.createElement('div');
+                    nightInfo.className = 'alert alert-warning py-1 px-2 mb-1 mt-1 small guide-night-hours-info';
+                    nightInfo.style.cssText = 'z-index: 0; position: relative; line-height: 1.3;';
+                    nightInfo.innerHTML = `<i class="ri-moon-line me-1"></i><strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)} <span class="d-block mt-0" style="font-size: 0.7rem;">Night surcharge applies</span>`;
+                    timeOptionsContainer.appendChild(nightInfo);
+                }
+            }
             return;
         }
         
@@ -17500,23 +19158,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
             
             const nightInfo = document.createElement('div');
-            nightInfo.className = 'alert alert-warning py-2 mb-2 mt-2';
+            nightInfo.className = 'alert alert-warning py-1 px-2 mb-1 mt-1 small';
+            nightInfo.style.cssText = 'z-index: 0; position: relative; line-height: 1.3;';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
                 <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
-                <br><small>Night surcharge applies during these hours</small>
+                <span class="d-block mt-0" style="font-size: 0.7rem;">Night surcharge applies during these hours</span>
             `;
             timeOptionsContainer.appendChild(nightInfo);
         }
         
-        // Initialize Select2 on the newly created select element
+        // Initialize Select2 on the newly created select element (dropdown to body so it is not clipped by parent overflow)
         setTimeout(() => {
             if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
                 jQuery(selectElement).select2({
                     placeholder: "Select pickup time",
                     allowClear: true,
                     width: '100%',
-                    dropdownParent: jQuery(timeOptionsContainer)
+                    dropdownParent: jQuery('body')
                 });
                 
                 console.log('Select2 initialized for guide pickup time:', selectElement.id);
@@ -17616,6 +19275,86 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <div class="card-body bg-white">
+                    ${hasEnquiryLayout ? `
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-building-line me-1"></i>City
+                            </label>
+                            <select class="form-select guide-city-select" name="day${day}_guide_city_${newIndex}" id="day${day}_guide_city_${newIndex}" onchange="loadGuidesForCity(${day}, this.value, ${newIndex})">
+                                <option value="">Select City</option>
+                            </select>
+                            <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Guide</label>
+                            <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-group-line me-1"></i>Guests
+                            </label>
+                            <div class="guest-selector">
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_guide_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-0">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Pickup Time</label>
+                            <div id="day${day}_guide_${newIndex}_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
+                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                    <input
+                                        type="text"
+                                        class="form-control text-center guide-pickup-time-input"
+                                        id="day${day}_guide_${newIndex}_pickup_time_input"
+                                        placeholder="00:00"
+                                        maxlength="5"
+                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                        oninput="formatTimeInput(this); syncGuidePickupTime(${day}, ${newIndex})"
+                                        onchange="syncGuidePickupTime(${day}, ${newIndex})"
+                                    >
+                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                    <select
+                                        class="form-select border-0 guide-pickup-time-ampm"
+                                        id="day${day}_guide_${newIndex}_pickup_time_ampm"
+                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                        onchange="syncGuidePickupTime(${day}, ${newIndex})"
+                                    >
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">Select Package</label>
+                            <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
+                                <option value="">Select Duration</option>
+                            </select>
+                        </div>
+                    </div>
+                    ` : `
                     <div class="row g-3">
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">
@@ -17626,50 +19365,75 @@ document.addEventListener('DOMContentLoaded', function() {
                             </select>
                             <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guide</label>
                             <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
                                 <option value="">Select city first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Select Guests</label>
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
+                                <i class="ri-group-line me-1"></i>Guests
+                            </label>
                             <div class="guest-selector">
-                                <div class="guest-display p-2 border rounded bg-light">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="guest-info">
-                                            <span id="day${day}_guide_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                    <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                        <span id="day${day}_guide_${newIndex}_guest_summary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>1 Adults</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>1</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>0</span></span>
                                             </span>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')">
-                                            <i class="ri-edit-line"></i>
-                                        </button>
+                                            <span class="d-flex align-items-center gap-1">
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                                <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>0</span></span>
+                                            </span>
+                                        </span>
                                     </div>
-                                    <div class="guest-badges mt-1">
-                                        <span class="badge bg-primary">1</span>
-                                        <span class="badge bg-success">0</span>
-                                        <span class="badge bg-warning text-dark">0</span>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                        
                         <div class="col-md-2">
                             <label class="form-label fw-semibold">Pickup Time</label>
-                            <div id="day${day}_guide_${newIndex}_pickup_time_options">
-                                <select class="form-select" disabled>
-                                    <option value="">Select guide first</option>
-                                </select>
+                            <div id="day${day}_guide_${newIndex}_pickup_time_options" class="d-flex flex-column align-items-start gap-1" style="overflow: visible; position: relative;">
+                                <div class="d-inline-flex align-items-center" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden;">
+                                    <input
+                                        type="text"
+                                        class="form-control text-center guide-pickup-time-input"
+                                        id="day${day}_guide_${newIndex}_pickup_time_input"
+                                        placeholder="00:00"
+                                        maxlength="5"
+                                        style="border: none; box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;"
+                                        oninput="formatTimeInput(this); syncGuidePickupTime(${day}, ${newIndex})"
+                                        onchange="syncGuidePickupTime(${day}, ${newIndex})"
+                                    >
+                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                    <select
+                                        class="form-select border-0 guide-pickup-time-ampm"
+                                        id="day${day}_guide_${newIndex}_pickup_time_ampm"
+                                        style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;"
+                                        onchange="syncGuidePickupTime(${day}, ${newIndex})"
+                                    >
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
                             </div>
                             <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
                         </div>
-                        <div class="col-md-3">
+
+                        <div class="col-md-2">
                             <label class="form-label fw-semibold">Select Package</label>
                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
                                 <option value="">Select Duration</option>
                             </select>
                         </div>
                     </div>
+                    `}
                     
                     <div class="row g-3 mt-2">
                         <div class="col-md-12">
@@ -17801,18 +19565,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_guide_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
-            
-            // Update badges
-            const guestDisplay = summaryElement.closest('.guest-display');
-            if (guestDisplay) {
-                const badges = guestDisplay.querySelectorAll('.guest-badges .badge');
-                if (badges.length >= 3) {
-                    badges[0].textContent = adults; // Total adults
-                    badges[1].textContent = mainChildren; // Children
-                    badges[2].textContent = mainInfants; // Infants
-                }
-            }
+            const summaryHTML = `<span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span></span><span class="d-flex align-items-center gap-1"><span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span><span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span></span>`;
+            summaryElement.innerHTML = summaryHTML;
         }
         
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');
@@ -17925,27 +19679,29 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                              </div>
                          </div>
-                         <div class="col-md-4 local-transfer-field" style="display: none;">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
-                                 </label>
-                                 <div class="position-relative">
-                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_pickup_time" style="padding-left: 35px;">
-                                         <option value="">Select The Time</option>
-                                         ${generateTimeOptions()}
-                                     </select>
-                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
+                        <div class="col-md-4 local-transfer-field" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label fw-semibold text-muted mb-2">
+                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                </label>
+                                <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                    <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
+                                    <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                    <select class="form-select border-0" id="day${day}_transport_${newIndex}_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'local'); enableSearchButton(${day}, 'transport_${newIndex}', ${newIndex})">
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" name="day${day}_transport_${newIndex}_pickup_time" id="day${day}_transport_${newIndex}_pickup_time">
+                            </div>
+                        </div>
                          <div class="col-md-2 local-transfer-field" style="display: none;">
                              <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}',${newIndex})" id="day${day}_transport_${newIndex}_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
                          </div>
                          
-    <!-- Point To Point Fields (Hidden Initially) -->
+                <!-- Point To Point Fields (Hidden Initially) -->
                                                              <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_pickup_location_field" style="display: none;">
                                         <div class="form-group">
                                             <label class="form-label fw-semibold text-muted mb-2">
@@ -17981,13 +19737,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <label class="form-label fw-semibold text-muted mb-2">
                                                 <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                             </label>
-                                            <div class="position-relative">
-                                                <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
-                                                    <option value="">Select time</option>
-                                                    ${generateTimeOptions()}
+                                            <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                                <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
+                                                <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                                <select class="form-select border-0" id="day${day}_transport_${newIndex}_additional_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'additional'); enableSearchButton(${day}, 'transport_${newIndex}_additional', ${newIndex})">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
                                                 </select>
-                                                <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                             </div>
+                                            <input type="hidden" name="day${day}_transport_${newIndex}_additional_pickup_time" id="day${day}_transport_${newIndex}_additional_pickup_time">
                                         </div>
                                     </div>
                                     
@@ -18020,13 +19778,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
-                                 <div class="position-relative">
-                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_hourly_pickup_time" style="padding-left: 35px;">
-                                         <option value="">Select time</option>
-                                         ${generateTimeOptions()}
+                                 <div class="d-flex align-items-center mt-1" style="border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06); overflow: hidden; height: 40px; width: fit-content;">
+                                     <input type="text" class="form-control text-center border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_input" placeholder="00:00" maxlength="5" style="box-shadow: none; width: 90px; height: 40px; padding: 0 6px; font-size: 0.735rem; letter-spacing: 0.02em;" oninput="formatTimeInput(this); syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
+                                     <span style="width: 1px; align-self: stretch; background: #e5e7eb;"></span>
+                                     <select class="form-select border-0" id="day${day}_transport_${newIndex}_hourly_pickup_time_ampm" data-no-select2="true" style="width: 60px; height: 40px; font-size: 0.735rem; box-shadow: none; padding: 0 18px 0 8px;" onchange="syncTransportPickupTimeByIndex(${day}, ${newIndex}, 'hourly'); enableSearchButton(${day}, 'transport_${newIndex}_hourly', ${newIndex})">
+                                         <option value="AM">AM</option>
+                                         <option value="PM">PM</option>
                                      </select>
-                                     <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                  </div>
+                                 <input type="hidden" name="day${day}_transport_${newIndex}_hourly_pickup_time" id="day${day}_transport_${newIndex}_hourly_pickup_time">
                              </div>
                          </div>
                          <div class="col-md-3 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
@@ -18100,7 +19860,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">SGD</span>
-                                        <input type="number" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
+                                        <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Enter custom price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         <span class="input-group-text">.00</span>
                                     </div>
                                     <small class="form-text text-muted">
@@ -18342,12 +20102,15 @@ document.addEventListener('DOMContentLoaded', function() {
              console.error(`Dynamic transport dropoff select not found for index ${newIndex}`);
          }
          
-         // Add event listener for pickup time change in the new transport section
-         const newPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_pickup_time"]`);
-         if (newPickupTimeSelect) {
-             newPickupTimeSelect.addEventListener('change', function() {
-                 enableSearchButton(day, `transport_${newIndex}`);
-             });
+         // Add event listeners for pickup time (custom widget: input + AM/PM) in the new transport section
+         const newPickupTimeInput = document.getElementById(`day${day}_transport_${newIndex}_pickup_time_input`);
+         const newPickupTimeAmpm = document.getElementById(`day${day}_transport_${newIndex}_pickup_time_ampm`);
+         if (newPickupTimeInput) {
+             newPickupTimeInput.addEventListener('input', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
+             newPickupTimeInput.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
+         }
+         if (newPickupTimeAmpm) {
+             newPickupTimeAmpm.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'local'); enableSearchButton(day, `transport_${newIndex}`, newIndex); });
          }
          
          // Add event listeners for Point To Point fields
@@ -18432,12 +20195,15 @@ document.addEventListener('DOMContentLoaded', function() {
              }
          });
          
-         // Pickup time select
-         const additionalPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_additional_pickup_time"]`);
-         if (additionalPickupTimeSelect) {
-             additionalPickupTimeSelect.addEventListener('change', function() {
-                 enableSearchButton(day, `transport_${newIndex}_additional`, newIndex);
-             });
+         // Pickup time (custom widget: input + AM/PM) for point-to-point
+         const additionalPickupTimeInput = document.getElementById(`day${day}_transport_${newIndex}_additional_pickup_time_input`);
+         const additionalPickupTimeAmpm = document.getElementById(`day${day}_transport_${newIndex}_additional_pickup_time_ampm`);
+         if (additionalPickupTimeInput) {
+             additionalPickupTimeInput.addEventListener('input', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
+             additionalPickupTimeInput.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
+         }
+         if (additionalPickupTimeAmpm) {
+             additionalPickupTimeAmpm.addEventListener('change', function() { syncTransportPickupTimeByIndex(day, newIndex, 'additional'); enableSearchButton(day, `transport_${newIndex}_additional`, newIndex); });
          }
          
          // Set up hourly field listeners for dynamically added transport
@@ -18690,6 +20456,8 @@ document.addEventListener('DOMContentLoaded', function() {
      window.removeTransport = function(button, day, index) {
          const transportItem = button.closest('.transport-item');
          transportItem.remove();
+         // Update other transport header after removal
+         updateOtherTransportHeader(day);
          showNotification(`Transport Booking #${index} removed from Day ${day}`, 'info');
      };
      
@@ -18774,10 +20542,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             </label>
                             <div class="input-group" >
     
-                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
+                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="999" oninput="if(this.value.length > 3) this.value = this.value.slice(0,3);" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')" onwheel="event.preventDefault(); return false;" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; font-size: 0.85rem; text-align: start; max-width: 200px ">
                             </div>
                             <small class="form-text text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
-                                Max 3 digits
+                                Max: <span id="day${day}_entry_${newIndex}_max_pax">—</span> pax
                             </small>
                         </div>
                         
@@ -18932,13 +20700,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                                     newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const entryMaxPax = (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                         const option = document.createElement('option');
                                         option.value = vehicle.vehicle_id;
                                         option.textContent = vehicleInfo;
                                         option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
                                         option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                        option.setAttribute('data-seating-capacity', entryMaxPax);
+                                        option.setAttribute('data-seatingCapacity', entryMaxPax);
                                         option.setAttribute('data-private-price', vehicle.private_price || '');
                                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
                                         option.setAttribute('data-service-type', vehicle.service_type || '');
@@ -19008,6 +20778,8 @@ document.addEventListener('DOMContentLoaded', function() {
          const portItem = button.closest('.entry-port-item');
          portItem.remove();
          showNotification(`Entry Port Vehicle #${index} removed from Day ${day}`, 'info');
+         // Update arrival header after removal
+         updateArrivalHeader(day);
      };
 
      
@@ -19099,10 +20871,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
+                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
-                                    Enter number of passengers for this service
+                                    Enter number of passengers for this service. Max: <span id="day${day}_exit_${newIndex}_max_pax">—</span> pax
                                 </small>
                             </div>
                         </div>
@@ -19177,7 +20949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">SGD</span>
-                                            <input type="number" class="form-control" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                            <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
                                             <span class="input-group-text">.00</span>
                                         </div>
                                         <small class="form-text text-muted mt-1">
@@ -19257,13 +21029,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                                     newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const exitMaxPax = (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                         const option = document.createElement('option');
                                         option.value = vehicle.vehicle_id;
                                         option.textContent = vehicleInfo;
                                         option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
                                         option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                        option.setAttribute('data-seating-capacity', exitMaxPax);
+                                        option.setAttribute('data-seatingCapacity', exitMaxPax);
                                         option.setAttribute('data-private-price', vehicle.private_price || '');
                                         option.setAttribute('data-shared-price', vehicle.shared_price || '');
                                         option.setAttribute('data-service-type', vehicle.service_type || '');
@@ -19331,6 +21105,8 @@ document.addEventListener('DOMContentLoaded', function() {
          const portItem = button.closest('.exit-port-item');
          portItem.remove();
          showNotification(`Exit Port Vehicle #${index} removed from Day ${day}`, 'info');
+         // Update departure header after removal
+         updateDepartureHeader(day);
      };
 
      
@@ -19537,24 +21313,19 @@ document.addEventListener('DOMContentLoaded', function() {
          const serviceId = modal.getAttribute('data-service-id');
          if (!serviceId) return;
          
-         // Try to get current service guest values from summary
+         // Pre-fill with this service's current guest selection (so modal shows service pax, not tour pax)
          let male = 0, female = 0, children = 0, infants = 0;
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          
-         if (summaryElement && summaryElement.textContent.trim() !== '1 adults (1 male, 0 female), 0 children - 0 infants') {
-             // Parse existing service guest values from summary text
-             const summaryText = summaryElement.textContent;
-             // Pattern: "X adults (Y male, Z female), W children - V infants" or "X adults (Y male, Z female), W children -V infants"
-             const match = summaryText.match(/(\d+)\s+adults\s+\((\d+)\s+male,\s+(\d+)\s+female\),\s+(\d+)\s+children\s+-\s*(\d+)\s+infants/);
-             if (match) {
-                 male = parseInt(match[2]) || 0;
-                 female = parseInt(match[3]) || 0;
-                 children = parseInt(match[4]) || 0;
-                 infants = parseInt(match[5]) || 0;
-             }
+         if (summaryElement && typeof parseGuestSummary === 'function') {
+             const guestInfo = parseGuestSummary(summaryElement.innerHTML || summaryElement.textContent || '');
+             male = parseInt(guestInfo.male) || 0;
+             female = parseInt(guestInfo.female) || 0;
+             children = parseInt(guestInfo.children) || 0;
+             infants = parseInt(guestInfo.infants) || 0;
          }
          
-         // If no existing values found, use main guest values
+         // Only if service had no summary or all zeros, use main tour guest values
          if (male === 0 && female === 0 && children === 0 && infants === 0) {
              male = parseInt(document.getElementById('male').value) || 0;
              female = parseInt(document.getElementById('female').value) || 0;
@@ -19632,21 +21403,23 @@ document.addEventListener('DOMContentLoaded', function() {
          const adults = male + female;
          const total = adults + children + infants;
          
-         // Update the service guest summary text
+         // Update the service guest summary with new icon-based format
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          if (summaryElement) {
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
-         }
-         
-         // Update the badges for this specific service
-         const serviceContainer = summaryElement.closest('.guest-display');
-         if (serviceContainer) {
-             const badges = serviceContainer.querySelectorAll('.guest-badges .badge');
-             if (badges.length >= 3) {
-                 badges[0].textContent = adults; // Total adults
-                 badges[1].textContent = children; // Children
-                 badges[2].textContent = infants; // Infants
-             }
+             // Ensure the summary element has the correct structure
+             summaryElement.className = 'd-flex flex-column gap-1';
+             summaryElement.style.fontSize = '0.8rem';
+             
+             let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+             summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+             summaryHTML += `</span>`;
+             summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+             summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+             summaryHTML += `</span>`;
+             summaryElement.innerHTML = summaryHTML;
          }
          
          // Close modal
@@ -19660,6 +21433,13 @@ document.addEventListener('DOMContentLoaded', function() {
                  const day = dayMatch[1];
                  const index = dayMatch[2];
                  updateAttractionPricing(day, index);
+             }
+         }
+         // Update restaurant pricing when pax is edited so price grid reflects new guests
+         if (serviceId.includes('restaurant') && typeof updateRestaurantPricing === 'function') {
+             const dayMatch = serviceId.match(/day(\d+)_restaurant_(\d+)/);
+             if (dayMatch) {
+                 updateRestaurantPricing(dayMatch[1], dayMatch[2]);
              }
          }
          
@@ -19700,18 +21480,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const guestSummary = document.getElementById('mainGuestSummary');
         if (guestSummary) {
-            guestSummary.textContent = `${adults} adults (${male} male, ${female} female), ${children} children - ${infants} infants`;
-        }
-        
-        // Update badges
-        const badgeContainer = guestSummary?.closest('.guest-display')?.querySelector('.guest-badges');
-        if (badgeContainer) {
-            const badges = badgeContainer.querySelectorAll('.badge');
-            if (badges.length >= 3) {
-                badges[0].textContent = adults; // Total adults
-                badges[1].textContent = children; // Children
-                badges[2].textContent = infants; // Infants
-            }
+            let summaryHTML = `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${male}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${female}</span></span>`;
+            summaryHTML += `</span>`;
+            summaryHTML += `<span class="d-flex align-items-center gap-1">`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${children}</span></span>`;
+            summaryHTML += ` <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${infants}</span></span>`;
+            summaryHTML += `</span>`;
+            guestSummary.innerHTML = summaryHTML;
         }
         
         // Refresh meal plans if a hotel is already selected
@@ -19885,6 +21663,294 @@ document.addEventListener('DOMContentLoaded', function() {
  // Zone and Vehicle Management Functions
  // loadZonesForCity function removed - zones now loaded per transport section based on city selection
  
+// Format time input to HH:MM as user types, clamping hours to 1–12 and minutes to 0–59
+function formatTimeInput(input) {
+    // Keep only digits and at most 4 of them (HHMM)
+    let v = input.value.replace(/\D/g, '').slice(0, 4);
+
+    if (v.length === 0) {
+        input.value = '';
+        return;
+    }
+
+    // Single digit: 2–9 get leading zero (5→05, 4→04); leave 1 as "1" so user can type 10, 11, 12
+    if (v.length === 1) {
+        const d = parseInt(v, 10);
+        if (d >= 2 && d <= 9) {
+            input.value = String(d).padStart(2, '0');
+        } else {
+            input.value = v;
+        }
+        return;
+    }
+
+    // Parse and clamp hour first
+    let rawHour = v.slice(0, 2);
+    let hour = parseInt(rawHour, 10);
+    if (isNaN(hour) || hour <= 0) hour = 12;
+    if (hour > 12) hour = 12;
+
+    if (v.length === 2) {
+        input.value = String(hour).padStart(2, '0');
+        return;
+    }
+
+    // We have both hour and minute digits
+    const minutesRaw = v.slice(2); // "5" or "50"
+
+    // While typing 3 digits, keep exactly what user typed for minutes (no clamping yet)
+    if (minutesRaw.length === 1) {
+        const hourStr = String(hour).padStart(2, '0');
+        input.value = `${hourStr}:${minutesRaw}`;
+        return;
+    }
+
+    // When we have 4 digits, clamp minutes to 0–59
+    let min = parseInt(minutesRaw, 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    input.value = `${hourStr}:${minStr}`;
+}
+
+// Sync guide pickup time from HH:MM input + AM/PM into hidden field (backend format HH:MM:00 24h, e.g. "10:30:00", "22:30:00")
+function syncGuidePickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_guide_${index}_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_guide_${index}_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_guide_${index}_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr + ':00';
+    updatePackagePricesForTime(day, index, hiddenInput.value);
+}
+
+// Sync entry pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
+function syncEntryPickupTime(day) {
+    const timeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_entry_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_entry_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync exit time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
+function syncExitTime(day) {
+    const timeInput = document.getElementById(`day${day}_exit_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_exit_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_exit_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync attraction transfer pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm" for backend compatibility)
+function syncAttractionTransferPickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_attraction_${index}_transfer_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr;
+}
+
+// Sync restaurant transfer pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm" for backend compatibility)
+function syncRestaurantTransferPickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr;
+}
+
+// Sync attraction guide pickup time from HH:MM input + AM/PM into hidden field (24h "HH:mm:00" for backend compatibility)
+function syncAttractionGuidePickupTime(day, index) {
+    const timeInput = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    if (!timeStr || timeStr.length < 4) { hiddenInput.value = ''; return; }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    if (ampmSelect.value === 'PM' && hour < 12) hour += 12;
+    if (ampmSelect.value === 'AM' && hour === 12) hour = 0;
+    const hour24 = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = hour24 + ':' + minStr + ':00';
+}
+
+// Sync local-transfer transport pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
+function syncTransportPickupTime(day) {
+    const timeInput = document.getElementById(`day${day}_transport_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_transport_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_transport_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync point-to-point additional transport pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
+function syncTransportAdditionalPickupTime(day) {
+    const timeInput = document.getElementById(`day${day}_transport_additional_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_transport_additional_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_transport_additional_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync hourly transport pickup time from HH:MM input + AM/PM into hidden field (e.g. "10:30 AM")
+function syncTransportHourlyPickupTime(day) {
+    const timeInput = document.getElementById(`day${day}_transport_hourly_pickup_time_input`);
+    const ampmSelect = document.getElementById(`day${day}_transport_hourly_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`day${day}_transport_hourly_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
+// Sync transport pickup time by day and transport index (for additional transport cards: local, additional, hourly)
+function syncTransportPickupTimeByIndex(day, index, type) {
+    const suffix = type === 'additional' ? '_additional' : (type === 'hourly' ? '_hourly' : '');
+    const prefix = `day${day}_transport_${index}${suffix}`;
+    const timeInput = document.getElementById(`${prefix}_pickup_time_input`);
+    const ampmSelect = document.getElementById(`${prefix}_pickup_time_ampm`);
+    const hiddenInput = document.getElementById(`${prefix}_pickup_time`);
+    if (!timeInput || !ampmSelect || !hiddenInput) return;
+    let timeStr = (timeInput.value || '').trim().replace(/\D/g, '');
+    if (timeStr.length >= 2) {
+        timeStr = timeStr.slice(0, 2) + ':' + (timeStr.slice(2, 4) || '00');
+    }
+    if (!timeStr || timeStr.length < 4) {
+        hiddenInput.value = '';
+        return;
+    }
+    const parts = timeStr.split(':');
+    let hour = parseInt(parts[0], 10) || 0;
+    let min = parseInt((parts[1] || '00').slice(0, 2), 10);
+    if (isNaN(min) || min < 0) min = 0;
+    if (min > 59) min = 59;
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(min).padStart(2, '0');
+    hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
+}
+
 // Function to enable search button when pickup time changes
 function enableSearchButton(day, section, index=null) {
     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
@@ -19972,7 +22038,7 @@ function enableSearchButton(day, section, index=null) {
          
         // Get time and date fields
         const timeFieldName = section === 'exit' ? `day${day}_exit_time` : `day${day}_${section}_pickup_time`;
-        const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
+        const timeSelect = document.querySelector(`[name="${timeFieldName}"]`);
 
         // Date field handling
         // Try section-specific date first (when present), otherwise fallback to main travel_dates
@@ -20130,27 +22196,24 @@ function enableSearchButton(day, section, index=null) {
             transportContainer = document.querySelector(`[data-transport-index="${fieldIndex}"]`);
         }
         
-        // Pickup time field uses name attribute, not id - use querySelector
-        // Try to find it within the visible point-to-point container first
+        // Pickup time now stored in hidden input with name pickupTimeName
         let pickupTimeField = null;
-        
-        // First, try to find it within the visible point-to-point time field container
         const timeFieldContainer = document.getElementById(fieldIndex === 0 ? `day${day}_transport_additional_time_field` : `day${day}_transport_${fieldIndex}_additional_time_field`);
         if (timeFieldContainer) {
             const computedStyle = window.getComputedStyle(timeFieldContainer);
             if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
-                pickupTimeField = timeFieldContainer.querySelector(`select[name="${pickupTimeName}"]`);
+                pickupTimeField = timeFieldContainer.querySelector(`[name="${pickupTimeName}"]`);
             }
         }
         
         // If not found, try within transport container
         if (!pickupTimeField && transportContainer) {
-            pickupTimeField = transportContainer.querySelector(`select[name="${pickupTimeName}"]`);
+            pickupTimeField = transportContainer.querySelector(`[name="${pickupTimeName}"]`);
         }
         
         // If still not found, search globally
         if (!pickupTimeField) {
-            pickupTimeField = document.querySelector(`select[name="${pickupTimeName}"]`);
+            pickupTimeField = document.querySelector(`[name="${pickupTimeName}"]`);
         }
         
         // Check if point-to-point fields are visible
@@ -20180,140 +22243,10 @@ function enableSearchButton(day, section, index=null) {
                                          dropoffLatField.value && dropoffLngField.value && 
                                          String(dropoffLatField.value).trim() !== '' && String(dropoffLngField.value).trim() !== '';
         
-        // For pickup time, check if field exists and has a value
-        // Try multiple methods to get the value
+        // For pickup time, with hidden input, simply check if it has a non-empty value
         let pickupTimeFilled = false;
-        if (pickupTimeField) {
-            let timeValue = '';
-            
-            // Method 1: Check the actual displayed text in the UI and match it to option values
-            // This handles cases where the native select value isn't synced but the UI shows a value
-            const fieldContainer = pickupTimeField.closest('.position-relative') || pickupTimeField.parentElement;
-            if (fieldContainer) {
-                // Check if there's a Select2 container showing the value
-                const select2Container = fieldContainer.querySelector('.select2-container');
-                if (select2Container) {
-                    const select2Selection = select2Container.querySelector('.select2-selection__rendered');
-                    if (select2Selection) {
-                        const displayedText = select2Selection.textContent.trim();
-                        // Match displayed text to option values
-                        if (displayedText && displayedText !== 'Select time' && displayedText !== 'Select The Time' && displayedText !== '') {
-                            for (let i = 0; i < pickupTimeField.options.length; i++) {
-                                if (pickupTimeField.options[i].text.trim() === displayedText) {
-                                    timeValue = pickupTimeField.options[i].value;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Also check the select element's displayed text directly (for non-Select2 selects)
-                if ((!timeValue || timeValue === '') && pickupTimeField.selectedIndex >= 0) {
-                    const selectedOption = pickupTimeField.options[pickupTimeField.selectedIndex];
-                    if (selectedOption) {
-                        const optionText = selectedOption.text.trim();
-                        // If the displayed text is not a placeholder, use the option's value
-                        if (optionText && optionText !== 'Select time' && optionText !== 'Select The Time' && optionText !== '') {
-                            // Check if this option has a value (not the placeholder)
-                            if (selectedOption.value && selectedOption.value.trim() !== '') {
-                                timeValue = selectedOption.value;
-                            } else {
-                                // Option text is displayed but value is empty - find matching option by text
-                                for (let i = 0; i < pickupTimeField.options.length; i++) {
-                                    if (pickupTimeField.options[i].text.trim() === optionText && pickupTimeField.options[i].value) {
-                                        timeValue = pickupTimeField.options[i].value;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Method 2: Check if Select2 is initialized and get value from Select2
-            if ((!timeValue || timeValue === '') && typeof jQuery !== 'undefined') {
-                try {
-                    const $select = jQuery(pickupTimeField);
-                    if ($select.data('select2')) {
-                        // Select2 is initialized - get value from Select2
-                        const select2Val = $select.val();
-                        if (select2Val && select2Val !== '' && select2Val !== null) {
-                            timeValue = Array.isArray(select2Val) ? select2Val[0] : String(select2Val);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Error reading Select2 value:', e);
-                }
-            }
-            
-            // Method 3: Direct value property (if previous methods didn't provide a value)
-            if (!timeValue || timeValue === '') {
-                timeValue = pickupTimeField.value || '';
-            }
-            
-            // Method 4: Check selected option by index (skip index 0 as it's usually the placeholder)
-            if ((!timeValue || timeValue === '') && pickupTimeField.selectedIndex > 0) {
-                const selectedOption = pickupTimeField.options[pickupTimeField.selectedIndex];
-                if (selectedOption && selectedOption.value && selectedOption.value.trim() !== '') {
-                    timeValue = selectedOption.value;
-                }
-            }
-            
-            // Method 5: Check all options to find selected one (most reliable fallback)
-            // This checks the 'selected' attribute which might be set even if selectedIndex is wrong
-            if (!timeValue || timeValue === '') {
-                for (let i = 1; i < pickupTimeField.options.length; i++) { // Start from 1 to skip placeholder
-                    const option = pickupTimeField.options[i];
-                    if (option.selected && option.value && option.value.trim() !== '') {
-                        timeValue = option.value;
-                        break;
-                    }
-                }
-            }
-            
-            // Method 6: Force check - if the field is visible and has options, check what's actually displayed
-            // Sometimes the value is set but selectedIndex isn't updated
-            if (!timeValue || timeValue === '') {
-                // Try to find the option that matches any visible indication
-                const computedStyle = window.getComputedStyle(pickupTimeField);
-                if (computedStyle.display !== 'none') {
-                    // Field is visible - try to read the actual displayed value
-                    // Check if there's a selected option that might not be at index 0
-                    for (let i = 1; i < pickupTimeField.options.length; i++) {
-                        const option = pickupTimeField.options[i];
-                        // Check if option has selected attribute or is the default selected
-                        if ((option.hasAttribute('selected') || option.selected) && option.value && option.value.trim() !== '') {
-                            timeValue = option.value;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            pickupTimeFilled = String(timeValue).trim() !== '' && timeValue !== '';
-            
-            console.log('Pickup time validation:', {
-                fieldFound: !!pickupTimeField,
-                fieldName: pickupTimeName,
-                fieldId: pickupTimeField.id || 'no id',
-                directValue: pickupTimeField.value,
-                selectedIndex: pickupTimeField.selectedIndex,
-                selectedOptionValue: pickupTimeField.selectedIndex >= 0 && pickupTimeField.options[pickupTimeField.selectedIndex] ? pickupTimeField.options[pickupTimeField.selectedIndex].value : null,
-                selectedOptionText: pickupTimeField.selectedIndex >= 0 && pickupTimeField.options[pickupTimeField.selectedIndex] ? pickupTimeField.options[pickupTimeField.selectedIndex].text : null,
-                hasSelect2: typeof jQuery !== 'undefined' && jQuery(pickupTimeField).data('select2') ? 'yes' : 'no',
-                select2Value: typeof jQuery !== 'undefined' && jQuery(pickupTimeField).data('select2') ? jQuery(pickupTimeField).val() : 'N/A',
-                finalTimeValue: timeValue,
-                pickupTimeFilled: pickupTimeFilled,
-                isVisible: window.getComputedStyle(pickupTimeField).display !== 'none',
-                containerVisible: transportContainer ? window.getComputedStyle(transportContainer).display !== 'none' : 'no container'
-            });
-        } else {
-            console.warn(`Pickup time field not found for day ${day}, fieldIndex ${fieldIndex}. Tried: select[name="${pickupTimeName}"]`, {
-                transportContainerFound: !!transportContainer,
-                searchedInContainer: transportContainer ? 'yes' : 'no'
-            });
+        if (pickupTimeField && pickupTimeField.value && pickupTimeField.value.trim() !== '') {
+            pickupTimeFilled = true;
         }
         
         // All fields must be filled
@@ -20369,8 +22302,8 @@ function enableSearchButton(day, section, index=null) {
         const pickupLocationFilled = pickupLocationField && pickupLocationField.value && pickupLocationField.value.trim() !== '';
         const pickupCoordinatesFilled = pickupLatField && pickupLngField && pickupLatField.value && pickupLngField.value && pickupLatField.value.trim() !== '' && pickupLngField.value.trim() !== '';
         
-        // Check pickup time
-        const pickupTimeField = document.querySelector(`select[name="${fieldNamePattern}_hourly_pickup_time"]`);
+        // Check pickup time (stored in hidden input with name "${fieldNamePattern}_hourly_pickup_time")
+        const pickupTimeField = document.querySelector(`[name="${fieldNamePattern}_hourly_pickup_time"]`);
         const pickupTimeFilled = pickupTimeField && pickupTimeField.value && pickupTimeField.value.trim() !== '';
         
         // Check selected hours
@@ -20472,23 +22405,29 @@ function enableSearchButton(day, section, index=null) {
  function setupSearchButtonListeners() {
      // For each day, set up listeners for pickup time fields
      for (let day = 1; day <= 7; day++) {
-         // Entry port pickup time
-         const entryPickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
-         const entrySearchBtn = document.getElementById(`day${day}_entry_search_btn`);
-         
-         // Transport pickup time
-         const transportPickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`);
-         const transportSearchBtn = document.getElementById(`day${day}_transport_search_btn`);
-         
-         // Add event listener for entry port pickup time
-         if (entryPickupTime) {
-             entryPickupTime.addEventListener('change', () => enableSearchButton(day, 'entry'));
-         }
-         
-         // Add event listener for transport pickup time
-         if (transportPickupTime) {
-             transportPickupTime.addEventListener('change', () => enableSearchButton(day, 'transport'));
-         }
+        const entrySearchBtn = document.getElementById(`day${day}_entry_search_btn`);
+        const entryPickupTimeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+        const entryPickupTimeAmpm = document.getElementById(`day${day}_entry_pickup_time_ampm`);
+        const transportPickupTimeInput = document.getElementById(`day${day}_transport_pickup_time_input`);
+        const transportPickupTimeAmpm = document.getElementById(`day${day}_transport_pickup_time_ampm`);
+        const transportSearchBtn = document.getElementById(`day${day}_transport_search_btn`);
+        
+        if (entryPickupTimeInput) {
+            entryPickupTimeInput.addEventListener('input', () => { formatTimeInput(entryPickupTimeInput); syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
+            entryPickupTimeInput.addEventListener('change', () => { syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
+        }
+        if (entryPickupTimeAmpm) {
+            entryPickupTimeAmpm.addEventListener('change', () => { syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
+        }
+        
+        // Add event listener for transport pickup time (local transfer)
+        if (transportPickupTimeInput) {
+            transportPickupTimeInput.addEventListener('input', () => { formatTimeInput(transportPickupTimeInput); syncTransportPickupTime(day); enableSearchButton(day, 'transport'); });
+            transportPickupTimeInput.addEventListener('change', () => { syncTransportPickupTime(day); enableSearchButton(day, 'transport'); });
+        }
+        if (transportPickupTimeAmpm) {
+            transportPickupTimeAmpm.addEventListener('change', () => { syncTransportPickupTime(day); enableSearchButton(day, 'transport'); });
+        }
          
          // Initially enable search buttons
          if (entrySearchBtn) {
@@ -20840,22 +22779,37 @@ function loadPortsForCity(cityName) {
             console.log(`Added ${ports.length} ports to entry dropoff location`);
         }
         
-        // Add Hotels
+        // Add Hotels: always show ALL hotels from API for the city (not only previously selected)
         if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
             const hotelGroup = document.createElement('optgroup');
             hotelGroup.label = 'Hotels';
             
             hotelsData.hotels.forEach(hotel => {
                 const option = document.createElement('option');
+                const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating} ⭐)` : '';
                 option.value = hotel.hotel_unique_id;
-                option.textContent = hotel.name;
+                option.textContent = hotel.name + starInfo;
                 option.setAttribute('data-type', 'Hotel');
                 option.setAttribute('data-hotel', JSON.stringify(hotel));
                 hotelGroup.appendChild(option);
             });
             
             dropoffSelect.appendChild(hotelGroup);
-            console.log(`Added ${hotelsData.hotels.length} hotels`);
+            console.log(`Added ${hotelsData.hotels.length} hotels to entry dropoff`);
+            
+            // Auto-select last added hotel from package if it exists in the list
+            if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+                const lastHotel = selectedHotels[selectedHotels.length - 1];
+                const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+                const lastHotelOption = Array.from(dropoffSelect.options).find(opt => {
+                    return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+                });
+                if (lastHotelOption) {
+                    dropoffSelect.value = lastHotelOption.value;
+                    dropoffSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log('Auto-selected last hotel for entry dropoff:', lastHotel.name);
+                }
+            }
         }
         
         // Add Attractions
@@ -21012,6 +22966,46 @@ function loadExitPortsForCity(cityName) {
         // Enable the pickup dropdown
         pickupSelect.disabled = false;
         
+        // Automatically select the last selected hotel if available
+        if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+            // Get the last hotel from selectedHotels array
+            const lastHotel = selectedHotels[selectedHotels.length - 1];
+            const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+            const lastHotelName = lastHotel.name;
+            
+            console.log('Attempting to auto-select last hotel for departure pickup:', {
+                hotelId: lastHotelId,
+                hotelName: lastHotelName,
+                city: cityName
+            });
+            
+            // Check if the hotel exists in the dropdown
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                // Trigger change event to update any dependent fields
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel for departure pickup:', lastHotelName);
+            } else {
+                console.log('Last hotel not found in exit port pickup dropdown for city:', cityName);
+            }
+        } else if (lastSelectedHotelId) {
+            // Fallback to lastSelectedHotelId if selectedHotels is not available
+            console.log('Using lastSelectedHotelId for auto-selection:', lastSelectedHotelId);
+            const hotelOption = Array.from(pickupSelect.options).find(opt => {
+                return opt.value === String(lastSelectedHotelId) || opt.value === lastSelectedHotelId;
+            });
+            
+            if (hotelOption) {
+                pickupSelect.value = hotelOption.value;
+                pickupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log('Successfully auto-selected last hotel using lastSelectedHotelId');
+            }
+        }
+        
         // Re-evaluate search button state after loading locations
         enableSearchButton(1, 'exit');
     })
@@ -21126,7 +23120,8 @@ function populateEntryPortFields(day = 1) {
             const citySelect = document.getElementById('modal_local_transfer_city');
             const pickupSelect = document.getElementById('entry_pickup_port_select');
             const dropoffSelect = document.getElementById('entry_dropoff_location_select');
-            const timeSelect = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
+            const timeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+            const timeAmpm = document.getElementById(`day${day}_entry_pickup_time_ampm`);
             const dateInput = document.querySelector(`input[name="day${day}_entry_pickup_date"]`);
             
             if (citySelect) {
@@ -21138,8 +23133,12 @@ function populateEntryPortFields(day = 1) {
             if (dropoffSelect) {
                 dropoffSelect.addEventListener('change', () => enableSearchButton(day, 'entry'));
             }
-            if (timeSelect) {
-                timeSelect.addEventListener('change', () => enableSearchButton(day, 'entry'));
+            if (timeInput) {
+                timeInput.addEventListener('input', () => { formatTimeInput(timeInput); syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
+                timeInput.addEventListener('change', () => { syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
+            }
+            if (timeAmpm) {
+                timeAmpm.addEventListener('change', () => { syncEntryPickupTime(day); enableSearchButton(day, 'entry'); });
             }
             if (dateInput) {
                 dateInput.addEventListener('change', () => enableSearchButton(day, 'entry'));
@@ -21228,6 +23227,26 @@ function populateExitPortFields(day) {
             
             if (pickupInput) {
                 pickupInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
+                
+                // Automatically set pickup location to last selected hotel
+                if (typeof selectedHotels !== 'undefined' && selectedHotels && selectedHotels.length > 0) {
+                    const lastHotel = selectedHotels[selectedHotels.length - 1];
+                    const lastHotelName = lastHotel.name;
+                    if (lastHotelName && !pickupInput.value) {
+                        pickupInput.value = lastHotelName;
+                        console.log('Auto-filled exit pickup location with last hotel:', lastHotelName);
+                        // Trigger input event to update search button state
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                } else if (lastSelectedHotelId && typeof hotelData !== 'undefined' && hotelData.length > 0) {
+                    // Fallback: find hotel by lastSelectedHotelId
+                    const lastHotel = hotelData.find(h => h.hotel_unique_id == lastSelectedHotelId);
+                    if (lastHotel && lastHotel.name && !pickupInput.value) {
+                        pickupInput.value = lastHotel.name;
+                        console.log('Auto-filled exit pickup location with last hotel (fallback):', lastHotel.name);
+                        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
             }
             if (dropoffInput) {
                 dropoffInput.addEventListener('input', () => enableSearchButton(day, 'exit'));
@@ -21285,11 +23304,18 @@ function populateExitPortFields(day) {
             const citySelect = document.getElementById('modal_exit_city');
             const pickupSelect = document.getElementById('exit_pickup_location_select');
             const dropoffSelect = document.getElementById('exit_dropoff_port_select');
-            const timeSelect = document.querySelector(`select[name="day${day}_exit_time"]`);
+            const timeInput = document.getElementById(`day${day}_exit_time_input`);
+            const timeAmpm = document.getElementById(`day${day}_exit_time_ampm`);
             const dateInput = document.querySelector(`input[name="day${day}_exit_date"]`);
             
             if (citySelect) {
                 citySelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
+                
+                // If city is already selected, trigger loadExitPortsForCity to populate and auto-select hotel
+                if (citySelect.value) {
+                    console.log('City already selected for exit port, loading locations and auto-selecting hotel...');
+                    loadExitPortsForCity(citySelect.value);
+                }
             }
             if (pickupSelect) {
                 pickupSelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
@@ -21297,8 +23323,12 @@ function populateExitPortFields(day) {
             if (dropoffSelect) {
                 dropoffSelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
             }
-            if (timeSelect) {
-                timeSelect.addEventListener('change', () => enableSearchButton(day, 'exit'));
+            if (timeInput) {
+                timeInput.addEventListener('input', () => { formatTimeInput(timeInput); syncExitTime(day); enableSearchButton(day, 'exit'); });
+                timeInput.addEventListener('change', () => { syncExitTime(day); enableSearchButton(day, 'exit'); });
+            }
+            if (timeAmpm) {
+                timeAmpm.addEventListener('change', () => { syncExitTime(day); enableSearchButton(day, 'exit'); });
             }
             if (dateInput) {
                 dateInput.addEventListener('change', () => enableSearchButton(day, 'exit'));
@@ -21320,7 +23350,7 @@ function populateExitPortFields(day) {
             const citySelect = document.getElementById('modal_exit_city');
             const pickupSelect = document.querySelector(`select[name="day${lastDay}_exit_pickup_zone_id"]`);
             const dropoffSelect = document.querySelector(`select[name="day${lastDay}_exit_dropoff_zone_id"]`);
-            const timeSelect = document.querySelector(`select[name="day${lastDay}_exit_time"]`);
+            const timeSelect = document.querySelector(`[name="day${lastDay}_exit_time"]`);
             const dateInput = document.querySelector(`input[name="day${lastDay}_exit_date"]`);
             const searchBtn = document.getElementById(`day${lastDay}_exit_search_btn`);
             
@@ -22039,8 +24069,23 @@ function loadDropoffZones(day, section) {
             const hasStaticOptions = dropoffZoneSelect.querySelectorAll('optgroup').length > 0;
             
             if (hasStaticOptions) {
-                // Already has static options (hotels, attractions, restaurants), just enable it
+                // Already has static options (all hotels from API, attractions, restaurants) - keep them, just enable
                 console.log('Entry port dropoff already has static options, enabling...');
+                
+                // Do NOT replace hotels - list already has all hotels from loadPortsForCity. Just auto-select last added if present.
+                if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+                    const lastHotel = selectedHotels[selectedHotels.length - 1];
+                    const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+                    const lastHotelOption = Array.from(dropoffZoneSelect.options).find(opt => {
+                        return opt.value === String(lastHotelId) || opt.value === lastHotelId;
+                    });
+                    if (lastHotelOption) {
+                        dropoffZoneSelect.value = lastHotelOption.value;
+                        dropoffZoneSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log('Auto-selected last hotel for entry dropoff:', lastHotel.name);
+                    }
+                }
+                
                 dropoffZoneSelect.disabled = false;
                 
                 // Update the first option text
@@ -22457,6 +24502,7 @@ function loadDropoffZones(day, section) {
                      vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
                      
                      data.vehicles.forEach(vehicle => {
+                         const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? vehicle.city_tour_seating_capacity : vehicle.seating_capacity;
                          const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                          
                          // Debug logging for vehicle data
@@ -22470,7 +24516,7 @@ function loadDropoffZones(day, section) {
                              data-shared-price="${vehicle.shared_price}"
                              data-service-type="${vehicle.service_type}"
                              data-mapping-id="${vehicle.mapping_id}"
-                            data-seatingCapacity="${vehicle.seating_capacity}" data-sharable="${vehicle.sharable}"
+                            data-seatingCapacity="${entryOrExitMaxPax}" data-sharable="${vehicle.sharable}"
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
@@ -22581,6 +24627,19 @@ function loadDropoffZones(day, section) {
              `;
          }
          
+         // Arrival (entry) / Departure (exit) section: set Number of Passengers max from vehicle city_tour_seating_capacity
+         const isEntryOrExitSection = (section === 'entry_0' || (typeof section === 'string' && section.startsWith('entry_'))) || (section === 'exit_0' || (typeof section === 'string' && section.startsWith('exit_')));
+         if (isEntryOrExitSection) {
+             const passengerInput = document.getElementById(`day${day}_${section}_passengers`);
+             const maxPaxSpan = document.getElementById(`day${day}_${section}_max_pax`);
+             const maxPax = parseInt(selectedOption.dataset.seatingcapacity || selectedOption.getAttribute('data-seatingCapacity') || '50', 10) || 50;
+             if (passengerInput) {
+                 passengerInput.setAttribute('max', maxPax);
+                 if (parseInt(passengerInput.value, 10) > maxPax) passengerInput.value = maxPax;
+             }
+             if (maxPaxSpan) maxPaxSpan.textContent = maxPax;
+         }
+         
          // Reset service type selection to trigger pricing update
      } else {
          // Reset to default state
@@ -22595,6 +24654,15 @@ function loadDropoffZones(day, section) {
          // Hide price display
          if (priceDisplay) {
              priceDisplay.style.display = 'none';
+         }
+         
+         // Arrival (entry) / Departure (exit) section: reset max pax display when no vehicle selected
+         const isEntryOrExitSectionReset = (section === 'entry_0' || (typeof section === 'string' && section.startsWith('entry_'))) || (section === 'exit_0' || (typeof section === 'string' && section.startsWith('exit_')));
+         if (isEntryOrExitSectionReset) {
+             const passengerInput = document.getElementById(`day${day}_${section}_passengers`);
+             const maxPaxSpan = document.getElementById(`day${day}_${section}_max_pax`);
+             if (passengerInput) passengerInput.setAttribute('max', '50');
+             if (maxPaxSpan) maxPaxSpan.textContent = '—';
          }
      }
  }
@@ -22944,6 +25012,12 @@ function loadDropoffZones(day, section) {
             if (guestCountField) guestCountField.value = totalGuests;
             
             console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+            
+            // Update other transport header for point-to-point services
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         } else {
             // Custom price not entered yet
@@ -22988,6 +25062,32 @@ function loadDropoffZones(day, section) {
                     </div>
                 </div>
             `;
+            
+            // Clear hidden fields when custom price is not entered
+            let basePriceField, totalPriceField, guestCountField;
+            
+            if (section.startsWith('transport')) {
+                if (section === 'transport') {
+                    basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+                } else {
+                    const transportIndex = section.split('_')[1];
+                    basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+                }
+            }
+            
+            if (basePriceField) basePriceField.value = '0';
+            if (totalPriceField) totalPriceField.value = '0';
+            if (guestCountField) guestCountField.value = '0';
+            
+            // Update other transport header even when custom price is not entered (to reset price to $0.00)
+            if (section.startsWith('transport')) {
+                updateOtherTransportHeader(day);
+            }
+            
             return;
         }
     }
@@ -23378,6 +25478,21 @@ function loadDropoffZones(day, section) {
         console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
         console.log(`- Guest Count: ${totalGuests}`);
         
+        // Update arrival header if this is an entry section
+        if (section.startsWith('entry')) {
+            updateArrivalHeader(day);
+        }
+        
+        // Update departure header if this is an exit section
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
+        // Update other transport header if this is a transport section
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
+        
     } else {
         priceDisplay.style.display = 'none';
         console.log('No pricing information available for the selected vehicle and service type');
@@ -23405,6 +25520,21 @@ function loadDropoffZones(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update arrival header if this is an entry section
+        if (section.startsWith('entry')) {
+            updateArrivalHeader(day);
+        }
+        
+        // Update departure header if this is an exit section
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
+        // Update other transport header if this is a transport section
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
     }
 }
 
@@ -23510,6 +25640,11 @@ window.updateCustomPricing = function(day, section) {
         
         console.log(`Custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
         
+        // Update other transport header after custom pricing change
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
+        
     } else {
         // Hide price display if no custom price
         priceDisplay.style.display = 'none';
@@ -23531,6 +25666,11 @@ window.updateCustomPricing = function(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update other transport header after custom pricing change
+        if (section.startsWith('transport')) {
+            updateOtherTransportHeader(day);
+        }
     }
 }
 
@@ -23675,6 +25815,342 @@ window.updateEntryPortCustomPricing = function(day, section) {
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
     }
+    
+    // Update arrival header after custom pricing change
+    if (section.startsWith('entry')) {
+        updateArrivalHeader(day);
+    }
+}
+
+// Update arrival section header with vehicle name and total price
+window.updateArrivalHeader = function(day) {
+    const arrivalSection = document.getElementById(`day${day}`)?.querySelector('#arrivalTransportSection');
+    if (!arrivalSection) return;
+    
+    const entryPortsContainer = arrivalSection.querySelector('.entry-ports-container');
+    if (!entryPortsContainer) {
+        // If container doesn't exist, check for entry port items directly in the section
+        const entryPortItems = arrivalSection.querySelectorAll('.entry-port-item');
+        if (entryPortItems.length === 0) {
+            // Check for the main entry_0 vehicle select
+            const mainVehicleSelect = document.getElementById(`day${day}_entry_0_vehicle_id`);
+            const mainTotalPrice = document.getElementById(`day${day}_entry_0_total_price`);
+            
+            let vehicleName = 'No vehicle selected';
+            let totalPrice = 0;
+            
+            if (mainVehicleSelect && mainVehicleSelect.value) {
+                const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    let name = selectedOption.textContent || '';
+                    if (name && name.includes('(')) {
+                        name = name.split('(')[0].trim();
+                    }
+                    name = name.trim();
+                    if (name && name !== 'Choose vehicle' && name !== 'Select Vehicle' && name !== 'Choose your vehicle') {
+                        vehicleName = name;
+                    }
+                }
+            }
+            
+            if (mainTotalPrice) {
+                totalPrice = parseFloat(mainTotalPrice.value) || 0;
+            }
+            
+            const arrivalVehicleNameEl = document.getElementById(`day${day}_arrival_vehicle_name`);
+            const arrivalTotalPriceEl = document.getElementById(`day${day}_arrival_total_price`);
+            
+            if (arrivalVehicleNameEl) {
+                arrivalVehicleNameEl.textContent = vehicleName;
+                arrivalVehicleNameEl.style.color = vehicleName !== 'No vehicle selected' ? '#3b82f6' : '#6c757d';
+            }
+            
+            if (arrivalTotalPriceEl) {
+                arrivalTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+            }
+            return;
+        }
+    }
+    
+    const entryPortItems = entryPortsContainer ? entryPortsContainer.querySelectorAll('.entry-port-item') : arrivalSection.querySelectorAll('.entry-port-item');
+    let totalArrivalPrice = 0;
+    let vehicleNames = [];
+    
+    // Also check for the main entry_0 vehicle
+    const mainVehicleSelect = document.getElementById(`day${day}_entry_0_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_entry_0_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalArrivalPrice += price;
+    }
+    
+    entryPortItems.forEach((item) => {
+        // Find vehicle select within this item (handles entry_1, entry_2, etc.)
+        const vehicleSelect = item.querySelector('select.vehicle-select[id*="entry_"][id*="_vehicle_id"]');
+        // Find total price field within this item
+        const totalPriceField = item.querySelector('input[id*="entry_"][id*="_total_price"]');
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Get vehicle name from option text
+                let vehicleName = selectedOption.textContent || '';
+                // Extract vehicle name from text (format: "Vehicle Name (Type) - X seats")
+                // Take everything before the first '(' if it exists
+                if (vehicleName && vehicleName.includes('(')) {
+                    vehicleName = vehicleName.split('(')[0].trim();
+                }
+                // Clean up the text
+                vehicleName = vehicleName.trim();
+                if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                    vehicleNames.push(vehicleName);
+                }
+            }
+        }
+        
+        if (totalPriceField) {
+            const price = parseFloat(totalPriceField.value) || 0;
+            totalArrivalPrice += price;
+        }
+    });
+    
+    // Update arrival header
+    const arrivalVehicleNameEl = document.getElementById(`day${day}_arrival_vehicle_name`);
+    const arrivalTotalPriceEl = document.getElementById(`day${day}_arrival_total_price`);
+    
+    if (arrivalVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            arrivalVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            arrivalVehicleNameEl.style.color = '#3b82f6';
+        } else {
+            arrivalVehicleNameEl.textContent = 'No vehicle selected';
+            arrivalVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (arrivalTotalPriceEl) {
+        arrivalTotalPriceEl.textContent = `SGD ${totalArrivalPrice.toFixed(2)}`;
+    }
+}
+
+// Update departure section header with vehicle name and total price
+window.updateDepartureHeader = function(day) {
+    const departureSection = document.getElementById(`day${day}`)?.querySelector('#departureTransportSection');
+    if (!departureSection) return;
+    
+    const exitPortsContainer = departureSection.querySelector('.exit-ports-container');
+    if (!exitPortsContainer) {
+        // If container doesn't exist, check for exit port items directly in the section
+        const exitPortItems = departureSection.querySelectorAll('.exit-port-item');
+        if (exitPortItems.length === 0) {
+            // Check for the main exit_0 vehicle select
+            const mainVehicleSelect = document.getElementById(`day${day}_exit_0_vehicle_id`);
+            const mainTotalPrice = document.getElementById(`day${day}_exit_0_total_price`);
+            
+            let vehicleName = 'No vehicle selected';
+            let totalPrice = 0;
+            
+            if (mainVehicleSelect && mainVehicleSelect.value) {
+                const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    let name = selectedOption.textContent || '';
+                    if (name && name.includes('(')) {
+                        name = name.split('(')[0].trim();
+                    }
+                    name = name.trim();
+                    if (name && name !== 'Choose vehicle' && name !== 'Select Vehicle' && name !== 'Choose your vehicle') {
+                        vehicleName = name;
+                    }
+                }
+            }
+            
+            if (mainTotalPrice) {
+                totalPrice = parseFloat(mainTotalPrice.value) || 0;
+            }
+            
+            const departureVehicleNameEl = document.getElementById(`day${day}_departure_vehicle_name`);
+            const departureTotalPriceEl = document.getElementById(`day${day}_departure_total_price`);
+            
+            if (departureVehicleNameEl) {
+                departureVehicleNameEl.textContent = vehicleName;
+                departureVehicleNameEl.style.color = vehicleName !== 'No vehicle selected' ? '#3b82f6' : '#6c757d';
+            }
+            
+            if (departureTotalPriceEl) {
+                departureTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+            }
+            return;
+        }
+    }
+    
+    const exitPortItems = exitPortsContainer ? exitPortsContainer.querySelectorAll('.exit-port-item') : departureSection.querySelectorAll('.exit-port-item');
+    let totalDeparturePrice = 0;
+    let vehicleNames = [];
+    
+    // Also check for the main exit_0 vehicle
+    const mainVehicleSelect = document.getElementById(`day${day}_exit_0_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_exit_0_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalDeparturePrice += price;
+    }
+    
+    exitPortItems.forEach((item) => {
+        // Find vehicle select within this item (handles exit_1, exit_2, etc.)
+        const vehicleSelect = item.querySelector('select.vehicle-select[id*="exit_"][id*="_vehicle_id"]');
+        // Find total price field within this item
+        const totalPriceField = item.querySelector('input[id*="exit_"][id*="_total_price"]');
+        
+        if (vehicleSelect && vehicleSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                // Get vehicle name from option text
+                let vehicleName = selectedOption.textContent || '';
+                // Extract vehicle name from text (format: "Vehicle Name (Type) - X seats")
+                // Take everything before the first '(' if it exists
+                if (vehicleName && vehicleName.includes('(')) {
+                    vehicleName = vehicleName.split('(')[0].trim();
+                }
+                // Clean up the text
+                vehicleName = vehicleName.trim();
+                if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                    vehicleNames.push(vehicleName);
+                }
+            }
+        }
+        
+        if (totalPriceField) {
+            const price = parseFloat(totalPriceField.value) || 0;
+            totalDeparturePrice += price;
+        }
+    });
+    
+    // Update departure header
+    const departureVehicleNameEl = document.getElementById(`day${day}_departure_vehicle_name`);
+    const departureTotalPriceEl = document.getElementById(`day${day}_departure_total_price`);
+    
+    if (departureVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            departureVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            departureVehicleNameEl.style.color = '#3b82f6';
+        } else {
+            departureVehicleNameEl.textContent = 'No vehicle selected';
+            departureVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (departureTotalPriceEl) {
+        departureTotalPriceEl.textContent = `SGD ${totalDeparturePrice.toFixed(2)}`;
+    }
+}
+
+// Update other transport section header with vehicle name and total price
+window.updateOtherTransportHeader = function(day) {
+    let totalTransportPrice = 0;
+    let vehicleNames = [];
+    
+    // Check for main transport vehicle (transport_0 or just transport)
+    const mainVehicleSelect = document.getElementById(`day${day}_transport_vehicle_id`);
+    const mainTotalPrice = document.getElementById(`day${day}_transport_total_price`);
+    
+    if (mainVehicleSelect && mainVehicleSelect.value) {
+        const selectedOption = mainVehicleSelect.options[mainVehicleSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            let vehicleName = selectedOption.textContent || '';
+            if (vehicleName && vehicleName.includes('(')) {
+                vehicleName = vehicleName.split('(')[0].trim();
+            }
+            vehicleName = vehicleName.trim();
+            if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                vehicleNames.push(vehicleName);
+            }
+        }
+    }
+    
+    if (mainTotalPrice) {
+        const price = parseFloat(mainTotalPrice.value) || 0;
+        totalTransportPrice += price;
+    }
+    
+    // Check for additional transport items (transport_1, transport_2, etc.)
+    const transportsContainer = document.getElementById(`day${day}_transports_container`);
+    if (transportsContainer) {
+        const transportItems = transportsContainer.querySelectorAll('.transport-item');
+        transportItems.forEach((item) => {
+            const transportIndex = item.getAttribute('data-transport-index');
+            if (transportIndex) {
+                const vehicleSelect = item.querySelector(`select[name="day${day}_transport_${transportIndex}_vehicle_id"]`);
+                const totalPriceField = item.querySelector(`input[id="day${day}_transport_${transportIndex}_total_price"]`);
+                
+                if (vehicleSelect && vehicleSelect.value) {
+                    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        let vehicleName = selectedOption.textContent || '';
+                        if (vehicleName && vehicleName.includes('(')) {
+                            vehicleName = vehicleName.split('(')[0].trim();
+                        }
+                        vehicleName = vehicleName.trim();
+                        if (vehicleName && vehicleName !== 'Choose vehicle' && vehicleName !== 'Select Vehicle' && vehicleName !== 'Choose your vehicle' && !vehicleNames.includes(vehicleName)) {
+                            vehicleNames.push(vehicleName);
+                        }
+                    }
+                }
+                
+                if (totalPriceField) {
+                    const price = parseFloat(totalPriceField.value) || 0;
+                    totalTransportPrice += price;
+                }
+            }
+        });
+    }
+    
+    // Update other transport header
+    const otherTransportVehicleNameEl = document.getElementById(`day${day}_other_transport_vehicle_name`);
+    const otherTransportTotalPriceEl = document.getElementById(`day${day}_other_transport_total_price`);
+    
+    if (otherTransportVehicleNameEl) {
+        if (vehicleNames.length > 0) {
+            otherTransportVehicleNameEl.textContent = vehicleNames.length === 1 ? vehicleNames[0] : `${vehicleNames.length} vehicles selected`;
+            otherTransportVehicleNameEl.style.color = '#14b8a6';
+        } else {
+            otherTransportVehicleNameEl.textContent = 'No vehicle selected';
+            otherTransportVehicleNameEl.style.color = '#6c757d';
+        }
+    }
+    
+    if (otherTransportTotalPriceEl) {
+        otherTransportTotalPriceEl.textContent = `SGD ${totalTransportPrice.toFixed(2)}`;
+    }
 }
 
 // Update exit port custom pricing function (Zone = 0)
@@ -23726,6 +26202,11 @@ window.updateExitPortCustomPricing = function(day, section) {
         
         console.log(`Exit port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
         
+        // Update departure header after custom pricing change
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
+        
     } else {
         // Hide price display if no custom price
         priceDisplay.style.display = 'none';
@@ -23737,6 +26218,11 @@ window.updateExitPortCustomPricing = function(day, section) {
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
         if (guestCountField) guestCountField.value = '0';
+        
+        // Update departure header after custom pricing change
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
+        }
     }
 }
 
@@ -23764,7 +26250,7 @@ window.saveService = function(day, type) {
         // Get form data
         const pickupZoneId = document.querySelector(`select[name="day${day}_entry_pickup_zone_id"]`).value;
         const dropoffZoneId = document.querySelector(`select[name="day${day}_entry_dropoff_zone_id"]`).value;
-        const pickupTime = document.querySelector(`select[name="day${day}_entry_pickup_time"]`).value;
+        const pickupTime = document.querySelector(`[name="day${day}_entry_pickup_time"]`)?.value || '';
         const pickupDate = document.querySelector(`input[name="day${day}_entry_pickup_date"]`).value;
         const vehicleId = document.querySelector(`select[name="day${day}_entry_vehicle_id"]`).value;
         const serviceType = document.querySelector(`select[name="day${day}_entry_service_type"]`).value;
@@ -23903,7 +26389,7 @@ window.saveService = function(day, type) {
         
         const pickupZoneId = document.querySelector(`select[name="day${day}_exit_pickup_zone_id"]`).value;
         const dropoffZoneId = document.querySelector(`select[name="day${day}_exit_dropoff_zone_id"]`).value;
-        const pickupTime = document.querySelector(`select[name="day${day}_exit_time"]`).value;
+        const pickupTime = document.querySelector(`[name="day${day}_exit_time"]`)?.value || '';
         const pickupDate = document.querySelector(`input[name="day${day}_exit_date"]`).value;
         const vehicleId = document.querySelector(`select[name="day${day}_exit_0_vehicle_id"]`).value;
         const serviceType = document.querySelector(`select[name="day${day}_exit_0_service_type"]`).value;
@@ -24032,7 +26518,7 @@ window.saveService = function(day, type) {
         
         const pickupZoneId = document.querySelector(`select[name="day${day}_transport_pickup_zone_id"]`).value;
         const dropoffZoneId = document.querySelector(`select[name="day${day}_transport_dropoff_zone_id"]`).value;
-        const pickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`).value;
+        const pickupTime = document.querySelector(`[name="day${day}_transport_pickup_time"]`)?.value || '';
         const pickupDate = document.querySelector(`input[name="day${day}_transport_date"]`).value;
         const vehicleId = document.querySelector(`select[name="day${day}_transport_vehicle_id"]`).value;
         const serviceType = document.querySelector(`select[name="day${day}_transport_service_type"]`).value;
@@ -24690,20 +27176,20 @@ window.saveService = function(day, type) {
        const user_dmc = UserDmc;
        const zone_status = user_dmc ? user_dmc.zone_on : 1; // Default to 1 if no DMC data
        
-       // Check if this is a local_transfer transport type
-       const localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
-       const isLocalTransfer = localTransferRadio && localTransferRadio.checked;
+       // Check if this is a local_transfer transport type (use baseSection so transport_2, transport_3, etc. use their own radio)
+       const localTransferRadioForZones = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="local_transfer"]`);
+       const isLocalTransfer = localTransferRadioForZones && localTransferRadioForZones.checked;
+       const isTransportSection = section === 'transport' || /^transport_\d+$/.test(section);
        
        if (zone_status == 1) {
         if (section === 'exit') {
             // For exit port, pickup is typically attraction/restaurant, dropoff is port
             fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || 'attraction';
             toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || 'port';
-        } else if (isLocalTransfer && section === 'transport') {
-            // For local_transfer, read the actual data-type from the selected options
-            // Don't default to 'port' or 'attraction' - use the actual type (hotel, attraction, restaurant, etc.)
-            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || '';
-            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || '';
+        } else if (isLocalTransfer && isTransportSection) {
+            // For local_transfer (any transport: transport, transport_2, transport_3...), use selected pickup/dropoff types so correct zone mapping is used
+            fromZoneType = pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.dataset?.type || pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.getAttribute('data-type') || '';
+            toZoneType = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.type || dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.getAttribute('data-type') || '';
             
             // If data-type is missing, try to infer from option text
             if (!fromZoneType && pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text) {
@@ -24751,14 +27237,13 @@ window.saveService = function(day, type) {
              actualToZoneId = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.dataset?.portId || toZoneId;
          }
          
-         // For local_transfer with hotels/attractions/restaurants, keep the original IDs
-         // The backend will convert them to zone_ids using getActualZoneId
-         if (isLocalTransfer && section === 'transport') {
-             // Don't modify the IDs - pass them as-is to the backend
-             // The backend's getActualZoneId will handle the conversion based on the zone type
-             console.log('Local transfer: keeping original IDs for backend conversion:', {
-                 fromZoneId: fromZoneId,
-                 toZoneId: toZoneId,
+         // For local_transfer (any transport section), use selected pickup/dropoff IDs as-is so the chosen location is mapped correctly
+         if (isLocalTransfer && isTransportSection) {
+             actualFromZoneId = fromZoneId;
+             actualToZoneId = toZoneId;
+             console.log('Local transfer: using selected location IDs for vehicle mapping:', {
+                 fromZoneId: actualFromZoneId,
+                 toZoneId: actualToZoneId,
                  fromZoneType: fromZoneType,
                  toZoneType: toZoneType
              });
@@ -24837,6 +27322,7 @@ window.saveService = function(day, type) {
                          console.log('No vehicles with prices found');
                      } else {
                          uniqueVehicles.forEach(vehicle => {
+                             const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                              const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                              
                              // Debug logging for vehicle data
@@ -24851,7 +27337,7 @@ window.saveService = function(day, type) {
                              data-shared-price="${vehicle.shared_price || ''}"
                              data-service-type="${vehicle.service_type || ''}"
                              data-mapping-id="${vehicle.mapping_id || ''}"
-                            data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                            data-seatingCapacity="${entryOrExitMaxPax}"
                             data-sharable="${vehicle.sharable || ''}"
                             data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
@@ -24961,35 +27447,46 @@ window.saveService = function(day, type) {
      if (pickupZoneId) {
          // Check if this is an entry port dropoff (should show zone-assigned locations, not zones)
          if (section === 'entry' && dropoffZoneSelect.name.includes('_entry_dropoff_zone_id')) {
-             // For entry port dropoff, populate with zone-assigned locations
-             console.log('Populating entry port dropoff with zone-assigned locations (new interface)');
+             // For entry port dropoff, show ALL hotels for the selected city (not only previously selected)
+             const citySelect = document.getElementById('modal_local_transfer_city');
+             const cityName = citySelect ? citySelect.value : '';
+             console.log('Populating entry port dropoff (new interface), city:', cityName);
              dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
              
-             fetch(`{{ route('fetch-zone-assigned-locations') }}`)
-                                 .then(response => response.json())
-                .then(data => {
-                     if (data.success && data.locations) {
-                         console.log('Zone-assigned locations fetched (new interface):', data.locations.length);
-                         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
-                         
-                         data.locations.forEach(location => {
+             const dmcId = '{{ $finalDmcId }}';
+             // Fetch all hotels for the city so dropdown shows every hotel
+             fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+                 .then(response => response.json())
+                 .then(hotelsData => {
+                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff location</option>';
+                     if (hotelsData.success && hotelsData.hotels && hotelsData.hotels.length > 0) {
+                         const hotelGroup = document.createElement('optgroup');
+                         hotelGroup.label = 'Hotels';
+                         hotelsData.hotels.forEach(hotel => {
                              const option = document.createElement('option');
-                             option.value = location.id;
-                             option.textContent = `${location.name} (${location.type}) - ${location.location}`;
-                             option.dataset.type = location.type;
-                             option.dataset.latitude = location.latitude || '';
-                             option.dataset.longitude = location.longitude || '';
-                             dropoffZoneSelect.appendChild(option);
+                             const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating} ⭐)` : '';
+                             option.value = hotel.hotel_unique_id;
+                             option.textContent = hotel.name + starInfo;
+                             option.setAttribute('data-type', 'Hotel');
+                             option.setAttribute('data-hotel', JSON.stringify(hotel));
+                             hotelGroup.appendChild(option);
                          });
-                         
-                         dropoffZoneSelect.disabled = false;
-                     } else {
-                         dropoffZoneSelect.innerHTML = '<option value="">No locations available</option>';
-                         dropoffZoneSelect.disabled = true;
+                         dropoffZoneSelect.appendChild(hotelGroup);
+                         console.log(`Added ${hotelsData.hotels.length} hotels to entry dropoff (new interface)`);
+                         if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels) && selectedHotels.length > 0) {
+                             const lastHotel = selectedHotels[selectedHotels.length - 1];
+                             const lastHotelId = lastHotel.id || lastHotel.hotel_unique_id;
+                             const lastHotelOption = Array.from(dropoffZoneSelect.options).find(opt => opt.value === String(lastHotelId) || opt.value === lastHotelId);
+                             if (lastHotelOption) {
+                                 dropoffZoneSelect.value = lastHotelOption.value;
+                                 dropoffZoneSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                             }
+                         }
                      }
+                     dropoffZoneSelect.disabled = false;
                  })
                  .catch(error => {
-                     console.error('Error fetching zone-assigned locations (new interface):', error);
+                     console.error('Error loading hotels for entry dropoff (new interface):', error);
                      dropoffZoneSelect.innerHTML = '<option value="">Error loading locations</option>';
                      dropoffZoneSelect.disabled = true;
                  });
@@ -26761,11 +29258,13 @@ window.saveService = function(day, type) {
                                     console.log(`DEBUG: vehicleSelect id:`, vehicleSelect.id);
                                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
+                                        const entryOrExitMaxPax = ((section === 'entry' || section === 'exit') && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '')) ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                                     vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                                             data-vehicle-name="${vehicle.vehicle_name}" 
                                             data-vehicle-type="${vehicle.vehicle_type}" 
-                                            data-seating-capacity="${vehicle.seating_capacity}"
+                                            data-seating-capacity="${entryOrExitMaxPax}"
+                                            data-seatingCapacity="${entryOrExitMaxPax}"
                                             data-private-price="${vehicle.private_price || ''}"
                                             data-shared-price="${vehicle.shared_price || ''}"
                                             data-service-type="${vehicle.service_type || ''}"
@@ -27029,17 +29528,31 @@ window.setupHourlyFieldListeners = function(day, index = 0) {
         });
     }
     
-    // Pickup time select
-    let pickupTimeSelect;
+    // Pickup time capsule (input + AM/PM)
+    let pickupTimeInput, pickupTimeAmpm;
     if (fieldIndex === 0) {
-        pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_hourly_pickup_time"]`);
+        pickupTimeInput = document.getElementById(`day${day}_transport_hourly_pickup_time_input`);
+        pickupTimeAmpm = document.getElementById(`day${day}_transport_hourly_pickup_time_ampm`);
     } else {
-        pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_${fieldIndex}_hourly_pickup_time"]`);
+        pickupTimeInput = document.getElementById(`day${day}_transport_${fieldIndex}_hourly_pickup_time_input`);
+        pickupTimeAmpm = document.getElementById(`day${day}_transport_${fieldIndex}_hourly_pickup_time_ampm`);
     }
     
-    if (pickupTimeSelect) {
-        pickupTimeSelect.addEventListener('change', function() {
-            console.log(`Pickup time changed for hourly transport day ${day}, index ${fieldIndex}`);
+    if (pickupTimeInput) {
+        pickupTimeInput.addEventListener('input', function() {
+            console.log(`Pickup time input changed for hourly transport day ${day}, index ${fieldIndex}`);
+            formatTimeInput(pickupTimeInput);
+            syncTransportHourlyPickupTime(day);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+        pickupTimeInput.addEventListener('change', function() {
+            syncTransportHourlyPickupTime(day);
+            enableSearchButton(day, sectionName, fieldIndex);
+        });
+    }
+    if (pickupTimeAmpm) {
+        pickupTimeAmpm.addEventListener('change', function() {
+            syncTransportHourlyPickupTime(day);
             enableSearchButton(day, sectionName, fieldIndex);
         });
     }
@@ -27184,7 +29697,7 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
     if (serviceType !== 'local_transfer') {
         const pickupZoneSelect = transportContainer.querySelector('.pickup-zone-select');
         const dropoffZoneSelect = transportContainer.querySelector('.dropoff-zone-select');
-        const pickupTimeSelect = transportContainer.querySelector('select[name$="_transport_pickup_time"]');
+        const pickupTimeField = transportContainer.querySelector('[name$="_transport_pickup_time"]');
         const searchButton = transportContainer.querySelector('button[id$="_transport_search_btn"]');
         if (pickupZoneSelect) {
             pickupZoneSelect.value = '';
@@ -27192,8 +29705,8 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
         if (dropoffZoneSelect) {
             dropoffZoneSelect.value = '';
         }
-        if (pickupTimeSelect) {
-            pickupTimeSelect.value = '';
+        if (pickupTimeField) {
+            pickupTimeField.value = '';
         }
         if (searchButton) {
             searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search';
@@ -27325,7 +29838,7 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
 function searchPointToPointVehicles(day, section) {
     const pickupLocation = document.querySelector(`input[name="day${day}_transport_pickup_location"]`);
     const dropoffLocation = document.querySelector(`input[name="day${day}_transport_dropoff_location"]`);
-    const pickupTime = document.querySelector(`select[name="day${day}_transport_additional_pickup_time"]`);
+    const pickupTime = document.querySelector(`[name="day${day}_transport_additional_pickup_time"]`);
     const pickupDate = document.querySelector(`input[name="day${day}_transport_additional_date"]`);
     
     if (!pickupLocation || !dropoffLocation || !pickupTime || !pickupDate || 
@@ -27382,18 +29895,18 @@ function searchPointToPointVehicles(day, section) {
 
 function searchHourlyVehicles(day, section) {
     const pickupLocation = document.querySelector(`input[name="day${day}_transport_hourly_pickup_location"]`);
-    const pickupTime = document.querySelector(`select[name="day${day}_transport_hourly_pickup_time"]`);
+    const pickupTimeField = document.querySelector(`[name="day${day}_transport_hourly_pickup_time"]`);
     const pickupDate = document.querySelector(`input[name="day${day}_transport_hourly_date"]`);
     
-    if (!pickupLocation || !pickupTime || !pickupDate || 
-        !pickupLocation.value || !pickupTime.value || !pickupDate.value) {
+    if (!pickupLocation || !pickupTimeField || !pickupDate || 
+        !pickupLocation.value || !pickupTimeField.value || !pickupDate.value) {
         showNotification('Please fill in all required fields', 'warning');
         return;
     }
     
     console.log('Searching vehicles for hourly service:', {
         pickup: pickupLocation.value,
-        time: pickupTime.value,
+        time: pickupTimeField.value,
         date: pickupDate.value
     });
     
@@ -27439,7 +29952,7 @@ function searchHourlyVehicles(day, section) {
 function searchLocalTransferVehicles(day, section) {
     const pickupZoneSelect = document.querySelector(`select[name="day${day}_transport_pickup_zone_id"]`);
     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_transport_dropoff_zone_id"]`);
-    const pickupTime = document.querySelector(`select[name="day${day}_transport_pickup_time"]`);
+    const pickupTime = document.querySelector(`[name="day${day}_transport_pickup_time"]`);
     const pickupDate = document.querySelector(`input[name="day${day}_transport_date"]`);
     
     if (!pickupZoneSelect || !dropoffZoneSelect || !pickupTime || !pickupDate ||
@@ -27542,7 +30055,9 @@ function populateVehicleDropdown(day, section, vehicles) {
     
     if (vehicles && vehicles.length > 0) {
         vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+        const isEntryOrExit = (section === 'entry' || String(section).startsWith('entry_') || section === 'exit' || String(section).startsWith('exit_'));
         vehicles.forEach(vehicle => {
+            const entryOrExitMaxPax = isEntryOrExit && (vehicle.city_tour_seating_capacity != null && vehicle.city_tour_seating_capacity !== '') ? (vehicle.city_tour_seating_capacity || vehicle.seating_capacity) : (vehicle.seating_capacity || '');
             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
             
         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
@@ -27553,7 +30068,7 @@ function populateVehicleDropdown(day, section, vehicles) {
                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                 data-vehicle-name="${vehicle.vehicle_name || ''}"
                 data-vehicle-type="${vehicle.vehicle_type || ''}"
-                data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                data-seatingCapacity="${entryOrExitMaxPax}"
                 data-sharable="${vehicle.sharable || ''}"
                 data-image="${vehicle.image || ''}">
                 ${vehicleInfo}
@@ -27720,7 +30235,7 @@ function saveTransportService(day, section, type) {
         };
     } else if (serviceCategory === 'hourly') {
         const pickupLocation = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_location"]`);
-        const pickupTime = document.querySelector(`select[name="day${day}_${section}_hourly_pickup_time"]`);
+        const pickupTime = document.querySelector(`[name="day${day}_${section}_hourly_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_date"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
@@ -27737,7 +30252,7 @@ function saveTransportService(day, section, type) {
         // Local transfer
         const pickupZoneId = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
         const dropoffZoneId = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
-        const pickupTime = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
+        const pickupTime = document.querySelector(`[name="day${day}_${section}_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_date"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         

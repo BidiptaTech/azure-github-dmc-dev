@@ -38,6 +38,10 @@ class Guest extends Model
         'whatsapp_no',
         'app_password',
         'image',
+        'share_contact',
+        'passport',
+        'passport_exp',
+        'salutation',
     ];
 
     /**
@@ -47,6 +51,7 @@ class Guest extends Model
      */
     protected $casts = [
         'tour_id' => 'array',
+        'passport_exp' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

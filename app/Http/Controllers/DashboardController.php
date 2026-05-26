@@ -602,33 +602,45 @@ class DashboardController extends Controller
     private function getBookingStatusCounts($dateRanges, $user)
     {
         $query = Tour::query();
-        $dmc_id = null;
-        
-        // Apply DMC filtering based on user role (same logic as BookingsController::newEnquiries)
+        $dmc_id  = null;
+        $dmc_ids = null; // used for Master DMC (multiple child DMCs)
+
+        // Apply DMC filtering based on user role (mirrors BookingsController::newEnquiries)
         if (in_array($user->role_id, [1, 2, 3, 4])) {
-            // Admin, Super Admin, etc. - no DMC filter
-            $dmc_id = null;
-        } elseif ($user->role_id == 11) {
-            // DMC
+            // Admin / Super Admin — see everything, no filter
+        } elseif ($user->role_id == 10) {
+            // Master DMC — restrict to all child DMCs
+            $dmc_ids = User::where('master_dmc_id', $user->userId)
+                ->where('role_id', 11)
+                ->pluck('userId')->toArray();
+        } elseif ($user->role_id == 19) {
+            // Virtual Master DMC — include both regular and virtual child DMCs
+            $dmc_ids = User::where('master_dmc_id', $user->userId)
+                ->whereIn('role_id', [11, 20])
+                ->pluck('userId')->toArray();
+        } elseif (in_array($user->role_id, [11, 20])) {
+            // DMC / Virtual DMC
             $dmc_id = $user->userId;
         } elseif (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) {
-            // Sales Head and similar roles
+            // Sales Head and similar roles — created_by points to their DMC
             $dmc_id = $user->created_by;
-        } elseif ($user->role_id == 37) {
-            // Sales Manager
+        } elseif (in_array($user->role_id, [12, 37])) {
+            // Sales Manager — go up: Sales Manager → Sales Head → DMC
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head ? $sales_head->created_by : null;
         } elseif ($user->role_id == 38) {
-            // Assistant Sales Manager
+            // Assistant Sales Manager — go up: Asst → Sales Manager → Sales Head → DMC
             $sales_manager = User::where('userId', $user->created_by)->first();
             if ($sales_manager) {
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 $dmc_id = $sales_head ? $sales_head->created_by : null;
             }
         }
-        
-        // Apply DMC filter if DMC ID is set
-        if ($dmc_id) {
+
+        // Apply DMC filter
+        if ($dmc_ids !== null) {
+            $query->whereIn('dmc_id', $dmc_ids);
+        } elseif ($dmc_id) {
             $query->where('dmc_id', $dmc_id);
         }
         
@@ -667,104 +679,64 @@ class DashboardController extends Controller
     
     /**
      * Get enquiry counts
+     * Queries the tours table with tour_status = 'New Enquiry' to match the
+     * same data source used by the Booking Status "New Enquiries" card.
      */
     private function getEnquiryCounts($dateRanges, $user)
     {
-        $query = EnquiryForm::whereNull('unique_tour_id');
+        $query   = Tour::where('tour_status', 'New Enquiry');
+        $dmc_id  = null;
+        $dmc_ids = null; // used for Master DMC (multiple child DMCs)
 
-        // Apply role-based filtering
-        switch ($user->role_id) {
-            case 1: // Admin
-            case 2: // Super Admin
-            case 10: // Master DMC
-            case 19: // Virtual Master DMC
-                // These roles can see all enquiries
-                break;
-
-            case 11: // DMC
-            case 20: // Virtual DMC
-                // DMC can see all agents' enquiries
-                $dmc_id = $user->userId;
-
-                $sales_heads = User::where('created_by', $dmc_id)
-                    ->where('role_id', 33)
-                    ->pluck('userId');
-
-                $sales_managers = User::whereIn('created_by', $sales_heads)
-                    ->whereIn('role_id', [12, 37])
-                    ->pluck('userId');
-
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
-
-                $all_ids = collect([$dmc_id])
-                    ->merge($sales_heads)
-                    ->merge($sales_managers)
-                    ->merge($assistant_managers);
-
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)
-                    ->pluck('agent_id');
-
-                $query->whereIn('agent_id', $agent_ids);
-                break;
-
-            case 33: // Sales Head
-                $sales_head_id = $user->userId;
-
-                $sales_managers = User::where('created_by', $sales_head_id)
-                    ->whereIn('role_id', [12, 37])
-                    ->pluck('userId');
-
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
-
-                $all_ids = collect([$sales_head_id])
-                    ->merge($sales_managers)
-                    ->merge($assistant_managers);
-
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)
-                    ->pluck('agent_id');
-
-                $query->whereIn('agent_id', $agent_ids);
-                break;
-
-            case 12: // Sales Manager
-            case 37: // Sales Manager
-            case 38: // Assistant Manager
-                $manager_id = $user->userId;
-
-                $assistant_managers = User::where('created_by', $manager_id)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
-
-                $all_ids = collect([$manager_id])
-                    ->merge($assistant_managers);
-
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)
-                    ->pluck('agent_id');
-
-                $query->whereIn('agent_id', $agent_ids);
-                break;
-
-            default:
-                // For other roles, only show their own enquiries
-                $agent_ids = Agent::where('sales_manager_dmc', $user->userId)
-                    ->pluck('agent_id');
-                $query->whereIn('agent_id', $agent_ids);
+        // Apply DMC filtering based on user role (mirrors BookingsController::newEnquiries)
+        if (in_array($user->role_id, [1, 2, 3, 4])) {
+            // Admin / Super Admin — see everything, no filter
+        } elseif ($user->role_id == 10) {
+            // Master DMC — restrict to all child DMCs
+            $dmc_ids = User::where('master_dmc_id', $user->userId)
+                ->where('role_id', 11)
+                ->pluck('userId')->toArray();
+        } elseif ($user->role_id == 19) {
+            // Virtual Master DMC — include both regular and virtual child DMCs
+            $dmc_ids = User::where('master_dmc_id', $user->userId)
+                ->whereIn('role_id', [11, 20])
+                ->pluck('userId')->toArray();
+        } elseif (in_array($user->role_id, [11, 20])) {
+            // DMC / Virtual DMC
+            $dmc_id = $user->userId;
+        } elseif (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) {
+            // Sales Head and similar roles — created_by points to their DMC
+            $dmc_id = $user->created_by;
+        } elseif (in_array($user->role_id, [12, 37])) {
+            // Sales Manager — go up: Sales Manager → Sales Head → DMC
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head ? $sales_head->created_by : null;
+        } elseif ($user->role_id == 38) {
+            // Assistant Sales Manager — go up: Asst → Sales Manager → Sales Head → DMC
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            if ($sales_manager) {
+                $sales_head = User::where('userId', $sales_manager->created_by)->first();
+                $dmc_id = $sales_head ? $sales_head->created_by : null;
+            }
         }
 
-        // Get total counts based on period
-        $total = $dateRanges ? (clone $query)
-            ->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])
-            ->count() : $query->count();
-        
+        // Apply DMC filter
+        if ($dmc_ids !== null) {
+            $query->whereIn('dmc_id', $dmc_ids);
+        } elseif ($dmc_id) {
+            $query->where('dmc_id', $dmc_id);
+        }
+
+        // Get total counts based on selected period (today / week / month / all-time)
+        $total = $dateRanges
+            ? (clone $query)->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])->count()
+            : (clone $query)->count();
+
         // Get today's enquiries
         $today = (clone $query)
             ->whereDate('created_at', Carbon::today())
             ->count();
-        
+
         // Get this month's enquiries
         $thisMonth = (clone $query)
             ->whereMonth('created_at', Carbon::now()->month)

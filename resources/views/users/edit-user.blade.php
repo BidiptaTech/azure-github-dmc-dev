@@ -233,7 +233,7 @@
                 <!-- Logo and Company Name for roles 10 and 11 -->
                 <div class="row">
                     <!-- Master/DMC Logo -->
-                    <div class="col-md-4" id="master_logo" style="display: none;">
+                    <div class="col-md-4 mb-3" id="master_logo" style="display: none;">
                         <div class="mb-3">
                             <label for="master_logo" class="form-label"><strong>Logo</strong></label>
                             <input type="file" class="form-control" id="master_logo" name="master_logo">
@@ -247,10 +247,42 @@
                     </div>
 
                     <!-- Company Name -->
-                    <div class="col-md-4" id="company_name" style="display: none;">
+                    <div class="col-md-4 mb-3" id="company_name" style="display: none;">
                         <div class="mb-3">
                             <label for="company_name" class="form-label"><strong>Company Name</strong><span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="company_name" name="company_name" value="{{ $users->company_name }}" placeholder="Enter Company Name">
+                        </div>
+                    </div>
+
+                    <!-- Company Code (DMC only, when edited by Master DMC) -->
+                    <div class="col-md-4 mb-3" id="company_code_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="company_code" class="form-label"><strong>Company Code</strong></label>
+                            <input type="text" class="form-control" id="company_code" name="company_code" value="{{ $users->company_code ?? '' }}" placeholder="Enter Company Code">
+                        </div>
+                    </div>
+
+                    <!-- User Code -->
+                    <div class="col-md-4 mb-3" id="user_code_container">
+                        <div class="mb-3">
+                            <label for="user_code" class="form-label"><strong>User Code</strong></label>
+                            <input type="text" class="form-control" id="user_code" name="user_code" value="{{ $users->user_code ?? '' }}" placeholder="Enter User Code">
+                        </div>
+                    </div>
+
+                    <!-- Company Reg. No (DMC only) -->
+                    <div class="col-md-4 mb-3" id="company_reg_no_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="company_reg_no" class="form-label"><strong>Company Reg. No</strong></label>
+                            <input type="text" class="form-control" id="company_reg_no" name="company_reg_no" value="{{ $users->company_reg_no ?? '' }}" placeholder="Enter Company Reg. No">
+                        </div>
+                    </div>
+
+                    <!-- TA License No (DMC only) -->
+                    <div class="col-md-4 mb-3" id="licence_no_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="licence_no" class="form-label"><strong>TA License No</strong></label>
+                            <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
                         </div>
                     </div>
                 </div>
@@ -607,6 +639,7 @@
 
         function updateFields() {
             const userRole = currentUserRole;
+            const authRole = {{ auth()->user()->role_id }};
             const containers = {
                 inputRoleContainer: $('#inputRoleContainer'),
                 inputDmcContainer: $('#inputDmcContainer'),
@@ -614,6 +647,10 @@
                 country_names: $('#country_names'),
                 master_logo: $('#master_logo'),
                 company_name: $('#company_name'),
+                company_code_container: $('#company_code_container'),
+                user_code_container: $('#user_code_container'),
+                company_reg_no_container: $('#company_reg_no_container'),
+                licence_no_container: $('#licence_no_container'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
                 markuptypes: $('#markuptypes'),
                 dmc_settings_section: $('#dmc_settings_section')
@@ -621,28 +658,32 @@
 
             // Hide all containers
             Object.values(containers).forEach(container => container.hide());
+            containers.user_code_container.show();
 
             // Show relevant containers based on role
             if (userRole >= 5 && userRole <= 9) {
                 containers.country_names.show();
             } else if (userRole === 10 || userRole === 19) {
-                // Master DMC - show multiple countries, logo, company name, and DMC settings
+                // Master DMC - show multiple countries, logo, company name, user code, and DMC settings
                 containers.country_names.show();
                 containers.master_logo.show();
                 containers.company_name.show();
                 containers.dmc_settings_section.show();
             } else if (userRole === 11 || userRole === 20) {
-                // DMC - show single country (if created by Master DMC), master DMC selection, logo, company name, and DMC settings
-                if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
+                // DMC - show single country (if edited by Master DMC), company code, user code, company reg no, licence no
+                if (authRole === 10 || authRole === 19) {
                     containers.country_name.show();
+                    containers.company_code_container.show();
                 }
                 containers.inputRoleContainer.show();
                 containers.master_logo.show();
                 containers.company_name.show();
+                containers.company_reg_no_container.show();
+                containers.licence_no_container.show();
                 containers.dmc_settings_section.show();
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
-            } else if (userRole === 3) {
+            } else if ([3, 24, 25, 26, 27].includes(userRole)) {
                 containers.country_name.show();
             }
         }

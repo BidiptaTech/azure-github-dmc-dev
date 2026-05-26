@@ -10,17 +10,17 @@
     /* Better Select2 styling */
     .select2-container--default .select2-selection--single {
         border-color: #e2e5ec;
-        height: 38px;
-        line-height: 38px;
+        height: 32px;
+        line-height: 32px;
     }
     
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 38px;
-        padding-left: 12px;
+        line-height: 32px;
+        padding-left: 10px;
     }
     
     .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px;
+        height: 30px;
     }
     
     /* Select2 in table cells */
@@ -84,6 +84,106 @@
         z-index: 9999;
         width: 300px;
     }
+
+    /* Assign Guide: view (read-only text + pen) vs edit (dropdown) */
+    .assign-guide-cell {
+        min-width: 170px;
+        position: relative; /* Anchor Select2 dropdown positioning */
+    }
+    .assign-guide-view {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        min-height: 32px;
+    }
+    .assign-guide-text {
+        flex: 1;
+        padding: 4px 0;
+        color: #333;
+    }
+    .assign-guide-text.empty {
+        color: #999;
+        font-style: italic;
+    }
+    .assign-guide-edit-btn {
+        flex-shrink: 0;
+        padding: 3px 7px;
+        color: #6777ef;
+        border: 1px solid #e2e5ec;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .assign-guide-edit-btn:hover {
+        background: #f8f9fa;
+        color: #5568d3;
+    }
+    .assign-guide-edit {
+        display: none;
+        min-width: 180px;
+    }
+    .assign-guide-edit.is-active {
+        display: block;
+    }
+
+    /* Compact table spacing */
+    #tourOrdersTable {
+        font-size: 0.85rem;
+    }
+    #tourOrdersTable th{
+        padding: 0.35rem 1.25rem !important;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #tourOrdersTable td {
+        padding: 0.35rem 0.25rem !important;
+        vertical-align: middle;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Reduce Select2 height inside cells to match compact rows */
+    #tourOrdersTable .select2-container--default .select2-selection--single {
+        height: 30px;
+        line-height: 30px;
+    }
+    #tourOrdersTable .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 30px;
+        padding-left: 10px;
+    }
+    #tourOrdersTable .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 28px;
+    }
+
+    #tourOrdersTable .select2-search--dropdown .select2-search__field {
+        padding: 4px 10px;
+    }
+
+    /* Prevent Select2 options from being hidden by DataTables/pagination overlays */
+    .select2-dropdown {
+        z-index: 99999 !important;
+    }
+    .select2-container--open .select2-dropdown {
+        z-index: 99999 !important;
+    }
+
+    /* Horizontal scroll like driver jobsheet table */
+    .card-body .table-responsive {
+        overflow-x: auto !important;
+    }
+
+    /* Keep DataTables scroll header/body aligned */
+    #tourOrdersTable,
+    #tourOrdersTable thead th,
+    #tourOrdersTable tbody td,
+    .dataTables_scrollHeadInner table,
+    .dataTables_scrollHeadInner table th {
+        box-sizing: border-box !important;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -121,14 +221,19 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover" id="tourOrdersTable">
+                    <table class="table table-bordered table-hover table-sm" id="tourOrdersTable">
                         <thead>
                             <tr>
                                 <th>Tour ID</th>
                                 <th>Order Type</th>
                                 <th>Pickup Time</th>
+                                <th>Guest Name</th>
+                                <th>Adult</th>
+                                <th>Child</th>
+                                <th>Infant</th>
                                 <th>Pickup Location</th>
                                 <th>Tour Type</th>
+                                <th>Remarks</th>
                                 <th>Guide</th>
                                 <th>Assign Guide</th>
                                 <!-- Hidden columns for now -->
@@ -171,7 +276,8 @@ var initialOrders = {!! json_encode($orders ?? []) !!};
 var initialGuides = {!! json_encode($guides ?? []) !!};
 var dataTableInitialized = false; // Track if DataTable is initialized
 
-
+console.log("initialGuides = ", initialGuides);
+console.log("initialOrders = ", initialOrders);
 
 $(document).ready(function() {
     let datePicker = null;
@@ -200,6 +306,44 @@ $(document).ready(function() {
             alertDiv.classList.remove('show');
             setTimeout(() => alertDiv.remove(), 300);
         }, 5000);
+    }
+
+    // Helpers for extracting guest info from the tour payload
+    function getGuestNameFromMainguest(mainguest) {
+        if (!mainguest) return 'N/A';
+        try {
+            if (typeof mainguest === 'object') {
+                return mainguest?.full_name || 'N/A';
+            }
+
+            // mainguest usually comes as an escaped JSON string:
+            // "{\"full_name\":\"zxy\",...}"
+            let str = String(mainguest).trim();
+
+            // Sometimes it may be double-quoted; remove outer quotes if present.
+            if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+                str = str.slice(1, -1);
+            }
+
+            try {
+                const parsed = JSON.parse(str);
+                return parsed?.full_name || 'N/A';
+            } catch (e) {
+                // Fallback for double-escaped payloads (best-effort unescape quotes).
+                const unescaped = str.replace(/\\"/g, '"');
+                const parsed = JSON.parse(unescaped);
+                return parsed?.full_name || 'N/A';
+            }
+        } catch (e) {
+            return 'N/A';
+        }
+    }
+
+    function normalizeCount(value) {
+        // Backend often returns null/undefined; show 0 in the grid/export.
+        if (value === null || typeof value === 'undefined' || value === '') return 0;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
     }
 
     // Initialize table with orders data from controller
@@ -232,8 +376,13 @@ $(document).ready(function() {
                         <td>${item.tour_id || 'N/A'}</td>
                         <td>${item.type || 'N/A'}</td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
+                        <td>${getGuestNameFromMainguest(item.mainguest.full_name) || 'N/A'}</td>
+                        <td>${normalizeCount(item.tour?.adult)}</td>
+                        <td>${normalizeCount(item.tour?.child)}</td>
+                        <td>${normalizeCount(item.tour?.infant)}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
+                        <td>${item.remarks || 'N/A'}</td>
                         <td>${(function() {
                             if (item.OrderGuide) {
                                 const guide = item.OrderGuide;
@@ -244,30 +393,44 @@ $(document).ready(function() {
                             }
                             return 'N/A';
                         })()}</td>
-                        <td>
-                            <select class="form-control guide-select" 
-                                name="guide_id[${index}]" 
-                                data-order-id="${item.booking_id || item.id || ''}" 
-                                data-tour-id="${item.tour_id_numeric || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-type="${item.type || ''}">
-                                <option value="">Select Guide</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialGuides.length) {
-                                        initialGuides.forEach(guide => {
-                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                            const languages = guide.languages && guide.languages.length > 0 
-                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
-                                                : '';
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}${languages}</option>`;
-                                        });
+                        <td class="assign-guide-cell">
+                            <div class="assign-guide-view">
+                                <span class="assign-guide-text ${!(item.assigned_guide_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_guide_id) return 'Not Assigned';
+                                    const g = initialGuides.find(gr => gr.guide_id == item.assigned_guide_id);
+                                    if (g) {
+                                        const lang = g.languages && g.languages.length ? ' (' + g.languages.map(l => l.language).join(', ') + ')' : '';
+                                        return g.name + lang;
                                     }
-                                    return options;
-                                })()}
-                            </select>
+                                    return 'Guide #' + item.assigned_guide_id;
+                                })()}</span>
+                                <button type="button" class="assign-guide-edit-btn" title="Edit guide" aria-label="Edit guide"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-guide-edit">
+                                <select class="form-control guide-select" 
+                                    name="guide_id[${index}]" 
+                                    data-order-id="${item.booking_id || item.id || ''}" 
+                                    data-tour-id="${item.tour_id_numeric || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-type="${item.type || ''}">
+                                    <option value="">Select Guide</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialGuides.length) {
+                                            initialGuides.forEach(guide => {
+                                                const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
+                                                const languages = guide.languages && guide.languages.length > 0 
+                                                    ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                    : '';
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}${languages}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
                             <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                             <input type="hidden" name="tour_id[${index}]" id="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
@@ -277,13 +440,12 @@ $(document).ready(function() {
             $('#tourOrdersTableBody').html(tableHTML);
             $('#exportOrdersBtn').show();
             
-            // Initialize Select2 for guide dropdowns
-            initializeSelect2();
+            // Don't init Select2 on hidden dropdowns; init on pen click
             
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -294,13 +456,13 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
 
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
@@ -341,8 +503,13 @@ $(document).ready(function() {
                                     <td>${item.tour_id || 'N/A'}</td>
                                     <td>${item.type || 'N/A'}</td>
                                     <td>${dataItem.entrytime || 'N/A'}</td>
+                                    <td>${getGuestNameFromMainguest(item.tour?.mainguest) || 'N/A'}</td>
+                                    <td>${normalizeCount(item.tour?.adult)}</td>
+                                    <td>${normalizeCount(item.tour?.child)}</td>
+                                    <td>${normalizeCount(item.tour?.infant)}</td>
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
+                                    <td>${item.remarks || 'N/A'}</td>
                                     <td>${(function() {
                                         if (item.OrderGuide) {
                                             const guide = item.OrderGuide;
@@ -353,30 +520,44 @@ $(document).ready(function() {
                                         }
                                         return 'N/A';
                                     })()}</td>
-                                    <td>
-                                        <select class="form-control guide-select" 
-                                            name="guide_id[${index}]" 
-                                            data-order-id="${item.booking_id || item.id || ''}" 
-                                            data-tour-id="${item.tour_id_numeric || ''}"
-                                            data-order-type="${item.type || ''}"
-                                            data-entry-time="${dataItem.entrytime || ''}"
-                                            data-entrypickup="${dataItem.entrypickup || ''}"
-                                            data-type="${item.type || ''}">
-                                            <option value="">Select Guide</option>
-                                            ${(function() {
-                                                let options = '';
-                                                if (response.guides && response.guides.length) {
-                                                    response.guides.forEach(guide => {
-                                                        const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                                        const languages = guide.languages && guide.languages.length > 0 
-                                                            ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
-                                                            : '';
-                                                        options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}${languages}</option>`;
-                                                    });
+                                    <td class="assign-guide-cell">
+                                        <div class="assign-guide-view">
+                                            <span class="assign-guide-text ${!(item.assigned_guide_id) ? 'empty' : ''}">${(function() {
+                                                if (!item.assigned_guide_id) return 'Not Assigned';
+                                                const g = response.guides && response.guides.find(gr => gr.guide_id == item.assigned_guide_id);
+                                                if (g) {
+                                                    const lang = g.languages && g.languages.length ? ' (' + g.languages.map(l => l.language).join(', ') + ')' : '';
+                                                    return g.name + (g.government_license_no ? ' - ' + g.government_license_no : '') + lang;
                                                 }
-                                                return options;
-                                            })()}
-                                        </select>
+                                                return 'Guide #' + item.assigned_guide_id;
+                                            })()}</span>
+                                            <button type="button" class="assign-guide-edit-btn" title="Edit guide" aria-label="Edit guide"><i class="fas fa-pen"></i></button>
+                                        </div>
+                                        <div class="assign-guide-edit">
+                                            <select class="form-control guide-select" 
+                                                name="guide_id[${index}]" 
+                                                data-order-id="${item.booking_id || item.id || ''}" 
+                                                data-tour-id="${item.tour_id_numeric || ''}"
+                                                data-order-type="${item.type || ''}"
+                                                data-entry-time="${dataItem.entrytime || ''}"
+                                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                                data-type="${item.type || ''}">
+                                                <option value="">Select Guide</option>
+                                                ${(function() {
+                                                    let options = '';
+                                                    if (response.guides && response.guides.length) {
+                                                        response.guides.forEach(guide => {
+                                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
+                                                            const languages = guide.languages && guide.languages.length > 0 
+                                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                                : '';
+                                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}${languages}</option>`;
+                                                        });
+                                                    }
+                                                    return options;
+                                                })()}
+                                            </select>
+                                        </div>
                                         <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                                         <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                     </td>
@@ -386,20 +567,19 @@ $(document).ready(function() {
                         $('#tourOrdersTableBody').html(tableHTML);
                         $('#exportOrdersBtn').show();
                         
-                        // Initialize Select2 for guide dropdowns
-                        initializeSelect2();
+                        // Don't init Select2 on hidden dropdowns; init on pen click
                         
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
-                        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found for this date</td></tr>');
+                        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found for this date</td></tr>');
                         $('#exportOrdersBtn').hide();
                     }
                 } else {
                     const errorMessage = response.message || 'Error loading orders';
                     console.error('Error:', errorMessage);
                     showAlert('error', errorMessage);
-                    $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
         })
@@ -407,7 +587,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -415,6 +595,17 @@ $(document).ready(function() {
     // Function to safely clean up DataTable
     function cleanupDataTable() {
         try {
+            // Destroy Select2 dropdown UI leftovers from previous renders.
+            $('.guide-select').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    try {
+                        $(this).select2('destroy');
+                    } catch (e) {
+                        // Best-effort cleanup; ignore.
+                    }
+                }
+            });
+
             // If DataTable exists and is initialized
             if (dataTableInitialized) {
                 // First remove all event handlers to prevent memory leaks
@@ -452,15 +643,22 @@ $(document).ready(function() {
                            !$('#tourOrdersTableBody tr td[colspan]').length;
             
             if (hasData) {
-                // Initialize DataTable with minimal options
-                $('#tourOrdersTable').DataTable({
+                // Initialize DataTable with horizontal scroll so pager stays below scrollbar
+                var dt = $('#tourOrdersTable').DataTable({
                     paging: true,
                     ordering: true,
                     info: true,
                     searching: true,
+                    responsive: false,
+                    scrollX: true,
+                    autoWidth: false,
                     columnDefs: [
-                        { orderable: false, targets: [6] }  // Disable sorting on guide select column
-                    ]
+                        { orderable: false, targets: [11] } // Disable sorting on assign guide column
+                    ],
+                    drawCallback: function() {
+                        // Recalculate widths so scroll header aligns with body
+                        setTimeout(function() { dt.columns().adjust(); }, 0);
+                    }
                 });
                 
                 // Set the flag
@@ -471,6 +669,64 @@ $(document).ready(function() {
             }
         } catch (e) {
             console.error("DataTable initialization error:", e);
+        }
+    }
+    
+    // Ensures Select2 dropdown is positioned relative to the DataTables scroll container.
+    // Without this, the dropdown can render offset (especially with scrollX).
+    function getSelect2DropdownParent($cell) {
+        // Most reliable: attach dropdown to the cell content that is inside the scrollable area.
+        // Attaching to the DataTables scroll container can produce wrong offsets in some setups.
+        if ($cell && $cell.length) {
+            const $td = $cell.closest('td').first();
+            if ($td && $td.length) return $td;
+            return $cell;
+        }
+
+        const $tableScrollBody = $('#tourOrdersTable').closest('.dataTables_scrollBody').first();
+        if ($tableScrollBody && $tableScrollBody.length) return $tableScrollBody;
+
+        const $tableResponsive = $('#tourOrdersTable').closest('.table-responsive').first();
+        if ($tableResponsive && $tableResponsive.length) return $tableResponsive;
+
+        return $('#tourOrdersTable').parent();
+    }
+    
+    // Chooses whether Select2 dropdown should open above or below,
+    // based on available space inside the DataTables scroll container.
+    function adjustSelect2DropdownPlacement($select, $dropdownParent) {
+        try {
+            const $container = $select.next('.select2-container');
+            if (!$container.length) return;
+
+            // Select2 dropdown is rendered under the open container.
+            const $dropdown = $('.select2-container--open .select2-dropdown').first();
+            if (!$dropdown.length) return;
+
+            const $scrollBody = $('#tourOrdersTable').closest('.dataTables_scrollBody').first();
+            const scrollRect = $scrollBody.length ? $scrollBody[0].getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+
+            const containerRect = $container[0].getBoundingClientRect();
+            const dropdownHeight = $dropdown.outerHeight();
+            const spaceBelow = scrollRect.bottom - containerRect.bottom;
+            const spaceAbove = containerRect.top - scrollRect.top;
+
+            // If there's not enough space below, open above (otherwise default below).
+            const showBelow = spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove;
+
+            const parentRect = $dropdownParent && $dropdownParent.length
+                ? $dropdownParent[0].getBoundingClientRect()
+                : $container[0].getBoundingClientRect();
+
+            let relTop = showBelow
+                ? (containerRect.bottom - parentRect.top)
+                : (containerRect.top - parentRect.top - dropdownHeight);
+
+            // Prevent dropdown from going completely negative.
+            relTop = Math.max(relTop, 0);
+            $dropdown.css({ top: relTop + 'px' });
+        } catch (e) {
+            // Best-effort only; ignore.
         }
     }
     
@@ -489,7 +745,7 @@ $(document).ready(function() {
                 placeholder: "Select Guide",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
+                dropdownParent: $('body')
             });
             
             console.log("Select2 initialized successfully");
@@ -520,6 +776,49 @@ $(document).ready(function() {
     
     // Then load the table with initial data from controller
     initializeTable();
+
+    // Pen icon: show dropdown for Assign Guide, then collapse back to text on close
+    $(document).on('click', '.assign-guide-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-guide-cell');
+        const $view = $cell.find('.assign-guide-view');
+        const $edit = $cell.find('.assign-guide-edit');
+        const $select = $cell.find('.guide-select').first();
+        // Match the working driver page behavior: render dropdown relative to <body>.
+        // This prevents dropdowns from being clipped/covered by DataTables scroll areas.
+        const $dropdownParent = $('body');
+        $view.hide();
+        $edit.addClass('is-active').show();
+        // Re-init Select2 every time to avoid stale dropdownParent/positioning.
+        if ($select.hasClass('select2-hidden-accessible')) {
+            try {
+                $select.select2('destroy');
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Guide",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $dropdownParent,
+                dropdownAutoWidth: true
+            });
+        }
+        $select.off('select2:close');
+        $select.on('select2:close', function() {
+            const selectedText = $select.find('option:selected').text();
+            $cell.find('.assign-guide-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+            $edit.removeClass('is-active').hide();
+            $view.show();
+        });
+        
+        // Let Select2 handle auto "above/below" placement when dropdownParent is <body>.
+
+        $select.select2('open');
+    });
 
     // Handle guide selection change
     $(document).on('change', '.guide-select', function() {
@@ -617,7 +916,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 7) {
+            if (cells.length < 12) {
                 return; // Skip incomplete rows
             }
             
@@ -625,12 +924,17 @@ $(document).ready(function() {
             const tourId = $(cells[0]).text().trim();
             const orderType = $(cells[1]).text().trim();
             const pickupTime = $(cells[2]).text().trim();
-            const pickupLocation = $(cells[3]).text().trim();
-            const tourType = $(cells[4]).text().trim();
-            const guide = $(cells[5]).text().trim();
+            const guestName = $(cells[3]).text().trim();
+            const adult = $(cells[4]).text().trim();
+            const child = $(cells[5]).text().trim();
+            const infant = $(cells[6]).text().trim();
+            const pickupLocation = $(cells[7]).text().trim();
+            const tourType = $(cells[8]).text().trim();
+            const remarks = $(cells[9]).text().trim();
+            const guide = $(cells[10]).text().trim();
             
             // Get selected guide from the dropdown
-            const guideSelect = $(cells[6]).find('.guide-select');
+            const guideSelect = $(cells[11]).find('.guide-select');
             const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
@@ -638,8 +942,13 @@ $(document).ready(function() {
                 'Tour ID': tourId,
                 'Order Type': orderType,
                 'Pickup Time': pickupTime,
+                'Guest Name': guestName,
+                'Adult': adult,
+                'Child': child,
+                'Infant': infant,
                 'Pickup Location': pickupLocation,
                 'Tour Type': tourType,
+                'Remarks': remarks,
                 'Guide': guide,
                 'Assigned Guide': assignedGuide
             });

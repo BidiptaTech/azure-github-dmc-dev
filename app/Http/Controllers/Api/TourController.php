@@ -2815,6 +2815,7 @@ class TourController extends Controller
             $order->deleted_at = now(); //cancel booking
             $order->cancel_reason = $request->cancel_reason;
             $order->save();
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
                 'success' => true,

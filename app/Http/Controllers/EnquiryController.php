@@ -97,26 +97,77 @@ class EnquiryController extends Controller
 
     public function update(Request $request)
     {
-        $currentEnquiry = Enquiry::where('enquiry_id',$request->enquiry_id)->first();
-        if(!$currentEnquiry){
-            return back()->with('error', 'Enquiry Not found!');
-        }
-        $tour = $currentEnquiry ? Tour::where('tour_id', $currentEnquiry->tour_id)->first() : '';
-        if(!$tour){
-            return back()->with('error', 'Tour Not found!');
-        }
-        $currentUser = auth()->user();
-        $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
-        $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
-        $enqId = CommonHelper::createId($enq_max_id);
-        while (Enquiry::where('enquiry_id', $enqId)->exists()) {
-            $enqId = CommonHelper::createId($enqId);
-        }
         $request->validate([
-            'enquiry_id' => 'required|integer',
+            'enquiry_id' => 'nullable|integer',
+            'tour_id' => 'nullable|integer|exists:tours,tour_id',
             'price' => 'required|numeric|min:0',
             'comment' => 'required|string|max:1000',
+            'actual_amount' => 'nullable|numeric|min:0',
         ]);
+
+        if (! $request->filled('enquiry_id') && ! $request->filled('tour_id')) {
+            return back()->with('error', 'Enquiry or tour reference is required.');
+        }
+
+        $currentUser = auth()->user();
+        $currentEnquiry = null;
+        $tour = null;
+
+        if ($request->filled('enquiry_id')) {
+            $currentEnquiry = Enquiry::where('enquiry_id', $request->enquiry_id)->first();
+            if (! $currentEnquiry) {
+                return back()->with('error', 'Enquiry Not found!');
+            }
+        }
+
+        if (! $currentEnquiry && $request->filled('tour_id')) {
+            $tour = Tour::where('tour_id', $request->tour_id)->first();
+            if (! $tour) {
+                return back()->with('error', 'Tour Not found!');
+            }
+            $currentEnquiry = Enquiry::where('tour_id', $tour->tour_id)
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if (! $currentEnquiry && $tour) {
+            // $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
+            // $newEnquiryId = CommonHelper::createId($lastEnquiryId);
+            // while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
+            //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            // }
+            $actualForRow = (float) ($request->input('actual_amount', 0));
+
+            $currentEnquiry = Enquiry::create([
+                'tour_id' => $tour->tour_id,
+                'status' => 1,
+                'dmcId' => $tour->dmc_id,
+                // 'enquiry_id' => $newEnquiryId,
+                'sender_id' => $currentUser->userId,
+                'sender_type' => 'OM',
+                'receiver_id' => 0,
+                'receiver_type' => '',
+                'current_position' => '',
+                'amount' => 0,
+                'actual_amount' => $actualForRow,
+                'comment' => '',
+            ]);
+            $currentEnquiry->refresh();
+        }
+
+        if (! $currentEnquiry) {
+            return back()->with('error', 'Enquiry Not found!');
+        }
+
+        $tour = $tour ?? Tour::where('tour_id', $currentEnquiry->tour_id)->first();
+        if (! $tour) {
+            return back()->with('error', 'Tour Not found!');
+        }
+
+        // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
+        $amount = $currentEnquiry->amount ?? 0;
+        $comment = $request->comment ?? '';
+        $actualAmount = $request->price ?? 0;
 
         // if($currentUser->role_id == 125){
         //     $currentEnquiry->sender_id = $currentUser->userId;
@@ -139,42 +190,64 @@ class EnquiryController extends Controller
             $currentEnquiry->comment = $request->comment;
         // }
         $tourStatus = Tour::where('tour_id', $currentEnquiry->tour_id)->value('tour_status');
-        $oldStatus = $tourStatus; // Store the original status
-        $newStatus = $tourStatus; // Initialize new status
-        $statusChanged = false;
-        
-        if($tourStatus == "New Enquiry"){
-            // Track status change New Enquiry -> Prospect
+        $oldStatus = $tourStatus;
+        $newStatus = $tourStatus;
+
+        $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
+        $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+
+        if ($tourStatus == "New Enquiry") {
             \App\Helpers\CommonHelper::appendTourStatusTrackById(
                 (int) $currentEnquiry->tour_id,
                 $tourStatus,
-                "Prospect"
+                "Prospect",
+                null,
+                $amount,
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Prospect",
             ]);
             $newStatus = "Prospect";
-            $statusChanged = true;
-            // Refresh the tour object to get updated status
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
-        }elseif($tourStatus == "Prospect"){
-            // Track status change Prospect -> Tentative
+        } elseif ($tourStatus == "Prospect") {
             \App\Helpers\CommonHelper::appendTourStatusTrackById(
                 (int) $currentEnquiry->tour_id,
                 $tourStatus,
-                "Tentative"
+                "Tentative",
+                null,
+                $amount,
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Tentative",
             ]);
             $newStatus = "Tentative";
-            $statusChanged = true;
-            // Refresh the tour object to get updated status
+            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
+        } else {
+            // Tour status not changing (Tentative, Confirmed, etc.) - still append track for enquiry update
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $currentEnquiry->tour_id,
+                $tourStatus,
+                $tourStatus,
+                null,
+                $amount,    
+                $comment,
+                $actualAmount,
+                $changedByName,
+                $changedByUserId
+            );
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }
-        
+
         if ($currentEnquiry->save()) {
             // Send negotiation email to agent
             if ($tour && $tour->agent_id) {
@@ -218,7 +291,7 @@ class EnquiryController extends Controller
             
             // Build success message with status update info
             $successMessage = 'Price updated successfully! The negotiation has been sent to the agent via email.';
-            if ($statusChanged) {
+            if ($oldStatus !== $newStatus) {
                 $successMessage .= ' Tour status has been updated from "' . $oldStatus . '" to "' . $newStatus . '".';
             }
             
@@ -233,12 +306,12 @@ class EnquiryController extends Controller
         $currentEnquiry = Enquiry::where('enquiry_id',$request->enquiry_id)->first();
         $receiver_id = $request->aom_id;
         $currentUser = auth()->user();
-        $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
-        $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
-        $enqId = CommonHelper::createId($enq_max_id);
-        while (Enquiry::where('enquiry_id', $enqId)->exists()) {
-            $enqId = CommonHelper::createId($enqId);
-        }
+        // $lastEnquiry = Enquiry::orderBy('created_at', 'desc')->first();
+        // $enq_max_id = $lastEnquiry->enquiry_id ?? 1;
+        // $enqId = CommonHelper::createId($enq_max_id);
+        // while (Enquiry::where('enquiry_id', $enqId)->exists()) {
+        //     $enqId = CommonHelper::createId($enqId);
+        // }
 
         $currentEnquiry->sender_id = $currentUser->userId;
         $currentEnquiry->sender_type = 'OM';
@@ -247,7 +320,9 @@ class EnquiryController extends Controller
         $currentEnquiry->receiver_type = 'AOM';
         $currentEnquiry->current_position = 'AOM';
         $currentEnquiry->status = 1;
-        if ($currentEnquiry->save()) {
+        $isSaved = $currentEnquiry->save();
+        $currentEnquiry->refresh();
+        if ($isSaved) {
             return response()->json([
                 'status' => 'success', 
                 'message' => 'Asst. Manager assigned successfully!'
