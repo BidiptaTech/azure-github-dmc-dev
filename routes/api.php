@@ -4,8 +4,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\DayLevelController;
-use App\Http\Controllers\ExternalApiReceiveController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -21,17 +19,18 @@ Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
 Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
 Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
-Route::get('/v1/day-level/combined-json', [DayLevelController::class, 'combinedJsonApi']);
-Route::post('/external-api-receive', [ExternalApiReceiveController::class, 'receive'])
+Route::get('/v1/day-level/combined-json', 'App\Http\Controllers\Api\DayLevelController@combinedJsonApi');
+
+Route::post('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
-Route::get('/external-api-receive', [ExternalApiReceiveController::class, 'index'])
+Route::get('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
 // Backward-compatible external receive endpoints (legacy python integration)
-Route::post('/v1/external/receive', [ExternalApiReceiveController::class, 'receive'])
+Route::post('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
-Route::get('/v1/external/receive', [ExternalApiReceiveController::class, 'index'])
+Route::get('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
-Route::get('/v1/external/received', [ExternalApiReceiveController::class, 'index'])
+Route::get('/v1/external/received', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
 
 // Simple test route to debug routing issues

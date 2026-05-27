@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\ExternalApiReceive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class ExternalApiReceiveController extends Controller
             'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
             'headers' => $request->headers->all(),
             'payload' => $payload,
+            'status' => false,
         ]);
 
 
