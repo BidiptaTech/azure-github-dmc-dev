@@ -827,11 +827,11 @@ class EditTourController extends Controller
 
         // Create new guest
         $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-        $lastGuestId = $lastGuest->guest_id ?? 0;
-        $guestId = CommonHelper::createId($lastGuestId);
-        while (Guest::where('guest_id', $guestId)->exists()) {
-            $guestId = CommonHelper::createId($guestId);
-        }
+        // $lastGuestId = $lastGuest->guest_id ?? 0;
+        // $guestId = CommonHelper::createId($lastGuestId);
+        // while (Guest::where('guest_id', $guestId)->exists()) {
+        //     $guestId = CommonHelper::createId($guestId);
+        // }
 
         // Try to upload default avatar
         $imagePath = null;
@@ -850,8 +850,8 @@ class EditTourController extends Controller
             }
         }
 
-        return Guest::create([
-            'guest_id' => $guestId,
+        $guest = Guest::create([
+            // 'guest_id' => $guestId,
             'tour_id' => [$tourIdInt],
             'guest_name' => $name,
             'email' => $email,
@@ -860,6 +860,8 @@ class EditTourController extends Controller
             'app_password' => Hash::make($plainPassword),
             'image' => $imagePath,
         ]);
+        $guest->refresh();
+        return $guest;
     }
 
     /**
@@ -897,11 +899,11 @@ class EditTourController extends Controller
 
         // Create new guest
         $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-        $lastGuestId = $lastGuest->guest_id ?? 0;
-        $guestId = CommonHelper::createId($lastGuestId);
-        while (Guest::where('guest_id', $guestId)->exists()) {
-            $guestId = CommonHelper::createId($guestId);
-        }
+            // $lastGuestId = $lastGuest->guest_id ?? 0;
+            // $guestId = CommonHelper::createId($lastGuestId);
+            // while (Guest::where('guest_id', $guestId)->exists()) {
+            //     $guestId = CommonHelper::createId($guestId);
+            // }
 
         $imagePath = null;
         $defaultAvatarPath = base_path('avatar-1577909_1280.png');
@@ -919,8 +921,8 @@ class EditTourController extends Controller
             }
         }
 
-        return Guest::create([
-            'guest_id' => $guestId,
+        $guest = Guest::create([
+            // 'guest_id' => $guestId,
             'tour_id' => [$tourIdInt],
             'guest_name' => $name,
             'email' => $email ?: null,
@@ -929,6 +931,8 @@ class EditTourController extends Controller
             'app_password' => Hash::make($plainPassword),
             'image' => $imagePath,
         ]);
+        $guest->refresh();
+        return $guest;
     }
 
     /**

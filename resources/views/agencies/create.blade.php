@@ -420,11 +420,11 @@
                     <h6 class="mb-2 text-success">How to create an agency:</h6>
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Fill in the head office information below (marked with "Head Office" badge)</li>
-                        <li><strong>Step 2:</strong> Select country first, then city and Govt. ID card types will auto-populate with search functionality</li>
-                        <li><strong>Step 3:</strong> Choose appropriate ID card type and enter card number for verification</li>
-                        <li><strong>Step 4:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
-                        <li><strong>Step 5:</strong> Each branch requires all fields including ID card details</li>
-                        <li><strong>Step 6:</strong> Review and submit to create the agency</li>
+                        {{-- <li><strong>Step 2:</strong> Select country first, then city and Govt. ID card types will auto-populate with search functionality</li> --}}
+                        <li><strong>Step 2:</strong> Enter License number for verification</li>
+                        <li><strong>Step 3:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
+                        <li><strong>Step 4:</strong> Each branch requires all fields including License number</li>
+                        <li><strong>Step 5:</strong> Review and submit to create the agency</li>
                     </ul>
                 </div>
             </div>
@@ -622,7 +622,7 @@
                         </div>
 
                         <!-- ID Card Type -->
-                        <div class="col-lg-6 col-md-6 mb-3">
+                        {{-- <div class="col-lg-6 col-md-6 mb-3">
                             <label for="id_card_type" class="form-label">
                                 <i class="ri-bank-card-line text-primary"></i>
                                 Govt. ID Card Type <span class="text-danger">*</span>
@@ -635,20 +635,20 @@
                             @error('id_card_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
+                        </div> --}}
 
-                        <!-- Card Number -->
+                        <!-- License Number -->
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="card_number" class="form-label">
                                 <i class="ri-hashtag text-primary"></i>
-                                Card Number <span class="text-danger">*</span>
+                                License Number <span class="text-danger">*</span>
                             </label>
                             <input type="text" 
                                    class="form-control @error('card_number') is-invalid @enderror" 
                                    id="card_number" 
                                    name="card_number" 
                                    value="{{ old('card_number') }}" 
-                                   placeholder="Enter ID card number">
+                                   placeholder="Enter License number">
                             @error('card_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -803,7 +803,7 @@
                 </div>
 
                 <!-- ID Card Type -->
-                <div class="col-lg-6 col-md-6 mb-3">
+                {{-- <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-bank-card-line text-primary"></i>
                         Govt. ID Card Type <span class="text-danger">*</span>
@@ -812,18 +812,18 @@
                             name="branches[INDEX][id_card_type]">
                         <option value="">Select country first to load card types...</option>
                     </select>
-                </div>
+                </div> --}}
 
-                <!-- Card Number -->
+                <!-- License Number -->
                 <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-hashtag text-primary"></i>
-                        Card Number <span class="text-danger">*</span>
+                        License Number <span class="text-danger">*</span>
                     </label>
                     <input type="text" 
                            class="form-control" 
                            name="branches[INDEX][card_number]" 
-                           placeholder="Enter ID card number">
+                           placeholder="Enter License number">
                 </div>
 
                 <!-- Address -->

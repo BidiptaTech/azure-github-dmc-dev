@@ -20,7 +20,11 @@ yarn-error.log
 
 # Storage link (should be created during deployment, not committed)
 /public/storage
-/storage/app/firebase/firebase_crendentials.json
+/storage/
+# Firebase service account — never commit (use local file or env)
+/storage/app/firebase/*
+!/storage/app/firebase/.gitkeep
+!/storage/app/firebase/firebase_crendentials.json.example
 # Deployment logs
 deploy.log
 

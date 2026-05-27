@@ -909,38 +909,31 @@ class SingleTourPackageController extends Controller
             // Store main guest and additional guests in guests table (if data found)
             $tourIdForGuests = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
             try {
-                $nextGuestId = function () {
-                    $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $id = CommonHelper::createId($last->guest_id ?? 0);
-                    while (Guest::where('guest_id', $id)->exists()) {
-                        $id = CommonHelper::createId($id);
-                    }
-                    return $id;
-                };
+                // $nextGuestId = function () {
+                //     $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+                //     $id = CommonHelper::createId($last->guest_id ?? 0);
+                //     while (Guest::where('guest_id', $id)->exists()) {
+                //         $id = CommonHelper::createId($id);
+                //     }
+                //     return $id;
+                // };
                 if (!empty($mainGuestData) && is_array($mainGuestData)) {
-                    $fullName = trim((string) ($mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? ''));
-                    $email = trim((string) ($mainGuestData['email'] ?? ''));
-                    $phone = trim((string) ($mainGuestData['phone'] ?? ''));
-                    if ($fullName !== '' || $email !== '' || $phone !== '') {
-                        $salutation = $mainGuestData['salutation'] ?? null;
-                        if (is_string($salutation)) {
-                            $salutation = rtrim($salutation, '.'); // Mr. -> Mr
-                        }
-                        $countryCode = trim((string) ($mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? ''));
-                        $passport = trim((string) ($mainGuestData['passport'] ?? ''));
-                        Guest::create([
-                            'guest_id' => $nextGuestId(),
-                            'tour_id' => $tourIdForGuests,
-                            'guest_name' => $fullName !== '' ? $fullName : 'Guest',
-                            'email' => $email !== '' ? $email : null,
-                            'country_code' => $countryCode !== '' ? $countryCode : null,
-                            'contact' => $phone !== '' ? $phone : null,
-                            'whatsapp_no' => $phone !== '' ? $phone : null,
-                            'passport' => $passport !== '' ? $passport : null,
-                            'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
-                            'salutation' => ($salutation !== null && $salutation !== '') ? $salutation : null,
-                        ]);
+                    $salutation = $mainGuestData['salutation'] ?? null;
+                    if (is_string($salutation)) {
+                        $salutation = rtrim($salutation, '.'); // Mr. -> Mr
                     }
+                    Guest::create([
+                        // 'guest_id' => $nextGuestId(),
+                        'tour_id' => [$tourIdForGuests],
+                        'guest_name' => $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? 'Guest',
+                        'email' => $mainGuestData['email'] ?? null,
+                        'country_code' => $mainGuestData['country_code'] ?? null,
+                        'contact' => $mainGuestData['phone'] ?? null,
+                        'whatsapp_no' => $mainGuestData['phone'] ?? null,
+                        'passport' => $mainGuestData['passport'] ?? null,
+                        'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
+                        'salutation' => $salutation,
+                    ]);
                 }
                 foreach ($additionalGuestData as $row) {
                     if (!is_array($row)) {
@@ -959,7 +952,7 @@ class SingleTourPackageController extends Controller
                     $countryCode = trim((string) ($row['country_code'] ?? $row['countryCode'] ?? '+91'));
                     $passport = trim((string) ($row['passport_no'] ?? $row['passport'] ?? ''));
                     Guest::create([
-                        'guest_id' => $nextGuestId(),
+                        // 'guest_id' => $nextGuestId(),
                         'tour_id' => [$tourIdForGuests],
                         'guest_name' => $name !== '' ? $name : 'Guest',
                         'email' => $email !== '' ? $email : null,
@@ -968,11 +961,11 @@ class SingleTourPackageController extends Controller
                         'whatsapp_no' => $contact !== '' ? $contact : null,
                         'passport' => $passport !== '' ? $passport : null,
                         'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
-                        'salutation' => ($salutation !== null && $salutation !== '') ? $salutation : null,
+                        'salutation' => $salutation,
                     ]);
                 }
             } catch (\Exception $e) {
-                \Log::error('Error storing guests in guests table', ['tour_id' => $tourId, 'error' => $e->getMessage()]);
+                \Log::error('Error storing guests in guests table', ['tour_id' => $tour->tour_id ?? null, 'error' => $e->getMessage()]);
                 throw $e;
             }
 
@@ -1036,12 +1029,12 @@ class SingleTourPackageController extends Controller
                 // Don't fail the tour creation if email fails
             }
 
-            // Return JSON response for AJAX
-            if ($request->ajax()) {
+            // Return JSON response for AJAX (always include tour_id for create.blade.php save flow)
+            if ($request->ajax() || $request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Tour package created successfully!',
-                    'tour_id' => $tour->tour_id,
+                    'tour_id' => (int) $tour->tour_id,
                     'display_id' => $display_id,
                     'tour' => $tour,
                     'cities' => $cities

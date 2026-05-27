@@ -375,13 +375,13 @@ class GuestController extends Controller
 
             // Generate unique guest_id for new guest
             $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
-            $lastGuestId = $lastGuest->guest_id ?? 0;
-            $guestId = CommonHelper::createId($lastGuestId);
+                // $lastGuestId = $lastGuest->guest_id ?? 0;
+                // $guestId = CommonHelper::createId($lastGuestId);
             
             // Ensure uniqueness
-            while (Guest::where('guest_id', $guestId)->exists()) {
-                $guestId = CommonHelper::createId($guestId);
-            }
+            // while (Guest::where('guest_id', $guestId)->exists()) {
+            //     $guestId = CommonHelper::createId($guestId);
+            // }
 
             // Use default avatar image from project root (deployed with code)
             $defaultAvatarPath = base_path('avatar-1577909_1280.png');
@@ -422,7 +422,7 @@ class GuestController extends Controller
             }
 
             $guest = Guest::create([
-                'guest_id' => $guestId,
+                // 'guest_id' => $guestId,
                 'tour_id' => $tourIds,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
@@ -432,7 +432,7 @@ class GuestController extends Controller
                 'app_password' => $plainPassword ? Hash::make($plainPassword) : null,
                 'image' => $imagePath,
             ]);
-
+            $guest->refresh();
             $firebaseSync = $this->syncGuestIdsToFirebase($tourIds, $guest->guest_id);
 
             // Send credentials email if email is provided

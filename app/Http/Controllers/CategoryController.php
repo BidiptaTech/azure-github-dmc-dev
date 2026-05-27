@@ -52,19 +52,25 @@ class CategoryController extends Controller
         $image = $request->file('icon');
         $storage_file = CommonHelper::image_path('file_storage', $image);
 
-        $category_max_id = Category::withTrashed()->max('category_id') ?? 0;
-        $categoryId = CommonHelper::createId($category_max_id);
-        $category = Category::create([
+        // $category_max_id = Category::withTrashed()->max('category_id') ?? 0;
+        // $categoryId = CommonHelper::createId($category_max_id);
+        $newCategory = Category::create([
             'name' => $request->input('name'),
             'status' => $request->input('category_status'),
             'icon' => $storage_file['master_value'],
-            'category_id' => $categoryId,
+            // 'category_id' => $categoryId,
         ]);
+        $newCategory->refresh();
+        if ($newCategory) {
+            return redirect()->route('category.index')
+                ->with('success', 'Category created successfully');
+        } else {
+            return redirect()->route('category.index')
+                ->with('error', 'An error occurred while saving the category details.');
+        }
         // if($category){
         //     Mail::to('niawaj3@gmail.com')->send(new DmcMail($category->name));
         // }
-        return redirect()->route('category.index')
-            ->with('success', 'Category created successfully');
     }
 
     /*
@@ -76,7 +82,7 @@ class CategoryController extends Controller
         if (!hasPermission('edit category')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        $category = Category::where('id',$id)->first();
+        $category = Category::where('category_id',$id)->first();
         return view('category.edit', compact('category'));
     }
     /*
@@ -85,15 +91,21 @@ class CategoryController extends Controller
     */
     public function update(Request $request, $id)
     {
-        $category = Category::where('id',$id)->first();
-        //image upload using helper
-        $image = $request->file('icon');
-        if($image){
-        $storage_file = CommonHelper::image_path('file_storage', $image);
-        }
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'icon' => 'nullable|image',
+        ]);
+
+        $category = Category::where('category_id', $id)->firstOrFail();
+
         $category->name = $request->input('name');
         $category->status = $request->input('category_status') == 1 ? 1 : 0;
-        $category->icon = $storage_file['master_value'] ?? $category->icon;
+
+        if ($request->hasFile('icon')) {
+            $storage_file = CommonHelper::image_path('file_storage', $request->file('icon'));
+            $category->icon = $storage_file['master_value'];
+        }
+
         $category->save();
 
         return redirect()->route('category.index')->with('success', 'Categories updated successfully.');

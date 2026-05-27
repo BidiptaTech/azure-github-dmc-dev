@@ -228,6 +228,93 @@ class CommonHelper
         ];
     }
 
+    /**
+     * Upload JSON to Azure only (same file_storage setting as image_path).
+     * Skips local and S3 — returns master_value null when storage is not azure.
+     */
+    public static function json_path(string $name, string $jsonContent, string $fileName, string $container = 'aiuploads'): array
+    {
+        $get_filestorage = Setting::where('name', $name)->where('status', 1)->first();
+
+        if (!$get_filestorage || $get_filestorage->value !== 'azure' || $jsonContent === '') {
+            return ['master_value' => null];
+        }
+
+        try {
+            return self::uploadJsonToAzure($jsonContent, $fileName, $container);
+        } catch (\Exception $e) {
+            Log::error('JSON Azure upload failed: ' . $e->getMessage(), [
+                'file_name' => $fileName,
+                'container' => $container,
+            ]);
+
+            return [
+                'master_value' => null,
+                'error'      => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Azure blob URL for a JSON file in the given container.
+     */
+    public static function json_azure_url(string $fileName, string $container = 'aiuploads'): ?string
+    {
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (!$storage || $storage->value !== 'azure') {
+            return null;
+        }
+
+        $config = config('filesystems.disks.azure');
+        if (empty($config['name'])) {
+            return null;
+        }
+
+        return sprintf(
+            'https://%s.blob.core.windows.net/%s/%s',
+            $config['name'],
+            $container,
+            $fileName
+        );
+    }
+
+    /**
+     * Upload raw JSON string to Azure blob storage.
+     */
+    public static function uploadJsonToAzure(string $jsonContent, string $fileName, string $container = 'aiuploads'): array
+    {
+        $config = config('filesystems.disks.azure');
+        $connectionString = sprintf(
+            'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+            $config['name'],
+            $config['key']
+        );
+
+        $blobClient = BlobRestProxy::createBlobService($connectionString);
+        self::ensureAzureContainerExists($blobClient, $container);
+
+        Log::info('Attempting Azure JSON upload', [
+            'file_name' => $fileName,
+            'container' => $container,
+        ]);
+
+        $blobClient->createBlockBlob($container, $fileName, $jsonContent);
+
+        $url = sprintf(
+            'https://%s.blob.core.windows.net/%s/%s',
+            $config['name'],
+            $container,
+            $fileName
+        );
+
+        Log::info('Azure JSON upload successful', [
+            'url' => $url,
+            'container' => $container,
+        ]);
+
+        return ['master_value' => $url];
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025

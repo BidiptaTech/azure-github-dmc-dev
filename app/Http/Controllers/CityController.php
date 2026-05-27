@@ -116,18 +116,18 @@ class CityController extends Controller
         }
 
         // Generate new city_id
-        $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
-        $lastCityId = $lastCity->city_id ?? 0;
-        $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
+        // $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+        // $lastCityId = $lastCity->city_id ?? 0;
+        // $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
 
-        // Ensure uniqueness of city_id
-        while (City::where('city_id', $newCityId)->exists()) {
-            $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
-        }
+        // // Ensure uniqueness of city_id
+        // while (City::where('city_id', $newCityId)->exists()) {
+        //     $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
+        // }
 
         // Generate new database ID
-        $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
-        $newId = $lastDbId + 1;
+        // $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
+        // $newId = $lastDbId + 1;
 
         // Handle image upload using CommonHelper
         $imagePath = null;
@@ -138,13 +138,13 @@ class CityController extends Controller
 
         // Create city
         $city = City::create([
-            'id' => $newId,
+            // 'id' => $newId,
             'name' => $cityName,
             'country' => $countryName,
-            'city_id' => $newCityId,
+            // 'city_id' => $newCityId,
             'image' => $imagePath,
         ]);
-
+        $city->refresh();
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
