@@ -960,7 +960,7 @@ class SingleTourPackageController extends Controller
                     $passport = trim((string) ($row['passport_no'] ?? $row['passport'] ?? ''));
                     Guest::create([
                         'guest_id' => $nextGuestId(),
-                        'tour_id' => $tourIdForGuests,
+                        'tour_id' => [$tourIdForGuests],
                         'guest_name' => $name !== '' ? $name : 'Guest',
                         'email' => $email !== '' ? $email : null,
                         'country_code' => $countryCode !== '' ? $countryCode : null,

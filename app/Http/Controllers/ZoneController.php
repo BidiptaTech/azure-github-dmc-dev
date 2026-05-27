@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Models\City;
+use App\Models\Country;
 use App\Helpers\CommonHelper;
 use App\Models\Hotel;
 use App\Models\Attraction;
@@ -80,9 +81,9 @@ class ZoneController extends Controller
         $dmcId = $this->resolveDmcIdForUser($user);
         if ($dmcId) {
             $dmcUser = User::where('userId', $dmcId)->first();
-            $name = $dmcUser->city ?? null;
+            $name = $dmcUser->country ?? null;
         } else {
-            $name = $user->city ?? null;
+            $name = $user->country ?? null;
         }
         $name = is_string($name) ? trim($name) : '';
         return $name !== '' ? $name : null;
@@ -201,10 +202,12 @@ class ZoneController extends Controller
         // Non-admin: only list zones in the DMC's home city (zone.city is city_id; user.city is city name).
         if ((int) ($user->userId ?? 0) !== 1) {
             $homeCityName = $this->dmcHomeCityName($user);
+            
             if ($homeCityName !== null) {
                 $cityIds = City::query()
-                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
+                    ->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
                     ->pluck('city_id');
+
                 if ($cityIds->isNotEmpty()) {
                     $zonesQuery->whereIn('city', $cityIds);
                 } else {
@@ -348,6 +351,11 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to edit this zone');
+        }
         if ((int) (Auth::user()->userId ?? 0) === 1) {
             $city = City::orderBy('name')->get();
         } else {
@@ -370,7 +378,11 @@ class ZoneController extends Controller
             'city' => 'required',
             'status' => 'required|integer',
         ]);
-        
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to edit this zone');
+        }
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
@@ -394,6 +406,11 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to delete this zone');
+        }
         if (!$zone) {
             return redirect()->route('zones.index')
                 ->with('success', 'Zone deleted successfully');
