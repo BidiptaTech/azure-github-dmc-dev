@@ -16,11 +16,13 @@ use App\Models\Meal;
 use App\Models\Guide;
 use App\Models\Vehicle;
 use App\Models\Tour;
+use App\Models\City;
 use App\Models\Order;
 use App\Models\Tax;
 use App\Models\Rate;
 use App\Models\VehicleZoneMapping;
 use App\Models\Zone;
+use App\Models\MiscellaneousItem;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,123 @@ use Illuminate\Support\Facades\Auth;
 
 class EnquiryFormPro extends Controller
 {
+    /**
+     * Resolve operating DMC user id from logged-in user role chain.
+     */
+    private function resolveDmcIdForUser(User $user): ?int
+    {
+        if ($user->role_id == 11) {
+            return (int) $user->userId;
+        }
+        if (in_array($user->role_id, [33, 34, 35, 77, 78, 84, 120, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140])) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if (in_array($user->role_id, [37, 64, 65, 66, 67, 68])) {
+            $salesHead = User::where('userId', $user->created_by)->first();
+
+            return $salesHead && $salesHead->created_by ? (int) $salesHead->created_by : null;
+        }
+        if (in_array($user->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127])) {
+            $salesManager = User::where('userId', $user->created_by)->first();
+            if ($salesManager) {
+                $salesHead = User::where('userId', $salesManager->created_by)->first();
+
+                return $salesHead && $salesHead->created_by ? (int) $salesHead->created_by : null;
+            }
+        }
+
+        return $user->created_by ? (int) $user->created_by : null;
+    }
+
+    /**
+     * Country names accessible to this DMC (master_dmc users' country column, then DMC user fallback).
+     */
+    private function getAccessibleCountryNames(User $user, ?int $dmcId = null): array
+    {
+        $countryNames = [];
+        $masterDmcId = $user->master_dmc_id;
+
+        if ($masterDmcId) {
+            $usersWithMasterDmc = User::where('master_dmc_id', $masterDmcId)
+                ->whereNotNull('country')
+                ->get();
+
+            foreach ($usersWithMasterDmc as $userItem) {
+                if ($userItem->country) {
+                    $countryNames = array_merge(
+                        $countryNames,
+                        array_map('trim', explode(',', $userItem->country))
+                    );
+                }
+            }
+        }
+
+        if (empty($countryNames) && $dmcId) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            if ($dmcUser && $dmcUser->country) {
+                $countryNames = array_merge(
+                    $countryNames,
+                    array_map('trim', explode(',', $dmcUser->country))
+                );
+            }
+        }
+
+        if (empty($countryNames) && $user->country) {
+            $countryNames = array_merge(
+                $countryNames,
+                array_map('trim', explode(',', $user->country))
+            );
+        }
+
+        return array_values(array_unique(array_filter($countryNames)));
+    }
+
+    /**
+     * Cities for the given country names (used as destination/city pickers in Pro form).
+     */
+    private function getCitiesForCountries(array $countryNames)
+    {
+        if (empty($countryNames)) {
+            return collect();
+        }
+
+        return City::whereIn('country', $countryNames)
+            ->orderBy('name')
+            ->get(['name', 'country', 'city_id', 'id']);
+    }
+
+    /**
+     * Map city name => country name for client-side filtering.
+     */
+    private function buildCityCountryMap(array $countryNames): array
+    {
+        if (empty($countryNames)) {
+            return [];
+        }
+
+        return City::whereIn('country', $countryNames)
+            ->pluck('country', 'name')
+            ->toArray();
+    }
+
+    /**
+     * Resolve city or country labels to unique country names (agencies filter by country).
+     */
+    private function resolveCountriesFromCityOrCountryNames(array $names): array
+    {
+        $countries = [];
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if ($name === '') {
+                continue;
+            }
+            $fromCity = City::where('name', $name)->value('country');
+            $countries[] = $fromCity ?: $name;
+        }
+
+        return array_values(array_unique(array_filter($countries)));
+    }
+
     /**
      * Get vehicle details by vehicle_id
      */
@@ -130,46 +249,22 @@ class EnquiryFormPro extends Controller
             'created_by' => $user->created_by ?? null
         ]);
         
-        // Get master_dmc_id from logged-in user
-        $master_dmc_id = $user->master_dmc_id;
-        
-        // Get countries based on master_dmc_id
+        // Countries/cities available to this DMC (same scope as sidebar modal destination picker).
+        $accessibleCountryNames = $this->getAccessibleCountryNames($user, $dmc_id);
         $countries = collect();
-        if ($master_dmc_id) {
-            // Find all users with this master_dmc_id
-            $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
-                ->whereNotNull('country')
+        if (!empty($accessibleCountryNames)) {
+            $countries = Country::whereIn('name', $accessibleCountryNames)
+                ->where('is_active', 1)
+                ->orderBy('name')
                 ->get();
-            
-            // Extract and merge all countries (comma-separated)
-            $countryNames = [];
-            foreach ($usersWithMasterDmc as $userItem) {
-                if ($userItem->country) {
-                    $userCountries = array_map('trim', explode(',', $userItem->country));
-                    $countryNames = array_merge($countryNames, $userCountries);
-                }
-            }
-            
-            // Remove duplicates and get unique country names
-            $countryNames = array_unique($countryNames);
-            
-            // Get Country objects matching these names
-            if (!empty($countryNames)) {
-                $countries = Country::whereIn('name', $countryNames)
-                    ->where('is_active', 1)
-                    ->orderBy('name')
-                    ->get();
-            }
-            
-            \Log::info('EnquiryFormPro create() - Countries filtered by master_dmc_id', [
-                'master_dmc_id' => $master_dmc_id,
-                'country_count' => $countries->count(),
-                'countries' => $countries->pluck('name')->toArray()
-            ]);
-        } else {
-            // Fallback: Get all active countries if no master_dmc_id
-            $countries = Country::where('is_active', 1)->orderBy('name')->get();
         }
+
+        \Log::info('EnquiryFormPro create() - Accessible countries resolved', [
+            'master_dmc_id' => $user->master_dmc_id,
+            'dmc_id' => $dmc_id,
+            'country_count' => $countries->count(),
+            'countries' => $countries->pluck('name')->toArray(),
+        ]);
         
         // Load agencies based on destination from popup or user country
         $agencyQuery = Agency::where('status', 1);
@@ -179,19 +274,40 @@ class EnquiryFormPro extends Controller
             $agencyQuery->whereJsonContains('dmc_id', (int) $dmc_id);
         }
         
-        // If we have initial data, get agencies from that destination, otherwise use user's country
+        // If we have initial data, filter agencies by country of selected city/cities
         if ($initialData && isset($initialData['destination_display'])) {
-            // Get destination(s) from initial data
-            if (isset($initialData['destinations_array'])) {
-                $agencyQuery->whereIn('country', $initialData['destinations_array']);
+            if (isset($initialData['destinations_array']) && is_array($initialData['destinations_array'])) {
+                $agencyCountries = $this->resolveCountriesFromCityOrCountryNames($initialData['destinations_array']);
+                if (!empty($agencyCountries)) {
+                    $agencyQuery->whereIn('country', $agencyCountries);
+                }
             } else {
-                $agencyQuery->where('country', $initialData['destination_display']);
+                $agencyCountries = $this->resolveCountriesFromCityOrCountryNames([$initialData['destination_display']]);
+                if (!empty($agencyCountries)) {
+                    $agencyQuery->whereIn('country', $agencyCountries);
+                }
             }
         } else {
             $agencyQuery->where('country', $destination);
         }
         
         $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
+
+        // Ensure the agency selected in the "Create Tour Pro" sidebar modal is visible in the create header,
+        // even if destination-country filtering would exclude it (e.g., destination changed / country mapping mismatch).
+        if ($initialData && !empty($initialData['agency_id'])) {
+            $selectedAgencyQuery = Agency::where('status', 1)->where('agency_id', $initialData['agency_id']);
+            if ($dmc_id) {
+                $selectedAgencyQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+            }
+            $selectedAgency = $selectedAgencyQuery->first();
+            if ($selectedAgency && !$agencies->contains('agency_id', $selectedAgency->agency_id)) {
+                $agencies = $agencies->push($selectedAgency)
+                    ->unique('agency_id')
+                    ->sortBy('agency_name')
+                    ->values();
+            }
+        }
         
         // Log agency filtering results for debugging
         \Log::info('EnquiryFormPro create() - Agencies loaded', [
@@ -218,7 +334,10 @@ class EnquiryFormPro extends Controller
             'port_names' => $ports->pluck('port_name')->toArray()
         ]);
         
-        $destinations = $countries; // Use the filtered countries as destinations
+        // Cities for DMC-accessible countries (destination picker = city, like Single Tour Lite)
+        $countryNamesList = $countries->pluck('name')->toArray();
+        $cities = $this->getCitiesForCountries($countryNamesList);
+        $destinations = $cities;
         
         // Get master DMC destinations for miscellaneous items
         // Master DMC is the created_by user (the parent DMC)
@@ -478,11 +597,8 @@ class EnquiryFormPro extends Controller
                 ->get();
         }
         
-        // Create city to country mapping for filtering
-        $cityCountryMap = \App\Models\City::with('country')
-            ->get()
-            ->pluck('country.name', 'name')
-            ->toArray();
+        // City => country map for client-side filtering (scoped to DMC countries)
+        $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
         
         // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
         $defaultValues = [];
@@ -501,7 +617,7 @@ class EnquiryFormPro extends Controller
         $tourId = null;
         $existingOrders = collect(); // Empty collection for create mode
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues', 'isEditMode', 'tourId', 'existingOrders'));
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'cities', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues', 'isEditMode', 'tourId', 'existingOrders'));
     }
     
     /**
@@ -622,13 +738,14 @@ class EnquiryFormPro extends Controller
             ]);
         }
         
-        // Parse destinations
+        // Parse destinations (city names from popup/header; resolve to countries for agency filter)
         $countryArray = [];
         if ($destinations) {
             $countryArray = array_map('trim', explode(',', $destinations));
         } else {
-            $countryArray = [$destination];
+            $countryArray = [trim((string) $destination)];
         }
+        $countryArray = $this->resolveCountriesFromCityOrCountryNames($countryArray);
         
         // Build query for agencies with two-step filtering:
         // Step 1: Get agencies that are in the selected destination(s)
@@ -664,52 +781,78 @@ class EnquiryFormPro extends Controller
     }
     
     /**
-     * Get destinations for popup (AJAX)
+     * Get cities for popup/header (AJAX) — scoped to DMC accessible countries.
      */
     public function getDestinations(Request $request)
     {
         $user = auth()->user();
-        $master_dmc_id = $user->master_dmc_id;
-        
-        // Get countries based on master_dmc_id
-        $destinations = collect();
-        if ($master_dmc_id) {
-            // Find all users with this master_dmc_id
-            $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
-                ->whereNotNull('country')
-                ->get();
-            
-            // Extract and merge all countries (comma-separated)
-            $countryNames = [];
-            foreach ($usersWithMasterDmc as $userItem) {
-                if ($userItem->country) {
-                    $userCountries = array_map('trim', explode(',', $userItem->country));
-                    $countryNames = array_merge($countryNames, $userCountries);
-                }
-            }
-            
-            // Remove duplicates and get unique country names
-            $countryNames = array_unique($countryNames);
-            
-            // Get Country objects matching these names
-            if (!empty($countryNames)) {
-                $destinations = Country::whereIn('name', $countryNames)
-                    ->where('is_active', 1)
-                    ->orderBy('name', 'asc')
-                    ->get(['id', 'name']);
-            }
-        } else {
-            // Fallback: Get all active countries if no master_dmc_id
-            $destinations = Country::where('is_active', 1)
-                                  ->orderBy('name', 'asc')
-                                  ->get(['id', 'name']);
-        }
-        
+        $dmcId = $this->resolveDmcIdForUser($user);
+        $countryNames = $this->getAccessibleCountryNames($user, $dmcId);
+        $cities = $this->getCitiesForCountries($countryNames);
+
+        $destinations = $cities->map(function ($city) {
+            return [
+                'id' => $city->city_id ?? $city->id,
+                'name' => $city->name,
+                'country' => $city->country,
+            ];
+        })->values();
+
         return response()->json([
             'success' => true,
             'destinations' => $destinations,
-            'master_dmc_id' => $master_dmc_id
+            'master_dmc_id' => $user->master_dmc_id,
         ]);
+    }
+
+    /**
+     * Get miscellaneous items with DMC prices (AJAX).
+     */
+    public function getMiscellaneousItems(Request $request)
+    {
+        $city = $request->input('city') ?? $request->input('destination');
+        if (!$city) {
+            return response()->json([
+                'success' => false,
+                'message' => 'City is required',
+            ], 400);
+        }
+
+        $user = auth()->user();
+        $dmcId = $this->resolveDmcIdForUser($user);
+        if (!$dmcId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'DMC ID not found',
+            ], 400);
+        }
+
+        $items = MiscellaneousItem::active()
+            ->with(['priceForDmc' => function ($query) use ($dmcId) {
+                $query->where('dmc_id', $dmcId)->where('status', 1);
+            }])
+            ->get()
+            ->filter(function ($item) {
+                return $item->priceForDmc !== null;
+            })
+            ->map(function ($item) {
+                return [
+                    'mis_id' => $item->mis_id,
+                    'item_name' => $item->item_name,
+                    'description' => $item->description,
+                    'image' => $item->image
+                        ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/'))
+                            ? $item->image
+                            : asset('storage/' . $item->image))
+                        : null,
+                    'adult_price' => $item->priceForDmc->adult_price ?? 0,
+                    'child_price' => $item->priceForDmc->child_price ?? 0,
+                    'infant_price' => $item->priceForDmc->infant_price ?? 0,
+                ];
+            })
+            ->values();
+
+        return response()->json($items);
     }
     
     // Get agents by agency ID
@@ -1199,15 +1342,20 @@ class EnquiryFormPro extends Controller
             
             // Create tour record
             $tour = new Tour();
-            // Clean destination: extract only country names, remove Arrival:/Departure: text
-            $destinationValue = $request->destination;
-            // Remove any text after "Arrival:" or "Departure:"
+            // City names from header; destination column stores country name(s)
+            $cityValue = trim((string) ($request->input('city') ?? ''));
+            $destinationValue = trim((string) ($request->destination ?? ''));
+            if ($cityValue !== '') {
+                $cityNames = array_values(array_filter(array_map('trim', explode(',', $cityValue))));
+                $countriesFromCities = $this->resolveCountriesFromCityOrCountryNames($cityNames);
+                if (!empty($countriesFromCities)) {
+                    $destinationValue = implode(', ', $countriesFromCities);
+                }
+            }
             if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
-                // Extract only the part before "Arrival:" or "Departure:"
                 $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
                 $destinationValue = trim($parts[0]);
             }
-            // Ensure destination doesn't exceed database limit (varchar 191)
             $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
@@ -1220,7 +1368,7 @@ class EnquiryFormPro extends Controller
             $tour->check_out_time = $checkOutTime;
             // $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
-            $tour->city = $request->city ?? null;
+            $tour->city = $cityValue !== '' ? mb_substr($cityValue, 0, 191) : ($request->city ?? null);
             $tour->dmc_id = $dmcId;
             // child_ages: default to '[]' (matches existing JSON-array convention) when not provided
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
@@ -2692,13 +2840,23 @@ class EnquiryFormPro extends Controller
             ->orderBy('port_name')
             ->get();
         
-        $destinations = Country::where('is_active', 1)
-            ->orderBy('name', 'asc')
-            ->get(['id', 'name']);
+        // Countries + cities (same DMC scope as create form and sidebar modal)
+        $accessibleCountryNames = $this->getAccessibleCountryNames($user, $dmc_id);
+        $countries = collect();
+        if (!empty($accessibleCountryNames)) {
+            $countries = Country::whereIn('name', $accessibleCountryNames)
+                ->where('is_active', 1)
+                ->orderBy('name')
+                ->get();
+        }
+        $countryNamesList = $countries->pluck('name')->toArray();
+        $cities = $this->getCitiesForCountries($countryNamesList);
+        $destinations = $cities;
         
-        // Get agency and agent
-        $agency = Agency::find($tour->agent->agency_id ?? null);
-        $agent = Agent::find($tour->agent_id);
+        // Get agency and agent (agency comes from agent relationship — Tour has agent_id only)
+        $agent = $tour->agent_id ? Agent::find($tour->agent_id) : ($tour->agent ?? null);
+        $agencyId = $agent->agency_id ?? ($tour->agent->agency_id ?? null);
+        $agency = $agencyId ? Agency::find($agencyId) : null;
         
         // Decode guest data from tour table
         $mainGuestData = null;
@@ -2732,18 +2890,17 @@ class EnquiryFormPro extends Controller
             }
         }
         
-        // Prepare initialData from tour data
-        // Parse destination field which can contain multiple comma-separated destinations
-        $destinationString = $tour->destination ?? '';
+        // Prepare initialData from tour data — header tags use city names (tour.city), fallback legacy destination
         $destinationsArray = [];
-        if (!empty($destinationString)) {
-            // Split by comma and trim whitespace from each destination
-            $destinationsArray = array_map('trim', explode(',', $destinationString));
-            // Remove empty values
-            $destinationsArray = array_filter($destinationsArray);
-            // Re-index array to ensure sequential keys
-            $destinationsArray = array_values($destinationsArray);
+        if (!empty($tour->city)) {
+            $destinationsArray = array_values(array_filter(array_map('trim', explode(',', (string) $tour->city))));
+        } else {
+            $destinationString = $tour->destination ?? '';
+            if (!empty($destinationString)) {
+                $destinationsArray = array_values(array_filter(array_map('trim', explode(',', $destinationString))));
+            }
         }
+        $destinationString = !empty($destinationsArray) ? implode(', ', $destinationsArray) : ($tour->destination ?? '');
         
         // Extract customer info from orders JSON (fullname, phone, salutation, email)
         $customerName = 'To Be Advised';
@@ -2805,7 +2962,8 @@ class EnquiryFormPro extends Controller
             'customer_name' => $customerName,
             'contact_number' => $contactNumber,
             'email' => $customerEmail,
-            'agency_id' => $tour->agent->agency_id ?? null,
+            'agency_id' => $agencyId,
+            'agency_name' => $agency->agency_name ?? '',
             'agent_id' => $tour->agent_id ?? null,
             'agent_name' => $agent->name ?? '',
             'destination' => $tour->destination ?? '',
@@ -2831,64 +2989,39 @@ class EnquiryFormPro extends Controller
         if ($dmc_id) {
             $agencyQuery->whereJsonContains('dmc_id', (int) $dmc_id);
         }
-        // Filter by tour destination
-        if ($tour->destination) {
-            $agencyQuery->where('country', $tour->destination);
+        // Filter agencies by country of tour city/cities
+        if ($tour->city || $tour->destination) {
+            $cityNames = $tour->city
+                ? array_values(array_filter(array_map('trim', explode(',', (string) $tour->city))))
+                : [];
+            $agencyCountries = !empty($cityNames)
+                ? $this->resolveCountriesFromCityOrCountryNames($cityNames)
+                : $this->resolveCountriesFromCityOrCountryNames(array_filter(array_map('trim', explode(',', (string) $tour->destination))));
+            if (!empty($agencyCountries)) {
+                $agencyQuery->whereIn('country', $agencyCountries);
+            }
         }
         $agencies = $agencyQuery->orderBy('agency_name', 'asc')->get();
+
+        // Ensure tour's agency appears in the header dropdown even if country filter excluded it
+        if ($agencyId && $agency && !$agencies->contains('agency_id', $agency->agency_id)) {
+            $agencies = $agencies->push($agency)
+                ->unique('agency_id')
+                ->sortBy('agency_name')
+                ->values();
+        }
         
         // Get agents for the selected agency (if any)
         $agents = [];
-        if ($tour->agent && $tour->agent->agency_id) {
+        if ($agencyId) {
             $agents = Agent::where('status', 1)
-                ->where('agency_id', $tour->agent->agency_id)
+                ->where('agency_id', $agencyId)
                 ->orderBy('name', 'asc')
                 ->get(['agent_id', 'name', 'email']);
         }
         
-        // Get master_dmc_id from logged-in user
-        $master_dmc_id = $user->master_dmc_id;
-        
-        // Get countries based on master_dmc_id
-        $countries = collect();
-        if ($master_dmc_id) {
-            // Find all users with this master_dmc_id
-            $usersWithMasterDmc = User::where('master_dmc_id', $master_dmc_id)
-                ->whereNotNull('country')
-                ->get();
-            
-            // Extract and merge all countries (comma-separated)
-            $countryNames = [];
-            foreach ($usersWithMasterDmc as $userItem) {
-                if ($userItem->country) {
-                    $userCountries = array_map('trim', explode(',', $userItem->country));
-                    $countryNames = array_merge($countryNames, $userCountries);
-                }
-            }
-            
-            // Remove duplicates and get unique country names
-            $countryNames = array_unique($countryNames);
-            
-            // Get Country objects matching these names
-            if (!empty($countryNames)) {
-                $countries = Country::whereIn('name', $countryNames)
-                    ->where('is_active', 1)
-                    ->orderBy('name')
-                    ->get();
-            }
-        } else {
-            // Fallback: Get all active countries if no master_dmc_id
-            $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        }
-        
-        // Get destinations for master DMC (use the same filtered countries)
         $master_dmc_destinations = $countries;
-        
-        // Create city to country mapping for filtering
-        $cityCountryMap = \App\Models\City::with('country')
-            ->get()
-            ->pluck('country.name', 'name')
-            ->toArray();
+        $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
         
         // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
         $defaultValues = [];
@@ -2907,6 +3040,7 @@ class EnquiryFormPro extends Controller
         $tourId = $tour_id;
         $existingOrders = $orders; // Rename for consistency with view
         $tourReferenceFormatted = $this->formatTourReferenceSlashSeparated($tour);
+        $destination = $destinationString;
         
         return view('enquiryform_pro.edit', compact(
             'tour',
@@ -2915,6 +3049,7 @@ class EnquiryFormPro extends Controller
             'isEditMode',
             'tourId',
             'tourReferenceFormatted',
+            'destination',
             'hotels',
             'attractions',
             'restaurants',
@@ -2922,6 +3057,7 @@ class EnquiryFormPro extends Controller
             'vehicles',
             'ports',
             'destinations',
+            'cities',
             'agency',
             'agent',
             'agencies',
@@ -2996,15 +3132,19 @@ class EnquiryFormPro extends Controller
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
             $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
             
-            // Clean destination: extract only country names, remove Arrival:/Departure: text
-            $destinationValue = $request->destination;
-            // Remove any text after "Arrival:" or "Departure:"
+            $cityValue = trim((string) ($request->input('city') ?? ''));
+            $destinationValue = trim((string) ($request->destination ?? ''));
+            if ($cityValue !== '') {
+                $cityNames = array_values(array_filter(array_map('trim', explode(',', $cityValue))));
+                $countriesFromCities = $this->resolveCountriesFromCityOrCountryNames($cityNames);
+                if (!empty($countriesFromCities)) {
+                    $destinationValue = implode(', ', $countriesFromCities);
+                }
+            }
             if (strpos($destinationValue, 'Arrival:') !== false || strpos($destinationValue, 'Departure:') !== false) {
-                // Extract only the part before "Arrival:" or "Departure:"
                 $parts = preg_split('/(,\s*Arrival:|,\s*Departure:)/', $destinationValue);
                 $destinationValue = trim($parts[0]);
             }
-            // Ensure destination doesn't exceed database limit (varchar 191)
             $tour->destination = mb_substr($destinationValue, 0, 191);
             $tour->adult = $request->adults;
             $tour->child = $request->children;
@@ -3014,7 +3154,7 @@ class EnquiryFormPro extends Controller
             $tour->female_count = (int) ($request->female ?? 0);
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
-            $tour->city = $request->city ?? null;
+            $tour->city = $cityValue !== '' ? mb_substr($cityValue, 0, 191) : ($request->city ?? null);
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
             // Normalize tour_type + sync foc_size / discount columns (matches CommonHelper::calculateTourPrices)
             $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
