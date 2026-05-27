@@ -256,6 +256,42 @@ class CommonHelper
     }
 
     /**
+     * Azure disk config by disk name (azure = app uploads, azure_ai = AI/JSON).
+     */
+    protected static function azureDiskConfig(string $disk = 'azure'): array
+    {
+        $config = config("filesystems.disks.{$disk}");
+
+        return is_array($config) ? $config : [];
+    }
+
+    /**
+     * AI JSON uploads: use azure_ai account when AZURE_AI_* is set; else main azure disk.
+     */
+    protected static function azureAiDiskConfig(): array
+    {
+        $ai = self::azureDiskConfig('azure_ai');
+        if (!empty($ai['name']) && !empty($ai['key'])) {
+            return $ai;
+        }
+
+        return self::azureDiskConfig('azure');
+    }
+
+    /**
+     * Resolve blob container for AI uploads (env container wins when caller uses default).
+     */
+    protected static function azureAiContainer(string $container = 'aiuploads'): string
+    {
+        $config = self::azureAiDiskConfig();
+        if ($container === 'aiuploads' && !empty($config['container'])) {
+            return (string) $config['container'];
+        }
+
+        return $container;
+    }
+
+    /**
      * Azure blob URL for a JSON file in the given container.
      */
     public static function json_azure_url(string $fileName, string $container = 'aiuploads'): ?string
@@ -265,15 +301,17 @@ class CommonHelper
             return null;
         }
 
-        $config = config('filesystems.disks.azure');
+        $config = self::azureAiDiskConfig();
         if (empty($config['name'])) {
             return null;
         }
 
+        $blobContainer = self::azureAiContainer($container);
+
         return sprintf(
             'https://%s.blob.core.windows.net/%s/%s',
             $config['name'],
-            $container,
+            $blobContainer,
             $fileName
         );
     }
@@ -283,7 +321,8 @@ class CommonHelper
      */
     public static function uploadJsonToAzure(string $jsonContent, string $fileName, string $container = 'aiuploads'): array
     {
-        $config = config('filesystems.disks.azure');
+        $config = self::azureAiDiskConfig();
+        $blobContainer = self::azureAiContainer($container);
         $connectionString = sprintf(
             'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
             $config['name'],
@@ -291,25 +330,26 @@ class CommonHelper
         );
 
         $blobClient = BlobRestProxy::createBlobService($connectionString);
-        self::ensureAzureContainerExists($blobClient, $container);
+        self::ensureAzureContainerExists($blobClient, $blobContainer);
 
         Log::info('Attempting Azure JSON upload', [
             'file_name' => $fileName,
-            'container' => $container,
+            'container' => $blobContainer,
+            'account' => $config['name'],
         ]);
 
-        $blobClient->createBlockBlob($container, $fileName, $jsonContent);
+        $blobClient->createBlockBlob($blobContainer, $fileName, $jsonContent);
 
         $url = sprintf(
             'https://%s.blob.core.windows.net/%s/%s',
             $config['name'],
-            $container,
+            $blobContainer,
             $fileName
         );
 
         Log::info('Azure JSON upload successful', [
             'url' => $url,
-            'container' => $container,
+            'container' => $blobContainer,
         ]);
 
         return ['master_value' => $url];

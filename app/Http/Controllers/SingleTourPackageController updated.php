@@ -56,6 +56,7 @@ class SingleTourPackageController extends Controller
      */
     public function create(Request $request, $enquiry_id = null)
     {
+
         $user = Auth::user();
         $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
 
@@ -693,7 +694,12 @@ class SingleTourPackageController extends Controller
             $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
-            $dmcId = Auth::user()->created_by;
+            if(Auth::user()->role_id == 11){
+                $dmcId = Auth::user()->userId;
+            }
+            elseif(in_array(Auth::user()->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 36,136,137, 138])){
+                $dmcId = Auth::user()->created_by;
+            }
             
             // Get DMC taxes and store as JSON
             $taxArray = [];
