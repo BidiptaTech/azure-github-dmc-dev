@@ -2137,4 +2137,565 @@ class DayLevel extends Model
 
         return $value;
     }
+
+    /**
+     * Flat day-level JSON rows: one entry per package (see day-level-combined.json contract).
+     *
+     * @param  iterable<int, DayLevel>  $rows
+     * @return list<array<string, mixed>>
+     */
+    public static function collectFlatPackageExportsFromRows(iterable $rows): array
+    {
+        $byPackageId = [];
+
+        foreach ($rows as $row) {
+            if (! $row instanceof self) {
+                continue;
+            }
+            foreach ($row->buildFlatPackageExports() as $entry) {
+                $packageId = trim((string) ($entry['package_id'] ?? ''));
+                if ($packageId !== '') {
+                    $byPackageId[$packageId] = $entry;
+                } else {
+                    $byPackageId[] = $entry;
+                }
+            }
+        }
+
+        $list = array_values($byPackageId);
+        usort($list, fn ($a, $b) => strcmp((string) ($b['package_id'] ?? ''), (string) ($a['package_id'] ?? '')));
+
+        return self::hydrateFlatExportDmcEmails($list);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private static function hydrateFlatExportDmcEmails(array $entries): array
+    {
+        $missingDmcIds = [];
+        foreach ($entries as $entry) {
+            if (trim((string) ($entry['DMC_email'] ?? '')) !== '') {
+                continue;
+            }
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            if ($dmcId > 0) {
+                $missingDmcIds[$dmcId] = true;
+            }
+        }
+
+        if ($missingDmcIds === []) {
+            return $entries;
+        }
+
+        $emailsByDmcId = \App\Models\User::query()
+            ->whereIn('userId', array_keys($missingDmcIds))
+            ->pluck('email', 'userId');
+
+        foreach ($entries as $i => $entry) {
+            if (trim((string) ($entry['DMC_email'] ?? '')) !== '') {
+                continue;
+            }
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            $email = trim((string) ($emailsByDmcId[$dmcId] ?? ''));
+            if ($email === '') {
+                continue;
+            }
+            $entry['DMC_email'] = $email;
+            $entries[$i] = self::orderFlatPackageExportKeys($entry);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function buildFlatPackageExports(): array
+    {
+        $payload = $this->structured_payload;
+        $masterNodes = is_array($payload['Master_DMC'] ?? null) ? $payload['Master_DMC'] : [];
+        if ($masterNodes === []) {
+            return [];
+        }
+
+        $exports = [];
+        foreach ($masterNodes as $masterNode) {
+            if (! is_array($masterNode)) {
+                continue;
+            }
+            $masterId = (int) ($masterNode['Master_DMC_id'] ?? $this->master_dmc_id);
+            foreach ((array) ($masterNode['destinations'] ?? []) as $destWrap) {
+                $destination = self::unwrapDestinationNode($destWrap);
+                if (! is_array($destination) || (int) ($destination['DMC_id'] ?? 0) <= 0) {
+                    continue;
+                }
+                $exports = array_merge(
+                    $exports,
+                    $this->buildFlatExportsForDestination($destination, $masterId)
+                );
+            }
+        }
+
+        return $exports;
+    }
+
+    /**
+     * @param  array<string, mixed>  $destination
+     * @return list<array<string, mixed>>
+     */
+    private function buildFlatExportsForDestination(array $destination, int $masterId): array
+    {
+        $dmcId = (int) ($destination['DMC_id'] ?? $this->dmc_id);
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        $email = trim((string) ($destination['DMC_email'] ?? $destination['email'] ?? ''));
+        if ($email === '' && $this->relationLoaded('dmc') && $this->dmc && (int) $this->dmc->userId === $dmcId) {
+            $email = trim((string) ($this->dmc->email ?? ''));
+        }
+
+        $country = (string) ($destination['country'] ?? ($this->country ?? ''));
+        $citySummaries = self::filterCitySummaries(self::extractCitySummariesFromDestination($destination));
+
+        $destination = self::transformDestinationAttractionsForApi($destination);
+        $destination = self::transformDestinationLocationsForApi($destination);
+
+        $packages = $this->resolvePackagesForExport($destination, $citySummaries);
+        if ($citySummaries === [] && $packages !== []) {
+            $citySummaries = self::filterCitySummaries(
+                self::extractCitySummariesFromPackage($packages[0])
+            );
+        }
+
+        $cityNames = [];
+        foreach ($citySummaries as $summary) {
+            $name = trim((string) ($summary['city'] ?? ''));
+            if ($name !== '' && ! in_array($name, $cityNames, true)) {
+                $cityNames[] = $name;
+            }
+        }
+        if ($cityNames === []) {
+            foreach ($this->collectPackageSummaries() as $summary) {
+                foreach ((array) ($summary['cities'] ?? []) as $name) {
+                    $name = trim((string) $name);
+                    if ($name !== '' && ! in_array($name, $cityNames, true)) {
+                        $cityNames[] = $name;
+                    }
+                }
+            }
+        }
+        if ($packages === []) {
+            return [];
+        }
+
+        $rawAllServices = $this->buildRawAllServicesCatalog($dmcId, $country, $cityNames);
+        $rawAllServicesJson = json_encode($rawAllServices, JSON_UNESCAPED_SLASHES);
+        if ($rawAllServicesJson === false) {
+            $rawAllServicesJson = '{}';
+        }
+
+        $entries = [];
+        foreach ($packages as $package) {
+            if (! is_array($package)) {
+                continue;
+            }
+            $packageId = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
+            if ($packageId === '') {
+                continue;
+            }
+
+            $totalDays = (int) ($package['total_days'] ?? $package['totalDays'] ?? 0);
+            if ($totalDays <= 0) {
+                $totalDays = self::inferTotalDaysFromPackageDays($package);
+            }
+
+            $rawPackage = self::buildRawPackagePayload($package, $citySummaries);
+            $rawPackageJson = json_encode($rawPackage, JSON_UNESCAPED_SLASHES);
+            if ($rawPackageJson === false) {
+                continue;
+            }
+
+            $entry = [
+                'id'               => $packageId,
+                'country'          => $country,
+                'city'             => $cityNames,
+                'total_days'       => $totalDays,
+                'Master_DMC_id'    => $masterId,
+                'DMC_id'           => $dmcId,
+                'package_id'       => $packageId,
+                'raw_package'      => $rawPackageJson,
+                'raw_all_services' => $rawAllServicesJson,
+            ];
+            if ($email !== '') {
+                $entry['DMC_email'] = $email;
+            }
+
+            $entries[] = self::orderFlatPackageExportKeys($entry);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<string, mixed>
+     */
+    private static function orderFlatPackageExportKeys(array $entry): array
+    {
+        $ordered = [];
+        foreach (['id', 'DMC_email', 'country', 'city', 'total_days', 'Master_DMC_id', 'DMC_id', 'package_id', 'raw_package', 'raw_all_services'] as $key) {
+            if (array_key_exists($key, $entry)) {
+                $ordered[$key] = $entry[$key];
+            }
+        }
+        foreach ($entry as $key => $value) {
+            if (! array_key_exists($key, $ordered)) {
+                $ordered[$key] = $value;
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * @param  array<string, mixed>  $destination
+     * @return list<array{city: string, city_checkin: string, city_checkout: string}>
+     */
+    public static function extractCitySummariesFromDestination(array $destination): array
+    {
+        $summaries = [];
+        foreach ((array) ($destination['cities'] ?? []) as $cityNode) {
+            if (! is_array($cityNode)) {
+                continue;
+            }
+            $summaries[] = [
+                'city'          => (string) ($cityNode['city'] ?? ''),
+                'city_checkin'  => (string) ($cityNode['checkin_day'] ?? $cityNode['city_checkin'] ?? ''),
+                'city_checkout' => (string) ($cityNode['checkout_day'] ?? $cityNode['city_checkout'] ?? ''),
+            ];
+        }
+
+        return $summaries;
+    }
+
+    /**
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $summaries
+     * @return list<array{city: string, city_checkin: string, city_checkout: string}>
+     */
+    private static function filterCitySummaries(array $summaries): array
+    {
+        return array_values(array_filter($summaries, function ($row) {
+            if (! is_array($row)) {
+                return false;
+            }
+            $city = trim((string) ($row['city'] ?? ''));
+
+            return $city !== '' && strcasecmp($city, 'Unknown') !== 0;
+        }));
+    }
+
+    /**
+     * @param  array<string, mixed>  $package
+     * @return list<array{city: string, city_checkin: string, city_checkout: string}>
+     */
+    private static function extractCitySummariesFromPackage(array $package): array
+    {
+        foreach (self::flattenPackageDayNodes($package['days'] ?? []) as $dayNode) {
+            if (! is_array($dayNode)) {
+                continue;
+            }
+            $list = self::rawCitiesListFromDayNode($dayNode, []);
+
+            return $list;
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $destination
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @return list<array<string, mixed>>
+     */
+    private function resolvePackagesForExport(array $destination, array $citySummaries): array
+    {
+        $cities = is_array($destination['cities'] ?? null) ? $destination['cities'] : [];
+        if ($cities !== []) {
+            return $this->collectPackagesWithCities($cities);
+        }
+
+        return self::unwrapPackagesList($destination);
+    }
+
+    /**
+     * @param  array<string, mixed>  $destination
+     * @return list<array<string, mixed>>
+     */
+    public static function unwrapPackagesList(array $destination): array
+    {
+        $found = [];
+        $main = $destination['packages'] ?? null;
+        if (is_array($main) && $main !== []) {
+            if (isset($main['days']) || isset($main['package_id']) || isset($main['packageId'])) {
+                $found[] = $main;
+            } else {
+                foreach ($main as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+                    if (isset($item['days']) || isset($item['package_id']) || isset($item['packageId'])) {
+                        $found[] = $item;
+                        continue;
+                    }
+                    if (isset($item[0]) && is_array($item[0])) {
+                        $found[] = $item[0];
+                    }
+                }
+            }
+        }
+
+        foreach ($destination as $key => $value) {
+            if (! is_string($key) || ! preg_match('/^packages\s+\d+$/', $key) || ! is_array($value)) {
+                continue;
+            }
+            foreach ($value as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                if (isset($item['days']) || isset($item['package_id']) || isset($item['packageId'])) {
+                    $found[] = $item;
+                    continue;
+                }
+                if (isset($item[0]) && is_array($item[0])) {
+                    $found[] = $item[0];
+                }
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * @param  array<string, mixed>  $package
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @return array{package_id: string, total_days: int, days: list<array<string, mixed>>}
+     */
+    public static function buildRawPackagePayload(array $package, array $citySummaries): array
+    {
+        $packageId = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
+        $totalDays = (int) ($package['total_days'] ?? $package['totalDays'] ?? 0);
+        if ($totalDays <= 0) {
+            $totalDays = self::inferTotalDaysFromPackageDays($package);
+        }
+
+        $daysList = [];
+        foreach (self::flattenPackageDayNodes($package['days'] ?? []) as $dayNode) {
+            if (! is_array($dayNode)) {
+                continue;
+            }
+            $daysList[] = self::formatDayForRawPackageExport($dayNode, $citySummaries);
+        }
+
+        return [
+            'package_id' => $packageId,
+            'total_days' => $totalDays,
+            'days'       => $daysList,
+        ];
+    }
+
+    /**
+     * @param  mixed  $daysRaw
+     * @return list<array<string, mixed>>
+     */
+    public static function flattenPackageDayNodes($daysRaw): array
+    {
+        if ($daysRaw instanceof \stdClass) {
+            $daysRaw = (array) $daysRaw;
+        }
+        if (! is_array($daysRaw)) {
+            return [];
+        }
+
+        $nodes = [];
+        if (array_is_list($daysRaw)) {
+            $nodes = $daysRaw;
+        } else {
+            $keys = array_keys($daysRaw);
+            usort($keys, fn ($a, $b) => (int) $a <=> (int) $b);
+            foreach ($keys as $key) {
+                if (is_array($daysRaw[$key] ?? null)) {
+                    $nodes[] = $daysRaw[$key];
+                }
+            }
+        }
+
+        usort($nodes, fn ($a, $b) => (int) ($a['day'] ?? 0) <=> (int) ($b['day'] ?? 0));
+
+        return $nodes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $dayNode
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @return array<string, mixed>
+     */
+    public static function formatDayForRawPackageExport(array $dayNode, array $citySummaries): array
+    {
+        $day = (int) ($dayNode['day'] ?? 0);
+        $hotels = self::formatRawHotelsMap(is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : []);
+        $attractions = is_array($dayNode['attractions'] ?? null)
+            ? self::normalizeAttractionsMap($dayNode['attractions'])
+            : [];
+        $restaurants = is_array($dayNode['restaurants'] ?? null) ? $dayNode['restaurants'] : [];
+        $services = is_array($dayNode['services'] ?? null) ? $dayNode['services'] : [];
+        if ($services === []) {
+            $services = [];
+        }
+
+        $cities = self::rawCitiesListFromDayNode($dayNode, $citySummaries);
+
+        return [
+            'day'         => $day,
+            'hotels'      => $hotels,
+            'attractions' => $attractions,
+            'restaurants' => $restaurants,
+            'services'    => $services,
+            'cities'      => $cities,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $hotels
+     * @return array<string, mixed>
+     */
+    private static function formatRawHotelsMap(array $hotels): array
+    {
+        $out = [];
+        foreach ($hotels as $label => $row) {
+            if (! is_array($row)) {
+                $out[$label] = $row;
+                continue;
+            }
+            if (array_key_exists('hotel_id', $row)) {
+                $row['hotel_id'] = (string) ($row['hotel_id'] ?? '');
+            }
+            $out[$label] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $dayNode
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @return list<array{city: string, city_checkin: string, city_checkout: string}>
+     */
+    private static function rawCitiesListFromDayNode(array $dayNode, array $citySummaries): array
+    {
+        $citiesRaw = $dayNode['cities'] ?? null;
+        if ($citiesRaw instanceof \stdClass) {
+            $citiesRaw = (array) $citiesRaw;
+        }
+
+        $list = [];
+        if (is_array($citiesRaw) && $citiesRaw !== []) {
+            $rows = array_is_list($citiesRaw) ? $citiesRaw : array_values($citiesRaw);
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $list[] = [
+                    'city'          => (string) ($row['city'] ?? ''),
+                    'city_checkin'  => (string) ($row['city_checkin'] ?? $row['checkin_day'] ?? ''),
+                    'city_checkout' => (string) ($row['city_checkout'] ?? $row['checkout_day'] ?? ''),
+                ];
+            }
+        }
+
+        if ($list !== []) {
+            return self::filterCitySummaries($list);
+        }
+
+        return self::citySummariesToRawCitiesList($citySummaries);
+    }
+
+    /**
+     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @return list<array{city: string, city_checkin: string, city_checkout: string}>
+     */
+    private static function citySummariesToRawCitiesList(array $citySummaries): array
+    {
+        $list = [];
+        foreach ($citySummaries as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $list[] = [
+                'city'          => (string) ($row['city'] ?? ''),
+                'city_checkin'  => (string) ($row['city_checkin'] ?? $row['checkin_day'] ?? ''),
+                'city_checkout' => (string) ($row['city_checkout'] ?? $row['checkout_day'] ?? ''),
+            ];
+        }
+
+        return $list;
+    }
+
+    /**
+     * @param  array<string, mixed>  $package
+     */
+    public static function inferTotalDaysFromPackageDays(array $package): int
+    {
+        $max = 0;
+        foreach (self::flattenPackageDayNodes($package['days'] ?? []) as $dayNode) {
+            if (! is_array($dayNode)) {
+                continue;
+            }
+            $max = max($max, (int) ($dayNode['day'] ?? 0));
+        }
+
+        return $max > 0 ? $max : 1;
+    }
+
+    /**
+     * Catalog buckets for raw_all_services (hotels, attractions, restaurants, guides only).
+     *
+     * @param  list<string>  $cityNames
+     * @return array<string, mixed>
+     */
+    public function buildRawAllServicesCatalog(int $dmcId, string $country, array $cityNames): array
+    {
+        $cities = [];
+        foreach ($cityNames as $name) {
+            $name = trim($name);
+            if ($name !== '') {
+                $cities[] = ['city' => $name];
+            }
+        }
+
+        $destination = [
+            'country' => $country,
+            'cities'  => $cities,
+        ];
+
+        $buckets = $this->buildDmcWideServiceBuckets([], $destination, $dmcId);
+        $services = is_array($buckets['list_all_services'] ?? null) ? $buckets['list_all_services'] : [];
+        unset($services['transfers']);
+
+        if (isset($services['attractions']) && is_array($services['attractions'])) {
+            $services['attractions'] = self::normalizeAttractionsMap($services['attractions']);
+        }
+
+        $out = [];
+        foreach (['hotels', 'attractions', 'restaurants', 'guides'] as $bucket) {
+            if (! isset($services[$bucket]) || ! is_array($services[$bucket]) || $services[$bucket] === []) {
+                continue;
+            }
+            $out[$bucket] = $services[$bucket];
+        }
+
+        return $out;
+    }
 }

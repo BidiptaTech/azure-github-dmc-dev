@@ -865,6 +865,7 @@ class DayLevelController extends Controller
     public function combinedJsonApi(Request $request)
     {
         $query = DayLevel::query()
+            ->with('dmc')
             ->whereNull('deleted_at')
             ->latest();
 
@@ -877,26 +878,31 @@ class DayLevelController extends Controller
         }
 
         $rows = $query->get();
-        $payload = $this->buildCombinedStructuredPayload($rows);
+        $payload = $this->buildFlatDayLevelPackagesPayload($rows);
 
-        // Keep on-disk files synchronized for no-filter requests.
-        if (!($request->filled('master_dmc_id') || $request->filled('dmc_id'))) {
+        if ($request->filled('master_dmc_id')) {
+            $filterMaster = (int) $request->query('master_dmc_id');
+            $payload = array_values(array_filter(
+                $payload,
+                fn (array $entry) => (int) ($entry['Master_DMC_id'] ?? 0) === $filterMaster
+            ));
+        }
+
+        if ($request->filled('dmc_id')) {
+            $filterDmc = (int) $request->query('dmc_id');
+            $payload = array_values(array_filter(
+                $payload,
+                fn (array $entry) => (int) ($entry['DMC_id'] ?? 0) === $filterDmc
+            ));
+        }
+
+        // Sync Azure blobs (raw JSON array only — no API wrapper) when fetching the full catalog.
+        if (! ($request->filled('master_dmc_id') || $request->filled('dmc_id'))) {
             $this->refreshCombinedJsonFile();
         }
 
-        $masterId = $request->filled('master_dmc_id') ? (int) $request->query('master_dmc_id') : null;
-
-        return response()->json([
-            'success' => true,
-            'total_rows' => $rows->count(),
-            'json_file_url' => $masterId !== null
-                ? $this->getMasterDmcJsonUrl($masterId)
-                : $this->getCombinedJsonUrl(),
-            'master_json_files' => $masterId === null
-                ? $this->buildMasterJsonFileUrls($payload)
-                : [],
-            'data' => $payload,
-        ]);
+        // Same shape as day-level-combined.json in Blob Storage: top-level array `[...]`.
+        return response()->json($payload);
     }
 
     // =========================================================================
@@ -908,11 +914,12 @@ class DayLevelController extends Controller
         $this->refreshCombinedJsonFile();
 
         $rows = DayLevel::query()
+            ->with('dmc')
             ->whereNull('deleted_at')
             ->latest()
             ->get();
 
-        return response()->json($this->buildCombinedStructuredPayload($rows));
+        return response()->json($this->buildFlatDayLevelPackagesPayload($rows));
     }
 
     // =========================================================================
@@ -1746,6 +1753,17 @@ class DayLevelController extends Controller
     }
 
     /**
+     * Flat day-level export: one object per package with raw_package / raw_all_services strings.
+     *
+     * @param  \Illuminate\Support\Collection<int, DayLevel>|iterable  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function buildFlatDayLevelPackagesPayload($rows): array
+    {
+        return DayLevel::collectFlatPackageExportsFromRows($rows);
+    }
+
+    /**
      * Combine all visible day_levels rows into one output JSON:
      * { Master_DMC: [ { Master_DMC_id, destinations: [...] }, ... ] }
      */
@@ -2504,62 +2522,60 @@ class DayLevelController extends Controller
     }
 
     /**
-     * @return array<int, array{master_dmc_id: int, url: string}>
+     * Encode flat package rows for Azure AI Search / Blob Storage.
+     * Must be a top-level JSON array (`[...]`) with no Laravel API wrapper.
+     *
+     * @param  list<array<string, mixed>>  $packages
      */
-    private function buildMasterJsonFileUrls(array $payload): array
+    private function encodeFlatPackagesForBlobStorage(array $packages): ?string
     {
-        $files = [];
-        foreach ((array) ($payload['Master_DMC'] ?? []) as $master) {
-            if (!is_array($master)) {
-                continue;
-            }
-            $masterId = (int) ($master['Master_DMC_id'] ?? 0);
-            if ($masterId <= 0) {
-                continue;
-            }
-            $url = $this->getMasterDmcJsonUrl($masterId);
-            if ($url === null) {
-                continue;
-            }
-            $files[] = [
-                'master_dmc_id' => $masterId,
-                'url' => $url,
-            ];
+        $json = json_encode(array_values($packages), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false || $json === '' || $json[0] !== '[') {
+            return null;
         }
 
-        return $files;
+        return $json;
     }
 
     /**
-     * Rebuild combined + per-master JSON files after each create/update/delete.
+     * Rebuild combined + per-master JSON blobs after each create/update/delete.
+     * Each uploaded file is only the raw package array (starts with `[`, ends with `]`).
      */
     private function refreshCombinedJsonFile(): void
     {
         try {
             $rows = DayLevel::query()
+                ->with('dmc')
                 ->whereNull('deleted_at')
                 ->latest()
                 ->get();
 
-            $payload = $this->buildCombinedStructuredPayload($rows);
-            $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            if ($json === false) {
+            $payload = $this->buildFlatDayLevelPackagesPayload($rows);
+            $json = $this->encodeFlatPackagesForBlobStorage($payload);
+            if ($json === null) {
                 return;
             }
 
             $this->storeDayLevelJsonOnAzure($json, 'day-level-combined.json');
 
-            foreach ((array) ($payload['Master_DMC'] ?? []) as $master) {
-                if (!is_array($master)) {
+            $masterIds = [];
+            foreach ($payload as $entry) {
+                if (! is_array($entry)) {
                     continue;
                 }
-                $masterId = (int) ($master['Master_DMC_id'] ?? 0);
-                if ($masterId <= 0) {
-                    continue;
+                $masterId = (int) ($entry['Master_DMC_id'] ?? 0);
+                if ($masterId > 0) {
+                    $masterIds[$masterId] = true;
                 }
-                $masterPayload = ['Master_DMC' => [$master]];
-                $masterJson = json_encode($masterPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-                if ($masterJson !== false) {
+            }
+
+            foreach (array_keys($masterIds) as $masterId) {
+                $masterPackages = array_values(array_filter(
+                    $payload,
+                    fn (array $entry) => (int) ($entry['Master_DMC_id'] ?? 0) === $masterId
+                ));
+                $masterJson = $this->encodeFlatPackagesForBlobStorage($masterPackages);
+                if ($masterJson !== null) {
                     $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
                 }
             }
