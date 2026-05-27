@@ -412,12 +412,15 @@
                                     </a>
 
                                     <!-- Edit -->
+                                    @if($zone->dmc_id == $dmcId)
                                     <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
+                                    @endif
                                     <!-- Delete -->
+                                    @if($zone->dmc_id == $dmcId)
                                     <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -428,6 +431,7 @@
                                             <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             </td>
 
