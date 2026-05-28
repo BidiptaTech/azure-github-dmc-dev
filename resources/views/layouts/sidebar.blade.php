@@ -360,7 +360,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('multiRestaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -487,7 +487,7 @@
 
                 <!-- Restaurant -->
                 @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
-                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiResturant*')) open @endif">
+                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiRestaurant*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
                         <div data-i18n="Restaurant">Restaurant</div>
@@ -1381,7 +1381,7 @@
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
-                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*')) open @endif">
+                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*', 'bank-details*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
                         <div data-i18n="All Users">All Users</div>
@@ -1479,7 +1479,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
