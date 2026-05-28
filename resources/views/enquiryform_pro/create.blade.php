@@ -1982,7 +1982,7 @@
                             <select class="form-select form-select-sm select2-port" id="arrivalPort">
                                 <option value="">Select Port</option>
                                 @foreach($ports as $port)
-                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-type="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-type="port" data-port-kind="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -2007,7 +2007,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -2178,7 +2178,7 @@
                             <select class="form-select form-select-sm select2-port" id="departurePort">
                                 <option value="">Select Port</option>
                                 @foreach($ports as $port)
-                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-type="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-type="port" data-port-kind="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -2203,7 +2203,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -2511,7 +2511,7 @@
                                         <option value="">Select Dropoff</option>
                                         <optgroup label="Ports">
                                             @foreach($ports as $port)
-                                                <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                                <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                             @endforeach
                                         </optgroup>
                                         <optgroup label="Hotels">
@@ -2657,7 +2657,7 @@
                                     </optgroup>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
@@ -2873,7 +2873,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -3106,7 +3106,7 @@
                                 <option value="">Select Pickup Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -3132,7 +3132,7 @@
                                 <option value="">Select Drop Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -5097,6 +5097,11 @@
     
     // City to Country mapping from backend
     const cityCountryMap = @json($cityCountryMap ?? []);
+    // City name -> city_id (ports table uses city_id; used to filter ports by selected cities)
+    const cityIdMap = @json(($cities ?? $destinations ?? collect())->mapWithKeys(function($c){
+        $id = $c->city_id ?? $c->id ?? null;
+        return $id ? [ (string)$c->name => (int)$id ] : [];
+    }));
     @include('enquiryform_pro.partials.city-destination-scripts')
     
     // Initialize destination tags functionality
@@ -5215,11 +5220,24 @@
         syncHeaderCitiesToServiceModals();
     }
     
+    function getSelectedCityIdsFromCities() {
+        try {
+            const ids = (selectedDestinations || []).map(function(name) {
+                const key = String(name || '').trim();
+                return cityIdMap && Object.prototype.hasOwnProperty.call(cityIdMap, key) ? parseInt(cityIdMap[key], 10) : null;
+            }).filter(function(v) { return Number.isFinite(v) && v > 0; });
+            return Array.from(new Set(ids));
+        } catch (e) {
+            return [];
+        }
+    }
+
     // Filter ports and service options based on selected cities (countries derived via cityCountryMap)
     function filterPortsBySelectedCountries() {
         const arrivalPort = document.getElementById('arrivalPort');
         const departurePort = document.getElementById('departurePort');
         const selectedCountries = getSelectedCountriesFromCities();
+        const selectedCityIds = getSelectedCityIdsFromCities();
         
         const noCitiesSelected = selectedDestinations.length === 0;
         
@@ -5266,16 +5284,18 @@
                 const dataLocation = option.getAttribute('data-location');
                 const dataCity = option.getAttribute('data-city');
                 
-                // Handle ports (depend only on country, not DMC)
+                // Handle ports (server already scoped to DMC countries; client filters further by selected cities/countries)
                 if (dataType === 'port') {
                     hasPortOptions = true;
+                    const dataCityIdRaw = option.getAttribute('data-city-id');
+                    const dataCityId = dataCityIdRaw ? parseInt(dataCityIdRaw, 10) : 0;
                     
                     if (noCitiesSelected) {
                         option.style.display = 'none';
                         if (option.value === currentValue) {
                             select.value = '';
                         }
-                    } else if (dataCountry && selectedCountries.includes(dataCountry)) {
+                    } else if ((dataCountry && selectedCountries.includes(dataCountry)) || (dataCityId && selectedCityIds.includes(dataCityId))) {
                         option.style.display = '';
                     } else {
                         option.style.display = 'none';
