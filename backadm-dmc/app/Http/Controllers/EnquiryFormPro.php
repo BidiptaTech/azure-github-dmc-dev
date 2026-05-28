@@ -2834,12 +2834,6 @@ class EnquiryFormPro extends Controller
             ->orderBy('vehicle_type')
             ->get();
         
-        $ports = Port::where('status', 1)
-            ->with('country')
-            ->select('port_id', 'port_name', 'type', 'country', 'city_id')
-            ->orderBy('port_name')
-            ->get();
-        
         // Countries + cities (same DMC scope as create form and sidebar modal)
         $accessibleCountryNames = $this->getAccessibleCountryNames($user, $dmc_id);
         $countries = collect();
@@ -2852,6 +2846,16 @@ class EnquiryFormPro extends Controller
         $countryNamesList = $countries->pluck('name')->toArray();
         $cities = $this->getCitiesForCountries($countryNamesList);
         $destinations = $cities;
+
+        // Ports: only for DMC-accessible countries (and later client-side filtered by selected cities)
+        $portsQuery = Port::where('status', 1)
+            ->with('country')
+            ->select('port_id', 'port_name', 'type', 'country', 'city_id')
+            ->orderBy('port_name');
+        if (!empty($countryNamesList)) {
+            $portsQuery->whereIn('country', $countryNamesList);
+        }
+        $ports = $portsQuery->get();
         
         // Get agency and agent (agency comes from agent relationship — Tour has agent_id only)
         $agent = $tour->agent_id ? Agent::find($tour->agent_id) : ($tour->agent ?? null);
