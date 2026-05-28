@@ -619,6 +619,7 @@ class VehicleController extends Controller
         $drivers = Driver::where('is_active', 1)->where('dmc_id', $vehicle->dmc_id)->get();
         $dmc_country = User::where('userId', $vehicle->dmc_id)->first()->country;
         $city = City::where('country', $dmc_country)->get();
+        $cityIds = $city->pluck('city_id')->toArray();
         $authuser = auth()->user();
         if($authuser->role_id == 4){
             $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
@@ -631,7 +632,7 @@ class VehicleController extends Controller
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
             // Get zones based on the vehicle's DMC
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orwhere('dmc_id',null)->get();
+            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orwhere('dmc_id',null)->whereIn('city', $cityIds)->get();
             
             // Get ports for the DMC country
             $ports = Port::where('country', $dmc_country)->get();
