@@ -1358,9 +1358,9 @@
                             </td>
                         </tr>
                         @empty
-                        <tr>
+                        {{-- <tr>
                             <td colspan="{{ in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) ? 8 : 7 }}" class="text-center text-muted py-4">No new enquiries found</td>
-                        </tr>
+                        </tr> --}}
                         @endforelse
                     </tbody>
                 </table>

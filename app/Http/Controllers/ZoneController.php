@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Models\City;
+use App\Models\Country;
 use App\Helpers\CommonHelper;
 use App\Models\Hotel;
 use App\Models\Attraction;
@@ -80,9 +81,9 @@ class ZoneController extends Controller
         $dmcId = $this->resolveDmcIdForUser($user);
         if ($dmcId) {
             $dmcUser = User::where('userId', $dmcId)->first();
-            $name = $dmcUser->city ?? null;
+            $name = $dmcUser->country ?? null;
         } else {
-            $name = $user->city ?? null;
+            $name = $user->country ?? null;
         }
         $name = is_string($name) ? trim($name) : '';
         return $name !== '' ? $name : null;
@@ -142,7 +143,6 @@ class ZoneController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-
         // Build the base query first (so we can apply filters/sorting consistently).
         $zonesQuery = Zone::query();
 
@@ -159,7 +159,7 @@ class ZoneController extends Controller
             $zonesQuery->where(function ($q) use ($user) {
                 // Master zones always visible
                 $q->whereNull('dmc_id')->orWhere('dmc_id', 0)->orWhere('dmc_id', '0');
-
+                
                 // Legacy DMC zones (keep existing behavior)
                 if ($user->role_id == 4) {
                     $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
@@ -168,9 +168,11 @@ class ZoneController extends Controller
                     $dmc_ids = User::where('master_dmc_id', $user->userId)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
                 } elseif ($user->role_id == 11 || $user->role_id == 20) {
+                   
                     $q->orWhere('dmc_id', $user->userId);
-                } elseif (in_array($user->role_id, [25, 62, 110], true)) {
+                } elseif (in_array($user->role_id, ["25", "62", "110"], true)) {
                     if($user->role_id == 25){
+
                         $master_dmc_id = $user->created_by;
                     }
                     elseif($user->role_id == 62){
@@ -185,7 +187,7 @@ class ZoneController extends Controller
 
                     $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif (in_array($user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+                } elseif (in_array($user->role_id, ["35", "130", "132", "133", "135", "136", "137", "138"], true)) {
                     $q->orWhere('dmc_id', $user->created_by);
                 } elseif ($user->role_id == 76 || $user->role_id == 139) {
                     $product_head = User::where('userId', $user->created_by)->first();
@@ -201,10 +203,12 @@ class ZoneController extends Controller
         // Non-admin: only list zones in the DMC's home city (zone.city is city_id; user.city is city name).
         if ((int) ($user->userId ?? 0) !== 1) {
             $homeCityName = $this->dmcHomeCityName($user);
+            
             if ($homeCityName !== null) {
                 $cityIds = City::query()
-                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
+                    ->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
                     ->pluck('city_id');
+
                 if ($cityIds->isNotEmpty()) {
                     $zonesQuery->whereIn('city', $cityIds);
                 } else {
@@ -220,7 +224,7 @@ class ZoneController extends Controller
         if ($zoneType !== '' && in_array($zoneType, $allowedTypes, true)) {
             $zonesQuery->where('zone_type', $zoneType);
         }
-
+        
         // Optional sorting (preserved in UI when switching sort).
         $sort = (string) $request->query('sort', 'updated_at');
         $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
@@ -248,12 +252,18 @@ class ZoneController extends Controller
      */
     public function create()
     {
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
-            $city = City::orderBy('name')->get();
+        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
+            || (int) (Auth::user()->userId ?? 0) === 1;
+
+        $countries = collect();
+        if ($isAdmin) {
+            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
+            $city = collect();
         } else {
             $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
         }
-        return view('zones.create', compact('city'));
+
+        return view('zones.create', compact('city', 'countries', 'isAdmin'));
     }
     
 
@@ -348,12 +358,26 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
-            $city = City::orderBy('name')->get();
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to edit this zone');
+        }
+
+        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
+            || (int) (Auth::user()->userId ?? 0) === 1;
+
+        $countries = collect();
+        $zoneCountry = null;
+        if ($isAdmin) {
+            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
+            $city = collect();
+            $zoneCountry = City::where('city_id', $zone->city)->value('country');
         } else {
             $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
         }
-        return view('zones.edit', compact('zone', 'city'));
+
+        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry'));
     }
 
     /**
@@ -370,7 +394,11 @@ class ZoneController extends Controller
             'city' => 'required',
             'status' => 'required|integer',
         ]);
-        
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to edit this zone');
+        }
         if ($validator->fails()) {
             return redirect()->back()
                 ->withErrors($validator)
@@ -394,6 +422,11 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
+        $dmcId = $this->resolveDmcIdForUser(Auth::user());
+        if ($zone->dmc_id != $dmcId) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to delete this zone');
+        }
         if (!$zone) {
             return redirect()->route('zones.index')
                 ->with('success', 'Zone deleted successfully');

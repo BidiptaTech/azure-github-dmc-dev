@@ -4,7 +4,7 @@ use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\BedsController;
-use App\Http\Controllers\RoomsController;
+// use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -37,13 +37,13 @@ use App\Http\Controllers\SingleTourPackageController;
 use App\Http\Controllers\HotelCategoryController;
 use App\Http\Controllers\OperationalCountryController;
 use App\Http\Controllers\TourController;
-use App\Http\Controllers\BookingAttractionController;
+// use App\Http\Controllers\BookingAttractionController;
 use App\Http\Controllers\BookingListController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\EnquiryListController;
 use App\Http\Controllers\ReportController;
-use Illuminate\Http\Request;
-use App\Models\City;
+// use Illuminate\Http\Request;
+// use App\Models\City;
 use App\Http\Controllers\SpecialDiscountController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PortController;
@@ -63,12 +63,15 @@ use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
 use App\Http\Controllers\GuideLanguagesController;
 use Illuminate\Support\Facades\Artisan;
-use App\Services\AzureKeyVaultService;
-use Illuminate\Support\Facades\Mail;
+// use App\Services\AzureKeyVaultService;
+// use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\Api\DayLevelController;
+use App\Http\Controllers\Api\ExternalApiReceiveController;
+
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -83,6 +86,10 @@ use App\Http\Controllers\ChatController;
 |
 */
 Auth::routes();
+// Browser-friendly fallback for legacy external endpoints (GET only).
+Route::get('/api/v1/external/receive', [ExternalApiReceiveController::class, 'index']);
+Route::get('/api/v1/external/received', [ExternalApiReceiveController::class, 'index']);
+
 Route::get('/clear', function () {
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
@@ -242,6 +249,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
+            Route::get('/enquiry-form-pro/get-miscellaneous', [EnquiryFormPro::class, 'getMiscellaneousItems'])->name('enquiry-form-pro.get-miscellaneous');
             Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
             Route::post('/create-chat', [ChatController::class, 'createChat'])->name('create-chat');
             // Debug route to check DMC data
@@ -1336,9 +1344,37 @@ Route::middleware(['auth'])->group(function () {
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
     Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
     Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
-});
 
-Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
+// Route::get('/dmcf', function () {
+//     return view('dmc/index');
+// 
+Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
+    ->name('day-level.by-city');
+
+Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
+    ->name('day-level.hotels-by-rating');
+
+Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
+    ->name('day-level.meal-plans-by-hotel');
+
+Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
+    ->name('day-level.transfer-options');
+
+Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
+    ->name('day-level.tickets-by-attraction');
+
+Route::get('day-level/cities-by-country', [DayLevelController::class, 'citiesByCountry'])
+    ->name('day-level.cities-by-country');
+
+// Must be declared before resource route to avoid being captured by day-level/{day_level}
+Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'combinedJsonFile'])
+    ->name('day-level.combined-json-file');
+
+// Resource route AFTER
+Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
+    ->where('routeName', '^(?!api$).+');
+});
 
 
 

@@ -945,6 +945,16 @@
     .destination-tag .remove-tag:hover {
         opacity: 1;
     }
+
+    .destination-tags-container.destination-tags-locked {
+        background-color: #f1f3f5 !important;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .destination-tags-container.destination-tags-locked .destination-tag {
+        opacity: 0.95;
+    }
     
     .destination-dropdown {
         position: fixed !important;
@@ -1071,7 +1081,7 @@
             tour_start_date: @json($initialData['tour_start_date'] ?? ''),
             tour_end_date: @json($initialData['tour_end_date'] ?? ''),
             country: @json($tour->destination ?? ''),
-            agency_id: {{ $tour->agency_id ?? 'null' }},
+            agency_id: {{ $initialData['agency_id'] ?? 'null' }},
             agent_id: {{ $tour->agent_id ?? 'null' }},
             status: @json((string)($tour->status ?? '')),
             remarks: @json($tour->remarks ?? ''),
@@ -1280,8 +1290,12 @@
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Agent:</span>
                         <select class="form-select form-select-sm" id="agentSelect" style="font-size: 9px; width: 100px; padding: 1px 3px;" {{ !isset($initialData['agent_id']) ? 'disabled' : '' }}>
-                            @if(isset($initialData['agent_id']))
-                                <option value="{{ $initialData['agent_id'] }}" selected>{{ $initialData['agent_name'] }}</option>
+                            @if(isset($initialData['agent_id']) && !empty($agents) && count($agents) > 0)
+                                @foreach($agents as $ag)
+                                    <option value="{{ $ag->agent_id }}" {{ (int) $initialData['agent_id'] === (int) $ag->agent_id ? 'selected' : '' }}>{{ $ag->name }}</option>
+                                @endforeach
+                            @elseif(isset($initialData['agent_id']))
+                                <option value="{{ $initialData['agent_id'] }}" selected>{{ $initialData['agent_name'] ?? 'Agent' }}</option>
                             @else
                                 <option value="">-- Select --</option>
                             @endif
@@ -1417,13 +1431,15 @@
                     <div class="field-group destination-group">
                         <div class="field-item full-width">
                             <i class="ri-map-pin-line field-icon"></i>
-                            <span class="detail-label">Destination:</span>
-                            <div class="destination-tags-container beautiful-input flex-fill" id="destinationTagsContainer">
+                            <span class="detail-label">City:</span>
+                            <div class="destination-tags-container beautiful-input flex-fill{{ $isEditMode ? ' destination-tags-locked' : '' }}" id="destinationTagsContainer" @if($isEditMode) title="Cities are locked for this enquiry" @endif>
+                                @if(!$isEditMode)
                                 <input type="text" 
                                        class="destination-search-input" 
                                        id="destinationSearchInput" 
-                                       placeholder="Type to search destinations..."
+                                       placeholder="Type to search city..."
                                        autocomplete="off">
+                                @endif
                             </div>
                             <input type="hidden" id="destinationSelect" name="destinations" value="">
                         </div>
@@ -1433,14 +1449,16 @@
         </div>
     </div>
 
-    <!-- Destination Dropdown - Positioned outside to avoid clipping -->
+    @if(!$isEditMode)
+    <!-- Destination Dropdown - Positioned outside to avoid clipping (create only; edit locks cities) -->
     <div class="destination-dropdown" id="destinationDropdown" style="display: none; position: fixed; z-index: 99999; background: white; border: 1px solid #dee2e6; border-radius: 4px; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.25); min-width: 200px;">
-        @foreach($countries as $country)
-            <div class="destination-option" data-value="{{ $country->name }}">
-                {{ $country->name }}
+        @foreach(($cities ?? $destinations ?? []) as $city)
+            <div class="destination-option" data-value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}">
+                {{ $city->name }}@if(!empty($city->country)) <span class="text-muted">({{ $city->country }})</span>@endif
             </div>
         @endforeach
     </div>
+    @endif
 
     <!-- Scrollable Middle Content -->
     <div class="enquiry-pro-content">
@@ -2044,7 +2062,7 @@
                         <select class="form-select form-select-sm" id="hotelDestination" onchange="loadHotelsByDestination()">
                             <option value="">-- Select Destination --</option>
                             @foreach($destinations as $dest)
-                                <option value="{{ $dest->name }}" {{ ($destination ?? '') == $dest->name ? 'selected' : '' }}>{{ $dest->name }}</option>
+                                <option value="{{ $dest->name }}" data-country="{{ $dest->country ?? '' }}" {{ ($destination ?? '') == $dest->name ? 'selected' : '' }}>{{ $dest->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -2130,7 +2148,7 @@
                             <select class="form-select form-select-sm select2-port" id="arrivalPort">
                                 <option value="">Select Port</option>
                                 @foreach($ports as $port)
-                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-type="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-type="port" data-port-kind="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -2155,7 +2173,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -2326,7 +2344,7 @@
                             <select class="form-select form-select-sm select2-port" id="departurePort">
                                 <option value="">Select Port</option>
                                 @foreach($ports as $port)
-                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-type="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                    <option value="{{ $port->port_id }}" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-type="port" data-port-kind="{{ $port->type }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -2351,7 +2369,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -2660,7 +2678,7 @@
                                         <option value="">Select Dropoff</option>
                                         <optgroup label="Ports">
                                             @foreach($ports as $port)
-                                                <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                                <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                             @endforeach
                                         </optgroup>
                                         <optgroup label="Hotels">
@@ -2807,7 +2825,7 @@
                                     </optgroup>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                 </select>
@@ -2879,11 +2897,11 @@
                                 <input type="datetime-local" class="form-control form-control-sm" id="miscDate" style="font-size: 11px;">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">Destination:</label>
+                                <label class="form-label small mb-0" style="font-size: 11px; font-weight: 600;">City:</label>
                                 <select class="form-select form-select-sm" id="miscDestination" onchange="loadMiscItemsByDestination()" style="font-size: 11px;">
-                                    <option value="">Select Destination</option>
-                                    @foreach($master_dmc_destinations as $dest)
-                                        <option value="{{ $dest->name }}">{{ $dest->name }}</option>
+                                    <option value="">Select City</option>
+                                    @foreach($destinations as $dest)
+                                        <option value="{{ $dest->name }}" data-country="{{ $dest->country ?? '' }}">{{ $dest->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -2912,7 +2930,7 @@
                         <tbody id="miscItemsTableBody">
                             <tr>
                                 <td colspan="9" class="text-center text-muted" style="padding: 20px;">
-                                    Please select a destination to load miscellaneous items
+                                    Please select a city to load miscellaneous items
                                 </td>
                             </tr>
                         </tbody>
@@ -3023,7 +3041,7 @@
                                     <option value="">Select Destination</option>
                                     <optgroup label="Ports">
                                         @foreach($ports as $port)
-                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
+                                            <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Hotels">
@@ -3256,7 +3274,7 @@
                                 <option value="">Select Pickup Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -3282,7 +3300,7 @@
                                 <option value="">Select Drop Location</option>
                                 <optgroup label="Ports">
                                     @foreach($ports as $port)
-                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
+                                        <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-city-id="{{ $port->city_id }}" data-country="{{ $port->country }}">{{ $port->port_name }} ({{ $port->type }})</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="Hotels">
@@ -5586,6 +5604,12 @@
     
     // City to Country mapping from backend
     const cityCountryMap = @json($cityCountryMap ?? []);
+    // City name -> city_id (ports table uses city_id; used to filter ports by selected cities)
+    const cityIdMap = @json(($cities ?? $destinations ?? collect())->mapWithKeys(function($c){
+        $id = $c->city_id ?? $c->id ?? null;
+        return $id ? [ (string)$c->name => (int)$id ] : [];
+    }));
+    @include('enquiryform_pro.partials.city-destination-scripts')
     
     // Initialize destination tags functionality
     function initDestinationTags() {
@@ -5594,7 +5618,14 @@
         const dropdown = document.getElementById('destinationDropdown');
         const hiddenInput = document.getElementById('destinationSelect');
         
-        if (!container || !searchInput || !dropdown) return;
+        if (!container) return;
+
+        // Edit mode: cities are read-only (set at enquiry creation)
+        if (window.isEditMode) {
+            return;
+        }
+        
+        if (!searchInput || !dropdown) return;
         
         // Function to position dropdown using fixed positioning
         function positionDropdown() {
@@ -5691,6 +5722,7 @@
         updateDestinationTags();
         updateHiddenInput();
         filterPortsBySelectedCountries();
+        syncHeaderCitiesToServiceModals();
     }
     
     // Remove destination tag
@@ -5699,23 +5731,33 @@
         updateDestinationTags();
         updateHiddenInput();
         filterPortsBySelectedCountries();
+        syncHeaderCitiesToServiceModals();
     }
     
-    // Filter ports and all destination options based on selected countries
     function filterPortsBySelectedCountries() {
         const arrivalPort = document.getElementById('arrivalPort');
         const departurePort = document.getElementById('departurePort');
-        
-        // If no countries selected, hide arrival and departure ports completely
-        const noCountriesSelected = selectedDestinations.length === 0;
+        const selectedCountries = getSelectedCountriesFromCities();
+        const selectedCityIds = (function() {
+            try {
+                const ids = (selectedDestinations || []).map(function(name) {
+                    const key = String(name || '').trim();
+                    return cityIdMap && Object.prototype.hasOwnProperty.call(cityIdMap, key) ? parseInt(cityIdMap[key], 10) : null;
+                }).filter(function(v) { return Number.isFinite(v) && v > 0; });
+                return Array.from(new Set(ids));
+            } catch (e) {
+                return [];
+            }
+        })();
+        const noCitiesSelected = selectedDestinations.length === 0;
         
         // Handle arrival and departure port fields visibility
         if (arrivalPort) {
             const arrivalPortField = document.getElementById('arrivalPortField');
             if (arrivalPortField) {
-                arrivalPortField.style.display = noCountriesSelected ? 'none' : '';
+                arrivalPortField.style.display = noCitiesSelected ? 'none' : '';
             }
-            if (noCountriesSelected) {
+            if (noCitiesSelected) {
                 arrivalPort.value = '';
             }
         }
@@ -5723,26 +5765,22 @@
         if (departurePort) {
             const departurePortField = document.getElementById('departurePortField');
             if (departurePortField) {
-                departurePortField.style.display = noCountriesSelected ? 'none' : '';
+                departurePortField.style.display = noCitiesSelected ? 'none' : '';
             }
-            if (noCountriesSelected) {
+            if (noCitiesSelected) {
                 departurePort.value = '';
             }
         }
         
-        // Find all selects with destination options (ports, restaurants, attractions, hotels)
         const allSelects = document.querySelectorAll('select');
         
         allSelects.forEach(select => {
             const currentValue = select.value;
             let hasPortOptions = false;
             let hasLocationBasedOptions = false;
-            
-            // Check both direct options and options in optgroups
             const options = select.querySelectorAll('option');
             
             options.forEach(option => {
-                // Skip the default "Select" options
                 if (option.value === '' || !option.value) {
                     return;
                 }
@@ -5752,90 +5790,52 @@
                 const dataLocation = option.getAttribute('data-location');
                 const dataCity = option.getAttribute('data-city');
                 
-                // Handle ports (depend only on country, not DMC)
-                if (dataType === 'port' || dataCountry) {
+                if (dataType === 'port') {
                     hasPortOptions = true;
-                    
-                    // If no countries selected, hide ports
-                    if (noCountriesSelected) {
+                    const dataCityIdRaw = option.getAttribute('data-city-id');
+                    const dataCityId = dataCityIdRaw ? parseInt(dataCityIdRaw, 10) : 0;
+                    if (noCitiesSelected) {
                         option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
+                        if (option.value === currentValue) select.value = '';
+                    } else if ((dataCountry && selectedCountries.includes(dataCountry)) || (dataCityId && selectedCityIds.includes(dataCityId))) {
+                        option.style.display = '';
                     } else {
-                        // Show only ports from selected countries
-                        if (selectedDestinations.includes(dataCountry)) {
-                            option.style.display = '';
-                        } else {
-                            option.style.display = 'none';
-                            if (option.value === currentValue) {
-                                select.value = '';
-                            }
-                        }
+                        option.style.display = 'none';
+                        if (option.value === currentValue) select.value = '';
                     }
                 }
-                // Handle attractions (have location field)
                 else if (dataType === 'attraction' || dataLocation) {
                     hasLocationBasedOptions = true;
-                    
-                    if (noCountriesSelected) {
+                    if (noCitiesSelected) {
                         option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
+                        if (option.value === currentValue) select.value = '';
+                    } else if (selectedDestinations.includes(dataLocation) || selectedDestinations.includes(option.value)) {
+                        option.style.display = '';
                     } else {
-                        // First try to use data-country attribute directly
-                        const optionCountry = option.getAttribute('data-country');
-                        if (optionCountry && selectedDestinations.includes(optionCountry)) {
-                            option.style.display = '';
-                        } else if (selectedDestinations.includes(dataLocation)) {
-                            // Fallback: Show attractions if location matches selected destinations
-                            option.style.display = '';
-                        } else {
-                            option.style.display = 'none';
-                            if (option.value === currentValue) {
-                                select.value = '';
-                            }
-                        }
+                        option.style.display = 'none';
+                        if (option.value === currentValue) select.value = '';
                     }
                 }
-                // Handle restaurants and hotels (have city field)
                 else if (dataType === 'restaurant' || dataType === 'hotel' || dataCity) {
                     hasLocationBasedOptions = true;
-                    
-                    if (noCountriesSelected) {
+                    if (noCitiesSelected) {
                         option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
+                        if (option.value === currentValue) select.value = '';
+                    } else if (selectedDestinations.includes(dataCity) || selectedDestinations.includes(option.value)) {
+                        option.style.display = '';
                     } else {
-                        // First try to use data-country attribute directly
-                        const optionCountry = option.getAttribute('data-country');
-                        if (optionCountry && selectedDestinations.includes(optionCountry)) {
-                            option.style.display = '';
-                        } else {
-                            // Fallback: Show only items from cities in selected countries using cityCountryMap
-                            const cityCountry = cityCountryMap[dataCity];
-                            if (cityCountry && selectedDestinations.includes(cityCountry)) {
-                                option.style.display = '';
-                            } else {
-                                option.style.display = 'none';
-                                if (option.value === currentValue) {
-                                    select.value = '';
-                                }
-                            }
-                        }
+                        option.style.display = 'none';
+                        if (option.value === currentValue) select.value = '';
                     }
                 }
             });
             
-            // Trigger change event if using Select2
             if ((hasPortOptions || hasLocationBasedOptions) && $(select).hasClass('select2-port')) {
                 $(select).trigger('change.select2');
             }
         });
         
-        console.log('Filtered destinations for countries:', selectedDestinations);
+        console.log('Filtered services for cities:', selectedDestinations, 'countries:', getSelectedCountriesFromCities());
     }
     
     // Update destination tags display
@@ -5843,24 +5843,36 @@
         const container = document.getElementById('destinationTagsContainer');
         const searchInput = document.getElementById('destinationSearchInput');
         
-        if (!container || !searchInput) return;
+        if (!container) return;
         
         // Remove existing tags
         container.querySelectorAll('.destination-tag').forEach(tag => tag.remove());
         
-        // Add tags before search input directly in the container
+        const isLocked = !!window.isEditMode;
+        
+        // Add tags (no remove control when locked on edit)
         selectedDestinations.forEach(destination => {
             const tag = document.createElement('span');
             tag.className = 'destination-tag';
-            tag.innerHTML = `
-                ${destination}
-                <span class="remove-tag" onclick="removeDestinationTag('${destination}')">&times;</span>
-            `;
-            container.insertBefore(tag, searchInput);
+            if (isLocked) {
+                tag.textContent = destination;
+            } else {
+                tag.innerHTML = `
+                    ${destination}
+                    <span class="remove-tag" onclick="removeDestinationTag('${destination.replace(/'/g, "\\'")}')">&times;</span>
+                `;
+            }
+            if (searchInput) {
+                container.insertBefore(tag, searchInput);
+            } else {
+                container.appendChild(tag);
+            }
         });
         
-        // Update dropdown options
-        filterDestinations(searchInput.value);
+        // Update dropdown options (create mode only)
+        if (!isLocked && searchInput) {
+            filterDestinations(searchInput.value);
+        }
     }
     
     // Filter destinations in dropdown
@@ -5966,35 +5978,30 @@
         const childCount = parseInt(document.getElementById('childCountInput')?.value || 0);
         const infantCount = parseInt(document.getElementById('infantCountInput')?.value || 0);
         
-        // Get country/destination (supports multiple selections with tags)
-        let country = '';
-        let countries = [];
+        let cities = [];
         const destinationSelect = document.getElementById('destinationSelect');
         const destinationDisplay = document.getElementById('destinationDisplay');
         
-        if (destinationSelect) {
-            // Get from hidden input (comma-separated values)
-            const value = destinationSelect.value;
-            if (value) {
-                countries = value.split(',').map(c => c.trim()).filter(c => c);
-                country = countries.join(', '); // For backward compatibility
-            }
-            // Also try to get from global selectedDestinations array
-            if (countries.length === 0 && typeof selectedDestinations !== 'undefined') {
-                countries = [...selectedDestinations];
-                country = countries.join(', ');
-            }
-        } else if (destinationDisplay) {
-            country = destinationDisplay.value;
-            countries = country.split(',').map(c => c.trim()).filter(c => c);
+        if (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 0) {
+            cities = [...selectedDestinations];
+        } else if (destinationSelect && destinationSelect.value) {
+            cities = destinationSelect.value.split(',').map(c => c.trim()).filter(c => c);
+        } else if (destinationDisplay && destinationDisplay.value) {
+            cities = destinationDisplay.value.split(',').map(c => c.trim()).filter(c => c);
         }
+        
+        const countries = (typeof getSelectedCountriesFromCities === 'function')
+            ? getSelectedCountriesFromCities()
+            : [];
+        const country = countries.join(', ');
         
         return {
             adults: adultCount,
             children: childCount,
             infants: infantCount,
             country: country,
-            countries: countries // Array of selected destinations
+            countries: countries,
+            cities: cities
         };
     }
     
@@ -6384,13 +6391,13 @@
             if (hotelDestination) {
                 const options = hotelDestination.querySelectorAll('option');
                 
-                if (headerValues.countries.length > 0) {
+                if (headerValues.cities.length > 0) {
                     // Enable dropdown and hide all options except the selected countries
                     hotelDestination.disabled = false;
                     options.forEach(option => {
                         if (option.value === '') {
                             option.style.display = ''; // Keep the default option
-                        } else if (headerValues.countries.includes(option.value)) {
+                        } else if (headerValues.cities.includes(option.value)) {
                             option.style.display = '';
                         } else {
                             option.style.display = 'none';
@@ -6398,13 +6405,13 @@
                     });
                     
                     // Auto-select first country if not already set (when adding new hotel)
-                    if (!hotelDestination.value && headerValues.countries.length > 0) {
-                        hotelDestination.value = headerValues.countries[0];
+                    if (!hotelDestination.value && headerValues.cities.length > 0) {
+                        hotelDestination.value = headerValues.cities[0];
                         // Trigger onchange to load hotels (this will auto-select default hotel)
                         if (typeof loadHotelsByDestination === 'function') {
                             loadHotelsByDestination();
                         }
-                    } else if (hotelDestination.value && headerValues.countries.length > 0 && editingHotelId === null) {
+                    } else if (hotelDestination.value && headerValues.cities.length > 0 && editingHotelId === null) {
                         // If destination is already set and we're adding (not editing), ensure hotels are loaded and default is selected
                         const hotelSelect = document.getElementById('hotelSelect');
                         // Only reload if hotel is not already selected (adding new hotel)
@@ -6528,13 +6535,13 @@
             if (tourDestination) {
                 const options = tourDestination.querySelectorAll('option');
                 
-                if (headerValues.countries.length > 0) {
+                if (headerValues.cities.length > 0) {
                     // Enable dropdown and hide all options except the selected countries
                     tourDestination.disabled = false;
                     options.forEach(option => {
                         if (option.value === '') {
                             option.style.display = ''; // Keep the default option
-                        } else if (headerValues.countries.includes(option.value)) {
+                        } else if (headerValues.cities.includes(option.value)) {
                             option.style.display = '';
                         } else {
                             option.style.display = 'none';
@@ -6542,8 +6549,8 @@
                     });
                     
                     // Auto-select first country if not already set
-                    if (!tourDestination.value && headerValues.countries.length > 0) {
-                        tourDestination.value = headerValues.countries[0];
+                    if (!tourDestination.value && headerValues.cities.length > 0) {
+                        tourDestination.value = headerValues.cities[0];
                         // Trigger onchange to load attractions
                         if (typeof loadAttractionsByDestination === 'function') {
                             loadAttractionsByDestination();
@@ -6599,13 +6606,13 @@
             if (mealDestination) {
                 const options = mealDestination.querySelectorAll('option');
                 
-                if (headerValues.countries.length > 0) {
+                if (headerValues.cities.length > 0) {
                     // Enable dropdown and hide all options except the selected countries
                     mealDestination.disabled = false;
                     options.forEach(option => {
                         if (option.value === '') {
                             option.style.display = ''; // Keep the default option
-                        } else if (headerValues.countries.includes(option.value)) {
+                        } else if (headerValues.cities.includes(option.value)) {
                             option.style.display = '';
                         } else {
                             option.style.display = 'none';
@@ -6613,8 +6620,8 @@
                     });
                     
                     // Auto-select first country if not already set
-                    if (!mealDestination.value && headerValues.countries.length > 0) {
-                        mealDestination.value = headerValues.countries[0];
+                    if (!mealDestination.value && headerValues.cities.length > 0) {
+                        mealDestination.value = headerValues.cities[0];
                         // Trigger onchange to load restaurants
                         if (typeof loadRestaurantsByDestination === 'function') {
                             loadRestaurantsByDestination();
@@ -6881,13 +6888,13 @@
             if (guideDestination) {
                 const options = guideDestination.querySelectorAll('option');
                 
-                if (headerValues.countries.length > 0) {
+                if (headerValues.cities.length > 0) {
                     // Enable dropdown and hide all options except the selected countries
                     guideDestination.disabled = false;
                     options.forEach(option => {
                         if (option.value === '') {
                             option.style.display = ''; // Keep the default option
-                        } else if (headerValues.countries.includes(option.value)) {
+                        } else if (headerValues.cities.includes(option.value)) {
                             option.style.display = '';
                         } else {
                             option.style.display = 'none';
@@ -6895,8 +6902,8 @@
                     });
                     
                     // Auto-select first country if not already set
-                    if (!guideDestination.value && headerValues.countries.length > 0) {
-                        guideDestination.value = headerValues.countries[0];
+                    if (!guideDestination.value && headerValues.cities.length > 0) {
+                        guideDestination.value = headerValues.cities[0];
                         // Trigger onchange to load guides
                         if (typeof loadGuidesByDestination === 'function') {
                             loadGuidesByDestination();
@@ -6936,18 +6943,18 @@
                 });
             }, 500);
         } else if (modalType === 'misc' || modalType === 'miscellaneous') {
-            // Filter miscellaneous destination dropdown to show only selected countries
+            // Filter miscellaneous city dropdown to show only header-selected cities
             const miscDestination = document.getElementById('miscDestination');
             if (miscDestination) {
                 const options = miscDestination.querySelectorAll('option');
                 
-                if (headerValues.countries.length > 0) {
+                if (headerValues.cities.length > 0) {
                     // Enable dropdown and hide all options except the selected countries
                     miscDestination.disabled = false;
                     options.forEach(option => {
                         if (option.value === '') {
                             option.style.display = ''; // Keep the default option
-                        } else if (headerValues.countries.includes(option.value)) {
+                        } else if (headerValues.cities.includes(option.value)) {
                             option.style.display = '';
                         } else {
                             option.style.display = 'none';
@@ -6955,8 +6962,8 @@
                     });
                     
                     // Auto-select first country if not already set
-                    if (!miscDestination.value && headerValues.countries.length > 0) {
-                        miscDestination.value = headerValues.countries[0];
+                    if (!miscDestination.value && headerValues.cities.length > 0) {
+                        miscDestination.value = headerValues.cities[0];
                         // Trigger onchange to load misc items
                         if (typeof loadMiscItemsByDestination === 'function') {
                             loadMiscItemsByDestination();
@@ -8898,8 +8905,9 @@
             miscellaneous: []
         };
         
-        window.existingOrders.forEach(order => {
-            const serviceType = order.service_type || order.travel_type || order.item_type || '';
+        window.existingOrders.forEach(rawOrder => {
+            const serviceType = String(rawOrder.type || rawOrder.service_type || rawOrder.travel_type || rawOrder.item_type || '').toLowerCase();
+            const order = unwrapExistingOrderPayload(rawOrder);
             
             if (serviceType === 'accommodation' || serviceType === 'hotel') {
                 ordersByType.accommodation.push(order);
@@ -9226,6 +9234,45 @@
         console.log('Transfers:', transferList.length);
         console.log('Meals:', mealList.length);
         console.log('Miscellaneous:', miscList.length);
+
+        // Refresh service tables after loading (same as loadExistingOrdersData)
+        setTimeout(function() {
+            if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+            if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
+            if (typeof updateTourTable === 'function') updateTourTable();
+            if (typeof updateMealTable === 'function') updateMealTable();
+            if (typeof updateTransferTable === 'function') updateTransferTable();
+            if (typeof updateGuideTable === 'function') updateGuideTable();
+            if (typeof updateMiscTable === 'function') updateMiscTable();
+            if (typeof recalculateTotals === 'function') recalculateTotals();
+            if (typeof syncFocDiscountAfterOrdersLoaded === 'function') syncFocDiscountAfterOrdersLoaded();
+        }, 300);
+    }
+
+    /** Merge Order row with first element of its JSON data payload */
+    function unwrapExistingOrderPayload(rawOrder) {
+        const base = Object.assign({}, rawOrder);
+        let data = rawOrder.data;
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) { data = null; }
+        }
+        if (Array.isArray(data) && data.length > 0 && data[0] && typeof data[0] === 'object') {
+            return Object.assign(base, data[0], {
+                id: rawOrder.id,
+                order_id: rawOrder.id,
+                booking_id: rawOrder.booking_id,
+                type: rawOrder.type,
+            });
+        }
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            return Object.assign(base, data, {
+                id: rawOrder.id,
+                order_id: rawOrder.id,
+                booking_id: rawOrder.booking_id,
+                type: rawOrder.type,
+            });
+        }
+        return base;
     }
     
     // OLD FUNCTION: Function to load existing table data into JavaScript arrays (DEPRECATED - use loadExistingOrdersIntoArrays instead)
@@ -9572,9 +9619,13 @@
             });
         })();
         
-        // Load existing orders from backend into arrays (Fresh JSON format) BEFORE scanning
+        // Load existing orders from backend into service arrays BEFORE scanning dates
         if (window.isEditMode) {
-            loadExistingOrdersIntoArrays(); // Use fresh JSON format from backend
+            if (typeof loadExistingOrdersData === 'function') {
+                loadExistingOrdersData();
+            } else if (typeof loadExistingOrdersIntoArrays === 'function') {
+                loadExistingOrdersIntoArrays();
+            }
         } else {
             // In create mode, arrays are already empty
             console.log('Create mode: arrays are empty');
@@ -9605,9 +9656,9 @@
             
             // Filter ports based on initially selected countries
             filterPortsBySelectedCountries();
+            syncHeaderCitiesToServiceModals();
         }, 100);
         
-        // Sync popup dates to header dates when they change
         const checkInDate = document.getElementById('checkInDate');
         const checkOutDate = document.getElementById('checkOutDate');
         
@@ -9850,7 +9901,7 @@
             const hotelDestination = document.getElementById('hotelDestination');
             
             // If header has no destinations, clear the dropdown
-            if (headerValues.countries.length === 0 && hotelDestination) {
+            if (headerValues.cities.length === 0 && hotelDestination) {
                 console.log('No destinations in header, clearing destination dropdown');
                 hotelDestination.value = '';
                 // Also clear hotel dropdown
@@ -19181,7 +19232,7 @@
             // Clear items table
             const itemsTableBody = document.getElementById('miscItemsTableBody');
             if (itemsTableBody) {
-                itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
+                itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a city to load miscellaneous items</td></tr>';
             }
             
             // Reset checkboxes
@@ -19205,35 +19256,21 @@
         }
     }
     
-    // Load miscellaneous items by destination (from API based on DMC)
+    // Load miscellaneous items for selected city (DMC prices from miscellaneous_prices)
     function loadMiscItemsByDestination() {
-        const destination = document.getElementById('miscDestination').value;
+        const city = document.getElementById('miscDestination').value;
         const itemsTableBody = document.getElementById('miscItemsTableBody');
         
-        if (!destination) {
-            itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a destination to load miscellaneous items</td></tr>';
+        if (!city) {
+            itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a city to load miscellaneous items</td></tr>';
             return;
         }
         
         // Show loading state
         itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
         
-        // Get DMC ID from the form or session
-        const dmcId = '{{ $dmc_id ?? "" }}';
-        
-        console.log('DMC ID from backend:', dmcId);
-        console.log('User role_id:', '{{ auth()->user()->role_id ?? "N/A" }}');
-        console.log('User userId:', '{{ auth()->user()->userId ?? "N/A" }}');
-        console.log('User created_by:', '{{ auth()->user()->created_by ?? "N/A" }}');
-        
-        if (!dmcId || dmcId === '') {
-            itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;"><i class="ri-error-warning-line me-2"></i>DMC ID not found. Please contact support.<br><small class="text-muted">Role: {{ auth()->user()->role_id ?? "N/A" }}, User ID: {{ auth()->user()->userId ?? "N/A" }}</small></td></tr>';
-            console.error('DMC ID not available. User role:', '{{ auth()->user()->role_id ?? "N/A" }}');
-            return;
-        }
-        
-        // Fetch items from API
-        fetch(`{{ url('/api/miscellaneous/dmc') }}/${dmcId}`)
+        const url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        fetch(url)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load items');
@@ -27801,32 +27838,19 @@
         // If user submits now, treat currently removed items as final deletions.
         finalizePendingRemovals();
 
-        // Get values from header fields
-        // Extract destination countries directly from the visible destination tags in the header
-        // These tags represent the countries selected by the user from the dropdown
-        const destinationTagsContainer = document.getElementById('destinationTagsContainer');
-        const destinationTags = destinationTagsContainer?.querySelectorAll('.destination-tag');
-        const headerCountries = [];
+        const headerCities = (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 0)
+            ? [...selectedDestinations]
+            : [];
+        const cityNames = headerCities.join(', ');
+        const countryNamesList = (typeof getSelectedCountriesFromCities === 'function')
+            ? getSelectedCountriesFromCities()
+            : [];
+        let destination = countryNamesList.join(', ') || cityNames;
         
-        if (destinationTags && destinationTags.length > 0) {
-            destinationTags.forEach(tag => {
-                // Get the text content, remove the × symbol and trim
-                const countryName = tag.textContent.replace('×', '').trim();
-                if (countryName) {
-                    headerCountries.push(countryName);
-                }
-            });
-        }
-        
-        // Join countries with comma and space
-        let destination = headerCountries.join(', ');
-        
-        // Ensure destination fits within database limit (191 characters for varchar(191))
-        // If it's comma-separated, take first destinations that fit
         if (destination.length > 191) {
             let truncatedDest = '';
-            for (const dest of headerCountries) {
-                // Check if adding this destination would exceed limit
+            const parts = countryNamesList.length ? countryNamesList : headerCities;
+            for (const dest of parts) {
                 const testDest = truncatedDest ? truncatedDest + ', ' + dest : dest;
                 if (testDest.length <= 191) {
                     truncatedDest = testDest;
@@ -27834,7 +27858,7 @@
                     break;
                 }
             }
-            destination = truncatedDest || headerCountries[0].substring(0, 191);
+            destination = truncatedDest || (parts[0] || '').substring(0, 191);
         }
         
         const startDate = getHeaderStartInput()?.value;
@@ -27846,7 +27870,7 @@
         const agencyId = document.getElementById('agencySelect')?.value;
         const male = parseInt(document.getElementById('adultManInput')?.value) || 0;
         const female = parseInt(document.getElementById('adultWomenInput')?.value) || 0;
-        const city = null; // Not used in current form
+        const city = cityNames || null;
         // Preserve child_ages JSON across edit save so tour.child_ages doesn't get nulled out
         const childAges = (document.getElementById('enquiryProChildAges')?.value || '[]');
         
@@ -29566,11 +29590,9 @@
             }
         }, 500);
         
-        // EDIT MODE: Load existing data
-        if (window.isEditMode && window.existingOrders && window.existingTourData) {
-            console.log('=== INITIALIZING EDIT MODE ===');
-            loadExistingTourData();
-            loadExistingOrdersData();
+        // EDIT MODE: header fields are set server-side; orders load on main DOMContentLoaded init
+        if (window.isEditMode && window.existingTourData) {
+            console.log('=== EDIT MODE READY ===');
         }
     });
     
@@ -29652,15 +29674,18 @@
             countrySelect.value = tour.country;
         }
         
-        // Agency/Agent
-        const agencySelect = document.getElementById('agency') || document.querySelector('select[name="agency_id"]');
+        // Agency/Agent (header selects use agencySelect / agentSelect ids)
+        const agencySelect = document.getElementById('agencySelect');
         if (agencySelect && tour.agency_id) {
-            agencySelect.value = tour.agency_id;
+            agencySelect.value = String(tour.agency_id);
+            if (typeof loadAgentsByAgency === 'function') {
+                loadAgentsByAgency();
+            }
         }
         
-        const agentSelect = document.getElementById('agent') || document.querySelector('select[name="agent_id"]');
+        const agentSelect = document.getElementById('agentSelect');
         if (agentSelect && tour.agent_id) {
-            agentSelect.value = tour.agent_id;
+            agentSelect.value = String(tour.agent_id);
         }
         
         console.log('Tour header data loaded successfully');

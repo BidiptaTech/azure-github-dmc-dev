@@ -12,6 +12,11 @@ class Zone extends Model
 
     protected $primaryKey = 'id';
 
+    public function getRouteKeyName()
+    {
+        return 'zone_id';
+    }
+
     public $incrementing = true;
 
     protected $keyType = 'int';
