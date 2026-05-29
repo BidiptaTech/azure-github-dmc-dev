@@ -107,7 +107,10 @@
                                     Status{!! $sortIcon('status') !!}
                                 </a>
                             </th>
-                            @if(auth()->user()->role_id == 11)
+                            @php
+                                $accessRoles = [11, 35, 130, 132, 133, 135, 136, 137, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $accessRoles))
                             <th>Zone</th>
                             @endif
                             <th>Actions</th>
@@ -129,7 +132,10 @@
                                     {{ $zone->status == 1 ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            @if(auth()->user()->role_id == 11)
+                            @php
+                                $accessRoles = [11, 35, 130, 132, 133, 135, 136, 137, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $accessRoles))
                             <td>
                                 <!-- Settings Icon - Opens Checkbox Modal -->
                                 <button type="button" 
