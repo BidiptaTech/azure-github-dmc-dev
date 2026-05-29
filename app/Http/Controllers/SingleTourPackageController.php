@@ -928,8 +928,12 @@ class SingleTourPackageController extends Controller
                         'guest_name' => $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? 'Guest',
                         'email' => $mainGuestData['email'] ?? null,
                         'country_code' => $mainGuestData['country_code'] ?? null,
-                        'contact' => $mainGuestData['phone'] ?? null,
-                        'whatsapp_no' => $mainGuestData['phone'] ?? null,
+                        'contact' => filled($mainGuestData['phone'] ?? null)
+                            ? $mainGuestData['phone']
+                        : null,
+                        'whatsapp_no' => filled($mainGuestData['phone'] ?? null)
+                            ? $mainGuestData['phone']
+                            : null,
                         'passport' => $mainGuestData['passport'] ?? null,
                         'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
                         'salutation' => $salutation,
