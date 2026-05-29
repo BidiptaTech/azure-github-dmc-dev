@@ -252,12 +252,18 @@ class ZoneController extends Controller
      */
     public function create()
     {
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
-            $city = City::orderBy('name')->get();
+        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
+            || (int) (Auth::user()->userId ?? 0) === 1;
+
+        $countries = collect();
+        if ($isAdmin) {
+            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
+            $city = collect();
         } else {
             $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
         }
-        return view('zones.create', compact('city'));
+
+        return view('zones.create', compact('city', 'countries', 'isAdmin'));
     }
     
 
@@ -357,12 +363,21 @@ class ZoneController extends Controller
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to edit this zone');
         }
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
-            $city = City::orderBy('name')->get();
+
+        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
+            || (int) (Auth::user()->userId ?? 0) === 1;
+
+        $countries = collect();
+        $zoneCountry = null;
+        if ($isAdmin) {
+            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
+            $city = collect();
+            $zoneCountry = City::where('city_id', $zone->city)->value('country');
         } else {
             $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
         }
-        return view('zones.edit', compact('zone', 'city'));
+
+        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry'));
     }
 
     /**
