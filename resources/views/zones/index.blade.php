@@ -117,6 +117,23 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $modalUser = auth()->user();
+                            $modalIsAdmin = (int) ($modalUser->userId ?? 0) === 1;
+                            $modalAdminDmcId = 1;
+                            $modalDmcId = $modalIsAdmin ? $modalAdminDmcId : (int) ($dmcId ?? 0);
+                            $itemBelongsToDmc = function ($model) use ($modalIsAdmin, $modalDmcId) {
+                                if ($modalIsAdmin) {
+                                    return true;
+                                }
+                                if (!$modalDmcId) {
+                                    return false;
+                                }
+                                $dmcIds = (array) ($model->dmc_id ?? []);
+                                return in_array($modalDmcId, $dmcIds, true)
+                                    || in_array((string) $modalDmcId, $dmcIds, true);
+                            };
+                        @endphp
                         @forelse($zones as $key => $zone)
                         <tr>
                             <td>{{ ++$key }}</td>
@@ -184,12 +201,8 @@
                                             </div>
                                             <form action="{{ route('zones.settings', $zone->zone_id) }}" method="POST">
                                                 @csrf
-                                                @php
-                                                    // Admin assignments are stored under a DMC context. By default we use DMC id = 1.
-                                                    $adminDmcId = 1;
-                                                @endphp
-                                                @if((int) (auth()->user()->userId ?? 0) === 1)
-                                                    <input type="hidden" name="dmc_id" value="{{ $adminDmcId }}">
+                                                @if($modalIsAdmin)
+                                                    <input type="hidden" name="dmc_id" value="{{ $modalAdminDmcId }}">
                                                 @endif
                                                 <div class="modal-body p-4" style="height: 60vh; overflow-y: auto;">
                                                     <div class="modal-body-content">
@@ -204,20 +217,16 @@
                                                             <hr class="my-2 border-success-subtle">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
-                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($user) {
-                                                                        if (($hotel->status ?? 0) != 1) return false;
-                                                                        // Admin should see all active hotels in the modal.
-                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
-                                                                        return in_array($user->userId, (array) $hotel->dmc_id);
+                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($itemBelongsToDmc) {
+                                                                        if (($hotel->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        return $itemBelongsToDmc($hotel);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeHotels as $hotel)
                                                                     @php
-                                                                        // Admin: show assignments stored under adminDmcId so checkboxes reflect saved state.
-                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
-                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($effectiveDmcId);
+                                                                        $currentZoneForThisDmc = $hotel->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -240,10 +249,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableHotels = $activeHotels->filter(function($h) use ($zone, $user) { 
-                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
-                                                                        $currentZone = $h->getZoneForDmc($effectiveDmcId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableHotels = $activeHotels->filter(function ($h) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $h->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableHotels->count() == 0)
@@ -268,19 +276,16 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
-                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($user) {
-                                                                        if (($attraction->status ?? 0) != 1) return false;
-                                                                        // Admin should see all active attractions in the modal.
-                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
-                                                                        return in_array($user->userId, (array) $attraction->dmc_id);
+                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($itemBelongsToDmc) {
+                                                                        if (($attraction->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        return $itemBelongsToDmc($attraction);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeAttractions as $attraction)
                                                                     @php
-                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
-                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($effectiveDmcId);
+                                                                        $currentZoneForThisDmc = $attraction->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -303,10 +308,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableAttractions = $activeAttractions->filter(function($a) use ($zone, $user) { 
-                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
-                                                                        $currentZone = $a->getZoneForDmc($effectiveDmcId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableAttractions = $activeAttractions->filter(function ($a) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $a->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableAttractions->count() == 0)
@@ -331,19 +335,16 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $user = auth()->user();
-                                                                    $isAdminUser = (int) ($user->userId ?? 0) === 1;
-                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($user) {
-                                                                        if (($restaurant->status ?? 0) != 1) return false;
-                                                                        // Admin should see all active restaurants in the modal.
-                                                                        if ((int) ($user->userId ?? 0) === 1) return true;
-                                                                        return in_array($user->userId, (array) $restaurant->dmc_id);
+                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($itemBelongsToDmc) {
+                                                                        if (($restaurant->status ?? 0) != 1) {
+                                                                            return false;
+                                                                        }
+                                                                        return $itemBelongsToDmc($restaurant);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeRestaurants as $restaurant)
                                                                     @php
-                                                                        $effectiveDmcId = $isAdminUser ? $adminDmcId : $user->userId;
-                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($effectiveDmcId);
+                                                                        $currentZoneForThisDmc = $restaurant->getZoneForDmc($modalDmcId);
                                                                         $isAvailable = is_null($currentZoneForThisDmc) || $currentZoneForThisDmc == $zone->zone_id;
                                                                     @endphp
                                                                     @if($isAvailable)
@@ -366,10 +367,9 @@
                                                                 @endforeach
                                                                 
                                                                 @php
-                                                                    $availableRestaurants = $activeRestaurants->filter(function($r) use ($zone, $user) { 
-                                                                        $effectiveDmcId = ((int) ($user->userId ?? 0) === 1) ? 1 : $user->userId;
-                                                                        $currentZone = $r->getZoneForDmc($effectiveDmcId);
-                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id; 
+                                                                    $availableRestaurants = $activeRestaurants->filter(function ($r) use ($zone, $modalDmcId) {
+                                                                        $currentZone = $r->getZoneForDmc($modalDmcId);
+                                                                        return is_null($currentZone) || $currentZone == $zone->zone_id;
                                                                     });
                                                                 @endphp
                                                                 @if($availableRestaurants->count() == 0)
@@ -427,13 +427,14 @@
                                     @endif
                                     <!-- Delete -->
                                     @if($zone->dmc_id == $dmcId)
-                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline zone-delete-form">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" 
-                                                class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center"
+                                        <button type="button"
+                                                class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center btn-delete-zone"
                                                 style="width: 28px; height: 28px; padding: 0;" title="Delete"
-                                                onclick="return confirm('Are you sure you want to delete this zone?\\n\\nNote: This will also remove this zone assignment from all related {{ strtolower($zone->zone_type ?? 'items') }} for your DMC (by updating zone_assignments).')">
+                                                data-zone-name="{{ $zone->zone_name }}"
+                                                data-zone-type="{{ strtolower($zone->zone_type ?? 'items') }}">
                                             <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                         </button>
                                     </form>
@@ -456,8 +457,50 @@
 @endsection
 
 @push('scripts')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-delete-zone').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const form = this.closest('.zone-delete-form');
+            const zoneName = this.getAttribute('data-zone-name') || 'this zone';
+            const zoneType = this.getAttribute('data-zone-type') || 'items';
+
+            Swal.fire({
+                title: 'Delete Zone?',
+                html: '<p class="mb-2">Are you sure you want to delete <strong>' + escapeHtml(zoneName) + '</strong>?</p>' +
+                      '<p class="text-muted small mb-0"><i class="ri-information-line me-1"></i>Note: This will also remove this zone assignment from all related ' +
+                      escapeHtml(zoneType) + ' for your <code>DMC</code>.</p>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="ri-delete-bin-line me-1"></i> Yes, delete it',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true,
+                focusCancel: true,
+                customClass: {
+                    popup: 'swal2-zone-delete',
+                    confirmButton: 'px-4',
+                    cancelButton: 'px-4'
+                }
+            }).then(function(result) {
+                if (result.isConfirmed && form) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    form.submit();
+                }
+            });
+        });
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     // Handle all modals properly to fix aria-hidden and display issues
     const modalElements = document.querySelectorAll('.modal');
     

@@ -3666,7 +3666,7 @@ class SingleTourPackageController extends Controller
                                     ]);
                                     
                                     // Continue with next hotel booking instead of failing completely
-                                    continue;
+                                    throw $e;
                                 }
                             }
                             
