@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
 use App\Models\LostFound;
+use App\Models\Role;
 use App\Models\Tour;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,14 +59,14 @@ class LostFoundController extends Controller
     }
 
     /**
-     * Store staff response: comment → lost_found.comments, images → Azure via CommonHelper::image_path.
+     * Store staff response: comments JSON → lost_found.comments, images → Azure via CommonHelper::image_path.
      */
     public function storeResponse(Request $request, $id)
     {
         $this->authorizeOperationUser();
 
         $request->validate([
-            'comment' => 'nullable|string|max:5000',
+            'comments' => 'nullable|string|max:5000',
             'images' => 'nullable|array|max:10',
             'images.*' => 'image|max:5120',
         ]);
@@ -90,10 +92,10 @@ class LostFoundController extends Controller
             ], 404);
         }
 
-        $comment = trim((string) $request->input('comment', ''));
+        $commentsText = trim((string) $request->input('comments', ''));
         $hasImages = $request->hasFile('images') && count($request->file('images')) > 0;
 
-        if ($comment === '' && !$hasImages) {
+        if ($commentsText === '' && !$hasImages) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please add a comment or upload at least one image.',
@@ -119,15 +121,19 @@ class LostFoundController extends Controller
             }
         }
 
-        if ($comment === '' && empty($azureImageUrls)) {
+        if ($commentsText === '' && empty($azureImageUrls)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to upload images to storage. Please try again.',
             ], 422);
         }
 
-        if ($comment !== '') {
-            $report->comments = $comment;
+        if ($commentsText !== '') {
+            $report->appendCommentEntry([
+                'comments' => $commentsText,
+                'user' => $this->resolveCurrentUserRoleName(),
+                'time_date' => Carbon::now()->format('Y-m-d H:i:s'),
+            ]);
         }
 
         if (!empty($azureImageUrls)) {
@@ -160,4 +166,19 @@ class LostFoundController extends Controller
             ],
         ]);
     }
+
+    private function resolveCurrentUserRoleName(): ?string
+    {
+        $user = Auth::user();
+        if (!$user || $user->role_id === null || $user->role_id === '') {
+            return null;
+        }
+
+        $name = Role::query()
+            ->where('role_id', $user->role_id)
+            ->value('name');
+
+        return is_string($name) && trim($name) !== '' ? trim($name) : null;
+    }
+
 }
