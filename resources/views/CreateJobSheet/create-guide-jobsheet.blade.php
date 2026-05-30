@@ -287,6 +287,17 @@ $(document).ready(function() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
+    function getSelectedJobsheetDate() {
+        const visible = ($('#dateSelect').val() || '').trim();
+        if (visible) {
+            return visible;
+        }
+        if (datePicker && datePicker.selectedDates && datePicker.selectedDates.length) {
+            return datePicker.formatDate(datePicker.selectedDates[0], 'Y-m-d');
+        }
+        return tomorrowStr;
+    }
+
     // Custom alert function
     function showAlert(type, message) {
         // Create the alert element
@@ -376,7 +387,7 @@ $(document).ready(function() {
                         <td>${item.tour_id || 'N/A'}</td>
                         <td>${item.type || 'N/A'}</td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
-                        <td>${getGuestNameFromMainguest(item.mainguest.full_name) || 'N/A'}</td>
+                        <td>${getGuestNameFromMainguest(item.tour?.mainguest ?? item.mainguest) || 'N/A'}</td>
                         <td>${normalizeCount(item.tour?.adult)}</td>
                         <td>${normalizeCount(item.tour?.child)}</td>
                         <td>${normalizeCount(item.tour?.infant)}</td>
@@ -754,28 +765,18 @@ $(document).ready(function() {
         }
     }
 
-    // Initialize Flatpickr for date input FIRST
+    // Initialize Flatpickr for date input
     datePicker = flatpickr("#dateSelect", {
         dateFormat: "Y-m-d",
         disableMobile: "true",
         defaultDate: tomorrowStr,
         onChange: function(selectedDates, dateStr) {
-            // Load orders based on selected date
             loadOrdersByDate(dateStr);
         }
     });
-    
-    // Set the date value explicitly
-    setTimeout(function() {
-        if (datePicker) {
-            datePicker.setDate(tomorrowStr);
-        }
-        $('#dateSelect').val(tomorrowStr);
-        console.log("Date set to:", tomorrowStr, "Input value:", $('#dateSelect').val());
-    }, 100);
-    
-    // Then load the table with initial data from controller
-    initializeTable();
+
+    // Flatpickr shows tomorrow but onChange does not run on load — fetch tomorrow's orders via AJAX (same as date change).
+    loadOrdersByDate(getSelectedJobsheetDate());
 
     // Pen icon: show dropdown for Assign Guide, then collapse back to text on close
     $(document).on('click', '.assign-guide-edit-btn', function() {
@@ -830,7 +831,7 @@ $(document).ready(function() {
         const entryPickup = $select.data('entrypickup');
         const type = $select.data('type');
         const tourId = $select.data('tour-id');
-        const date = $('#dateSelect').val();
+        const date = getSelectedJobsheetDate();
         const dmcId = $('#dmc_id').val();
         
         console.log('=== Guide Selection Debug ===');
@@ -992,11 +993,10 @@ $(document).ready(function() {
         e.preventDefault();
         
         const formData = new FormData();
-        formData.append('date', $('#dateSelect').val());
+        const dateValue = getSelectedJobsheetDate();
+        formData.append('date', dateValue);
         formData.append('dmc_id', $('#dmc_id').val());
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
-
-        const dateValue = $('#dateSelect').val();
 
         fetch($(this).attr('action'), {
             method: 'POST',

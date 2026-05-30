@@ -2109,9 +2109,12 @@ class HotelController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $auth_user = Auth::user();
+        
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
-        $rooms = Room::where('hotel_id', $id)->where('created_by', $auth_user->userId)
+        $dmcId = CommonHelper::getDmcId($auth_user);
+        $rooms = Room::where('hotel_id', $id)->where('created_by', $dmcId)
         ->get();
+
         
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
@@ -2150,7 +2153,7 @@ class HotelController extends Controller
             });
         } else {
             // DMC/Other users: Show only their own beds
-            $bedsData = Bed::with('room')->where('dmc_id', $auth_user->userId)
+            $bedsData = Bed::with('room')->where('dmc_id', $dmcId)
                           ->whereHas('room', function ($query) use ($id) {
                               $query->where('hotel_id', $id);
                           })
@@ -2258,14 +2261,14 @@ class HotelController extends Controller
         $bed->baby_cot = $request->input('baby_cot') ?? null;
         $bed->baby_cot_price = $request->input('baby_cot_price') ?? 0;
         // $bed->bed_id = $bedId;
-        
+        $dmcId = CommonHelper::getDmcId($auth_user);
         // Set DMC ID based on user role
         if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
             // Admin/Manager users: use the selected DMC ID
             $bed->dmc_id = $request->input('dmc_id');
         } else {
             // Regular DMC users: use their own user ID
-            $bed->dmc_id = $auth_user->userId;
+            $bed->dmc_id = $dmcId;
         }
         
         $bed->room_id = $request->input('room_id');

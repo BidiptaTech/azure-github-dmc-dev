@@ -1382,7 +1382,12 @@ class JobSheetController extends Controller
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                    ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                    ->where(function ($q) use ($dmcId) {
+                        $q->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
+                          ->orWhereRaw("data->0->>'dmc_id' = ?", [$dmcId]);
+                    })
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
 
                 // Format display_id: strip DMC- and prefix with company_code/user_code

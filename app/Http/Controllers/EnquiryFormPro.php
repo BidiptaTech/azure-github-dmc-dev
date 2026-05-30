@@ -218,7 +218,13 @@ class EnquiryFormPro extends Controller
     
     public function create(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::user();
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
         $destination = $user->country ?? 'Singapore';
         
         // Get initial data from session if available
@@ -4302,15 +4308,17 @@ class EnquiryFormPro extends Controller
             $restaurantId = $request->input('restaurant_id');
             $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
             
-            // Get DMC ID from authenticated user
-            $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
-            
-            // If user is DMC (role_id 11), use their own userId
-            if ($user->role_id == 11) {
-                $dmcId = $user->userId;
+            // Resolve DMC ID from logged-in user role chain (DMC, product head/manager, sales, etc.)
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated',
+                ], 401);
             }
-            
+
+            $dmcId = $this->resolveDmcIdForUser($user);
+
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
@@ -4348,8 +4356,10 @@ class EnquiryFormPro extends Controller
             \Log::info('EnquiryFormPro fetchMealsByRestaurant result:', [
                 'restaurant_id' => $restaurantId,
                 'dmc_id' => $dmcId,
+                'user_id' => $user->userId,
+                'role_id' => $user->role_id,
                 'meal_period' => $mealPeriod,
-                'meals_count' => $meals->count()
+                'meals_count' => $meals->count(),
             ]);
 
             $mealsData = $meals->map(function ($meal) {
