@@ -788,7 +788,7 @@
                             </tr>
                             @endforeach
                         @else
-                            <tr>
+                            {{-- <tr>
                                 <td colspan="8" class="text-center py-4">
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="ri-briefcase-line ri-48px text-muted mb-2"></i>
@@ -796,7 +796,7 @@
                                         <p class="text-muted mb-0">No package bookings available.</p>
                                     </div>
                                 </td>
-                            </tr>
+                            </tr> --}}
                         @endif
                     </tbody>
                 </table>

@@ -143,7 +143,6 @@ class ZoneController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-
         // Build the base query first (so we can apply filters/sorting consistently).
         $zonesQuery = Zone::query();
 
@@ -160,7 +159,7 @@ class ZoneController extends Controller
             $zonesQuery->where(function ($q) use ($user) {
                 // Master zones always visible
                 $q->whereNull('dmc_id')->orWhere('dmc_id', 0)->orWhere('dmc_id', '0');
-
+                
                 // Legacy DMC zones (keep existing behavior)
                 if ($user->role_id == 4) {
                     $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
@@ -169,9 +168,11 @@ class ZoneController extends Controller
                     $dmc_ids = User::where('master_dmc_id', $user->userId)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
                 } elseif ($user->role_id == 11 || $user->role_id == 20) {
+                   
                     $q->orWhere('dmc_id', $user->userId);
-                } elseif (in_array($user->role_id, [25, 62, 110], true)) {
+                } elseif (in_array($user->role_id, ["25", "62", "110"], true)) {
                     if($user->role_id == 25){
+
                         $master_dmc_id = $user->created_by;
                     }
                     elseif($user->role_id == 62){
@@ -186,7 +187,7 @@ class ZoneController extends Controller
 
                     $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif (in_array($user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
+                } elseif (in_array($user->role_id, ["35", "130", "132", "133", "135", "136", "137", "138"], true)) {
                     $q->orWhere('dmc_id', $user->created_by);
                 } elseif ($user->role_id == 76 || $user->role_id == 139) {
                     $product_head = User::where('userId', $user->created_by)->first();
@@ -223,7 +224,7 @@ class ZoneController extends Controller
         if ($zoneType !== '' && in_array($zoneType, $allowedTypes, true)) {
             $zonesQuery->where('zone_type', $zoneType);
         }
-
+        
         // Optional sorting (preserved in UI when switching sort).
         $sort = (string) $request->query('sort', 'updated_at');
         $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';

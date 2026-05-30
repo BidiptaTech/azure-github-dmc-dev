@@ -93,14 +93,6 @@ class SingleTourPackageController extends Controller
             }
         }
         $countries = $countriesQuery->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($request->has('country') && $request->country) {
-            $country = Country::find($request->country);
-            if ($country) {
-                $portsQuery->where('country', $country->name);
-            }
-        }
-        $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
         $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
         
@@ -246,6 +238,15 @@ class SingleTourPackageController extends Controller
         
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
+
+        $portsCountryName = null;
+        if ($enquiry && !empty($enquiry->country)) {
+            $portsCountryName = $enquiry->country;
+        } elseif ($request->filled('country')) {
+            $countryForPorts = Country::find($request->country) ?? Country::where('name', $request->country)->first();
+            $portsCountryName = $countryForPorts?->name;
+        }
+        $ports = $this->getPortsForDmc($portsCountryName);
         
         return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'multiRestaurants', 'entryDropoffLocation', 'exitPickupLocation'));
     }
@@ -452,15 +453,8 @@ class SingleTourPackageController extends Controller
         $dmc_id = CommonHelper::getDmcId(Auth::user());
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($tour->destination) {
-            $country = Country::where('name', $tour->destination)->first();
-            if ($country) {
-                $portsQuery->where('country', $country->name);
-            }
-        }
         $cities = City::where('country', $tour->destination)->get();
-        $ports = $portsQuery->orderBy('port_name')->get();
+        $ports = $this->getPortsForDmc($tour->destination ?: null);
         
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::WhereIn('agency_id', $agencies->pluck('agency_id'))
@@ -1145,15 +1139,11 @@ class SingleTourPackageController extends Controller
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($tour->destination) {
-            $portsQuery->where('country', $tour->destination);
-        }
         $cities = City::where('country', $tour->destination)->get();
         if ($cities->isEmpty()) {
             $cities = City::orderBy('name')->get();
         }
-        $ports = $portsQuery->orderBy('port_name')->get();
+        $ports = $this->getPortsForDmc($tour->destination ?: null);
 
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
@@ -1463,15 +1453,19 @@ class SingleTourPackageController extends Controller
             return response()->json(['ports' => []]);
         }
         
-        $country = Country::where('name', $countryId)->first();
+        $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
         if (!$country) {
             return response()->json(['ports' => []]);
         }
-        
-        $ports = Port::where('country', $country->name)
-                ->select('id', 'port_id', 'port_name', 'country')
-                ->orderBy('port_name')
-                ->get();
+
+        $ports = $this->getPortsForDmc($country->name)
+            ->map(fn ($port) => [
+                'id' => $port->id,
+                'port_id' => $port->port_id,
+                'port_name' => $port->port_name,
+                'country' => $port->country,
+            ])
+            ->values();
                  
         return response()->json(['ports' => $ports]);
     }
@@ -1650,6 +1644,57 @@ class SingleTourPackageController extends Controller
                 ]
             ], 500);
         }
+    }
+
+    /**
+     * Country names assigned to the master DMC (comma-separated on user record).
+     */
+    private function getDmcCountryNames(): array
+    {
+        $dmcId = CommonHelper::getDmcId(Auth::user());
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || !$dmcUser->created_by) {
+            return [];
+        }
+
+        $mdmcUser = User::where('userId', $dmcUser->created_by)->first();
+        if (!$mdmcUser || empty($mdmcUser->country)) {
+            return [];
+        }
+
+        $names = array_map('trim', explode(',', (string) $mdmcUser->country));
+
+        return array_values(array_filter($names));
+    }
+
+    /**
+     * Ports limited to DMC-accessible countries; optionally narrowed to one country.
+     */
+    private function getPortsForDmc(?string $countryName = null)
+    {
+        $query = Port::query();
+
+        if (Schema::hasColumn('ports', 'status')) {
+            $query->where('status', 1);
+        }
+
+        $dmcCountries = $this->getDmcCountryNames();
+        if (!empty($dmcCountries)) {
+            $query->whereIn('country', $dmcCountries);
+        }
+
+        if ($countryName) {
+            if (!empty($dmcCountries) && !in_array($countryName, $dmcCountries, true)) {
+                return collect();
+            }
+            $query->where('country', $countryName);
+        }
+
+        return $query->orderBy('port_name')->get();
     }
 
     /**
@@ -3666,7 +3711,7 @@ class SingleTourPackageController extends Controller
                                     ]);
                                     
                                     // Continue with next hotel booking instead of failing completely
-                                    continue;
+                                    throw $e;
                                 }
                             }
                             

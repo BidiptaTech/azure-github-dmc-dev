@@ -360,7 +360,7 @@
                     <span class="menu-header-text" data-i18n="All Products">All Products</span>
                 </li>
 
-            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
+            <li class="menu-item @if(Request::is('packages*') || Request::is('packaged-attractions*') || Request::is('hotels*') || Request::is('attraction*') || Request::is('restaurant*') || Request::is('multiRestaurant*') || Request::is('guide*') || Request::is('vehicle*') || Request::is('driver*')) open active @endif">
                 <a href="#" class="menu-link menu-toggle">
                     <i class="menu-icon tf-icons ri-stack-line" style="color: #3565bd"></i>
                     <div data-i18n="All Products">All Products</div>
@@ -487,7 +487,7 @@
 
                 <!-- Restaurant -->
                 @if(hasPermission('view restaurant') || hasPermission('create restaurant'))
-                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiResturant*')) open @endif">
+                <li class="menu-item @if((Request::is('restaurant*') && !Request::is('restaurants/restaurant-approval*')) || Request::is('multiRestaurant*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         {{-- <i class="menu-icon tf-icons ri-restaurant-2-line"></i> --}}
                         <div data-i18n="Restaurant">Restaurant</div>
@@ -1381,7 +1381,7 @@
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
-                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*')) open @endif">
+                <li class="menu-item @if(Request::is('users*', 'roles*', 'features*', 'bank-details*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
                         <div data-i18n="All Users">All Users</div>
@@ -1479,7 +1479,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1831,7 +1831,7 @@
                     <div class="row g-2 mb-1" id="singleDestinationDiv">
                         <div class="col-12">
                             <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search destination..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <input type="text" class="form-control form-control-sm" id="destinationSingle" placeholder="Type to search city..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
                                 <div id="destinationSuggestionsSingle" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <input type="hidden" id="destinationSingleValue" name="destination_single">
@@ -1842,7 +1842,7 @@
                     <div class="row g-2 mb-1" id="multipleDestinationDiv" style="display: none;">
                         <div class="col-12">
                             <div class="position-relative">
-                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple destinations..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
+                                <input type="text" class="form-control form-control-sm" id="destinationMultiple" placeholder="Type to search and select multiple cities..." autocomplete="off" style="font-size: 10px;" readonly onfocus="this.removeAttribute('readonly');">
                                 <div id="destinationSuggestions" class="list-group position-absolute w-100" style="z-index: 1050; max-height: 120px; overflow-y: auto; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 10px; background-color: white; border: 1px solid #dee2e6;"></div>
                             </div>
                             <div id="selectedDestinations" class="mt-1"></div>
@@ -3129,7 +3129,7 @@
                     item.style.padding = '6px 10px';
                     item.style.fontSize = '10px';
                     item.style.cursor = 'pointer';
-                    item.textContent = dest.name;
+                    item.textContent = dest.country ? (dest.name + ' (' + dest.country + ')') : dest.name;
                     item.addEventListener('click', function() {
                         destinationSingleInput.value = dest.name;
                         destinationSingleValue.value = dest.name;
@@ -3171,7 +3171,7 @@
                     item.style.padding = '6px 10px';
                     item.style.fontSize = '10px';
                     item.style.cursor = 'pointer';
-                    item.textContent = dest.name;
+                    item.textContent = dest.country ? (dest.name + ' (' + dest.country + ')') : dest.name;
                     item.addEventListener('click', function() {
                         addDestination(dest.name);
                         destinationInput.value = '';

@@ -94,7 +94,7 @@ class DefaultValueController extends Controller
 
         // Get available types (types that haven't been set yet)
         $existingTypes = $defaultValues->pluck('name')->toArray();
-        $allTypes = ['hotel', 'restaurant', 'attraction', 'port', 'guide'];
+        $allTypes = ['hotel', 'restaurant', 'attraction', 'car_private', 'car_shared', 'port', 'guide'];
         $availableTypes = array_diff($allTypes, $existingTypes);
 
         return view('default-values.index', compact('defaultValues', 'availableTypes', 'dmcId'));
@@ -114,7 +114,7 @@ class DefaultValueController extends Controller
 
         // Get existing types for this DMC
         $existingTypes = DefaultValue::where('dmc_id', $dmcId)->pluck('name')->toArray();
-        $allTypes = ['hotel', 'restaurant', 'attraction', 'port', 'guide'];
+        $allTypes = ['hotel', 'restaurant', 'attraction', 'car_private', 'car_shared', 'port', 'guide'];
         $availableTypes = array_diff($allTypes, $existingTypes);
 
         if (empty($availableTypes)) {
@@ -160,7 +160,7 @@ class DefaultValueController extends Controller
             ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'sharable')
             ->orderBy('vehicle_name')
             ->get();
-        
+
         // Log vehicle counts for debugging
         \Log::info('DefaultValueController create() - Vehicles loaded', [
             'dmc_id' => $dmcId,
@@ -212,7 +212,7 @@ class DefaultValueController extends Controller
 
         // Validate input
         $validator = Validator::make($request->all(), [
-            'name' => 'required|in:hotel,restaurant,attraction,port,guide',
+            'name' => 'required|in:hotel,restaurant,attraction,car_private,car_shared,port,guide',
             'service_id' => 'required|string',
             'status' => 'required|integer|in:0,1',
         ]);
