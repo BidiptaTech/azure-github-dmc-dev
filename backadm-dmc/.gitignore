@@ -17,7 +17,7 @@ yarn-error.log
 /.idea
 /.vscode
 /config/database.php
-
+/storage
 # Storage link (should be created during deployment, not committed)
 /public/storage
 /storage/
@@ -31,7 +31,7 @@ deploy.log
 # Azure deployment artifacts
 .deployment
 deploy.cmd
-
+/storage
 # Laravel storage and cache
 /storage/logs/*.log
 /storage/framework/cache/data/*
