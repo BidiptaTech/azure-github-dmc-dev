@@ -26,6 +26,7 @@ class ExternalApiReceiveController extends Controller
             'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
             'headers' => $request->headers->all(),
             'payload' => $payload,
+            'status' => false,
         ]);
 
 
@@ -50,23 +51,23 @@ class ExternalApiReceiveController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = (int) $request->query('per_page', 20);
-        $perPage = max(1, min(100, $perPage));
+        // $perPage = (int) $request->query('per_page', 20);
+        // $perPage = max(1, min(100, $perPage));
 
         $rows = ExternalApiReceive::query()
-            ->latest('id')
-            ->paginate($perPage);
+            ->latest('id')->where('status', false)
+            ->first();
 
         return response()->json([
             'success' => true,
             'message' => 'Received payload list fetched.',
-            'data' => $rows->items(),
-            'pagination' => [
-                'current_page' => $rows->currentPage(),
-                'per_page' => $rows->perPage(),
-                'total' => $rows->total(),
-                'last_page' => $rows->lastPage(),
-            ],
+            'data' => $rows,
+            // 'pagination' => [
+            //     'current_page' => $rows->currentPage(),
+            //     'per_page' => $rows->perPage(),
+            //     'total' => $rows->total(),
+            //     'last_page' => $rows->lastPage(),
+            // ],
         ]);
     }
 }
