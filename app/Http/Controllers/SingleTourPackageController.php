@@ -4184,14 +4184,13 @@ class SingleTourPackageController extends Controller
         }
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => [$bookingData],
@@ -4202,7 +4201,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-        
+        $order->refresh();
+        $bookingId = $order->booking_id;
         // Update tour destination with hotel location if location is provided
         if (!empty($bookingData['hotelDetails']['location'])) {
             $tour->destination = $bookingData['hotelDetails']['location'];
@@ -4261,14 +4261,13 @@ class SingleTourPackageController extends Controller
         // If adding service when tour is Actual, mark order as additional
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
 
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
         
         $order =  Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4279,7 +4278,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4335,14 +4335,13 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
        
         // Generate unique booking ID
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
 
         $order = Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4353,7 +4352,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4399,15 +4399,14 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         // Create order
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4418,7 +4417,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4466,11 +4466,11 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         // Detailed logging for transport order - check image field
         \Log::info("Processing transport order", [
@@ -4495,7 +4495,6 @@ class SingleTourPackageController extends Controller
         
         // Create order
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $transportData,
@@ -4506,7 +4505,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
             $firstItem = $transportData[0];
@@ -4555,11 +4555,11 @@ class SingleTourPackageController extends Controller
         // If adding service when tour is Actual, mark order as additional
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
 
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
 
         // Map service type to appropriate order type
         $orderType = match($serviceType) {
@@ -4570,7 +4570,6 @@ class SingleTourPackageController extends Controller
         };
 
         $order = Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agent_id,
             'tour_id' => $tourId,
             'data' => $transportData,
@@ -4581,6 +4580,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
+        $order->refresh();
+        $bookingId = $order->booking_id;
 
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
