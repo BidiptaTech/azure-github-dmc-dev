@@ -4524,12 +4524,12 @@ class SingleTourPackageController extends Controller
         // }
         
         // Detailed logging for transport order - check image field
-        \Log::info("Processing transport order", [
-            'transport_data' => $transportData,
-            'booking_id' => $bookingId,
-            'agent_id' => $agentId,
-            'tour_id' => $tourId
-        ]);
+        // \Log::info("Processing transport order", [
+        //     'transport_data' => $transportData,
+        //     // 'booking_id' => $bookingId,
+        //     'agent_id' => $agentId,
+        //     'tour_id' => $tourId
+        // ]);
         
         // Specifically log the image field from first transport item
         if (is_array($transportData) && count($transportData) > 0) {
