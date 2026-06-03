@@ -519,6 +519,9 @@ class SingleTourPackageController extends Controller
             
             // Separate hotel orders
             if ($type === 'hotel') {
+                if (empty($order->booking_id)) {
+                    continue;
+                }
                 $hotelOrders[] = $order;
             } else {
                 // Group by type for compatibility
@@ -1240,6 +1243,9 @@ class SingleTourPackageController extends Controller
             $order->processed_data = $orderData;
 
             if ($type === 'hotel') {
+                if (empty($order->booking_id)) {
+                    continue;
+                }
                 $hotelOrders[] = $order;
                 continue;
             }
