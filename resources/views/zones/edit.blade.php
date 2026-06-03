@@ -54,7 +54,8 @@
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
-    select#city.is-invalid + .select2-container .select2-selection--single {
+    select#city.is-invalid + .select2-container .select2-selection--single,
+    select#country.is-invalid + .select2-container .select2-selection--single {
         border-color: #dc3545 !important;
     }
 </style>
@@ -98,6 +99,36 @@
                                 @enderror
                             </div>
 
+                            @if(!empty($isAdmin))
+                            <div class="col-md-3">
+                                <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
+                                <select class="form-select @error('country') is-invalid @enderror" id="country" name="country" required>
+                                    <option value=""></option>
+                                    @foreach($countries as $country)
+                                        <option value="{{ $country->name }}" {{ old('country', $zoneCountry) === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('country')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            @endif
+
+                            <div class="col-md-3">
+                                <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                                <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
+                                    <option value=""></option>
+                                    @if(empty($isAdmin))
+                                        @foreach($city as $c)
+                                            <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                @error('city')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <div class="col-md-3">
                                 <label for="vehicle_type" class="form-label">Vehicle Type<span class="text-danger">*</span></label>
                                 <select class="form-select @error('vehicle_type') is-invalid @enderror" id="vehicle_type" name="vehicle_type" required>
@@ -108,19 +139,6 @@
                                 </select>
                                 @error('vehicle_type')
                                     <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <div class="col-md-3">
-                                <label for="city" class="form-label">City <span class="text-danger">*</span></label>
-                                <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
-                                    <option value=""></option>
-                                    @foreach($city as $c)
-                                        <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('city')
-                                    <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
                         </div>
@@ -168,11 +186,76 @@
             placeholder: 'Enter your content here...',
         });
 
-        $('#city').select2({
-            placeholder: 'Search and Select a City',
-            allowClear: true,
-            width: '100%'
-        });
+        const isAdminZoneEdit = @json(!empty($isAdmin));
+        const selectedCityId = @json(old('city', $zone->city));
+        const selectedCountry = @json(old('country', $zoneCountry ?? ''));
+
+        function initCitySelect2(placeholder) {
+            if ($('#city').hasClass('select2-hidden-accessible')) {
+                $('#city').select2('destroy');
+            }
+            $('#city').select2({
+                placeholder: placeholder || 'Search and Select a City',
+                allowClear: true,
+                width: '100%'
+            });
+        }
+
+        function loadCitiesByCountry(countryName, cityId) {
+            if (!countryName) {
+                $('#city').html('<option value=""></option>');
+                initCitySelect2('Select country first');
+                return;
+            }
+
+            $('#city').html('<option value="">Loading cities...</option>');
+            initCitySelect2('Loading cities...');
+
+            $.ajax({
+                url: "{{ route('get.cities.by.country') }}",
+                type: 'GET',
+                data: { country: countryName },
+                dataType: 'json',
+                success: function(response) {
+                    const cities = response.cities || [];
+                    let options = '<option value=""></option>';
+                    if (cities.length === 0) {
+                        options += '<option value="" disabled>No cities found</option>';
+                    } else {
+                        cities.forEach(function(city) {
+                            const selected = cityId && String(cityId) === String(city.city_id) ? ' selected' : '';
+                            options += '<option value="' + city.city_id + '"' + selected + '>' + city.name + '</option>';
+                        });
+                    }
+                    $('#city').html(options);
+                    initCitySelect2('Search and Select a City');
+                },
+                error: function() {
+                    $('#city').html('<option value="">Error loading cities</option>');
+                    initCitySelect2('Error loading cities');
+                }
+            });
+        }
+
+        if (isAdminZoneEdit) {
+            $('#country').select2({
+                placeholder: 'Search and Select Country',
+                allowClear: true,
+                width: '100%'
+            });
+
+            initCitySelect2('Select country first');
+
+            $('#country').on('change', function() {
+                loadCitiesByCountry($(this).val(), null);
+            });
+
+            if (selectedCountry) {
+                loadCitiesByCountry(selectedCountry, selectedCityId);
+            }
+        } else {
+            initCitySelect2('Search and Select a City');
+        }
     });
 </script>
 @endsection

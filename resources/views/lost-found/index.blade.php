@@ -56,6 +56,52 @@
         border: 1px solid #e2e8f0;
         background: #f8fafc;
     }
+    .lf-report-history {
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background: #f8fafc;
+        padding: 0.75rem;
+    }
+    .lf-history-empty {
+        color: #94a3b8;
+        font-size: 0.8125rem;
+        text-align: center;
+        margin: 0;
+    }
+    .lf-history-item {
+        display: flex;
+        flex-direction: column;
+        max-width: 85%;
+        margin-bottom: 0.65rem;
+    }
+    .lf-history-item:last-child { margin-bottom: 0; }
+    .lf-history-item--guest { align-self: flex-start; }
+    .lf-history-item--dmc { align-self: flex-end; align-items: flex-end; }
+    .lf-history-meta {
+        font-size: 0.6875rem;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .lf-history-bubble {
+        padding: 0.45rem 0.65rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .lf-history-item--guest .lf-history-bubble {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    .lf-history-item--dmc .lf-history-bubble {
+        background: rgb(6, 132, 216);
+        color: #fff;
+        border: 1px solid rgb(5, 118, 194);
+    }
 </style>
 @endpush
 
@@ -112,7 +158,8 @@
                                         data-tour-id="{{ $report->tour_display_id ?? $report->tour_id }}"
                                         data-subject="{{ e($report->subject) }}"
                                         data-description="{{ e($report->description ?? '') }}"
-                                        data-guest-images='@json($report->guest_images ?? [])'>
+                                        data-guest-images='@json($report->guest_images ?? [])'
+                                        data-report-history='@json(\App\Models\LostFound::decodeCommentsList($report->comments ?? []))'>
                                     <i class="ri-eye-line me-1"></i> View
                                 </button>
                             </td>
@@ -152,6 +199,13 @@
                 <div class="mb-3 d-none" id="lfModalGuestImagesWrap">
                     <label class="form-label">Guest images</label>
                     <div class="d-flex flex-wrap gap-2 align-items-start" id="lfModalGuestImages"></div>
+                </div>
+
+                <div class="mb-3" id="lfReportHistoryWrap">
+                    <label class="form-label">Report History</label>
+                    <div class="lf-report-history d-flex flex-column" id="lfReportHistory">
+                        <p class="lf-history-empty">No conversation yet.</p>
+                    </div>
                 </div>
 
                 <hr>
@@ -195,7 +249,80 @@
     const alertEl = document.getElementById('lfAlert');
     const guestImagesWrap = document.getElementById('lfModalGuestImagesWrap');
     const guestImagesContainer = document.getElementById('lfModalGuestImages');
+    const reportHistoryEl = document.getElementById('lfReportHistory');
     let currentReportId = null;
+    let currentViewBtn = null;
+
+    function isGuestSender(user) {
+        if (!user) return true;
+        const u = String(user).trim().toLowerCase();
+        if (u === 'guest' || /^guest\d*$/.test(u)) return true;
+        if (u.includes('(dmc)') || u.includes('dmc')) return false;
+        return false;
+    }
+
+    function parseReportHistoryAttr(raw) {
+        if (!raw) return [];
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter(function (item) { return item && typeof item.comments === 'string' && item.comments.trim(); })
+                .map(function (item) {
+                    return {
+                        comments: item.comments.trim(),
+                        user: item.user ? String(item.user) : 'Guest',
+                        time_date: item.time_date ? String(item.time_date) : ''
+                    };
+                })
+                .sort(function (a, b) {
+                    if (!a.time_date) return 1;
+                    if (!b.time_date) return -1;
+                    return a.time_date.localeCompare(b.time_date);
+                });
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function renderReportHistory(items) {
+        reportHistoryEl.innerHTML = '';
+        if (!items.length) {
+            reportHistoryEl.innerHTML = '<p class="lf-history-empty">No conversation yet.</p>';
+            return;
+        }
+
+        items.forEach(function (item) {
+            const isGuest = isGuestSender(item.user);
+            const wrap = document.createElement('div');
+            wrap.className = 'lf-history-item ' + (isGuest ? 'lf-history-item--guest' : 'lf-history-item--dmc');
+
+            const meta = document.createElement('div');
+            meta.className = 'lf-history-meta';
+            meta.textContent = (item.user || (isGuest ? 'Guest' : 'DMC')) + (item.time_date ? ' · ' + item.time_date : '');
+
+            const bubble = document.createElement('div');
+            bubble.className = 'lf-history-bubble';
+            bubble.textContent = item.comments;
+
+            wrap.appendChild(meta);
+            wrap.appendChild(bubble);
+            reportHistoryEl.appendChild(wrap);
+        });
+
+        reportHistoryEl.scrollTop = reportHistoryEl.scrollHeight;
+    }
+
+    function renderModalReportHistory(btn) {
+        const items = parseReportHistoryAttr(btn.getAttribute('data-report-history'));
+        renderReportHistory(items);
+    }
+
+    function updateViewBtnReportHistory(btn, items) {
+        if (!btn) return;
+        btn.setAttribute('data-report-history', JSON.stringify(items || []));
+        renderReportHistory(items || []);
+    }
 
     function parseGuestImagesAttr(raw) {
         if (!raw || typeof raw !== 'string') return [];
@@ -270,11 +397,13 @@
     document.querySelectorAll('.lf-view-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             currentReportId = btn.getAttribute('data-id');
+            currentViewBtn = btn;
             resetModalForm();
             document.getElementById('lfModalTourId').textContent = btn.getAttribute('data-tour-id') || '—';
             document.getElementById('lfModalSubject').textContent = btn.getAttribute('data-subject') || '—';
             document.getElementById('lfModalDescription').textContent = btn.getAttribute('data-description') || '—';
             renderModalGuestImages(btn);
+            renderModalReportHistory(btn);
         });
     });
 
@@ -286,8 +415,10 @@
 
     modalEl.addEventListener('hidden.bs.modal', function () {
         currentReportId = null;
+        currentViewBtn = null;
         guestImagesContainer.innerHTML = '';
         guestImagesWrap.classList.add('d-none');
+        reportHistoryEl.innerHTML = '<p class="lf-history-empty">No conversation yet.</p>';
         resetModalForm();
     });
 
@@ -295,8 +426,8 @@
         if (!currentReportId || sendBtn.disabled) return;
 
         const formData = new FormData();
-        const comment = (commentEl.value || '').trim();
-        if (comment) formData.append('comment', comment);
+        const comments = (commentEl.value || '').trim();
+        if (comments) formData.append('comments', comments);
         Array.from(imagesEl.files || []).forEach(function (file) {
             formData.append('images[]', file);
         });
@@ -318,6 +449,9 @@
         .then(function (result) {
             if (result.ok && result.data.success) {
                 showAlert('success', result.data.message || 'Sent successfully.');
+                if (result.data.data && result.data.data.comments) {
+                    updateViewBtnReportHistory(currentViewBtn, result.data.data.comments);
+                }
                 resetModalForm();
                 setTimeout(function () {
                     bootstrap.Modal.getInstance(modalEl)?.hide();
