@@ -382,6 +382,30 @@ $(document).ready(function() {
         return orderTypeMap[orderType] || orderType;
     }
     
+    /** Resolved jobsheet date: hidden field, visible input, or flatpickr default (tomorrow). */
+    function getSelectedJobsheetDate() {
+        const hidden = ($('#hiddenDate').val() || '').trim();
+        if (hidden) {
+            return hidden;
+        }
+        const visible = ($('#dateSelect').val() || '').trim();
+        if (visible) {
+            return visible;
+        }
+        if (datePicker && datePicker.selectedDates && datePicker.selectedDates.length) {
+            return datePicker.formatDate(datePicker.selectedDates[0], 'Y-m-d');
+        }
+        return '';
+    }
+
+    function syncHiddenDateFromPicker(dateStr) {
+        const resolved = (dateStr || getSelectedJobsheetDate() || '').trim();
+        if (resolved) {
+            $('#hiddenDate').val(resolved);
+        }
+        return resolved;
+    }
+
     // Custom alert function
     function showAlert(type, message) {
         // Create the alert element
@@ -551,12 +575,18 @@ $(document).ready(function() {
         dateFormat: "Y-m-d",
         disableMobile: "true",
         defaultDate: tomorrow,
+        onReady: function(selectedDates, dateStr, instance) {
+            syncHiddenDateFromPicker(dateStr || (selectedDates[0] ? instance.formatDate(selectedDates[0], 'Y-m-d') : ''));
+        },
         onChange: function(selectedDates, dateStr) {
             // Load orders based on selected date
             loadOrdersByDate(dateStr);
         },
         enabled: true
     });
+
+    // Default date is shown in #dateSelect but onChange does not run until user changes it — sync hidden field now.
+    syncHiddenDateFromPicker(datePicker.formatDate(tomorrow, 'Y-m-d'));
 
     // Function to load orders by date
     function loadOrdersByDate(date) {
@@ -903,7 +933,7 @@ $(document).ready(function() {
             XLSX.utils.book_append_sheet(wb, ws, "Driver Jobsheet");
             
             // Get date for filename
-            const selectedDate = $('#dateSelect').val();
+            const selectedDate = getSelectedJobsheetDate();
             const fileName = `driver_jobsheet_${selectedDate}.xlsx`;
             
             // Export to file
@@ -923,7 +953,7 @@ $(document).ready(function() {
         e.preventDefault();
         
         const formData = new FormData();
-        formData.append('date', $('#dateSelect').val());
+        formData.append('date', getSelectedJobsheetDate());
         formData.append('dmc_id', $('#dmc_id').val());
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
@@ -944,7 +974,7 @@ $(document).ready(function() {
             if (data.success) {
                 showAlert('success', data.message);
                 // Load orders to show the latest data
-                loadOrdersByDate($('#dateSelect').val());
+                loadOrdersByDate(getSelectedJobsheetDate());
             } else {
                 showAlert('error', data.message);
             }
@@ -978,7 +1008,7 @@ $(document).ready(function() {
             if (data.success) {
                 showAlert('success', data.message);
                 // Refresh the orders to show the latest assignments
-                loadOrdersByDate($('#hiddenDate').val());
+                loadOrdersByDate(getSelectedJobsheetDate());
             } else {
                 showAlert('error', data.message);
             }
@@ -1074,7 +1104,7 @@ $(document).ready(function() {
         const type = $select.data('type');
         const orderId = $select.data('order-id');
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
-        const date = $('#hiddenDate').val();
+        const date = getSelectedJobsheetDate();
         const dmcId = $('#dmc_id').val();
         
         console.log('=== Driver Change Handler ===');
@@ -1189,7 +1219,7 @@ $(document).ready(function() {
         const type = $select.data('type') || '';
         const orderId = $select.data('order-id');
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
-        const date = $('#hiddenDate').val() || $('#dateSelect').val();
+        const date = getSelectedJobsheetDate();
         const dmcId = $('#dmc_id').val();
         
         // Set flag

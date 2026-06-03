@@ -187,7 +187,7 @@ class ZoneController extends Controller
 
                     $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif (in_array($user->role_id, ["35", "130", "132", "133", "135", "136", "137", "138"], true)) {
+                } elseif (in_array($user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
                     $q->orWhere('dmc_id', $user->created_by);
                 } elseif ($user->role_id == 76 || $user->role_id == 139) {
                     $product_head = User::where('userId', $user->created_by)->first();

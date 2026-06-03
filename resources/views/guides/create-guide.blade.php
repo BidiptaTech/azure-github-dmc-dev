@@ -354,7 +354,8 @@
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
-                                    $placeholder = 'Select Country First';
+                                    $selectedCountry = in_array($roleId, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? ($userCountry ?? '') : '';
+                                    $placeholder = (old('country', $selectedCountry) !== '') ? 'Select City' : 'Select Country First';
                                     $isDmcWithCities = in_array($roleId, [11, 35, 75, 130, 132, 133, 135, 136, 137, 138, 102, 139, 140]) && isset($cities) && count($cities) > 0;
                                 @endphp
                                 
@@ -774,7 +775,7 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <x-button-spinner id="saveGuideBtn" label="Save" loadingText="Saving..." />
                     </div>
             </form>
         </div>
@@ -995,9 +996,12 @@ $(document).ready(function() {
         // Initialize Select2 for city (disabled until country is selected)
         @php
             $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) && isset($cities) && count($cities) > 0;
+            $cityRoleId = auth()->user()->role_id;
+            $citySelectedCountry = in_array($cityRoleId, [11, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? ($userCountry ?? '') : '';
+            $citySelect2Placeholder = (old('country', $citySelectedCountry) !== '') ? 'Select City' : 'Select Country First';
         @endphp
         $('#citySelect').select2({
-            placeholder: "Select Country First",
+            placeholder: "{{ $citySelect2Placeholder }}",
             allowClear: true,
             width: '100%',
             disabled: {{ $isDmcWithCities ? 'false' : 'true' }}
