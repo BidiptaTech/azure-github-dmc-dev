@@ -1659,6 +1659,7 @@ class CommonHelper
                 'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
                 'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
                 'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
+                'dmc_contact_email' => (string) ($tourData['dmc_contact_email'] ?? ''),
                 'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
                 'diff' => (int) ($tourData['diff'] ?? 0),
                 'requested_days' => (int) ($tourData['requested_days'] ?? 0),

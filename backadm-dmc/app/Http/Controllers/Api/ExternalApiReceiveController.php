@@ -996,6 +996,7 @@ class ExternalApiReceiveController extends Controller
                 'agent_name' => $agent->name ?? '',
                 'agency_name' => $agency->agency_name ?? '',
                 'dmc_label' => $dmcName,
+                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
                 'booked_at' => now()->format('M d, Y H:i'),
                 'booked_services' => $this->buildBookedServicesForEmail($orders),
             ]);
@@ -1028,6 +1029,39 @@ class ExternalApiReceiveController extends Controller
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
+        }
+
+        return null;
+    }
+
+    protected function resolveDmcContactEmail(array $payload, array $primaryDmc, ?User $dmcUser): ?string
+    {
+        $candidates = [
+            $payload['DMC_email'] ?? null,
+            $payload['dmc_email'] ?? null,
+            $primaryDmc['DMC_email'] ?? null,
+        ];
+
+        foreach ($payload['destinations'] ?? [] as $destination) {
+            if (! is_array($destination)) {
+                continue;
+            }
+            foreach ($destination['DMC'] ?? [] as $dmc) {
+                if (is_array($dmc) && ! empty($dmc['DMC_email'])) {
+                    $candidates[] = $dmc['DMC_email'];
+                }
+            }
+        }
+
+        if ($dmcUser) {
+            $candidates[] = $dmcUser->email;
+        }
+
+        foreach ($candidates as $email) {
+            $email = trim((string) $email);
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $email;
+            }
         }
 
         return null;

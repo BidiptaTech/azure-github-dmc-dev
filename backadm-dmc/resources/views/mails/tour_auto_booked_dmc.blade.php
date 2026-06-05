@@ -135,9 +135,11 @@
                     </a>
                 </p>
 
+                @if(!empty($dmc_contact_email))
                 <p style="margin: 0; font-size: 14px; color: #64748b;">
-                    For help, email <a href="mailto:support@travclicks.com" style="color: #7c3aed;">support@travclicks.com</a>.
+                    For help, email <a href="mailto:{{ $dmc_contact_email }}" style="color: #7c3aed;">{{ $dmc_contact_email }}</a>.
                 </p>
+                @endif
             </td>
         </tr>
     </table>
