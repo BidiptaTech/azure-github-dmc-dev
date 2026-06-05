@@ -1624,6 +1624,20 @@ class CommonHelper
      * @param  array<string, mixed>  $tourData
      * @return bool|string
      */
+    public static function resolveEmailLogoUrl(?string $logo): ?string
+    {
+        $logo = trim((string) $logo);
+        if ($logo === '') {
+            return null;
+        }
+
+        if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://') || str_starts_with($logo, 'data:image')) {
+            return $logo;
+        }
+
+        return url(ltrim($logo, '/'));
+    }
+
     public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [])
     {
         $dmcEmail = trim($dmcEmail);
@@ -1643,9 +1657,14 @@ class CommonHelper
 
             $emailData = [
                 'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
-                'dmc_logo' => $tourData['dmc_logo'] ?? null,
+                'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
+                'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
                 'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
-                'package_id' => (string) ($tourData['package_id'] ?? ''),
+                'diff' => (int) ($tourData['diff'] ?? 0),
+                'requested_days' => (int) ($tourData['requested_days'] ?? 0),
+                'available_days' => (int) ($tourData['available_days'] ?? 0),
+                'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
+                'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
                 'country' => (string) ($tourData['country'] ?? ''),
                 'destination' => (string) ($tourData['destination'] ?? 'N/A'),
                 'cities_label' => $citiesLabel !== '' ? $citiesLabel : (string) ($tourData['city'] ?? ''),
@@ -1671,10 +1690,9 @@ class CommonHelper
             $html = view('mails.tour_auto_booked_dmc', $emailData)->render();
             Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
 
-            Log::info('Tour auto-booked DMC email sent', [
-                'dmc_email' => $dmcEmail,
+            Log::info('Tour auto-booked sender email sent', [
+                'email' => $dmcEmail,
                 'tour_display_id' => $emailData['tour_display_id'],
-                'package_id' => $emailData['package_id'],
             ]);
 
             return true;
