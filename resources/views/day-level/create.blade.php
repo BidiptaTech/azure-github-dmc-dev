@@ -655,8 +655,20 @@
                                 </div>
 
                                 <div class="hotels-form-panel">
-                                    <div class="hotels-form-panel-title">Meals &amp; options</div>
+                                    <div class="hotels-form-panel-title">Room, bed &amp; meals</div>
                                     <div class="row g-3 align-items-end">
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label" for="hotel_room_select">Room</label>
+                                        <select id="hotel_room_select" class="form-select searchable-select">
+                                            <option value="">Select hotel first</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label class="form-label" for="hotel_bed_select">Bed</label>
+                                        <select id="hotel_bed_select" class="form-select searchable-select">
+                                            <option value="">Select room first</option>
+                                        </select>
+                                    </div>
                                     <div class="col-lg-3 col-md-6">
                                         <label class="form-label" for="hotel_meal_plan">Meal</label>
                                         <select id="hotel_meal_plan" class="form-select searchable-select">
@@ -717,6 +729,8 @@
                                                 <th>Category</th>
                                                 <th>Hotel</th>
                                                 <th>Night</th>
+                                                <th>Room</th>
+                                                <th>Bed</th>
                                                 <th>Meal</th>
                                                 <th>Select Dish</th>
                                                 <th>Guide</th>
@@ -727,7 +741,7 @@
                                             </tr>
                                         </thead>
                                         <tbody id="hotelRows">
-                                            <tr><td colspan="12" class="text-muted">No hotels added</td></tr>
+                                            <tr><td colspan="14" class="text-muted">No hotels added</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -806,6 +820,18 @@
         /** Set true to re-enable Master DMC / DMC / city alerts and blocking validation */
         const REQUIRE_MASTER_DMC_CITY = false;
 
+        const DAY_LEVEL_ROUTES = {
+            byCity: @json(route('day-level.by-city')),
+            hotelsByRating: @json(route('day-level.hotels-by-rating')),
+            roomsByHotel: @json(route('day-level.rooms-by-hotel')),
+            bedsByRoom: @json(route('day-level.beds-by-room')),
+            mealPlansByHotel: @json(route('day-level.meal-plans-by-hotel')),
+            mealsByRestaurant: @json(route('day-level.meals-by-restaurant')),
+            transferOptions: @json(route('day-level.transfer-options')),
+            ticketsByAttraction: @json(route('day-level.tickets-by-attraction')),
+            citiesByCountry: @json(route('day-level.cities-by-country')),
+        };
+
         function packageMatchesEditFilter(pkg) {
             if (!window.__EDITING_PACKAGE_ID__) {
                 return true;
@@ -832,11 +858,16 @@
         let attractionsCache = [];
         let restaurantsCache = [];
         let transferLocationOptions = [];
+        /** Arrival pickup: ports for Master DMC country. */
+        let transferArrivalPickupOptions = [];
+        /** Arrival drop: ports + hotels + attractions + restaurants. */
+        let transferArrivalDropOptions = [];
         let zoneTransferOptions = [];
         /** value (port:6, hotel:12, zone:3) → human-readable label from API / selects */
         let transferLocationLabelByValue = {};
         let transferDefaults = { defaultPort: '' };
         let hotelTransferState = { city: '', pickup: '', drop: '' };
+        let hotelRoomsCache = [];
         let dayTransferExtras = {};
 
         function hotelsHaveArrivalDepartureTransferSaved() {
@@ -847,14 +878,30 @@
             return !!document.getElementById('hotel_arrival_departure')?.checked || hotelsHaveArrivalDepartureTransferSaved();
         }
 
+        function resolveHotelUniqueIdForPayload(hotelId) {
+            const id = String(hotelId || '').trim();
+            if (!id) return '';
+            const flatHit = (Array.isArray(hotelsFlat) ? hotelsFlat : []).find((h) => {
+                return String(h.hotel_unique_id || '') === id || String(h.id || '') === id;
+            });
+            if (flatHit) {
+                return String(flatHit.hotel_unique_id || flatHit.id || id).trim();
+            }
+            const gridHit = (Array.isArray(hotels) ? hotels : []).find((h) => {
+                return String(h.hotel_id || '') === id;
+            });
+            return String(gridHit?.hotel_id || id).trim();
+        }
+
         function getDayOneHotelDropValueAndLabel() {
             const sorted = [...hotels].sort((a, b) => (parseInt(String(a.day || 0), 10) || 0) - (parseInt(String(b.day || 0), 10) || 0));
             const row = sorted.find(h => (parseInt(String(h.day || 1), 10) || 1) === 1);
             if (!row || !String(row.hotel_id || '').trim()) {
                 return { value: '', label: '' };
             }
+            const hotelUniqueId = resolveHotelUniqueIdForPayload(row.hotel_id);
             const name = String(row.hotel_name || '').replace(/^\s+|\s+$/g, '') || 'Day 1 hotel';
-            return { value: `hotel:${String(row.hotel_id)}`, label: name };
+            return { value: `hotel:${hotelUniqueId}`, label: name };
         }
 
         /**
@@ -867,7 +914,7 @@
             const rows = [];
 
             hotels.forEach((h) => {
-                const hid = String(h.hotel_id || '').trim();
+                const hid = resolveHotelUniqueIdForPayload(h.hotel_id);
                 if (!hid) return;
                 const din = parseInt(String(h.day || 1), 10) || 1;
                 const nghtRaw = parseInt(String(h.night ?? 1), 10);
@@ -893,10 +940,41 @@
             return chosen ? { value: chosen.value, label: chosen.label } : fallback;
         }
 
+        function transferTypeFromValue(value) {
+            const v = String(value || '').trim().toLowerCase();
+            if (v.startsWith('port:')) return 'port';
+            if (v.startsWith('hotel:')) return 'hotel';
+            if (v.startsWith('attraction:')) return 'attraction';
+            if (v.startsWith('restaurant:')) return 'restaurant';
+            if (v.startsWith('zone:')) return 'zone';
+            return '';
+        }
+
+        function transferTypeFromRow(row) {
+            const type = String(row?.type || '').trim().toLowerCase();
+            return type || transferTypeFromValue(row?.value);
+        }
+
+        /** e.g. "Changi Airport (port)" for clearer pickup/drop lists */
+        function formatTransferLocationLabel(rowOrValue, fallbackLabel = '') {
+            const row = (rowOrValue && typeof rowOrValue === 'object')
+                ? rowOrValue
+                : { value: rowOrValue, label: fallbackLabel || rowOrValue, type: transferTypeFromValue(rowOrValue) };
+            const base = String(row?.label ?? '').trim();
+            if (!base) return '';
+            const suffixType = transferTypeFromRow(row);
+            if (!suffixType) return base;
+            const bracket = ` (${suffixType})`;
+            if (base.toLowerCase().endsWith(bracket.toLowerCase())) {
+                return base;
+            }
+            return base + bracket;
+        }
+
         function mergeTransferLocationLabels(optionRows) {
             (Array.isArray(optionRows) ? optionRows : []).forEach((row) => {
                 const value = String(row?.value ?? '').trim();
-                const label = String(row?.label ?? '').trim();
+                const label = formatTransferLocationLabel(row);
                 if (value && label) {
                     transferLocationLabelByValue[value] = label;
                 }
@@ -929,14 +1007,43 @@
             }
             const fromDom = labelFromAnyTransferSelect(v);
             if (fromDom) return fromDom;
-            const hit = [...transferLocationOptions, ...zoneTransferOptions].find((x) => String(x.value) === v);
-            if (hit?.label) return String(hit.label);
+            const hit = [
+                ...transferLocationOptions,
+                ...transferArrivalPickupOptions,
+                ...transferArrivalDropOptions,
+                ...zoneTransferOptions,
+            ].find((x) => String(x.value) === v);
+            if (hit) return formatTransferLocationLabel(hit);
             if (v.startsWith('hotel:')) {
                 const hotelId = v.replace(/^hotel:/, '');
                 const hotelHit = (Array.isArray(hotels) ? hotels : []).find(h => String(h.hotel_id || h.id || '') === hotelId);
-                if (hotelHit?.hotel_name) return String(hotelHit.hotel_name);
+                if (hotelHit?.hotel_name) {
+                    return formatTransferLocationLabel({ value: v, label: hotelHit.hotel_name, type: 'hotel' });
+                }
                 const flatHit = (Array.isArray(hotelsFlat) ? hotelsFlat : []).find(h => String(h.id || h.hotel_id || '') === hotelId);
-                if (flatHit?.name || flatHit?.hotel_name) return String(flatHit.name || flatHit.hotel_name);
+                if (flatHit?.name || flatHit?.hotel_name) {
+                    return formatTransferLocationLabel({
+                        value: v,
+                        label: flatHit.name || flatHit.hotel_name,
+                        type: 'hotel',
+                    });
+                }
+            }
+            if (v.startsWith('attraction:')) {
+                const attrId = v.replace(/^attraction:/, '');
+                const attrHit = (Array.isArray(attractionsCache) ? attractionsCache : [])
+                    .find(a => String(a.attraction_id || '') === attrId);
+                if (attrHit?.name) {
+                    return formatTransferLocationLabel({ value: v, label: attrHit.name, type: 'attraction' });
+                }
+            }
+            if (v.startsWith('restaurant:')) {
+                const restId = v.replace(/^restaurant:/, '');
+                const restHit = (Array.isArray(restaurantsCache) ? restaurantsCache : [])
+                    .find(r => String(r.restaurant_id || '') === restId);
+                if (restHit?.name) {
+                    return formatTransferLocationLabel({ value: v, label: restHit.name, type: 'restaurant' });
+                }
             }
             if (v.startsWith('port:') || v.startsWith('zone:')) {
                 return '';
@@ -992,6 +1099,27 @@
             return isMiddleTransferDay(dayVal) ? zoneTransferOptions : transferLocationOptions;
         }
 
+        /** Departure drop + arrival pickup: Master DMC country ports only. */
+        function getDepartureDropPortOptions() {
+            return Array.isArray(transferArrivalPickupOptions) ? transferArrivalPickupOptions : [];
+        }
+
+        function resolveDefaultPortValue() {
+            return String(transferDefaults.defaultPort || '').trim();
+        }
+
+        function enforceDepartureDropPort(dayVal, onlyIfEmpty = true) {
+            const portVal = resolveDefaultPortValue();
+            if (!portVal) return;
+            const selectId = `departure_drop_select_${dayVal}`;
+            const el = document.getElementById(selectId);
+            if (onlyIfEmpty && el && String(el.value || '').trim()) {
+                return;
+            }
+            ensureTransferLocationOption(selectId, portVal, labelForStoredTransferLocation(portVal));
+            safeSetSelectValue(selectId, portVal);
+        }
+
         /** Middle itinerary days always show transfer (pickup/drop for attractions etc.), unrelated to hotel arrival checkbox. */
         function isMiddleTransferDay(dayVal) {
             const d = parseInt(String(dayVal || 1), 10) || 1;
@@ -1027,9 +1155,20 @@
             });
         }
 
+        function mapTransferSelectOptions(rows) {
+            return (Array.isArray(rows) ? rows : []).map((x) => ({
+                value: x.value,
+                label: formatTransferLocationLabel(x),
+            }));
+        }
+
         function setSelectOptions(selectId, options) {
             const select = document.getElementById(selectId);
             if (!select) return;
+            const $select = $(select);
+            if ($select.data('select2')) {
+                $select.select2('destroy');
+            }
             select.innerHTML = '<option value=""></option>';
             options.forEach((opt) => {
                 const op = document.createElement('option');
@@ -1041,6 +1180,10 @@
                 if (opt.data_country !== undefined) op.dataset.country = String(opt.data_country);
                 if (opt.data_day_in !== undefined) op.dataset.dayIn = String(opt.data_day_in);
                 if (opt.data_day_out !== undefined) op.dataset.dayOut = String(opt.data_day_out);
+                if (opt.data_meal_period_label !== undefined) op.dataset.mealPeriodLabel = String(opt.data_meal_period_label);
+                if (opt.data_type_label !== undefined) op.dataset.typeLabel = String(opt.data_type_label);
+                if (opt.data_meal_name !== undefined) op.dataset.mealName = String(opt.data_meal_name);
+                if (opt.data_meal_period !== undefined) op.dataset.mealPeriod = String(opt.data_meal_period);
                 select.appendChild(op);
             });
             initSearchableSelects(select);
@@ -1555,22 +1698,28 @@
                             </div>
 
                             <div class="col-12"><div class="fw-semibold text-primary">Restaurant</div></div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="restaurant_select_${d}">Restaurant</label>
                                 <select id="restaurant_select_${d}" class="form-select searchable-select">
                                     <option value="">Select restaurant</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="restaurant_dish_type_${d}">Select Dish</label>
-                                <select id="restaurant_dish_type_${d}" class="form-select searchable-select">
-                                    <option value="">Select dish</option>
-                                    <option value="Buffet">Buffet</option>
-                                    <option value="Set Menu">Set Menu</option>
-                                    <option value="A La Carte">A La Carte</option>
+                            <div class="col-md-3">
+                                <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
+                                <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
+                                    <option value="">All periods</option>
+                                    <option value="1">Breakfast</option>
+                                    <option value="2">Lunch</option>
+                                    <option value="3">Dinner</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 d-flex">
+                            <div class="col-md-3">
+                                <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
+                                <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select restaurant first</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex">
                                 <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
                             </div>
 
@@ -1919,6 +2068,10 @@
                                 hotel_name: String(h.hotel_name || ''),
                                 city_name: String(h.city || cityName || ''),
                                 night: Math.max(0, parseInt(String(h.night || (daysCount - 1)), 10) || Math.max(0, daysCount - 1)),
+                                room_id: String(h.room_id || ''),
+                                room_type: String(h.room_type || ''),
+                                bed_id: String(h.bed_id || ''),
+                                bed_type: String(h.bed_type || ''),
                                 meal_plan: String(h.meal_plan || ''),
                                 meal_type: String(h.meal_type || ''),
                                 guide_required: String(h.guide_required || 'No'),
@@ -2222,7 +2375,10 @@
                 return `<option value="${escapeHtml(c.name)}">${escapeHtml(cityLabel)}</option>`;
             }).join('');
             const dayOptions = getTransferOptionsForDay(dayVal);
-            const optionMarkup = dayOptions.map(x => `<option value="${escapeHtml(x.value)}">${escapeHtml(x.label)}</option>`).join('');
+            const optionMarkup = dayOptions.map((x) => {
+                const label = formatTransferLocationLabel(x);
+                return `<option value="${escapeHtml(x.value)}">${escapeHtml(label)}</option>`;
+            }).join('');
             wrap.innerHTML = rows.map((row, idx) => `
                 <div class="row g-2 align-items-end mb-2">
                     <div class="col-md-3">
@@ -2315,7 +2471,9 @@
             if (!exists) {
                 const option = document.createElement('option');
                 option.value = value;
-                option.textContent = fallbackLabel || value;
+                option.textContent = formatTransferLocationLabel(
+                    { value, label: fallbackLabel || value, type: transferTypeFromValue(value) }
+                );
                 select.appendChild(option);
             }
         }
@@ -2336,14 +2494,31 @@
         async function loadTransferOptionsForCity(dayVal = activeDay) {
             const cityName = getCityNameFromSelect(`transfer_city_select_${dayVal}`) || getCityNameFromSelect('hotel_city_select');
             const dmcId = document.getElementById('dmc_id').value || '';
-            const url = `/day-level/transfer-options?dmc_id=${encodeURIComponent(dmcId)}&city_name=${encodeURIComponent(cityName || '')}`;
+            const masterDmcId = document.getElementById('master_dmc_id')?.value || '';
+            const country = document.getElementById('country')?.value || '';
+            let url = `${DAY_LEVEL_ROUTES.transferOptions}?dmc_id=${encodeURIComponent(dmcId)}&city_name=${encodeURIComponent(cityName || '')}`;
+            if (masterDmcId) {
+                url += `&master_dmc_id=${encodeURIComponent(masterDmcId)}`;
+            }
+            if (country) {
+                url += `&country=${encodeURIComponent(country)}`;
+            }
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed');
                 const data = await res.json();
                 transferLocationOptions = Array.isArray(data?.locations) ? data.locations : [];
+                transferArrivalPickupOptions = Array.isArray(data?.arrival_pickup_ports)
+                    ? data.arrival_pickup_ports
+                    : transferLocationOptions.filter(x => String(x?.type || '').toLowerCase() === 'port'
+                        || String(x?.value || '').startsWith('port:'));
+                transferArrivalDropOptions = Array.isArray(data?.arrival_drop_locations)
+                    ? data.arrival_drop_locations
+                    : transferLocationOptions;
                 zoneTransferOptions = Array.isArray(data?.zones) ? data.zones : [];
                 mergeTransferLocationLabels(transferLocationOptions);
+                mergeTransferLocationLabels(transferArrivalPickupOptions);
+                mergeTransferLocationLabels(transferArrivalDropOptions);
                 mergeTransferLocationLabels(zoneTransferOptions);
                 const portCanon = String(
                     data?.default_port_value ?? data?.default_pickup ?? ''
@@ -2351,35 +2526,19 @@
                 transferDefaults = { defaultPort: portCanon };
             } catch (e) {
                 transferLocationOptions = [];
+                transferArrivalPickupOptions = [];
+                transferArrivalDropOptions = [];
                 zoneTransferOptions = [];
                 transferDefaults = { defaultPort: '' };
             }
             const day = parseInt(String(dayVal || 1), 10) || 1;
             const dayOptions = getTransferOptionsForDay(day);
-            setSelectOptions(
-                `transfer_pickup_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
-            setSelectOptions(
-                `transfer_drop_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
-            setSelectOptions(
-                `arrival_pickup_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
-            setSelectOptions(
-                `arrival_drop_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
-            setSelectOptions(
-                `departure_pickup_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
-            setSelectOptions(
-                `departure_drop_select_${day}`,
-                dayOptions.map(x => ({ value: x.value, label: x.label }))
-            );
+            setSelectOptions(`transfer_pickup_select_${day}`, mapTransferSelectOptions(dayOptions));
+            setSelectOptions(`transfer_drop_select_${day}`, mapTransferSelectOptions(dayOptions));
+            setSelectOptions(`arrival_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalPickupOptions));
+            setSelectOptions(`arrival_drop_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions));
+            setSelectOptions(`departure_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions.length ? transferArrivalDropOptions : dayOptions));
+            setSelectOptions(`departure_drop_select_${day}`, mapTransferSelectOptions(getDepartureDropPortOptions()));
             // Arrival/Departure defaults are only meant for Day 1 + Last Day.
             // Avoid recalculating them when loading middle-day transfer options.
             if (day === 1 || day === daysCount) {
@@ -2420,6 +2579,16 @@
                 safeSetSelectValue(`transfer_drop_select_1`, dayOneHotel.value);
             }
 
+            if (portVal) {
+                ensureTransferLocationOption('arrival_pickup_select_1', portVal, labelForStoredTransferLocation(portVal));
+                safeSetSelectValue('arrival_pickup_select_1', portVal);
+            }
+            const arrivalDrop1El = document.getElementById('arrival_drop_select_1');
+            if (arrivalDrop1El && dayOneHotel.value && !String(arrivalDrop1El.value || '').trim()) {
+                ensureTransferLocationOption('arrival_drop_select_1', dayOneHotel.value, dayOneHotel.label || 'Day 1 hotel');
+                safeSetSelectValue('arrival_drop_select_1', dayOneHotel.value);
+            }
+
             /** Last day — Departure: pickup = hotel covering checkout; drop = same default port */
             if (daysCount >= 2 && portVal) {
                 const lastD = daysCount;
@@ -2443,6 +2612,16 @@
                     );
                     safeSetSelectValue(`transfer_drop_select_${lastD}`, portVal);
                 }
+                enforceDepartureDropPort(lastD, true);
+                const depPickupEl = document.getElementById(`departure_pickup_select_${lastD}`);
+                if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
+                    ensureTransferLocationOption(
+                        `departure_pickup_select_${lastD}`,
+                        depHotelVal,
+                        checkoutHotel.label || labelForStoredTransferLocation(depHotelVal)
+                    );
+                    safeSetSelectValue(`departure_pickup_select_${lastD}`, depHotelVal);
+                }
             }
         }
 
@@ -2456,7 +2635,7 @@
             const cityName = cityOp.dataset.name || cityOp.textContent || '';
             const dmcId = document.getElementById('dmc_id').value;
 
-            fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`)
+            fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`)
                 .then(r => r.json())
                 .then(data => {
                     hotelsByRating = data.hotels || {};
@@ -2492,7 +2671,7 @@
 
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const url = `/day-level/tickets-by-attraction?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                const url = `${DAY_LEVEL_ROUTES.ticketsByAttraction}?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch tickets');
                 const data = await res.json();
@@ -2573,7 +2752,10 @@
             const pickupSelectId = `departure_pickup_select_${d}`;
             const dropSelectId = `departure_drop_select_${d}`;
             const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
-            const dropVal = String(document.getElementById(dropSelectId)?.value || '').trim();
+            const dropFromSelect = String(document.getElementById(dropSelectId)?.value || '').trim();
+            const dropVal = transferTypeFromValue(dropFromSelect) === 'port'
+                ? dropFromSelect
+                : (resolveDefaultPortValue() || dropFromSelect);
             return {
                 required: 'Yes',
                 transfer_type: 'Departure',
@@ -2592,7 +2774,8 @@
                 safeSetSelectValue(`attraction_select_${d}`, '');
                 setSelectOptions(`attraction_ticket_select_${d}`, []);
                 safeSetSelectValue(`restaurant_select_${d}`, '');
-                safeSetSelectValue(`restaurant_dish_type_${d}`, '');
+                safeSetSelectValue(`restaurant_meal_period_${d}`, '');
+                setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Select restaurant first' }]);
             }
             safeSetSelectValue(`transfer_pickup_select_${d}`, '');
             safeSetSelectValue(`transfer_drop_select_${d}`, '');
@@ -2604,6 +2787,62 @@
             renderExtraTransferRows(d);
         }
 
+        function mealPeriodValueFromLabel(label) {
+            const key = String(label || '').trim().toLowerCase();
+            if (key === 'breakfast') return '1';
+            if (key === 'lunch') return '2';
+            if (key === 'dinner') return '3';
+            return '';
+        }
+
+        async function loadMealsForRestaurantForDay(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const restaurantOp = getSelectedOption(`restaurant_select_${d}`);
+            const mealPeriod = document.getElementById(`restaurant_meal_period_${d}`)?.value || '';
+
+            if (!restaurantOp || !restaurantOp.value) {
+                setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Select restaurant first' }]);
+                return;
+            }
+
+            const dmcId = document.getElementById('dmc_id').value || '';
+            let url = `${DAY_LEVEL_ROUTES.mealsByRestaurant}?restaurant_id=${encodeURIComponent(restaurantOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+            if (mealPeriod) {
+                url += `&meal_period=${encodeURIComponent(mealPeriod)}`;
+            }
+
+            setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Loading meals...' }]);
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error('Failed to fetch meals');
+                }
+                const data = await res.json();
+                const meals = Array.isArray(data?.meals) ? data.meals : [];
+                if (!meals.length) {
+                    setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'No meals for this restaurant' }]);
+                    return;
+                }
+                setSelectOptions(`restaurant_meal_select_${d}`, meals.map(meal => {
+                    const periodLabel = String(meal.meal_period_label || '').trim();
+                    const typeLabel = String(meal.type_label || '').trim();
+                    const name = String(meal.name || '').trim();
+                    const labelParts = [periodLabel, typeLabel, name].filter(Boolean);
+                    return {
+                        value: String(meal.meal_id ?? ''),
+                        label: labelParts.join(' · ') || `Meal ${meal.meal_id}`,
+                        data_meal_period_label: periodLabel,
+                        data_type_label: typeLabel,
+                        data_meal_name: name,
+                        data_meal_period: String(meal.meal_period ?? ''),
+                    };
+                }));
+            } catch (e) {
+                setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Error loading meals' }]);
+            }
+        }
+
         async function loadTicketsForAttractionForDay(dayVal) {
             const attractionOp = getSelectedOption(`attraction_select_${dayVal}`);
             if (!attractionOp) {
@@ -2613,7 +2852,7 @@
 
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const url = `/day-level/tickets-by-attraction?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                const url = `${DAY_LEVEL_ROUTES.ticketsByAttraction}?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch tickets');
                 const data = await res.json();
@@ -2637,7 +2876,7 @@
             }
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const res = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
+                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
                 const data = await res.json();
                 setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => ({
                     value: x.attraction_id,
@@ -2648,6 +2887,7 @@
                     value: x.restaurant_id,
                     label: x.name + (x.city ? ` - ${x.city}` : '')
                 })));
+                setSelectOptions(`restaurant_meal_select_${dayVal}`, [{ value: '', label: 'Select restaurant first' }]);
                 setSelectOptions(`attraction_ticket_select_${dayVal}`, []);
             } catch (e) {
                 setSelectOptions(`attraction_select_${dayVal}`, []);
@@ -2675,8 +2915,8 @@
             const cityName = hotelCityDisplay || selectedCityName;
             try {
                 const ratingUrl = cityName
-                    ? `/day-level/hotels-by-rating?rating=${encodeURIComponent(category)}&city_name=${encodeURIComponent(cityName)}&dmc_id=${encodeURIComponent(dmcId)}`
-                    : `/day-level/hotels-by-rating?rating=${encodeURIComponent(category)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                    ? `${DAY_LEVEL_ROUTES.hotelsByRating}?rating=${encodeURIComponent(category)}&city_name=${encodeURIComponent(cityName)}&dmc_id=${encodeURIComponent(dmcId)}`
+                    : `${DAY_LEVEL_ROUTES.hotelsByRating}?rating=${encodeURIComponent(category)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(ratingUrl);
                 if (res.ok) {
                     list = await res.json();
@@ -2688,7 +2928,7 @@
             // Secondary source: by-city hotels payload, then filter by category
             if (!list.length && cityName) {
                 try {
-                    const resByCity = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
+                    const resByCity = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
                     if (resByCity.ok) {
                         const data = await resByCity.json();
                         const byCityFlat = data.hotels_flat || [];
@@ -2711,25 +2951,109 @@
                 list = hotelsByRating[category] || [];
             }
 
-            setSelectOptions('hotel_select', list.map(x => ({
-                value: x.id,
-                label: x.name + (x.city ? ` - ${x.city}` : ''),
-                price: x.price || x.base_price || 0
-            })));
+            setSelectOptions('hotel_select', list.map(x => {
+                const uniqueId = String(x.hotel_unique_id ?? '').trim();
+                const listId = String(x.id ?? '').trim();
+                return {
+                    value: uniqueId || listId,
+                    label: x.name + (x.city ? ` - ${x.city}` : ''),
+                    price: x.price || x.base_price || 0,
+                    data_hotel_list_id: listId,
+                };
+            }));
 
+            setSelectOptions('hotel_room_select', [{ value: '', label: 'Select hotel first' }]);
+            setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
             setSelectOptions('hotel_meal_plan', []);
+            hotelRoomsCache = [];
         }
 
-        async function loadMealPlansForSelectedHotel() {
+        async function loadRoomsForSelectedHotel() {
             const hotelOp = getSelectedOption('hotel_select');
             if (!hotelOp) {
+                hotelRoomsCache = [];
+                setSelectOptions('hotel_room_select', [{ value: '', label: 'Select hotel first' }]);
+                setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
                 setSelectOptions('hotel_meal_plan', []);
                 toggleHotelMealTypeVisibility();
                 return;
             }
 
             const dmcId = document.getElementById('dmc_id').value || '';
-            const url = `/day-level/meal-plans-by-hotel?hotel_id=${encodeURIComponent(hotelOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+            const url = `${DAY_LEVEL_ROUTES.roomsByHotel}?hotel_unique_id=${encodeURIComponent(hotelOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+            setSelectOptions('hotel_room_select', [{ value: '', label: 'Loading rooms...' }]);
+            setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
+            setSelectOptions('hotel_meal_plan', []);
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error('Failed to fetch rooms');
+                }
+                const data = await res.json();
+                const rooms = Array.isArray(data) ? data : [];
+                hotelRoomsCache = rooms;
+                if (!rooms.length) {
+                    setSelectOptions('hotel_room_select', [{ value: '', label: 'No rooms available for this hotel' }]);
+                    return;
+                }
+                setSelectOptions('hotel_room_select', rooms.map(room => ({
+                    value: String(room.room_id ?? ''),
+                    label: String(room.room_type || `Room ${room.room_id}`),
+                })));
+            } catch (e) {
+                hotelRoomsCache = [];
+                setSelectOptions('hotel_room_select', [{ value: '', label: 'Error loading rooms' }]);
+            }
+        }
+
+        async function loadBedsForSelectedRoom() {
+            const roomOp = getSelectedOption('hotel_room_select');
+            if (!roomOp || !roomOp.value) {
+                setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
+                return;
+            }
+
+            const dmcId = document.getElementById('dmc_id').value || '';
+            const url = `${DAY_LEVEL_ROUTES.bedsByRoom}?room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+            setSelectOptions('hotel_bed_select', [{ value: '', label: 'Loading beds...' }]);
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error('Failed to fetch beds');
+                }
+                const data = await res.json();
+                const beds = Array.isArray(data) ? data : [];
+                if (!beds.length) {
+                    setSelectOptions('hotel_bed_select', [{ value: '', label: 'No beds available for this room' }]);
+                    return;
+                }
+                setSelectOptions('hotel_bed_select', beds.map(bed => ({
+                    value: String(bed.bed_id ?? ''),
+                    label: String(bed.bed_type || bed.room_type || `Bed ${bed.bed_id}`),
+                })));
+            } catch (e) {
+                setSelectOptions('hotel_bed_select', [{ value: '', label: 'Error loading beds' }]);
+            }
+        }
+
+        async function loadMealPlansForSelectedHotel() {
+            const hotelOp = getSelectedOption('hotel_select');
+            const roomOp = getSelectedOption('hotel_room_select');
+            if (!hotelOp) {
+                setSelectOptions('hotel_meal_plan', []);
+                toggleHotelMealTypeVisibility();
+                return;
+            }
+            if (!roomOp || !roomOp.value) {
+                setSelectOptions('hotel_meal_plan', [{ value: '', label: 'Select room first' }]);
+                toggleHotelMealTypeVisibility();
+                return;
+            }
+
+            const dmcId = document.getElementById('dmc_id').value || '';
+            const url = `${DAY_LEVEL_ROUTES.mealPlansByHotel}?hotel_unique_id=${encodeURIComponent(hotelOp.value)}&room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
             try {
                 const res = await fetch(url);
                 if (!res.ok) {
@@ -2768,7 +3092,10 @@
             if (!hotelId) return '';
 
             // First try current cache
-            const cached = (hotelsFlat || []).find(h => String(h.id) === String(hotelId));
+            const hotelKey = String(hotelId);
+            const cached = (hotelsFlat || []).find(h =>
+                String(h.hotel_unique_id || '') === hotelKey || String(h.id || '') === hotelKey
+            );
             if (cached && cached.hotel_star_rating !== undefined && cached.hotel_star_rating !== null) {
                 return String(cached.hotel_star_rating);
             }
@@ -2777,11 +3104,13 @@
             if (!cityName) return '';
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const res = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
+                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
                 if (!res.ok) return '';
                 const data = await res.json();
                 const flat = Array.isArray(data?.hotels_flat) ? data.hotels_flat : [];
-                const match = flat.find(h => String(h.id) === String(hotelId));
+                const match = flat.find(h =>
+                    String(h.hotel_unique_id || '') === hotelKey || String(h.id || '') === hotelKey
+                );
                 if (!match) return '';
                 return String(match.hotel_star_rating ?? '');
             } catch (e) {
@@ -2795,7 +3124,10 @@
             $('#hotel_category').val('').trigger('change.select2');
             setSelectOptions('hotel_select', []);
             setSelectOptions('hotel_day', []);
+            setSelectOptions('hotel_room_select', [{ value: '', label: 'Select hotel first' }]);
+            setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
             setSelectOptions('hotel_meal_plan', []);
+            hotelRoomsCache = [];
             safeSetSelectValue('hotel_meal_type', '');
             document.getElementById('hotel_priority').value = '1';
             document.getElementById('hotel_guide_required').checked = false;
@@ -2810,9 +3142,15 @@
         function addHotel() {
             const hotelOp = getSelectedOption('hotel_select');
             const categoryOp = getSelectedOption('hotel_category');
+            const roomOp = getSelectedOption('hotel_room_select');
+            const bedOp = getSelectedOption('hotel_bed_select');
             const mealPlanOp = getSelectedOption('hotel_meal_plan');
             if (!hotelOp || !categoryOp) {
                 alert('Select hotel category and hotel.');
+                return;
+            }
+            if (!roomOp || !roomOp.value) {
+                alert('Select a room for this hotel.');
                 return;
             }
 
@@ -2836,6 +3174,10 @@
                 city_name: cityName,
                 day: derivedDay,
                 night: selectedNight,
+                room_id: roomOp.value,
+                room_type: roomOp.textContent || '',
+                bed_id: bedOp?.value || '',
+                bed_type: bedOp?.textContent || '',
                 meal_plan: mealPlanOp?.value || '',
                 meal_type: document.getElementById('hotel_meal_type')?.value || '',
                 guide_required: document.getElementById('hotel_guide_required')?.checked ? 'Yes' : 'No',
@@ -2918,7 +3260,11 @@
                 : await resolveHotelCategoryForEdit(x.hotel_id, x.city_name || getCityNameFromSelect('hotel_city_select'));
             safeSetSelectValue('hotel_category', resolvedCategory);
             await filterHotelOptions();
-            safeSetSelectValue('hotel_select', x.hotel_id || '');
+            safeSetSelectValue('hotel_select', resolveHotelUniqueIdForPayload(x.hotel_id) || '');
+            await loadRoomsForSelectedHotel();
+            safeSetSelectValue('hotel_room_select', x.room_id || '');
+            await loadBedsForSelectedRoom();
+            safeSetSelectValue('hotel_bed_select', x.bed_id || '');
             await loadMealPlansForSelectedHotel();
             safeSetSelectValue('hotel_meal_plan', x.meal_plan || '');
             toggleHotelMealTypeVisibility();
@@ -2962,7 +3308,7 @@
             const body = document.getElementById('hotelRows');
             const current = [...hotels].sort((a, b) => (a.day || 0) - (b.day || 0));
             if (!current.length) {
-                body.innerHTML = '<tr><td colspan="12" class="text-muted">No hotels added</td></tr>';
+                body.innerHTML = '<tr><td colspan="14" class="text-muted">No hotels added</td></tr>';
             } else {
                 body.innerHTML = current.map((x) => {
                     const idx = hotels.indexOf(x);
@@ -2973,6 +3319,8 @@
                             <td>${escapeHtml(x.cat_label)}</td>
                             <td>${escapeHtml(x.hotel_name)}</td>
                             <td>${escapeHtml(String(x.night || 1))}</td>
+                            <td>${escapeHtml(x.room_type || x.room_id || '-')}</td>
+                            <td>${escapeHtml(x.bed_type || x.bed_id || '-')}</td>
                             <td>${escapeHtml(x.meal_plan || '-')}</td>
                             <td>${escapeHtml(x.meal_type || '-')}</td>
                             <td>${escapeHtml(x.guide_required || 'No')}</td>
@@ -3152,12 +3500,13 @@
                 alert('Select restaurant first.');
                 return;
             }
-            const dishType = document.getElementById(`restaurant_dish_type_${dayVal}`)?.value || '';
-            if (!dishType) {
-                alert('Select Dish before adding restaurant.');
+            const mealOp = getSelectedOption(`restaurant_meal_select_${dayVal}`);
+            if (!mealOp || !mealOp.value) {
+                alert('Select a meal for this restaurant.');
                 return;
             }
 
+            const periodOp = getSelectedOption(`restaurant_meal_period_${dayVal}`);
             const payload = {
                 day: normalizedDay,
                 type: 'restaurant',
@@ -3165,8 +3514,11 @@
                 label: selOp.textContent,
                 city_name: getCityNameFromSelect(`activity_city_select_${dayVal}`) || '',
                 meal: {
-                    meal_type: '',
-                    dish: dishType,
+                    meal_id: mealOp.value,
+                    meal_type: (periodOp?.textContent || mealOp.dataset?.mealPeriodLabel || '').trim(),
+                    dish: (mealOp.dataset?.typeLabel || '').trim(),
+                    meal_name: (mealOp.dataset?.mealName || mealOp.textContent || '').trim(),
+                    meal_period: periodOp?.value || mealOp.dataset?.mealPeriod || '',
                     time_slot: ''
                 },
                 transfer: {
@@ -3294,7 +3646,23 @@
             } else if (x.type === 'restaurant') {
                 ensureSelectOptionByValue(`restaurant_select_${rowDay}`, x.id || '', x.label || '');
                 safeSetSelectValue(`restaurant_select_${rowDay}`, x.id || '');
-                safeSetSelectValue(`restaurant_dish_type_${rowDay}`, x.meal?.dish || '');
+                const periodVal = String(x.meal?.meal_period || mealPeriodValueFromLabel(x.meal?.meal_type) || '');
+                safeSetSelectValue(`restaurant_meal_period_${rowDay}`, periodVal);
+                await loadMealsForRestaurantForDay(rowDay);
+                if (x.meal?.meal_id) {
+                    ensureSelectOptionByValue(`restaurant_meal_select_${rowDay}`, x.meal.meal_id, x.meal.meal_name || x.meal.dish || '');
+                    safeSetSelectValue(`restaurant_meal_select_${rowDay}`, x.meal.meal_id);
+                } else if (x.meal?.dish) {
+                    const mealSelect = document.getElementById(`restaurant_meal_select_${rowDay}`);
+                    const legacyMatch = mealSelect
+                        ? Array.from(mealSelect.options).find(opt =>
+                            String(opt.dataset.typeLabel || opt.textContent || '').includes(String(x.meal.dish))
+                        )
+                        : null;
+                    if (legacyMatch) {
+                        safeSetSelectValue(`restaurant_meal_select_${rowDay}`, legacyMatch.value);
+                    }
+                }
             }
 
             const transfer = x.transfer && typeof x.transfer === 'object' ? x.transfer : {};
@@ -3708,9 +4076,13 @@
 
                 h.forEach((x, i) => {
                     hotelMap[`Hotel ${i + 1}`] = {
-                        hotel_id: String(x.hotel_id),
+                        hotel_id: resolveHotelUniqueIdForPayload(x.hotel_id),
                         hotel_name: x.hotel_name,
                         city: x.city_name || '',
+                        room_id: String(x.room_id || ''),
+                        room_type: String(x.room_type || ''),
+                        bed_id: String(x.bed_id || ''),
+                        bed_type: String(x.bed_type || ''),
                         meal_plan: x.meal_plan || '',
                         price: x.price || 0,
                         night: derivedNight != null ? derivedNight : (parseInt(String(x.night || '1'), 10) || 1),
@@ -3974,7 +4346,7 @@
                     inner += `
                         <div class="preview-line"><strong>Hotel:</strong>
                             ${escapeHtml(h.hotel_name || '-')}
-                            <span class="text-muted"> · ${escapeHtml(h.city || '')} · ${escapeHtml(String(h.night || 1))} night(s) · ${escapeHtml(h.meal_plan || 'No meal')}</span>
+                            <span class="text-muted"> · ${escapeHtml(h.city || '')} · ${escapeHtml(String(h.night || 1))} night(s) · ${escapeHtml(h.room_type || 'No room')} · ${escapeHtml(h.bed_type || 'No bed')} · ${escapeHtml(h.meal_plan || 'No meal')}</span>
                         </div>`;
                     if ((h.guide_required || 'No') === 'Yes') {
                         inner += '<div class="preview-line ms-3"><span class="text-muted">Guide required</span></div>';
@@ -4044,7 +4416,7 @@
                     <h6 class="fw-semibold mb-2">Hotels (${hotels.length})</h6>
                     <div class="table-responsive modern-table-wrap mb-3">
                         <table class="table table-sm data-table-sm mb-0">
-                            <thead><tr><th>Day</th><th>City</th><th>Hotel</th><th>Nights</th><th>Meal</th><th>Guide</th></tr></thead>
+                            <thead><tr><th>Day</th><th>City</th><th>Hotel</th><th>Nights</th><th>Room</th><th>Bed</th><th>Meal</th><th>Guide</th></tr></thead>
                             <tbody>
                                 ${[...hotels].sort((a, b) => (a.day || 0) - (b.day || 0)).map(h => `
                                     <tr>
@@ -4052,6 +4424,8 @@
                                         <td>${escapeHtml(h.city_name || '-')}</td>
                                         <td>${escapeHtml(h.hotel_name || '-')}</td>
                                         <td>${escapeHtml(String(h.night || 1))}</td>
+                                        <td>${escapeHtml(h.room_type || '-')}</td>
+                                        <td>${escapeHtml(h.bed_type || '-')}</td>
                                         <td>${escapeHtml(h.meal_plan || '-')}</td>
                                         <td>${escapeHtml(h.guide_required || 'No')}</td>
                                     </tr>
@@ -4231,8 +4605,16 @@
             $('#hotel_select').on('change select2:select select2:clear', function () {
                 if (isPrefillingHotelForm) return;
                 syncHotelDayDropdownWithMultiCity();
-                loadMealPlansForSelectedHotel();
+                loadRoomsForSelectedHotel();
                 applyTransferDefaults();
+            });
+            $('#hotel_room_select').on('change select2:select select2:clear', function () {
+                if (isPrefillingHotelForm) return;
+                loadBedsForSelectedRoom();
+                loadMealPlansForSelectedHotel();
+            });
+            $('#hotel_bed_select').on('change select2:select select2:clear', function () {
+                if (isPrefillingHotelForm) return;
             });
             $('#hotel_meal_plan').on('change select2:select select2:clear', function () {
                 toggleHotelMealTypeVisibility();
@@ -4291,6 +4673,17 @@
                 loadTicketsForAttractionForDay(d);
             });
 
+            $(document).on('change select2:select select2:clear', '[id^="restaurant_select_"]', function () {
+                if (isPrefillingActivityForm) return;
+                const d = getDayFromElementId(this.id);
+                loadMealsForRestaurantForDay(d);
+            });
+
+            $(document).on('change select2:select select2:clear', '[id^="restaurant_meal_period_"]', function () {
+                if (isPrefillingActivityForm) return;
+                const d = getDayFromElementId(this.id);
+                loadMealsForRestaurantForDay(d);
+            });
 
             $(document).on('change select2:select select2:clear', '[id^="activity_city_select_"]', function () {
                 if (isPrefillingActivityForm) return;

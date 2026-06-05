@@ -1354,6 +1354,15 @@ Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
 Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
     ->name('day-level.hotels-by-rating');
 
+Route::get('day-level/rooms-by-hotel', [DayLevelController::class, 'roomsByHotel'])
+    ->name('day-level.rooms-by-hotel');
+
+Route::get('day-level/beds-by-room', [DayLevelController::class, 'bedsByRoom'])
+    ->name('day-level.beds-by-room');
+
+Route::get('day-level/meals-by-restaurant', [DayLevelController::class, 'mealsByRestaurant'])
+    ->name('day-level.meals-by-restaurant');
+
 Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
     ->name('day-level.meal-plans-by-hotel');
 
