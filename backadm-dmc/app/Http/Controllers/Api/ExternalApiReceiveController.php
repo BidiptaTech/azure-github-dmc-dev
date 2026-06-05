@@ -77,6 +77,7 @@ class ExternalApiReceiveController extends Controller
         $result = [
             'external_data_stored' => true,
             'tour_created' => false,
+            'tour_already_exists' => false,
             'order_created' => false,
             'tour_id' => null,
             'tour_display_id' => null,
@@ -88,6 +89,33 @@ class ExternalApiReceiveController extends Controller
             'sender_email_sent' => false,
             'sender_email' => null,
         ];
+
+        $emailUuid = $this->extractEmailUuid($payload);
+        if ($emailUuid !== null) {
+            $existingTour = Tour::where('uuid', $emailUuid)->first();
+            if ($existingTour) {
+                $existingOrders = Order::where('tour_id', $existingTour->tour_id)->get();
+
+                $record->status = true;
+                $record->save();
+
+                $result['tour_already_exists'] = true;
+                $result['order_created'] = $existingOrders->isNotEmpty();
+                $result['tour_id'] = $existingTour->tour_id;
+                $result['tour_display_id'] = $existingTour->display_id;
+                $result['order_id'] = optional($existingOrders->first())->getKey();
+                $result['orders_count'] = $existingOrders->count();
+                $result['agent_id'] = $existingTour->agent_id;
+                $result['agency_id'] = Agent::where('agent_id', $existingTour->agent_id)->value('agency_id');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tour already exists for this email_uuid; returning existing tour.',
+                    'received_id' => $record->id,
+                    'result' => $result,
+                ], 200);
+            }
+        }
 
         try {
             // Atomic: Tour creation + Order creation + status flip succeed or fail together.
@@ -233,6 +261,7 @@ class ExternalApiReceiveController extends Controller
         $tour->created_by = $createdBy;
         $tour->mainguest = $this->extractMainGuest($payload);
         $tour->additionalguest = $this->extractAdditionalGuests($payload);
+        $tour->uuid = $this->extractEmailUuid($payload);
         $tour->save();
         $tour->refresh();
 
@@ -1866,6 +1895,20 @@ class ExternalApiReceiveController extends Controller
         }
 
         return $items;
+    }
+
+    /**
+     * Normalize email_uuid from the external payload for idempotent tour creation.
+     */
+    protected function extractEmailUuid(array $payload): ?string
+    {
+        if (! array_key_exists('email_uuid', $payload) || $payload['email_uuid'] === null) {
+            return null;
+        }
+
+        $uuid = trim((string) $payload['email_uuid']);
+
+        return $uuid !== '' ? $uuid : null;
     }
 
     /**
