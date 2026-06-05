@@ -37,6 +37,31 @@ class ExternalApiReceiveController extends Controller
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
         }
+        $payload = $this->unwrapPayload($payload);
+
+        if (isset($payload['raw_body']) && empty($payload['destinations'])) {
+            $reparsed = $this->unwrapPayload($this->normalizeToArray($payload['raw_body']));
+            if (! empty($reparsed['destinations'])) {
+                $payload = $reparsed;
+            }
+        }
+
+        if (empty($payload['destinations'])) {
+            $record = ExternalApiReceive::create([
+                'source_ip' => $request->ip(),
+                'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
+                'headers' => $request->headers->all(),
+                'payload' => $payload,
+                'status' => false,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
+                'received_id' => $record->id,
+                'hint' => 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
+            ], 422);
+        }
 
         // Always persist the received payload first (audit trail). The index()
         // endpoint reads status=false rows as "pending", so keeping the record
@@ -1083,6 +1108,7 @@ class ExternalApiReceiveController extends Controller
     {
         $candidates = [
             $payload['DMC_email'] ?? null,
+            $payload['dmc_email'] ?? null,
             $primaryDmc['DMC_email'] ?? null,
         ];
 
@@ -1154,21 +1180,49 @@ class ExternalApiReceiveController extends Controller
                     continue;
                 }
                 foreach ($dmc['cities'] ?? [] as $cityRow) {
-                    if (is_string($cityRow)) {
-                        $name = trim($cityRow);
-                    } elseif (is_array($cityRow)) {
-                        $name = trim((string) ($cityRow['city'] ?? $cityRow['name'] ?? ''));
-                    } else {
-                        continue;
-                    }
+                    $name = $this->extractCityName($cityRow);
                     if ($name !== '' && ! in_array($name, $cities, true)) {
                         $cities[] = $name;
+                    }
+                }
+                foreach ($dmc['packages'] ?? [] as $package) {
+                    if (! is_array($package)) {
+                        continue;
+                    }
+                    foreach ($package['days'] ?? [] as $day) {
+                        if (! is_array($day)) {
+                            continue;
+                        }
+                        foreach ($this->itemsFrom($day['cities'] ?? []) as $cityRow) {
+                            $name = $this->extractCityName($cityRow);
+                            if ($name !== '' && ! in_array($name, $cities, true)) {
+                                $cities[] = $name;
+                            }
+                        }
+                        foreach ($this->itemsFrom($day['hotels'] ?? []) as $hotel) {
+                            $name = trim((string) ($hotel['city'] ?? ''));
+                            if ($name !== '' && ! in_array($name, $cities, true)) {
+                                $cities[] = $name;
+                            }
+                        }
                     }
                 }
             }
         }
 
         return $cities;
+    }
+
+    protected function extractCityName(mixed $cityRow): string
+    {
+        if (is_string($cityRow)) {
+            return trim($cityRow);
+        }
+        if (is_array($cityRow)) {
+            return trim((string) ($cityRow['city'] ?? $cityRow['name'] ?? ''));
+        }
+
+        return '';
     }
 
     protected function notifyAgent(Tour $tour): bool
@@ -1262,7 +1316,10 @@ class ExternalApiReceiveController extends Controller
             }
         }
 
-        $email = $primaryDmc['DMC_email'] ?? ($payload['sender_email'] ?? null);
+        $email = $primaryDmc['DMC_email']
+            ?? ($payload['DMC_email'] ?? null)
+            ?? ($payload['dmc_email'] ?? null)
+            ?? ($payload['sender_email'] ?? null);
         if (!empty($email)) {
             $user = User::where('email', $email)->first();
             if ($user) {
@@ -1563,6 +1620,71 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
+     * Unwrap external payloads that nest booking data under response/data/body keys,
+     * then normalize common field aliases (dmc_email, package_id, etc.).
+     */
+    protected function unwrapPayload(array $payload): array
+    {
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                continue;
+            }
+
+            $inner = $payload[$wrapper];
+            $outer = array_diff_key($payload, [$wrapper => true]);
+
+            $payload = $outer !== [] ? array_merge($inner, $outer) : $inner;
+            break;
+        }
+
+        if (empty($payload['DMC_email']) && ! empty($payload['dmc_email'])) {
+            $payload['DMC_email'] = $payload['dmc_email'];
+        }
+
+        if (empty($payload['package_id']) && empty($payload['id'])) {
+            $packageId = $this->extractFirstPackageId($payload);
+            if ($packageId !== null) {
+                $payload['package_id'] = $packageId;
+            }
+        }
+
+        if (empty($payload['country'])) {
+            $primaryDmc = $this->resolvePrimaryDmc($payload);
+            $country = trim((string) ($primaryDmc['country'] ?? ''));
+            if ($country !== '') {
+                $payload['country'] = $country;
+            }
+        }
+
+        return $payload;
+    }
+
+    protected function extractFirstPackageId(array $payload): ?string
+    {
+        foreach ($payload['destinations'] ?? [] as $destination) {
+            if (! is_array($destination)) {
+                continue;
+            }
+            foreach ($destination['DMC'] ?? [] as $dmc) {
+                if (! is_array($dmc)) {
+                    continue;
+                }
+                foreach ($dmc['packages'] ?? [] as $package) {
+                    if (! is_array($package)) {
+                        continue;
+                    }
+                    $id = trim((string) ($package['package_id'] ?? $package['packageId'] ?? $package['id'] ?? ''));
+                    if ($id !== '') {
+                        return $id;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Decode a value into an associative array. Handles raw arrays, JSON strings,
      * and double-encoded JSON strings (the legacy `payload=<json string>` form field
      * which previously caused the stored payload to be a string).
@@ -1577,6 +1699,14 @@ class ExternalApiReceiveController extends Controller
             }
             $decoded = json_decode($trimmed, true);
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+                $pythonParsed = $this->parsePythonLikePayload($trimmed);
+                if ($pythonParsed !== null) {
+                    $value = $pythonParsed;
+                    $loops++;
+
+                    continue;
+                }
+
                 return ['raw_body' => $value];
             }
             $value = $decoded;
@@ -1584,6 +1714,36 @@ class ExternalApiReceiveController extends Controller
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Parse Python dict/list literals (single quotes) sent by legacy external clients.
+     */
+    protected function parsePythonLikePayload(string $value): ?array
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $first = $trimmed[0];
+        if ($first !== '{' && $first !== '[') {
+            return null;
+        }
+
+        $converted = preg_replace(
+            ['/\bNone\b/', '/\bTrue\b/', '/\bFalse\b/'],
+            ['null', 'true', 'false'],
+            $trimmed
+        );
+        $converted = str_replace("'", '"', $converted);
+
+        $decoded = json_decode($converted, true);
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            return null;
+        }
+
+        return $decoded;
     }
 
     /**
