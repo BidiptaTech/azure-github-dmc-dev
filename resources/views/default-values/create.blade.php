@@ -2,6 +2,31 @@
 
 @section('title', 'Add Default Value')
 
+@push('css')
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<style>
+    .default-value-service-select + .select2-container--default .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 0.75rem !important;
+        color: #697a8d !important;
+    }
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4">
@@ -85,7 +110,7 @@
                     <!-- Hotel -->
                     <div class="col-md-12 mb-3 service-select" id="hotel-select" style="display: none;">
                         <label for="hotel_service_id" class="form-label">Select Hotel <span class="text-danger">*</span></label>
-                        <select name="service_id_hotel" id="hotel_service_id" class="form-select">
+                        <select name="service_id_hotel" id="hotel_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a hotel">
                             <option value="">Select Hotel</option>
                             @foreach($hotels as $hotel)
                                 <option value="{{ $hotel->hotel_unique_id }}" {{ old('service_id') == $hotel->hotel_unique_id ? 'selected' : '' }}>
@@ -98,7 +123,7 @@
                     <!-- Restaurant -->
                     <div class="col-md-12 mb-3 service-select" id="restaurant-select" style="display: none;">
                         <label for="restaurant_service_id" class="form-label">Select Restaurant <span class="text-danger">*</span></label>
-                        <select name="service_id_restaurant" id="restaurant_service_id" class="form-select">
+                        <select name="service_id_restaurant" id="restaurant_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a restaurant">
                             <option value="">Select Restaurant</option>
                             @foreach($restaurants as $restaurant)
                                 <option value="{{ $restaurant->restaurant_id }}" {{ old('service_id') == $restaurant->restaurant_id ? 'selected' : '' }}>
@@ -111,7 +136,7 @@
                     <!-- Attraction -->
                     <div class="col-md-12 mb-3 service-select" id="attraction-select" style="display: none;">
                         <label for="attraction_service_id" class="form-label">Select Attraction <span class="text-danger">*</span></label>
-                        <select name="service_id_attraction" id="attraction_service_id" class="form-select">
+                        <select name="service_id_attraction" id="attraction_service_id" class="form-select default-value-service-select" data-placeholder="Search and select an attraction">
                             <option value="">Select Attraction</option>
                             @foreach($attractions as $attraction)
                                 <option value="{{ $attraction->attraction_id }}" {{ old('service_id') == $attraction->attraction_id ? 'selected' : '' }}>
@@ -124,7 +149,7 @@
                     <!-- Car Private -->
                     <div class="col-md-12 mb-3 service-select" id="car_private-select" style="display: none;">
                         <label for="car_private_service_id" class="form-label">Select Car (Private) <span class="text-danger">*</span></label>
-                        <select name="service_id_car_private" id="car_private_service_id" class="form-select">
+                        <select name="service_id_car_private" id="car_private_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a car (private)">
                             <option value="">Select Car (Private)</option>
                             @foreach($privateVehicles as $vehicle)
                                 @php
@@ -145,7 +170,7 @@
                     <!-- Car Shared -->
                     <div class="col-md-12 mb-3 service-select" id="car_shared-select" style="display: none;">
                         <label for="car_shared_service_id" class="form-label">Select Car (Shared) <span class="text-danger">*</span></label>
-                        <select name="service_id_car_shared" id="car_shared_service_id" class="form-select">
+                        <select name="service_id_car_shared" id="car_shared_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a car (shared)">
                             <option value="">Select Car (Shared)</option>
                             @foreach($sharedVehicles as $vehicle)
                                 @php
@@ -166,7 +191,7 @@
                     <!-- Port -->
                     <div class="col-md-12 mb-3 service-select" id="port-select" style="display: none;">
                         <label for="port_service_id" class="form-label">Select Port <span class="text-danger">*</span></label>
-                        <select name="service_id_port" id="port_service_id" class="form-select">
+                        <select name="service_id_port" id="port_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a port">
                             <option value="">Select Port</option>
                             @foreach($ports as $port)
                                 <option value="{{ $port->port_id }}" {{ old('service_id') == $port->port_id ? 'selected' : '' }}>
@@ -179,7 +204,7 @@
                     <!-- Guide -->
                     <div class="col-md-12 mb-3 service-select" id="guide-select" style="display: none;">
                         <label for="guide_service_id" class="form-label">Select Guide <span class="text-danger">*</span></label>
-                        <select name="service_id_guide" id="guide_service_id" class="form-select">
+                        <select name="service_id_guide" id="guide_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a guide">
                             <option value="">Select Guide</option>
                             @foreach($guides as $guide)
                                 <option value="{{ $guide->guide_id }}" {{ old('service_id') == $guide->guide_id ? 'selected' : '' }}>
@@ -207,82 +232,94 @@
 </div>
 
 @push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const nameSelect = document.getElementById('name');
-    const serviceSelects = document.querySelectorAll('.service-select');
-    const serviceIdInput = document.getElementById('service_id');
+$(document).ready(function() {
+    const $nameSelect = $('#name');
+    const $serviceSelects = $('.service-select');
+    const $serviceIdInput = $('#service_id');
 
-    // Function to show/hide service select based on type
+    function initServiceSelect2(selectElement) {
+        const $el = $(selectElement);
+        if (!$el.length) return;
+        if ($el.data('select2')) {
+            $el.select2('destroy');
+        }
+        $el.select2({
+            placeholder: $el.data('placeholder') || 'Search and select',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+
+    function destroyServiceSelect2(selectElement) {
+        const $el = $(selectElement);
+        if ($el.length && $el.data('select2')) {
+            $el.select2('destroy');
+        }
+    }
+
     function toggleServiceSelect() {
-        const selectedType = nameSelect.value;
-        
-        // Hide all service selects
-        serviceSelects.forEach(select => {
-            select.style.display = 'none';
-            const selectElement = select.querySelector('select');
+        const selectedType = $nameSelect.val();
+
+        $serviceSelects.each(function() {
+            $(this).hide();
+            const selectElement = this.querySelector('select');
             if (selectElement) {
                 selectElement.removeAttribute('required');
+                destroyServiceSelect2(selectElement);
             }
         });
 
-        // Show the appropriate service select
         if (selectedType) {
-            const targetSelect = document.getElementById(selectedType + '-select');
-            if (targetSelect) {
-                targetSelect.style.display = 'block';
-                const selectElement = targetSelect.querySelector('select');
+            const $targetSelect = $('#' + selectedType + '-select');
+            if ($targetSelect.length) {
+                $targetSelect.show();
+                const selectElement = $targetSelect.find('select')[0];
                 if (selectElement) {
                     selectElement.setAttribute('required', 'required');
+                    initServiceSelect2(selectElement);
+                    const savedId = $serviceIdInput.val();
+                    if (savedId) {
+                        $(selectElement).val(savedId).trigger('change.select2');
+                    }
                 }
             }
         }
     }
 
-    // Update hidden service_id when any service select changes
     function updateServiceId() {
-        const selectedType = nameSelect.value;
-        if (selectedType) {
-            const targetSelect = document.getElementById(selectedType + '-select');
-            if (targetSelect) {
-                const selectElement = targetSelect.querySelector('select');
-                if (selectElement) {
-                    serviceIdInput.value = selectElement.value;
-                }
-            }
+        const selectedType = $nameSelect.val();
+        if (!selectedType) {
+            $serviceIdInput.val('');
+            return;
+        }
+        const $selectElement = $('#' + selectedType + '-select').find('select');
+        if ($selectElement.length) {
+            $serviceIdInput.val($selectElement.val() || '');
         }
     }
 
-    // Event listeners
-    nameSelect.addEventListener('change', function() {
+    $nameSelect.on('change', function() {
+        $serviceIdInput.val('');
         toggleServiceSelect();
         updateServiceId();
     });
 
-    // Add change listeners to all service selects
-    document.querySelectorAll('.service-select select').forEach(select => {
-        select.addEventListener('change', updateServiceId);
-    });
+    $(document).on('change select2:select select2:clear', '.default-value-service-select', updateServiceId);
 
-    // Initialize on page load
     toggleServiceSelect();
-    
-    // If there's an old value, update the service_id
-    if (nameSelect.value) {
+    if ($nameSelect.val()) {
         updateServiceId();
     }
 
-    // Validate before submit
-    document.getElementById('defaultValueForm').addEventListener('submit', function(e) {
-        const selectedType = nameSelect.value;
-        if (!selectedType) {
+    $('#defaultValueForm').on('submit', function(e) {
+        if (!$nameSelect.val()) {
             e.preventDefault();
             alert('Please select a service type.');
             return false;
         }
-
-        const serviceId = serviceIdInput.value;
-        if (!serviceId) {
+        if (!$serviceIdInput.val()) {
             e.preventDefault();
             alert('Please select a service.');
             return false;

@@ -2294,11 +2294,14 @@ class HotelController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $auth_user = Auth::user();
+        $bedId = Crypt::decrypt($id);
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         $beds = BedMaster::where('hotel_id', $hotelId)->get();
-        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $auth_user->userId)->get();
-        $hotelBed = Bed::with('room')->where('bed_id', $id)->first();
+        $dmcId = CommonHelper::getDmcId($auth_user);
+        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $dmcId)->get();
+        $hotelBed = Bed::with('room')->where('bed_id', $bedId)->first();
         $room = Room::where('room_id', $hotelBed->room_id)->first();
+        // dd($rooms->toArray());
         return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
     }
 
@@ -2330,6 +2333,7 @@ class HotelController extends Controller
             ]);
         }
 
+        // $bedId = Crypt::decrypt($request->bed_id);
         $bed = Bed::where('bed_id', $request->bed_id)->first();
         $room_data = Room::where('room_id', $request->room_type)->first();
         $no_of_room = $room_data->no_of_room;
@@ -2375,6 +2379,7 @@ class HotelController extends Controller
         // if (!hasPermission('delete bed')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $bedId = Crypt::decrypt($bedId);
         $bed = Bed::where('bed_id', $bedId)->first();
         $delete = Bed::where('bed_id', $bedId)->delete();
         if ($delete){
