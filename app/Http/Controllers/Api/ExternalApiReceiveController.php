@@ -366,7 +366,7 @@ class ExternalApiReceiveController extends Controller
         return Order::create([
             'agent_id' => $tour->agent_id,
             'tour_id' => $tour->tour_id,
-            'booking_id' => $bookingId,
+            // 'booking_id' => $bookingId,
             'data' => [$data],
             'type' => $this->normalizeOrderType($type),
             'status' => 1,
