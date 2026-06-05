@@ -1903,7 +1903,7 @@
                 <h5 class="mb-2" id="successTourId" style="color: #333;"></h5>
                 <p class="text-muted mb-4" id="successOrderCount"></p>
                 <button type="button" class="btn btn-success btn-lg px-5" onclick="redirectToDashboard()" style="border-radius: 50px;">
-                    <i class="ri-dashboard-line me-2"></i>Go to Dashboard
+                    <i class="ri-dashboard-line me-2"></i>Go to Enquiries
                 </button>
             </div>
         </div>
@@ -28072,7 +28072,7 @@
     
     // Redirect to dashboard
     function redirectToDashboard() {
-        window.location.href = '{{ route("dashboard") }}';
+        window.location.href = '{{ route("bookings.new-enquiries") }}';
     }
     
     async function generateEntryPortData() {

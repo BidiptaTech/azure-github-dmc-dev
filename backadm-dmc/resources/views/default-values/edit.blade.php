@@ -2,6 +2,31 @@
 
 @section('title', 'Edit Default Value')
 
+@push('css')
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<style>
+    .default-value-service-select + .select2-container--default .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 0.75rem !important;
+        color: #697a8d !important;
+    }
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4">
@@ -63,7 +88,7 @@
                     @if($defaultValue->name == 'hotel')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Hotel <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a hotel" required>
                             <option value="">Select Hotel</option>
                             @foreach($hotels as $hotel)
                                 <option value="{{ $hotel->hotel_unique_id }}" 
@@ -80,7 +105,7 @@
                     @elseif($defaultValue->name == 'restaurant')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Restaurant <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a restaurant" required>
                             <option value="">Select Restaurant</option>
                             @foreach($restaurants as $restaurant)
                                 <option value="{{ $restaurant->restaurant_id }}" 
@@ -97,7 +122,7 @@
                     @elseif($defaultValue->name == 'attraction')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Attraction <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select an attraction" required>
                             <option value="">Select Attraction</option>
                             @foreach($attractions as $attraction)
                                 <option value="{{ $attraction->attraction_id }}" 
@@ -114,7 +139,7 @@
                     @elseif($defaultValue->name == 'car_private')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Car (Private) <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a car (private)" required>
                             <option value="">Select Car (Private)</option>
                             @foreach($privateVehicles as $vehicle)
                                 @php
@@ -139,7 +164,7 @@
                     @elseif($defaultValue->name == 'car_shared')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Car (Shared) <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a car (shared)" required>
                             <option value="">Select Car (Shared)</option>
                             @foreach($sharedVehicles as $vehicle)
                                 @php
@@ -164,7 +189,7 @@
                     @elseif($defaultValue->name == 'port')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Port <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a port" required>
                             <option value="">Select Port</option>
                             @foreach($ports as $port)
                                 <option value="{{ $port->port_id }}" 
@@ -181,7 +206,7 @@
                     @elseif($defaultValue->name == 'guide')
                     <div class="col-md-12 mb-3">
                         <label for="service_id" class="form-label">Select Guide <span class="text-danger">*</span></label>
-                        <select name="service_id" id="service_id" class="form-select @error('service_id') is-invalid @enderror" required>
+                        <select name="service_id" id="service_id" class="form-select default-value-service-select @error('service_id') is-invalid @enderror" data-placeholder="Search and select a guide" required>
                             <option value="">Select Guide</option>
                             @foreach($guides as $guide)
                                 <option value="{{ $guide->guide_id }}" 
@@ -215,5 +240,21 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    const $serviceSelect = $('#service_id.default-value-service-select');
+    if ($serviceSelect.length) {
+        $serviceSelect.select2({
+            placeholder: $serviceSelect.data('placeholder') || 'Search and select',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+});
+</script>
+@endpush
 @endsection
 
