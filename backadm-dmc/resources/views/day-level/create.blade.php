@@ -821,11 +821,15 @@
         const REQUIRE_MASTER_DMC_CITY = false;
 
         const DAY_LEVEL_ROUTES = {
+            byCity: @json(route('day-level.by-city')),
+            hotelsByRating: @json(route('day-level.hotels-by-rating')),
             roomsByHotel: @json(route('day-level.rooms-by-hotel')),
             bedsByRoom: @json(route('day-level.beds-by-room')),
             mealPlansByHotel: @json(route('day-level.meal-plans-by-hotel')),
             mealsByRestaurant: @json(route('day-level.meals-by-restaurant')),
             transferOptions: @json(route('day-level.transfer-options')),
+            ticketsByAttraction: @json(route('day-level.tickets-by-attraction')),
+            citiesByCountry: @json(route('day-level.cities-by-country')),
         };
 
         function packageMatchesEditFilter(pkg) {
@@ -2631,7 +2635,7 @@
             const cityName = cityOp.dataset.name || cityOp.textContent || '';
             const dmcId = document.getElementById('dmc_id').value;
 
-            fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`)
+            fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`)
                 .then(r => r.json())
                 .then(data => {
                     hotelsByRating = data.hotels || {};
@@ -2667,7 +2671,7 @@
 
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const url = `/day-level/tickets-by-attraction?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                const url = `${DAY_LEVEL_ROUTES.ticketsByAttraction}?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch tickets');
                 const data = await res.json();
@@ -2848,7 +2852,7 @@
 
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const url = `/day-level/tickets-by-attraction?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                const url = `${DAY_LEVEL_ROUTES.ticketsByAttraction}?attraction_id=${encodeURIComponent(attractionOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch tickets');
                 const data = await res.json();
@@ -2872,7 +2876,7 @@
             }
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const res = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
+                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
                 const data = await res.json();
                 setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => ({
                     value: x.attraction_id,
@@ -2911,8 +2915,8 @@
             const cityName = hotelCityDisplay || selectedCityName;
             try {
                 const ratingUrl = cityName
-                    ? `/day-level/hotels-by-rating?rating=${encodeURIComponent(category)}&city_name=${encodeURIComponent(cityName)}&dmc_id=${encodeURIComponent(dmcId)}`
-                    : `/day-level/hotels-by-rating?rating=${encodeURIComponent(category)}&dmc_id=${encodeURIComponent(dmcId)}`;
+                    ? `${DAY_LEVEL_ROUTES.hotelsByRating}?rating=${encodeURIComponent(category)}&city_name=${encodeURIComponent(cityName)}&dmc_id=${encodeURIComponent(dmcId)}`
+                    : `${DAY_LEVEL_ROUTES.hotelsByRating}?rating=${encodeURIComponent(category)}&dmc_id=${encodeURIComponent(dmcId)}`;
                 const res = await fetch(ratingUrl);
                 if (res.ok) {
                     list = await res.json();
@@ -2924,7 +2928,7 @@
             // Secondary source: by-city hotels payload, then filter by category
             if (!list.length && cityName) {
                 try {
-                    const resByCity = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
+                    const resByCity = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
                     if (resByCity.ok) {
                         const data = await resByCity.json();
                         const byCityFlat = data.hotels_flat || [];
@@ -3100,7 +3104,7 @@
             if (!cityName) return '';
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const res = await fetch(`/day-level/by-city?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
+                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
                 if (!res.ok) return '';
                 const data = await res.json();
                 const flat = Array.isArray(data?.hotels_flat) ? data.hotels_flat : [];
