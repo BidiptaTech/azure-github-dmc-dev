@@ -85,8 +85,8 @@ class ExternalApiReceiveController extends Controller
             'agent_id' => null,
             'agency_id' => null,
             'email_sent' => false,
-            'dmc_email_sent' => false,
-            'dmc_email' => null,
+            'sender_email_sent' => false,
+            'sender_email' => null,
         ];
 
         try {
@@ -114,10 +114,10 @@ class ExternalApiReceiveController extends Controller
             // Notify the agent (non-fatal: never roll back a committed tour for an email).
             $result['email_sent'] = $this->notifyAgent($tour);
 
-            // Notify DMC at DMC_email from day-level JSON (non-fatal).
-            $dmcNotify = $this->notifyDmc($tour, $payload, $orders);
-            $result['dmc_email_sent'] = $dmcNotify['sent'];
-            $result['dmc_email'] = $dmcNotify['email'];
+            // Notify sender_email from payload (non-fatal).
+            $senderNotify = $this->notifySender($tour, $payload, $orders);
+            $result['sender_email_sent'] = $senderNotify['sent'];
+            $result['sender_email'] = $senderNotify['email'];
 
             return response()->json([
                 'success' => true,
@@ -944,40 +944,47 @@ class ExternalApiReceiveController extends Controller
      * reads Auth::user() internally) works on this unauthenticated endpoint.
      */
     /**
-     * Email the DMC using DMC_email from the day-level / external payload.
+     * Email the sender using sender_email from the external payload.
      *
      * @return array{sent: bool, email: ?string}
      */
-    protected function notifyDmc(Tour $tour, array $payload, Collection $orders): array
+    protected function notifySender(Tour $tour, array $payload, Collection $orders): array
     {
-        $primaryDmc = $this->resolvePrimaryDmc($payload);
-        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
-        $dmcEmail = $this->resolveDmcNotificationEmail($payload, $primaryDmc, $dmcUser);
+        $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
-        if ($dmcEmail === null) {
-            Log::info('External API: skipping DMC auto-book email, no valid DMC_email', [
+        if ($senderEmail === null) {
+            Log::info('External API: skipping sender auto-book email, no valid sender_email', [
                 'tour_id' => $tour->tour_id,
             ]);
 
             return ['sent' => false, 'email' => null];
         }
 
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
         $agent = $tour->agent_id ? Agent::where('agent_id', $tour->agent_id)->first() : null;
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
+        $senderName = ucfirst(explode('@', $senderEmail)[0]);
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
-            : 'DMC Partner';
+            : 'DMC';
 
         try {
-            $sent = CommonHelper::sendTourAutoBookedDmcEmail($dmcEmail, [
-                'dmc_name' => $dmcName,
-                'dmc_logo' => $dmcUser->logo ?? null,
+            $availability = $this->resolvePackageAvailability($payload);
+
+            $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
+                'dmc_name' => $senderName,
+                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'tour_display_id' => $tour->display_id,
-                'package_id' => (string) $this->payloadValue($payload, ['package_id', 'id'], ''),
                 'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
+                'diff' => $availability['diff'],
+                'requested_days' => $availability['requested_days'],
+                'available_days' => $availability['available_days'],
+                'is_partial_package' => $availability['is_partial'],
+                'partial_package_message' => $availability['partial_message'],
                 'cities' => $this->resolveDayLevelCities($payload),
                 'destination' => $tour->destination,
                 'city' => $tour->city,
@@ -988,30 +995,127 @@ class ExternalApiReceiveController extends Controller
                 'infant' => $tour->infant,
                 'agent_name' => $agent->name ?? '',
                 'agency_name' => $agency->agency_name ?? '',
+                'dmc_label' => $dmcName,
                 'booked_at' => now()->format('M d, Y H:i'),
                 'booked_services' => $this->buildBookedServicesForEmail($orders),
             ]);
 
             if ($sent !== true) {
-                Log::warning('External API DMC auto-book email not sent', [
+                Log::warning('External API sender auto-book email not sent', [
                     'tour_id' => $tour->tour_id,
-                    'dmc_email' => $dmcEmail,
+                    'sender_email' => $senderEmail,
                     'reason' => $sent,
                 ]);
 
-                return ['sent' => false, 'email' => $dmcEmail];
+                return ['sent' => false, 'email' => $senderEmail];
             }
 
-            return ['sent' => true, 'email' => $dmcEmail];
+            return ['sent' => true, 'email' => $senderEmail];
         } catch (Throwable $e) {
-            Log::error('External API DMC auto-book email failed', [
+            Log::error('External API sender auto-book email failed', [
                 'tour_id' => $tour->tour_id,
-                'dmc_email' => $dmcEmail,
+                'sender_email' => $senderEmail,
                 'error' => $e->getMessage(),
             ]);
 
-            return ['sent' => false, 'email' => $dmcEmail];
+            return ['sent' => false, 'email' => $senderEmail];
         }
+    }
+
+    protected function resolveSenderNotificationEmail(array $payload): ?string
+    {
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
+
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $email;
+        }
+
+        return null;
+    }
+
+    protected function resolveDmcLogoForEmail(?User $dmcUser, array $payload): ?string
+    {
+        $candidates = [];
+
+        if ($dmcUser && ! empty($dmcUser->logo)) {
+            $candidates[] = (string) $dmcUser->logo;
+        }
+
+        $masterId = $this->payloadValue($payload, ['Master_DMC_id', 'master_dmc_id']);
+        if (! empty($masterId)) {
+            $masterUser = User::where('userId', $masterId)->first();
+            if ($masterUser && ! empty($masterUser->logo)) {
+                $candidates[] = (string) $masterUser->logo;
+            }
+        }
+
+        if ($dmcUser && ! empty($dmcUser->created_by)) {
+            $parentUser = User::where('userId', $dmcUser->created_by)->first();
+            if ($parentUser && ! empty($parentUser->logo)) {
+                $candidates[] = (string) $parentUser->logo;
+            }
+        }
+
+        foreach ($candidates as $logo) {
+            $absolute = CommonHelper::resolveEmailLogoUrl($logo);
+            if ($absolute !== null) {
+                return $absolute;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{diff: int, requested_days: int, available_days: int, is_partial: bool, partial_message: ?string}
+     */
+    protected function resolvePackageAvailability(array $payload): array
+    {
+        $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'requestedDays'], 0) ?: 0);
+        $availableDays = $this->extractAvailablePackageDays($payload);
+        $diff = (int) ($this->payloadValue($payload, ['diff'], null) ?? ($availableDays - $requestedDays));
+        $isPartial = $diff < 0;
+
+        $partialMessage = null;
+        if ($isPartial && $availableDays > 0) {
+            $dayLabel = $availableDays === 1 ? '1 day' : $availableDays . ' days';
+            $partialMessage = 'You requested a ' . $requestedDays . '-day tour. We have a ' . $dayLabel
+                . ' package available. Our team will connect with you.';
+        }
+
+        return [
+            'diff' => $diff,
+            'requested_days' => $requestedDays,
+            'available_days' => $availableDays,
+            'is_partial' => $isPartial,
+            'partial_message' => $partialMessage,
+        ];
+    }
+
+    protected function extractAvailablePackageDays(array $payload): int
+    {
+        $maxDays = 0;
+
+        foreach ($payload['destinations'] ?? [] as $destination) {
+            if (! is_array($destination)) {
+                continue;
+            }
+            foreach ($destination['DMC'] ?? [] as $dmc) {
+                if (! is_array($dmc)) {
+                    continue;
+                }
+                foreach ($dmc['packages'] ?? [] as $package) {
+                    if (! is_array($package)) {
+                        continue;
+                    }
+                    $totalDays = (int) ($package['total_days'] ?? 0);
+                    $dayCount = count($package['days'] ?? []);
+                    $maxDays = max($maxDays, $totalDays > 0 ? $totalDays : $dayCount);
+                }
+            }
+        }
+
+        return $maxDays;
     }
 
     /**
@@ -1099,42 +1203,6 @@ class ExternalApiReceiveController extends Controller
         }
 
         return $this->formatOrderTypeLabel($type) . ' booking';
-    }
-
-    /**
-     * DMC_email from day-level JSON: root, DMC block, then DMC user account email.
-     */
-    protected function resolveDmcNotificationEmail(array $payload, array $primaryDmc, ?User $dmcUser): ?string
-    {
-        $candidates = [
-            $payload['DMC_email'] ?? null,
-            $payload['dmc_email'] ?? null,
-            $primaryDmc['DMC_email'] ?? null,
-        ];
-
-        foreach ($payload['destinations'] ?? [] as $destination) {
-            if (! is_array($destination)) {
-                continue;
-            }
-            foreach ($destination['DMC'] ?? [] as $dmc) {
-                if (is_array($dmc) && ! empty($dmc['DMC_email'])) {
-                    $candidates[] = $dmc['DMC_email'];
-                }
-            }
-        }
-
-        if ($dmcUser) {
-            $candidates[] = $dmcUser->email;
-        }
-
-        foreach ($candidates as $email) {
-            $email = trim((string) $email);
-            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                return $email;
-            }
-        }
-
-        return null;
     }
 
     protected function resolveDayLevelCountry(array $payload, array $primaryDmc): string
