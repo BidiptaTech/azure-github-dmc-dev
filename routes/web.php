@@ -69,8 +69,8 @@ use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Api\DayLevelController;
-use App\Http\Controllers\Api\ExternalApiReceiveController;
+use App\Http\Controllers\DayLevelController;
+use App\Http\Controllers\ExternalApiReceiveController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
