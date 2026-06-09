@@ -1462,6 +1462,15 @@
                 </li>
                 @endif --}}
 
+                    @if(in_array(auth()->user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38]))
+                    <li class="menu-item @if(Request::is('day-level*')) active @endif">
+                        <a href="{{ route('day-level.index') }}" class="menu-link">
+                            <i class="menu-icon tf-icons ri-calendar-2-line"></i>
+                            <div data-i18n="Day Level">Day Level</div>
+                        </a>
+                    </li>
+                    @endif
+
                     <!-- Settings -->
                     @php
                         $sidebarRoleId = Auth::user()->role_id;
