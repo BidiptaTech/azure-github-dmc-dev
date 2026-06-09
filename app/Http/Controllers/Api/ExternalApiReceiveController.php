@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\CommonHelper;
@@ -29,10 +29,6 @@ class ExternalApiReceiveController extends Controller
 {
     public function receive(Request $request): JsonResponse
     {
-        // The external client may send the payload either as a `payload` form field
-        // (often a JSON-encoded string), as the raw JSON body, or already decoded.
-        // normalizeToArray() collapses all of those into a clean associative array
-        // so it is never stored double-encoded again.
         $payload = $this->normalizeToArray($request->input('payload', $request->all()));
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
@@ -62,7 +58,6 @@ class ExternalApiReceiveController extends Controller
                 'hint' => 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
             ], 422);
         }
-
         // Always persist the received payload first (audit trail). The index()
         // endpoint reads status=false rows as "pending", so keeping the record
         // even when conversion fails lets the payload be retried/inspected later.
@@ -89,33 +84,6 @@ class ExternalApiReceiveController extends Controller
             'sender_email_sent' => false,
             'sender_email' => null,
         ];
-
-        $emailUuid = $this->extractEmailUuid($payload);
-        if ($emailUuid !== null) {
-            $existingTour = Tour::where('uuid', $emailUuid)->first();
-            if ($existingTour) {
-                $existingOrders = Order::where('tour_id', $existingTour->tour_id)->get();
-
-                $record->status = true;
-                $record->save();
-
-                $result['tour_already_exists'] = true;
-                $result['order_created'] = $existingOrders->isNotEmpty();
-                $result['tour_id'] = $existingTour->tour_id;
-                $result['tour_display_id'] = $existingTour->display_id;
-                $result['order_id'] = optional($existingOrders->first())->getKey();
-                $result['orders_count'] = $existingOrders->count();
-                $result['agent_id'] = $existingTour->agent_id;
-                $result['agency_id'] = Agent::where('agent_id', $existingTour->agent_id)->value('agency_id');
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Tour already exists for this email_uuid; returning existing tour.',
-                    'received_id' => $record->id,
-                    'result' => $result,
-                ], 200);
-            }
-        }
 
         try {
             // Atomic: Tour creation + Order creation + status flip succeed or fail together.
@@ -179,27 +147,15 @@ class ExternalApiReceiveController extends Controller
      */
     protected function createTourFromPayload(array $payload): Tour
     {
-        // This payload is DMC-centric: identity comes from destinations[].DMC[].DMC_id
-        // (a User with role DMC), NOT from an agent_id. The agent is optional and is
-        // matched by the originating sender_email when an Agent record exists.
         $primaryDmc = $this->resolvePrimaryDmc($payload);
         $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
-
         if (!$dmcUser) {
             throw new \RuntimeException('Unable to resolve the DMC from the payload (DMC_id, DMC_email or Master_DMC_id is required).');
         }
-
-        // Mirror store(): the tour is owned by the DMC account ($dmcId), while
-        // created_by records the acting DMC user. For a DMC sub-user, created_by
-        // points to the master DMC; fall back to the user itself for a master.
         $createdBy = (int) $dmcUser->userId;
-        $dmcId = (int) ($dmcUser->created_by ?: $dmcUser->userId);
-
-        // Resolve agent for this DMC: use an existing agency/agent linked to the DMC,
-        // or create demo agency + agent when none exist (tours.agent_id is required for edit).
+        // $dmcId = (int) ($dmcUser->created_by ?: $dmcUser->userId);
+        $dmcId = (int) $dmcUser->userId;
         $agent = $this->resolveOrCreateAgentForDmc($dmcUser, $dmcId, $payload, $primaryDmc);
-
-        // Travel dates: start_date + requested_days (fall back to total_days / 1).
         $checkInTime = $this->parseDate(
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
@@ -211,12 +167,8 @@ class ExternalApiReceiveController extends Controller
         if ($checkOutTime->lte($checkInTime)) {
             $checkOutTime = (clone $checkInTime)->addDay();
         }
-
         $autoCancelDay = (int) ($dmcUser->auto_cancel_date ?? 0);
         $autoCancelDate = (clone $checkInTime)->subDays($autoCancelDay)->toDateString();
-
-        // DMC taxes snapshot (same convention as store()): stored as an array
-        // because the Tour model casts `taxes` to array.
         $taxArray = [];
         $taxes = Tax::where('dmc_id', $dmcId)
             ->where('is_active', 1)
@@ -233,10 +185,8 @@ class ExternalApiReceiveController extends Controller
                 'if_fixed' => $tax->if_fixed ?? null,
             ];
         }
-
         $destination = $this->resolveDestination($payload, $primaryDmc);
         $city = $this->resolveFirstCity($payload) ?: $destination;
-
         $tour = new Tour();
         $tour->destination = $destination;
         $tour->adult = (int) ($this->payloadValue($payload, ['adults', 'adult'], 1) ?: 1);
@@ -261,15 +211,10 @@ class ExternalApiReceiveController extends Controller
         $tour->created_by = $createdBy;
         $tour->mainguest = $this->extractMainGuest($payload);
         $tour->additionalguest = $this->extractAdditionalGuests($payload);
-        $tour->uuid = $this->extractEmailUuid($payload);
         $tour->save();
         $tour->refresh();
-
-        // Finalize the human-readable display id (mirrors store()).
         $tour->display_id = 'DMC-ORD' . $tour->tour_id;
         $tour->save();
-
-        // Track the initial status transition (reuse existing helper).
         CommonHelper::appendTourStatusTrackById(
             (int) $tour->tour_id,
             null,
@@ -281,7 +226,6 @@ class ExternalApiReceiveController extends Controller
             $dmcUser->name ?? null,
             $dmcId
         );
-
         return $tour;
     }
 
@@ -360,8 +304,7 @@ class ExternalApiReceiveController extends Controller
     protected function makeOrder(Tour $tour, string $type, array $item, array $meta = []): Order
     {
         $data = $this->buildOrderData($tour, $type, $item, $meta);
-        $maxBookingId = (int) (Order::max('booking_id') ?? 0);
-        $bookingId = (int) CommonHelper::createId($maxBookingId);
+        $bookingId = CommonHelper::nextOrderBookingId();
 
         return Order::create([
             'agent_id' => $tour->agent_id,
@@ -441,24 +384,27 @@ class ExternalApiReceiveController extends Controller
 
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $createdBy = (int) ($tour->created_by ?? 0);
-        $baseRoom = $this->resolveBaseRoom($hotelId, $dmcId, $createdBy);
-        $firstBed = $baseRoom ? $this->resolveFirstBed($baseRoom) : null;
+        $resolvedRoom = $this->resolveRoomFromItem($hotelId, $item, $dmcId, $createdBy);
+        $resolvedBed = $resolvedRoom ? $this->resolveBedFromItem($resolvedRoom, $item) : null;
 
         $hotelName = $item['hotel_name'] ?? $item['name'] ?? ($hotel->name ?? 'Hotel Booking');
         $city = $item['city'] ?? ($hotel->city ?? 'Location not specified');
         $checkIn = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
         $nights = max(1, (int) ($item['night'] ?? $item['nights'] ?? 1));
         $checkOut = Carbon::parse($checkIn)->addDays($nights)->toDateString();
-        $mealPlan = $this->resolveHotelMealPlan($item, $baseRoom);
+        $mealPlan = $this->resolveHotelMealPlan($item, $resolvedRoom);
+        $mealPlanLabel = $this->mealPlanToLabel(
+            trim((string) ($item['meal_plan'] ?? $item['meal_type'] ?? '')) ?: $mealPlan
+        );
         $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
         $adults = max(1, (int) $tour->adult);
         $occupancy = $adults <= 1 ? 'single' : 'double';
 
         $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
         $price = $payloadPrice;
-        if ($price <= 0 && $baseRoom) {
+        if ($price <= 0 && $resolvedRoom) {
             $price = $this->calculateHotelTotalPrice(
-                $baseRoom,
+                $resolvedRoom,
                 $nights,
                 $numberOfRooms,
                 $adults,
@@ -467,19 +413,28 @@ class ExternalApiReceiveController extends Controller
             );
         }
 
-        $headCount = max(1, (int) ($firstBed?->max_occupancy ?? $firstBed?->adult_count ?? $adults));
-        $bedType = trim((string) ($firstBed?->bed_type ?? $firstBed?->room_type ?? ''));
-        $roomType = trim((string) ($baseRoom?->room_type ?? $item['room_type'] ?? ''));
-        $breakfastIncluded = $baseRoom && (
-            filter_var($baseRoom->breakfast_included ?? false, FILTER_VALIDATE_BOOLEAN)
-            || (int) ($baseRoom->breakfast_included ?? 0) === 1
-        );
+        $headCount = max(1, (int) ($resolvedBed?->adult_count ?? $resolvedBed?->max_occupancy ?? $adults));
+        $bedType = trim((string) (
+            $item['bed_type']
+            ?? $item['bedType']
+            ?? $resolvedBed?->room_type
+            ?? ''
+        ));
+        $roomType = trim((string) (
+            $item['room_type']
+            ?? $item['roomType']
+            ?? $resolvedRoom?->room_type
+            ?? ''
+        ));
 
-        $bedPrice = $baseRoom
+        $bedPrice = $resolvedRoom
             ? ($occupancy === 'single'
-                ? (float) ($baseRoom->weekday_price ?? 0)
-                : (float) ($baseRoom->double_weekday_price ?? $baseRoom->weekday_price ?? 0))
+                ? (float) ($resolvedRoom->weekday_price ?? 0)
+                : (float) ($resolvedRoom->double_weekday_price ?? $resolvedRoom->weekday_price ?? 0))
             : 0;
+        $mealPrice = max(0, $price - ($bedPrice * $nights * $numberOfRooms));
+        $roomId = $resolvedRoom?->room_id ?? ($item['room_id'] ?? $item['roomId'] ?? null);
+        $bedId = $resolvedBed?->bed_id ?? ($item['bed_id'] ?? $item['bedId'] ?? null);
 
         $transfer = $this->mapTransferOptions(
             is_array($item['transfer'] ?? null) ? $item['transfer'] : [],
@@ -508,40 +463,24 @@ class ExternalApiReceiveController extends Controller
             ],
             'priceMode' => 'dmc',
             'priceModeId' => $dmcId ?: $createdBy,
-            'base_room' => $baseRoom ? 1 : 0,
-            'mealPrices' => $baseRoom ? [
-                'breakfast_price' => (float) ($baseRoom->breakfast_price ?? 0),
-                'lunch_price' => (float) ($baseRoom->lunch_price ?? 0),
-                'dinner_price' => (float) ($baseRoom->dinner_price ?? 0),
-            ] : null,
             'rooms' => [[
-                'room_id' => $baseRoom?->room_id,
+                'room_id' => is_numeric($roomId) ? (int) $roomId : $roomId,
                 'room_type' => $roomType,
-                'base_room' => $baseRoom ? 1 : 0,
                 'occupancy' => $occupancy,
                 'selected_persons' => $adults,
                 'number_of_rooms' => $numberOfRooms,
-                'breakfast_included' => $breakfastIncluded ? 1 : 0,
-                'supplement_breakfast_included' => 0,
-                'weekday_price' => (float) ($baseRoom?->weekday_price ?? 0),
-                'weekend_price' => (float) ($baseRoom?->weekend_price ?? 0),
-                'double_weekday_price' => (float) ($baseRoom?->double_weekday_price ?? 0),
-                'double_weekend_price' => (float) ($baseRoom?->double_weekend_price ?? 0),
                 'beds' => [[
-                    'bed_id' => $firstBed?->bed_id,
+                    'bed_id' => $bedId !== null ? (string) $bedId : '',
                     'bed_type' => $bedType,
-                    'room_type' => $bedType,
-                    'baby_cot' => (int) ($firstBed?->baby_cot ?? 0),
+                    'baby_cot' => (int) ($resolvedBed?->baby_cot ?? 0),
                     'head_count' => $headCount,
-                    'max_occupancy' => max(1, (int) ($firstBed?->max_occupancy ?? $headCount)),
-                    'extra_bed' => (int) ($firstBed?->extra_bed ?? 0),
-                    'extra_bed_price' => (float) ($firstBed?->extra_bed_price ?? 0),
-                    'price' => $bedPrice,
-                    'mealTypes' => [$mealPlan],
+                    'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
+                    'price' => $bedPrice > 0 ? $bedPrice : $price,
+                    'mealTypes' => [$mealPlanLabel],
                     'selectedMeals' => [
                         'meal_1' => [
-                            'type' => $mealPlan,
-                            'price' => max(0, $price - ($bedPrice * $nights * $numberOfRooms)),
+                            'type' => $mealPlanLabel,
+                            'price' => $mealPrice,
                         ],
                     ],
                 ]],
@@ -549,13 +488,14 @@ class ExternalApiReceiveController extends Controller
             'totalPrice' => $price,
             'price' => $price,
             'transfer_options' => $transfer,
+            'child_with_bed' => null,
+            'child_without_bed' => null,
             'guide_options' => ($item['guide_required'] ?? 'No') === 'Yes'
                 ? ['guide_required' => true]
                 : null,
-            'remarks' => $item['remarks'] ?? null,
+            'remarks' => $item['remarks'] ?? '',
             'supplement' => filter_var($item['supplement'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'breakfast_included_room' => $breakfastIncluded ? 1 : 0,
-            'tour_id' => $tour->tour_id,
+            'tour_id' => (string) $tour->tour_id,
         ]);
     }
 
@@ -581,6 +521,131 @@ class ExternalApiReceiveController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Resolve room from external payload room_id / room_type, then fall back to base room.
+     */
+    protected function resolveRoomFromItem($hotelId, array $item, ?int $dmcId, ?int $createdBy = null): ?Room
+    {
+        $roomId = $item['room_id'] ?? $item['roomId'] ?? null;
+        if ($roomId !== null && $roomId !== '' && is_numeric($roomId)) {
+            $query = Room::query()
+                ->where('room_id', (int) $roomId)
+                ->where(function ($q) {
+                    $q->where('status', 1)->orWhereNull('status');
+                });
+
+            if (!empty($hotelId)) {
+                $query->whereIn('hotel_id', $this->normalizeHotelIds($hotelId));
+            }
+
+            $room = $query->first();
+            if ($room) {
+                return $room;
+            }
+        }
+
+        $roomType = trim((string) ($item['room_type'] ?? $item['roomType'] ?? ''));
+        if ($roomType !== '' && !empty($hotelId)) {
+            $typeQuery = Room::query()
+                ->whereIn('hotel_id', $this->normalizeHotelIds($hotelId))
+                ->where('room_type', $roomType)
+                ->where(function ($q) {
+                    $q->where('status', 1)->orWhereNull('status');
+                });
+
+            foreach (array_filter(array_unique([$createdBy, $dmcId])) as $ownerId) {
+                $room = (clone $typeQuery)
+                    ->where('created_by', $ownerId)
+                    ->orderBy('room_id')
+                    ->first();
+                if ($room) {
+                    return $room;
+                }
+            }
+
+            $room = $typeQuery->orderBy('room_id')->first();
+            if ($room) {
+                return $room;
+            }
+        }
+
+        return $this->resolveBaseRoom($hotelId, $dmcId, $createdBy);
+    }
+
+    /**
+     * Resolve bed from external payload bed_id / bed_type, then fall back to first bed.
+     */
+    protected function resolveBedFromItem(Room $room, array $item): ?Bed
+    {
+        $bedId = $item['bed_id'] ?? $item['bedId'] ?? null;
+        if ($bedId !== null && $bedId !== '' && is_numeric($bedId)) {
+            $bed = Bed::where('bed_id', (int) $bedId)
+                ->where('room_id', $room->room_id)
+                ->where(function ($q) {
+                    $q->where('is_active', 1)->orWhereNull('is_active');
+                })
+                ->first();
+            if ($bed) {
+                return $bed;
+            }
+
+            $bed = Bed::where('bed_id', (int) $bedId)
+                ->where(function ($q) {
+                    $q->where('is_active', 1)->orWhereNull('is_active');
+                })
+                ->first();
+            if ($bed) {
+                return $bed;
+            }
+        }
+
+        $bedType = trim((string) ($item['bed_type'] ?? $item['bedType'] ?? ''));
+        if ($bedType !== '') {
+            $bed = Bed::where('room_id', $room->room_id)
+                ->where('room_type', $bedType)
+                ->where(function ($q) {
+                    $q->where('is_active', 1)->orWhereNull('is_active');
+                })
+                ->orderBy('bed_id')
+                ->first();
+            if ($bed) {
+                return $bed;
+            }
+        }
+
+        return $this->resolveFirstBed($room);
+    }
+
+    /**
+     * Convert internal meal plan keys to the label format stored in order data.
+     */
+    protected function mealPlanToLabel(string $mealPlan): string
+    {
+        $trimmed = trim($mealPlan);
+        if ($trimmed === '') {
+            return 'room only';
+        }
+
+        if (!str_contains($trimmed, '_')) {
+            return $trimmed;
+        }
+
+        $map = [
+            'room_only' => 'room only',
+            'bed_&_breakfast' => 'bed & breakfast',
+            'half_board_breakfast_lunch' => 'room with breakfast + lunch',
+            'half_board_breakfast_dinner' => 'room with breakfast + dinner',
+            'half_board_lunch_dinner' => 'room with lunch + dinner',
+            'all_inclusive' => 'room with all meals (breakfast + lunch + dinner)',
+            'lunch_only' => 'room with lunch',
+            'dinner_only' => 'room with dinner',
+        ];
+
+        $lower = strtolower($trimmed);
+
+        return $map[$lower] ?? str_replace('_', ' ', $lower);
     }
 
     /**
@@ -1895,20 +1960,6 @@ class ExternalApiReceiveController extends Controller
         }
 
         return $items;
-    }
-
-    /**
-     * Normalize email_uuid from the external payload for idempotent tour creation.
-     */
-    protected function extractEmailUuid(array $payload): ?string
-    {
-        if (! array_key_exists('email_uuid', $payload) || $payload['email_uuid'] === null) {
-            return null;
-        }
-
-        $uuid = trim((string) $payload['email_uuid']);
-
-        return $uuid !== '' ? $uuid : null;
     }
 
     /**
