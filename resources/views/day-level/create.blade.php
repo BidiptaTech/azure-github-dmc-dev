@@ -181,6 +181,44 @@
         #dayWiseServiceBlocks {
             padding-top: 1.25rem;
         }
+        .day-service-transfer-panel {
+            border: 1px solid rgba(102, 126, 234, 0.22);
+            border-radius: 10px;
+            background: var(--form-panel-bg);
+            padding: 1rem 1.15rem 1.1rem;
+            margin-top: 0.35rem;
+        }
+        .day-service-transfer-panel__header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            margin-bottom: 0.85rem;
+            padding-bottom: 0.65rem;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.12);
+        }
+        .day-service-transfer-panel__icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .attraction-transfer-panel .day-service-transfer-panel__icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .restaurant-transfer-panel .day-service-transfer-panel__icon {
+            background: linear-gradient(135deg, #20c997 0%, #198754 100%);
+            color: #fff;
+        }
+        .day-airport-transfer-wrap {
+            margin-top: 0.75rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(102, 126, 234, 0.25);
+        }
         #dayForm .btn,
         #packagePreviewModal .btn {
             border-radius: 0.55rem;
@@ -386,6 +424,91 @@
             color: #566a7f;
             padding-left: 2px;
         }
+        .pricing-panel {
+            background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
+            border: 1px solid #c7d2fe;
+            border-radius: 0.65rem;
+            padding: 1rem 1.15rem;
+        }
+        .pricing-panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #4338ca;
+            margin-bottom: 0.85rem;
+        }
+        .pricing-panel .price-input-group .input-group-text {
+            background: #fff;
+            border-color: #c7d2fe;
+            color: #4338ca;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        .pricing-panel .form-control {
+            border-color: #c7d2fe;
+            background: #fff;
+        }
+        .pricing-panel .form-control:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.15);
+        }
+        .pricing-total-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: #4338ca;
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .day-price-panel {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 0.55rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .hotels-compact-table-wrap {
+            margin-top: 0.5rem;
+        }
+        .hotels-compact-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+        .hotels-compact-table td {
+            vertical-align: middle;
+            font-size: 0.84rem;
+        }
+        .hotels-compact-table .hotel-cell-title {
+            font-weight: 600;
+            color: #334155;
+            line-height: 1.35;
+        }
+        .hotels-compact-table .hotel-cell-meta {
+            font-size: 0.76rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .hotels-compact-table .hotel-price-night {
+            font-weight: 600;
+            color: #4338ca;
+            white-space: nowrap;
+        }
+        .hotels-compact-table .hotel-price-total {
+            font-weight: 700;
+            color: #0f766e;
+            white-space: nowrap;
+        }
+        .hotels-compact-table .hotel-price-breakdown {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
         #hotel_priority {
             max-width: 5.5rem;
         }
@@ -458,6 +581,58 @@
         .preview-empty {
             color: #8592a3;
             font-size: 0.85rem;
+            font-style: italic;
+        }
+        .preview-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+        .preview-summary-card {
+            background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
+            border: 1px solid rgba(102, 126, 234, 0.18);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+        }
+        .preview-summary-card .label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #8592a3;
+            font-weight: 600;
+        }
+        .preview-summary-card .value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #435971;
+            margin-top: 0.15rem;
+        }
+        .preview-summary-card.grand-total .value {
+            color: #198754;
+        }
+        .preview-service-table th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .preview-service-table td {
+            font-size: 0.82rem;
+            vertical-align: middle;
+        }
+        .preview-transfer-chip {
+            display: inline-block;
+            background: #eef2ff;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 999px;
+            padding: 0.15rem 0.55rem;
+            font-size: 0.78rem;
+            color: #435971;
+            margin-top: 0.2rem;
+        }
+        .preview-hotel-continuation {
+            font-size: 0.78rem;
+            color: #8592a3;
             font-style: italic;
         }
     </style>
@@ -619,7 +794,7 @@
                                 </div>
                                 <div>
                                     <strong class="d-block">Hotels</strong>
-                                    <span class="section-subtitle">Add accommodation, meals, and optional arrival or departure transfers</span>
+                                    <span class="section-subtitle">Add accommodation and meal plans with pricing</span>
                                 </div>
                             </div>
                             <div class="card-body hotels-form-body">
@@ -684,26 +859,43 @@
                                             <option value="A La Carte">A La Carte</option>
                                         </select>
                                     </div>
-                                    <div class="col-lg-2 col-md-4">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="hotel_guide_required">
-                                            <label class="form-check-label" for="hotel_guide_required">Guide</label>
+                                    </div>
+                                </div>
+
+                                <div class="hotels-form-panel pricing-panel" id="hotel_pricing_panel">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                        <div class="pricing-panel-title mb-0">Pricing (editable)</div>
+                                        <span class="pricing-total-badge" id="hotel_price_total_badge">Total: SGD 0.00</span>
+                                    </div>
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-lg-3 col-md-6">
+                                            <label class="form-label" for="hotel_room_price">Room Price <small class="text-muted">(double weekday)</small></label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="hotel_room_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-lg-2 col-md-4">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="hotel_arrival_departure">
-                                            <label class="form-check-label" for="hotel_arrival_departure">Arrival / Departure</label>
+                                        <div class="col-lg-3 col-md-6">
+                                            <label class="form-label" for="hotel_breakfast_price">Breakfast</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-lg-2 col-md-6">
-                                        <label class="form-label" for="hotel_arrival_departure_type">If Yes, Type</label>
-                                        <select id="hotel_arrival_departure_type" class="form-select searchable-select">
-                                            <option value="">Select</option>
-                                            <option value="private">Private</option>
-                                            <option value="shared">Shared</option>
-                                        </select>
-                                    </div>
+                                        <div class="col-lg-3 col-md-6">
+                                            <label class="form-label" for="hotel_lunch_price">Lunch</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-3 col-md-6">
+                                            <label class="form-label" for="hotel_dinner_price">Dinner</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -720,28 +912,22 @@
                                     </div>
                                 </div>
 
-                                <div class="table-responsive modern-table-wrap">
-                                    <table class="table table-sm data-table-sm">
+                                <div class="table-responsive modern-table-wrap hotels-compact-table-wrap">
+                                    <table class="table table-sm data-table-sm hotels-compact-table mb-0">
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Day</th>
                                                 <th>City</th>
-                                                <th>Category</th>
                                                 <th>Hotel</th>
-                                                <th>Night</th>
-                                                <th>Room</th>
-                                                <th>Bed</th>
-                                                <th>Meal</th>
-                                                <th>Select Dish</th>
-                                                <th>Guide</th>
-                                                <th>Arrival/Departure</th>
-                                                <th>Type</th>
-                                                <th>Priority</th>
-                                                <th></th>
+                                                <th>Nights</th>
+                                                <th>Room &amp; Meal</th>
+                                                <th class="text-end">Price / Night</th>
+                                                <th class="text-end">Total</th>
+                                                <th class="text-end" style="width:88px;"></th>
                                             </tr>
                                         </thead>
                                         <tbody id="hotelRows">
-                                            <tr><td colspan="14" class="text-muted">No hotels added</td></tr>
+                                            <tr><td colspan="8" class="text-muted">No hotels added</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -855,6 +1041,14 @@
         let editingHotelIndex = null;
         let editingActivityIndex = null;
         let isPrefillingActivityForm = false;
+        let isSyncingTransferCity = false;
+        let isApplyingTransferDefaults = false;
+        let isHydratingDayServices = false;
+        let hydrateDayServicesInFlight = null;
+        let transferOptionsLoadTimer = null;
+        const transferOptionsCache = {};
+        const transferOptionsInflight = {};
+        const activityCityByDay = {};
         let attractionsCache = [];
         let restaurantsCache = [];
         let transferLocationOptions = [];
@@ -863,6 +1057,7 @@
         /** Arrival drop: ports + hotels + attractions + restaurants. */
         let transferArrivalDropOptions = [];
         let zoneTransferOptions = [];
+        let serviceTransferOptions = [];
         /** value (port:6, hotel:12, zone:3) → human-readable label from API / selects */
         let transferLocationLabelByValue = {};
         let transferDefaults = { defaultPort: '' };
@@ -875,7 +1070,140 @@
         }
 
         function isArrivalDepartureTransfersActive() {
-            return !!document.getElementById('hotel_arrival_departure')?.checked || hotelsHaveArrivalDepartureTransferSaved();
+            return multiCityPlans.length > 0 || hotelsHaveArrivalDepartureTransferSaved();
+        }
+
+        function normalizeCityNameKey(name) {
+            return String(name || '').split(',')[0].trim().toLowerCase();
+        }
+
+        function shouldShowArrivalForDay(dayVal) {
+            const d = parseInt(String(dayVal || 0), 10) || 0;
+            if (d < 1) return false;
+            if (!multiCityPlans.length) {
+                return d === 1;
+            }
+            return multiCityPlans.some(p => (parseInt(String(p?.day_in || 0), 10) || 0) === d);
+        }
+
+        function shouldShowDepartureForDay(dayVal) {
+            const d = parseInt(String(dayVal || 0), 10) || 0;
+            if (d < 1) return false;
+            if (!multiCityPlans.length) {
+                return d === daysCount;
+            }
+            return multiCityPlans.some(p => (parseInt(String(p?.day_out || 0), 10) || 0) === d);
+        }
+
+        function hotelRowToTransferLocation(row) {
+            if (!row || !String(row.hotel_id || '').trim()) {
+                return { value: '', label: '' };
+            }
+            const hotelUniqueId = resolveHotelUniqueIdForPayload(row.hotel_id);
+            const name = String(row.hotel_name || '').replace(/^\s+|\s+$/g, '') || 'Hotel';
+            return { value: `hotel:${hotelUniqueId}`, label: name };
+        }
+
+        function getArrivalHotelForDay(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const plans = multiCityPlans.filter(p => (parseInt(String(p?.day_in || 0), 10) || 0) === d);
+            if (plans.length) {
+                for (const plan of plans) {
+                    const cityKey = normalizeCityNameKey(plan.city_name);
+                    const match = hotels.find(h =>
+                        normalizeCityNameKey(h.city_name) === cityKey
+                        && (parseInt(String(h.day || 0), 10) || 0) === d
+                    );
+                    if (match) return hotelRowToTransferLocation(match);
+                }
+            }
+            if (d === 1) {
+                return getDayOneHotelDropValueAndLabel();
+            }
+            const anyOnDay = hotels.find(h => (parseInt(String(h.day || 0), 10) || 0) === d);
+            return hotelRowToTransferLocation(anyOnDay);
+        }
+
+        function getDepartureHotelForDay(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const plans = multiCityPlans.filter(p => (parseInt(String(p?.day_out || 0), 10) || 0) === d);
+            if (plans.length) {
+                for (const plan of plans) {
+                    const cityKey = normalizeCityNameKey(plan.city_name);
+                    const match = hotels.find(h =>
+                        normalizeCityNameKey(h.city_name) === cityKey
+                        && hotelStayEndDay(h) === d
+                    ) || hotels.find(h =>
+                        normalizeCityNameKey(h.city_name) === cityKey
+                        && (parseInt(String(h.day || 0), 10) || 0) <= d
+                        && hotelStayEndDay(h) >= d
+                    );
+                    if (match) return hotelRowToTransferLocation(match);
+                }
+            }
+            if (d === daysCount) {
+                return getDeparturePickupHotelValueAndLabel();
+            }
+            const covering = hotels
+                .filter(h => (parseInt(String(h.day || 0), 10) || 0) <= d && hotelStayEndDay(h) >= d)
+                .sort((a, b) => (parseInt(String(b.day || 0), 10) || 0) - (parseInt(String(a.day || 0), 10) || 0))[0];
+            return hotelRowToTransferLocation(covering);
+        }
+
+        function getMultiCityLegDays() {
+            const days = new Set();
+            multiCityPlans.forEach((plan) => {
+                const din = parseInt(String(plan?.day_in || 0), 10) || 0;
+                const dout = parseInt(String(plan?.day_out || 0), 10) || 0;
+                if (din > 0) days.add(din);
+                if (dout > 0) days.add(dout);
+            });
+            if (!days.size) {
+                days.add(1);
+                if (daysCount >= 2) days.add(daysCount);
+            }
+            return Array.from(days).sort((a, b) => a - b);
+        }
+
+        function loadTransferOptionsForLegDays() {
+            getMultiCityLegDays().forEach((dayVal) => loadTransferOptionsForCity(dayVal));
+        }
+
+        function buildTransferOptionsCacheKey(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const cityName = getCityNameFromSelect(`activity_city_select_${d}`)
+                || getCityNameFromSelect(`transfer_city_select_${d}`)
+                || getCityNameFromSelect('hotel_city_select')
+                || '';
+            const dmcId = document.getElementById('dmc_id')?.value || '';
+            const masterDmcId = document.getElementById('master_dmc_id')?.value || '';
+            const country = document.getElementById('country')?.value || '';
+            return `${dmcId}|${masterDmcId}|${country}|${cityName}`.toLowerCase();
+        }
+
+        /** One fetch per unique city/DMC — debounced to avoid request storms. */
+        function scheduleTransferOptionsReload(force = false) {
+            clearTimeout(transferOptionsLoadTimer);
+            transferOptionsLoadTimer = setTimeout(() => {
+                transferOptionsLoadTimer = null;
+                loadTransferOptionsForUniqueCities(force);
+            }, 250);
+        }
+
+        function loadTransferOptionsForUniqueCities(force = false) {
+            const seen = new Set();
+            for (let d = 1; d <= daysCount; d++) {
+                const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
+                if (!cityName) continue;
+                const key = buildTransferOptionsCacheKey(d);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                loadTransferOptionsForCity(d, { force });
+            }
+        }
+
+        function loadTransferOptionsForAllDays() {
+            scheduleTransferOptionsReload(false);
         }
 
         function resolveHotelUniqueIdForPayload(hotelId) {
@@ -985,7 +1313,7 @@
             const v = String(value || '').trim();
             if (!v) return '';
             const selects = document.querySelectorAll(
-                'select[id*="pickup_select"], select[id*="drop_select"], select[id^="transfer_pickup"], select[id^="transfer_drop"]'
+                'select[id*="pickup_select"], select[id*="drop_select"], select[id*="transfer_pickup"], select[id*="transfer_drop"]'
             );
             for (const select of selects) {
                 const option = Array.from(select.options || []).find(opt => String(opt.value) === v);
@@ -1051,6 +1379,241 @@
             return v;
         }
 
+        function looksLikeTransferToken(value) {
+            const v = String(value || '').trim().toLowerCase();
+            return v.startsWith('port:')
+                || v.startsWith('hotel:')
+                || v.startsWith('attraction:')
+                || v.startsWith('restaurant:')
+                || v.startsWith('zone:');
+        }
+
+        function buildStoredTransferLocationFields(selectId, rawValue) {
+            const value = String(rawValue || '').trim();
+            if (!value) {
+                return {
+                    location: '',
+                    location_value: '',
+                    location_label: '',
+                };
+            }
+            const label = getTransferLocationLabel(selectId, value)
+                || labelForStoredTransferLocation(value)
+                || value;
+            return {
+                location: label,
+                location_value: value,
+                location_label: label,
+            };
+        }
+
+        function findTransferTokenByLabel(label) {
+            const needle = String(label || '').trim().toLowerCase();
+            if (!needle) return '';
+            for (const [value, lbl] of Object.entries(transferLocationLabelByValue)) {
+                const formatted = String(lbl || '').trim().toLowerCase();
+                if (formatted === needle || formatted.includes(needle) || needle.includes(formatted)) {
+                    return String(value);
+                }
+            }
+            const pools = [
+                transferLocationOptions,
+                transferArrivalPickupOptions,
+                transferArrivalDropOptions,
+                zoneTransferOptions,
+                serviceTransferOptions,
+            ];
+            for (const pool of pools) {
+                const row = (Array.isArray(pool) ? pool : []).find((r) => {
+                    const formatted = formatTransferLocationLabel(r).trim().toLowerCase();
+                    return formatted === needle || formatted.includes(needle) || needle.includes(formatted);
+                });
+                if (row?.value) return String(row.value);
+            }
+            return '';
+        }
+
+        function getTransferLocationDisplay(transfer, field, dayNum, itemType = '') {
+            if (!transfer || typeof transfer !== 'object') return '-';
+            const transferType = String(transfer.transfer_type || '').trim();
+            const selectId = resolveTransferSelectId(dayNum, field, transferType, itemType);
+            const locKey = field === 'pickup' ? 'pickup_location' : 'drop_location';
+            const labelKey = field === 'pickup' ? 'pickup_location_label' : 'drop_location_label';
+            const valueKey = field === 'pickup' ? 'pickup_location_value' : 'drop_location_value';
+            const idKey = field === 'pickup' ? 'pickup_location_id' : 'drop_location_id';
+            const storedLabel = String(transfer[labelKey] || '').trim();
+            const storedLoc = String(transfer[locKey] || '').trim();
+            const storedValue = String(transfer[valueKey] || transfer[idKey] || '').trim();
+
+            if (storedLabel && !looksLikeTransferToken(storedLabel)) return storedLabel;
+            if (storedLoc && !looksLikeTransferToken(storedLoc)) return storedLoc;
+            const token = storedValue || (looksLikeTransferToken(storedLoc) ? storedLoc : '');
+            if (token) {
+                return displayTransferLocation(token, selectId, storedLabel || storedLoc);
+            }
+            return '-';
+        }
+
+        function resolveTransferLocationForForm(transfer, field, selectId) {
+            const valueKey = field === 'pickup' ? 'pickup_location_value' : 'drop_location_value';
+            const idKey = field === 'pickup' ? 'pickup_location_id' : 'drop_location_id';
+            const locKey = field === 'pickup' ? 'pickup_location' : 'drop_location';
+            const labelKey = field === 'pickup' ? 'pickup_location_label' : 'drop_location_label';
+            const storedValue = String(transfer?.[valueKey] || transfer?.[idKey] || '').trim();
+            const storedLabel = String(transfer?.[labelKey] || '').trim();
+            const storedLoc = String(transfer?.[locKey] || '').trim();
+
+            if (storedValue && looksLikeTransferToken(storedValue)) {
+                return {
+                    value: storedValue,
+                    label: storedLabel || labelForStoredTransferLocation(storedValue) || storedLoc || storedValue,
+                };
+            }
+            if (storedLoc && looksLikeTransferToken(storedLoc)) {
+                return {
+                    value: storedLoc,
+                    label: storedLabel || labelForStoredTransferLocation(storedLoc) || storedLoc,
+                };
+            }
+            const label = storedLabel || (storedLoc && !looksLikeTransferToken(storedLoc) ? storedLoc : '');
+            if (label) {
+                const select = document.getElementById(selectId);
+                const match = select
+                    ? Array.from(select.options).find((opt) => {
+                        const text = String(opt.textContent || '').trim();
+                        return text === label || text.includes(label) || label.includes(text);
+                    })
+                    : null;
+                if (match) {
+                    return { value: String(match.value), label: String(match.textContent || '').trim() || label };
+                }
+                const token = findTransferTokenByLabel(label);
+                if (token) {
+                    return {
+                        value: token,
+                        label: labelForStoredTransferLocation(token) || label,
+                    };
+                }
+                return { value: token, label };
+            }
+            return { value: '', label: '' };
+        }
+
+        function normalizeHydratedTransfer(rawT) {
+            const t = rawT && typeof rawT === 'object' ? { ...rawT } : {};
+            const pickupId = String(t.pickup_location_id || t.pickup_location_value || '').trim();
+            const dropId = String(t.drop_location_id || t.drop_location_value || '').trim();
+            const pickupLoc = String(t.pickup_location || '').trim();
+            const dropLoc = String(t.drop_location || '').trim();
+
+            if (pickupId && looksLikeTransferToken(pickupId)) {
+                t.pickup_location_value = pickupId;
+                t.pickup_location_label = String(t.pickup_location_label || '').trim()
+                    || (looksLikeTransferToken(pickupLoc) ? '' : pickupLoc)
+                    || labelForStoredTransferLocation(pickupId);
+                t.pickup_location = t.pickup_location_label || pickupLoc;
+            } else if (pickupLoc && looksLikeTransferToken(pickupLoc)) {
+                t.pickup_location_value = pickupLoc;
+                t.pickup_location_label = String(t.pickup_location_label || '').trim()
+                    || labelForStoredTransferLocation(pickupLoc);
+                t.pickup_location = t.pickup_location_label || pickupLoc;
+            } else if (pickupLoc) {
+                t.pickup_location_label = String(t.pickup_location_label || pickupLoc);
+                t.pickup_location = t.pickup_location_label;
+            }
+
+            if (dropId && looksLikeTransferToken(dropId)) {
+                t.drop_location_value = dropId;
+                t.drop_location_label = String(t.drop_location_label || '').trim()
+                    || (looksLikeTransferToken(dropLoc) ? '' : dropLoc)
+                    || labelForStoredTransferLocation(dropId);
+                t.drop_location = t.drop_location_label || dropLoc;
+            } else if (dropLoc && looksLikeTransferToken(dropLoc)) {
+                t.drop_location_value = dropLoc;
+                t.drop_location_label = String(t.drop_location_label || '').trim()
+                    || labelForStoredTransferLocation(dropLoc);
+                t.drop_location = t.drop_location_label || dropLoc;
+            } else if (dropLoc) {
+                t.drop_location_label = String(t.drop_location_label || dropLoc);
+                t.drop_location = t.drop_location_label;
+            }
+            return t;
+        }
+
+        function exportTransferForJson(transfer, dayNum, itemType = '') {
+            if (!transfer || typeof transfer !== 'object') return {};
+            const t = { ...transfer };
+            const transferType = String(t.transfer_type || '').trim();
+            const pickupSid = resolveTransferSelectId(dayNum, 'pickup', transferType, itemType);
+            const dropSid = resolveTransferSelectId(dayNum, 'drop', transferType, itemType);
+
+            const pickupVal = String(
+                t.pickup_location_value
+                || (looksLikeTransferToken(t.pickup_location) ? t.pickup_location : '')
+                || t.pickup_location_id
+                || ''
+            ).trim();
+            const dropVal = String(
+                t.drop_location_value
+                || (looksLikeTransferToken(t.drop_location) ? t.drop_location : '')
+                || t.drop_location_id
+                || ''
+            ).trim();
+
+            const pickupName = String(t.pickup_location_label || '').trim()
+                || (pickupVal ? getTransferLocationLabel(pickupSid, pickupVal) : '')
+                || (!looksLikeTransferToken(t.pickup_location) ? String(t.pickup_location || '').trim() : '')
+                || pickupVal;
+            const dropName = String(t.drop_location_label || '').trim()
+                || (dropVal ? getTransferLocationLabel(dropSid, dropVal) : '')
+                || (!looksLikeTransferToken(t.drop_location) ? String(t.drop_location || '').trim() : '')
+                || dropVal;
+
+            const out = { ...t };
+            out.pickup_location = pickupName;
+            out.drop_location = dropName;
+            if (pickupVal) out.pickup_location_id = pickupVal;
+            if (dropVal) out.drop_location_id = dropVal;
+            delete out.pickup_location_value;
+            delete out.drop_location_value;
+            delete out.pickup_location_label;
+            delete out.drop_location_label;
+
+            if (Array.isArray(out.additional_transfers)) {
+                out.additional_transfers = out.additional_transfers.map((row) => {
+                    const pickupToken = String(
+                        row?.pickup_location_value
+                        || (looksLikeTransferToken(row?.pickup_location) ? row.pickup_location : '')
+                        || row?.pickup_location_id
+                        || ''
+                    ).trim();
+                    const dropToken = String(
+                        row?.drop_location_value
+                        || (looksLikeTransferToken(row?.drop_location) ? row.drop_location : '')
+                        || row?.drop_location_id
+                        || ''
+                    ).trim();
+                    return {
+                        city: String(row?.city || ''),
+                        pickup_location: String(row?.pickup_location_label || row?.pickup_location || '').trim()
+                            || (pickupToken ? labelForStoredTransferLocation(pickupToken) : ''),
+                        drop_location: String(row?.drop_location_label || row?.drop_location || '').trim()
+                            || (dropToken ? labelForStoredTransferLocation(dropToken) : ''),
+                        pickup_location_id: pickupToken,
+                        drop_location_id: dropToken,
+                    };
+                });
+            }
+            return out;
+        }
+
+        function exportHotelLocationForJson(rawValue, fallbackLabel = '') {
+            const value = String(rawValue || '').trim();
+            if (!value) return '';
+            if (!looksLikeTransferToken(value)) return value;
+            return String(fallbackLabel || '').trim() || labelForStoredTransferLocation(value) || value;
+        }
+
         function labelForSelectValue(selectId, value) {
             const v = String(value || '').trim();
             if (!v) return '';
@@ -1059,9 +1622,10 @@
             return option?.textContent ? option.textContent.trim() : '';
         }
 
-        function resolveTransferSelectId(dayVal, field, transferType) {
+        function resolveTransferSelectId(dayVal, field, transferType, itemType = '') {
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const type = String(transferType || '').trim().toLowerCase();
+            const serviceType = String(itemType || '').trim().toLowerCase();
             const isPickup = field === 'pickup';
             if (type === 'arrival') {
                 return isPickup ? `arrival_pickup_select_${d}` : `arrival_drop_select_${d}`;
@@ -1069,7 +1633,10 @@
             if (type === 'departure') {
                 return isPickup ? `departure_pickup_select_${d}` : `departure_drop_select_${d}`;
             }
-            return isPickup ? `transfer_pickup_select_${d}` : `transfer_drop_select_${d}`;
+            if (type === 'restaurant transfer' || serviceType === 'restaurant') {
+                return isPickup ? `restaurant_transfer_pickup_select_${d}` : `restaurant_transfer_drop_select_${d}`;
+            }
+            return isPickup ? `attraction_transfer_pickup_select_${d}` : `attraction_transfer_drop_select_${d}`;
         }
 
         function getTransferLocationLabel(selectId, value) {
@@ -1082,10 +1649,13 @@
             const v = String(value || '').trim();
             if (!v) return '-';
             const saved = String(storedLabel || '').trim();
-            if (saved && saved !== v && !saved.startsWith('port:') && !saved.startsWith('zone:') && !saved.startsWith('hotel:')) {
+            if (saved && saved !== v && !looksLikeTransferToken(saved)) {
                 return saved;
             }
-            return labelForSelectValue(selectId, v) || labelForStoredTransferLocation(v) || v;
+            if (!looksLikeTransferToken(v)) {
+                return saved || v;
+            }
+            return labelForSelectValue(selectId, v) || labelForStoredTransferLocation(v) || saved || v;
         }
 
         function actionIcon(type) {
@@ -1139,9 +1709,11 @@
             const targets = new Set([1]);
             if (daysCount >= 2) targets.add(daysCount);
             targets.forEach((d) => {
-                setSelectOptions(`transfer_pickup_select_${d}`, []);
-                setSelectOptions(`transfer_drop_select_${d}`, []);
-                safeSetSelectValue(`transfer_city_select_${d}`, '');
+                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, '');
+                safeSetSelectValue(`attraction_transfer_drop_select_${d}`, '');
+                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, '');
+                safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, '');
+                safeSetSelectValueSilent(`transfer_city_select_${d}`, '');
             });
         }
 
@@ -1162,7 +1734,115 @@
             }));
         }
 
-        function setSelectOptions(selectId, options) {
+        function getHotelsOnDayAsTransferOptions(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const seen = new Set();
+            const rows = [];
+            (Array.isArray(hotels) ? hotels : []).forEach((h) => {
+                const dayIn = parseInt(String(h.day ?? 1), 10) || 1;
+                const dayOut = hotelStayEndDay(h);
+                if (d < dayIn || d > dayOut) return;
+                const hotelId = String(h.hotel_id ?? h.id ?? '').trim();
+                if (!hotelId || seen.has(`hotel:${hotelId}`)) return;
+                seen.add(`hotel:${hotelId}`);
+                rows.push({
+                    value: `hotel:${hotelId}`,
+                    label: String(h.hotel_name ?? h.label ?? `Hotel ${hotelId}`),
+                    type: 'hotel',
+                    id: hotelId,
+                });
+            });
+            return rows;
+        }
+
+        function getServiceTransferOptionsForDay(dayVal) {
+            const base = (serviceTransferOptions.length
+                ? serviceTransferOptions
+                : (transferArrivalDropOptions.length
+                    ? transferArrivalDropOptions.filter((x) => String(x?.type || '').toLowerCase() !== 'port')
+                    : transferLocationOptions));
+            const merged = [];
+            const seen = new Set();
+            [...base, ...getHotelsOnDayAsTransferOptions(dayVal)].forEach((row) => {
+                const value = String(row?.value ?? '').trim();
+                if (!value || seen.has(value)) return;
+                seen.add(value);
+                merged.push(row);
+            });
+            mergeTransferLocationLabels(merged);
+            return merged;
+        }
+
+        function populateServiceTransferSelectsForDay(dayVal, silent = true) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const opts = mapTransferSelectOptions(getServiceTransferOptionsForDay(d));
+            setSelectOptions(`attraction_transfer_pickup_select_${d}`, opts, silent);
+            setSelectOptions(`attraction_transfer_drop_select_${d}`, opts, silent);
+            setSelectOptions(`restaurant_transfer_pickup_select_${d}`, opts, silent);
+            setSelectOptions(`restaurant_transfer_drop_select_${d}`, opts, silent);
+        }
+
+        function safeSetSelectValueSilent(selectId, value) {
+            const el = document.getElementById(selectId);
+            if (!el) return;
+            const next = value == null ? '' : String(value);
+            const $el = $('#' + selectId);
+            $el.val(next);
+            if ($el.data('select2')) {
+                $el.trigger('change.select2');
+            }
+        }
+
+        function syncTransferCityFromActivity(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const actVal = document.getElementById(`activity_city_select_${d}`)?.value || '';
+            if (!actVal) return;
+            isSyncingTransferCity = true;
+            safeSetSelectValueSilent(`transfer_city_select_${d}`, actVal);
+            isSyncingTransferCity = false;
+        }
+
+        function applyAttractionTransferDefaults(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const attractionOp = getSelectedOption(`attraction_select_${d}`);
+            if (attractionOp?.value) {
+                const dropVal = `attraction:${attractionOp.value}`;
+                ensureTransferLocationOption(
+                    `attraction_transfer_drop_select_${d}`,
+                    dropVal,
+                    formatTransferLocationLabel({ value: dropVal, label: attractionOp.textContent, type: 'attraction' })
+                );
+                safeSetSelectValue(`attraction_transfer_drop_select_${d}`, dropVal);
+            }
+            const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
+            const pickupEl = document.getElementById(`attraction_transfer_pickup_select_${d}`);
+            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
+                ensureTransferLocationOption(`attraction_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, hotel.value);
+            }
+        }
+
+        function applyRestaurantTransferDefaults(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const restaurantOp = getSelectedOption(`restaurant_select_${d}`);
+            if (restaurantOp?.value) {
+                const dropVal = `restaurant:${restaurantOp.value}`;
+                ensureTransferLocationOption(
+                    `restaurant_transfer_drop_select_${d}`,
+                    dropVal,
+                    formatTransferLocationLabel({ value: dropVal, label: restaurantOp.textContent, type: 'restaurant' })
+                );
+                safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, dropVal);
+            }
+            const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
+            const pickupEl = document.getElementById(`restaurant_transfer_pickup_select_${d}`);
+            if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
+                ensureTransferLocationOption(`restaurant_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, hotel.value);
+            }
+        }
+
+        function setSelectOptions(selectId, options, silent = false) {
             const select = document.getElementById(selectId);
             if (!select) return;
             const $select = $(select);
@@ -1175,6 +1855,13 @@
                 op.value = String(opt.value ?? '');
                 op.textContent = opt.label ?? '';
                 if (opt.price !== undefined) op.dataset.price = String(opt.price);
+                if (opt.adult_price !== undefined) op.dataset.adultPrice = String(opt.adult_price);
+                if (opt.child_price !== undefined) op.dataset.childPrice = String(opt.child_price);
+                if (opt.senior_price !== undefined) op.dataset.seniorPrice = String(opt.senior_price);
+                if (opt.double_weekday_price !== undefined) op.dataset.doubleWeekdayPrice = String(opt.double_weekday_price);
+                if (opt.breakfast_price !== undefined) op.dataset.breakfastPrice = String(opt.breakfast_price);
+                if (opt.lunch_price !== undefined) op.dataset.lunchPrice = String(opt.lunch_price);
+                if (opt.dinner_price !== undefined) op.dataset.dinnerPrice = String(opt.dinner_price);
                 if (opt.rate !== undefined) op.dataset.rate = String(opt.rate);
                 if (opt.data_name !== undefined) op.dataset.name = String(opt.data_name);
                 if (opt.data_country !== undefined) op.dataset.country = String(opt.data_country);
@@ -1187,7 +1874,9 @@
                 select.appendChild(op);
             });
             initSearchableSelects(select);
-            $(select).trigger('change.select2');
+            if (!silent) {
+                $(select).trigger('change.select2');
+            }
         }
 
         function safeSetSelectValue(selectId, value) {
@@ -1264,29 +1953,64 @@
             return String(op.dataset.name || op.textContent || '').split(',')[0].trim();
         }
 
-        function setSectionCityOptions() {
+        function getSectionCityOptions() {
+            const multiCityFiltered = getDayCityOptionsFromMultiCity();
             const selectedCountry = document.getElementById('country').value || '';
-            const filtered = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
-            const prevHotelCity = $('#hotel_city_select').val();
-            const options = filtered.map(c => ({
+            const source = (multiCityFiltered && multiCityFiltered.length)
+                ? multiCityFiltered
+                : allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+            return source.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
                 data_name: c.name,
                 data_country: c.country,
             }));
-            setSelectOptions('hotel_city_select', options);
+        }
+
+        function syncHotelCityFromMultiCity(options = null) {
+            if (!multiCityPlans.length) return false;
+            const opts = options || getSectionCityOptions();
+            const current = String($('#hotel_city_select').val() || '').trim();
+            if (current && opts.some(o => String(o.value) === current)) {
+                return false;
+            }
+            const sorted = [...multiCityPlans].sort((a, b) =>
+                (parseInt(String(a?.day_in || 0), 10) || 0) - (parseInt(String(b?.day_in || 0), 10) || 0)
+            );
+            for (const plan of sorted) {
+                const cityId = resolveCityIdForPlan(plan);
+                if (!cityId || !opts.some(o => String(o.value) === cityId)) continue;
+                safeSetSelectValueSilent('hotel_city_select', cityId);
+                syncHotelDayDropdownWithMultiCity();
+                if (!isHydratingDayServices && !isPrefillingHotelForm) {
+                    loadHotelCityServices();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function setSectionCityOptions() {
+            const prevHotelCity = $('#hotel_city_select').val();
+            const options = getSectionCityOptions();
+            isSyncingCitySelectors = true;
+            setSelectOptions('hotel_city_select', options, true);
 
             if (prevHotelCity && options.some(o => String(o.value) === String(prevHotelCity))) {
-                safeSetSelectValue('hotel_city_select', prevHotelCity);
+                safeSetSelectValueSilent('hotel_city_select', prevHotelCity);
+            } else {
+                syncHotelCityFromMultiCity(options);
             }
+            isSyncingCitySelectors = false;
             hydrateDayServiceBlocksOptions();
         }
 
         function syncSectionCitySelectionsFromMain() {
             if (isSyncingCitySelectors) return;
             if (multiCityPlans.length) {
-                // Multi City is the single source of truth for day-wise cities.
+                setSectionCityOptions();
                 syncDayCitySelectorsFromMultiCity();
+                scheduleTransferOptionsReload(false);
                 return;
             }
             isSyncingCitySelectors = true;
@@ -1295,20 +2019,51 @@
                 isSyncingCitySelectors = false;
                 return;
             }
-            safeSetSelectValue('hotel_city_select', cityOp.value);
+            safeSetSelectValueSilent('hotel_city_select', cityOp.value);
             for (let d = 1; d <= daysCount; d++) {
-                safeSetSelectValue(`activity_city_select_${d}`, cityOp.value);
+                safeSetSelectValueSilent(`activity_city_select_${d}`, cityOp.value);
+                activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
             }
             isSyncingCitySelectors = false;
+            scheduleTransferOptionsReload(false);
         }
 
         function syncMainCityFromSection(sectionSelectId) {
             if (isSyncingCitySelectors) return;
+            // Multi City picker (#city_id) is independent once plans exist.
+            if (multiCityPlans.length > 0 && sectionSelectId === 'hotel_city_select') {
+                return;
+            }
             const op = getSelectedOption(sectionSelectId);
             if (!op) return;
             isSyncingCitySelectors = true;
             $('#city_id').val(String(op.value)).trigger('change');
             isSyncingCitySelectors = false;
+        }
+
+        function getNextMultiCityDaySpan() {
+            if (!multiCityPlans.length) {
+                return { day_in: 1, day_out: daysCount };
+            }
+            const lastDayOut = multiCityPlans.reduce((max, plan) => {
+                const dout = parseInt(String(plan?.day_out || 0), 10) || 0;
+                return Math.max(max, dout);
+            }, 0);
+            const nextIn = Math.min(daysCount, Math.max(1, lastDayOut));
+            const nextOut = Math.min(daysCount, Math.max(nextIn, lastDayOut + 1));
+            return { day_in: nextIn, day_out: nextOut };
+        }
+
+        function resetMultiCityPickerFields() {
+            const $city = $('#city_id');
+            if ($city.data('select2')) {
+                $city.val(null).trigger('change.select2');
+            } else {
+                safeSetSelectValue('city_id', '');
+            }
+            const nextSpan = getNextMultiCityDaySpan();
+            safeSetSelectValue('mc_day_in', String(nextSpan.day_in));
+            safeSetSelectValue('mc_day_out', String(nextSpan.day_out));
         }
 
         function addMultiCityPlan() {
@@ -1338,9 +2093,12 @@
                 multiCityPlans.push(payload);
             }
             renderMultiCityRows();
-            safeSetSelectValue('city_id', '');
-            safeSetSelectValue('mc_day_in', '');
-            safeSetSelectValue('mc_day_out', '');
+            setSectionCityOptions();
+            resetMultiCityPickerFields();
+            updateAllDayTransferVisibility();
+            invalidateTransferOptionsCache();
+            scheduleTransferOptionsReload(true);
+            applyTransferDefaults();
             // Hotels (day + nights) depend solely on Multi City.
             syncHotelsWithMultiCity();
         }
@@ -1353,6 +2111,14 @@
                 if (btn) btn.textContent = 'Add';
             }
             renderMultiCityRows();
+            setSectionCityOptions();
+            if (!multiCityPlans.length) {
+                resetMultiCityPickerFields();
+            }
+            updateAllDayTransferVisibility();
+            invalidateTransferOptionsCache();
+            scheduleTransferOptionsReload(true);
+            applyTransferDefaults();
             // Hotels (day + nights) depend solely on Multi City.
             syncHotelsWithMultiCity();
         }
@@ -1457,19 +2223,25 @@
             if (!multiCityPlans.length) {
                 return;
             }
+            isSyncingCitySelectors = true;
             for (let d = 1; d <= daysCount; d++) {
                 const planForDay = getMultiCityPlanForDay(d);
-                const cityId = planForDay?.city_id;
-                // Default to Multi City mapped city only when empty.
+                const cityId = resolveCityIdForPlan(planForDay);
+                if (!cityId) continue;
                 const act = document.getElementById(`activity_city_select_${d}`);
                 const tr = document.getElementById(`transfer_city_select_${d}`);
-                if (cityId && act && !String(act.value || '').trim()) {
-                    safeSetSelectValue(`activity_city_select_${d}`, String(cityId));
+                // Default to Multi City mapped city only when empty.
+                if (act && !String(act.value || '').trim()) {
+                    safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
+                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
                 }
-                if (cityId && tr && !String(tr.value || '').trim()) {
-                    safeSetSelectValue(`transfer_city_select_${d}`, String(cityId));
+                if (tr && !String(tr.value || '').trim()) {
+                    isSyncingTransferCity = true;
+                    safeSetSelectValueSilent(`transfer_city_select_${d}`, cityId);
+                    isSyncingTransferCity = false;
                 }
             }
+            isSyncingCitySelectors = false;
         }
 
         function getDayCityOptionsFromMultiCity() {
@@ -1687,14 +2459,57 @@
                                     <option value="">Select attraction</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label" for="attraction_ticket_select_${d}">Select Ticket</label>
                                 <select id="attraction_ticket_select_${d}" class="form-select searchable-select">
                                     <option value="">Select ticket</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 d-flex">
-                                <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
+                            <div class="col-md-2">
+                                <label class="form-label" for="attraction_price_${d}">Ticket Price</label>
+                                <div class="input-group price-input-group">
+                                    <span class="input-group-text">SGD</span>
+                                    <input type="number" class="form-control" id="attraction_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex">
+                                <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_add_btn_${d}" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="day-service-transfer-panel attraction-transfer-panel" id="attraction_transfer_panel_${d}">
+                                    <div class="day-service-transfer-panel__header">
+                                        <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
+                                        <div>
+                                            <strong class="text-primary">Attraction Transfer</strong>
+                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at attraction</div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="attraction_transfer_pickup_select_${d}">Pickup Location</label>
+                                            <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select pickup</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="attraction_transfer_drop_select_${d}">Drop Location</label>
+                                            <select id="attraction_transfer_drop_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select drop</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="attraction_transfer_price_${d}">Transfer Price</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="attraction_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_transfer_add_btn_${d}" onclick="addAttractionTransferItemForDay(${d})">Add Transfer</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="col-12"><div class="fw-semibold text-primary">Restaurant</div></div>
@@ -1719,71 +2534,107 @@
                                     <option value="">Select restaurant first</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex">
-                                <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
+                            <div class="col-md-2">
+                                <label class="form-label" for="restaurant_price_${d}">Meal Price</label>
+                                <div class="input-group price-input-group">
+                                    <span class="input-group-text">SGD</span>
+                                    <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="col-md-1 d-flex">
+                                <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
                             </div>
 
-                            <div class="col-12"><div class="fw-semibold text-primary">Transfer</div></div>
-                            <div class="col-12 day-transfer-wrap" id="day_transfer_wrap_${d}">
-                                <div class="row g-3 align-items-end mt-1">
-                                    <div class="col-md-3">
-                                        <label class="form-label" for="transfer_city_select_${d}">City</label>
-                                        <select id="transfer_city_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select city</option>
-                                        </select>
+                            <div class="col-12">
+                                <div class="day-service-transfer-panel restaurant-transfer-panel" id="restaurant_transfer_panel_${d}">
+                                    <div class="day-service-transfer-panel__header">
+                                        <span class="day-service-transfer-panel__icon" aria-hidden="true">🍽</span>
+                                        <div>
+                                            <strong class="text-success">Restaurant Transfer</strong>
+                                            <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at restaurant</div>
+                                        </div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="transfer_pickup_select_${d}">Pickup Location</label>
-                                        <select id="transfer_pickup_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select pickup</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="transfer_drop_select_${d}">Drop Location</label>
-                                        <select id="transfer_drop_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select drop</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-1 d-flex">
-                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addTransferItemForDay(${d})">Add Transfer</button>
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
+                                            <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select pickup</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="restaurant_transfer_drop_select_${d}">Drop Location</label>
+                                            <select id="restaurant_transfer_drop_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select drop</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="restaurant_transfer_price_${d}">Transfer Price</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="restaurant_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_transfer_add_btn_${d}" onclick="addRestaurantTransferItemForDay(${d})">Add Transfer</button>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="row g-3 align-items-end mt-2">
+                            <select id="transfer_city_select_${d}" class="d-none" aria-hidden="true" tabindex="-1">
+                                <option value="">Select city</option>
+                            </select>
+
+                            <div class="col-12 day-transfer-wrap day-airport-transfer-wrap" id="day_transfer_wrap_${d}">
+                                <div class="row g-3 align-items-end mt-2 day-arrival-wrap" id="day_arrival_wrap_${d}" style="display:none;">
                                     <div class="col-12"><div class="fw-semibold text-primary">Arrival</div></div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
                                         <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
                                             <option value="">Select pickup</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
                                         <select id="arrival_drop_select_${d}" class="form-select searchable-select">
                                             <option value="">Select drop</option>
                                         </select>
                                     </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="arrival_price_${d}">Transfer Price</label>
+                                        <div class="input-group price-input-group">
+                                            <span class="input-group-text">SGD</span>
+                                            <input type="number" class="form-control" id="arrival_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                        </div>
+                                    </div>
                                     <div class="col-md-2 d-flex">
-                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
                                     </div>
                                 </div>
 
-                                <div class="row g-3 align-items-end mt-2">
+                                <div class="row g-3 align-items-end mt-2 day-departure-wrap" id="day_departure_wrap_${d}" style="display:none;">
                                     <div class="col-12"><div class="fw-semibold text-primary">Departure</div></div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
                                         <select id="departure_pickup_select_${d}" class="form-select searchable-select">
                                             <option value="">Select pickup</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
                                         <select id="departure_drop_select_${d}" class="form-select searchable-select">
                                             <option value="">Select drop</option>
                                         </select>
                                     </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="departure_price_${d}">Transfer Price</label>
+                                        <div class="input-group price-input-group">
+                                            <span class="input-group-text">SGD</span>
+                                            <input type="number" class="form-control" id="departure_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                        </div>
+                                    </div>
                                     <div class="col-md-2 d-flex">
-                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" onclick="addDepartureItemForDay(${d})">Add Departure</button>
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
                                     </div>
                                 </div>
 
@@ -1809,7 +2660,12 @@
             renderAllExtraTransferRows();
         }
 
-        function hydrateDayServiceBlocksOptions() {
+        async function hydrateDayServiceBlocksOptions() {
+            if (hydrateDayServicesInFlight) {
+                return hydrateDayServicesInFlight;
+            }
+            hydrateDayServicesInFlight = (async () => {
+            isHydratingDayServices = true;
             const selectedCountry = document.getElementById('country').value || '';
             const filteredCities = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
@@ -1821,23 +2677,34 @@
                 data_country: c.country,
             }));
             for (let d = 1; d <= daysCount; d++) {
-                setSelectOptions(`activity_city_select_${d}`, cityOptions);
-                setSelectOptions(`attraction_select_${d}`, attractionsCache.map(x => ({
-                    value: x.attraction_id,
-                    label: x.name + (x.location ? ` - ${x.location}` : ''),
-                    price: x.adult_price || 0
-                })));
-                setSelectOptions(`restaurant_select_${d}`, restaurantsCache.map(x => ({
-                    value: x.restaurant_id,
-                    label: x.name + (x.city ? ` - ${x.city}` : '')
-                })));
-                setSelectOptions(`attraction_ticket_select_${d}`, []);
+                setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
+                setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                setSelectOptions(`attraction_ticket_select_${d}`, [], true);
+                if (!activityCityByDay[d]) {
+                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
+                }
             }
-            // If Multi City exists, default day city to mapped city (without locking).
             if (multiCityPlans.length) {
                 syncDayCitySelectorsFromMultiCity();
+                const seenCities = new Set();
+                for (let d = 1; d <= daysCount; d++) {
+                    const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
+                    activityCityByDay[d] = cityName;
+                    if (!cityName || seenCities.has(cityName)) continue;
+                    seenCities.add(cityName);
+                    await populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
+                }
             }
             hydrateAllDayTransferCityOptions();
+            isHydratingDayServices = false;
+            scheduleTransferOptionsReload(false);
+            })();
+            try {
+                return await hydrateDayServicesInFlight;
+            } finally {
+                hydrateDayServicesInFlight = null;
+            }
         }
 
         function getSelectedOption(selectId) {
@@ -1896,19 +2763,106 @@
             return plans;
         }
 
-        function resolveCityIdsForMultiPlans() {
+        function resolveCityIdForPlan(plan) {
+            if (!plan) return '';
+            const direct = String(plan.city_id || '').trim();
+            if (direct) return direct;
+            const key = String(plan.city_name || '').split(',')[0].trim().toLowerCase();
+            if (!key) return '';
+            const fromAll = allCities.find(c => String(c.name || '').trim().toLowerCase() === key);
+            if (fromAll) {
+                plan.city_id = String(fromAll.value);
+                return plan.city_id;
+            }
             const citySelect = document.getElementById('city_id');
-            if (!citySelect) return;
-            multiCityPlans.forEach((plan) => {
-                if (!plan || plan.city_id) return;
-                const key = String(plan.city_name || '').trim().toLowerCase();
-                if (!key) return;
-                const match = Array.from(citySelect.options).find(opt => {
+            const match = citySelect
+                ? Array.from(citySelect.options).find(opt => {
                     const nm = String(opt.dataset.name || opt.textContent || '').trim().toLowerCase();
                     return nm === key;
-                });
-                if (match) plan.city_id = String(match.value);
+                })
+                : null;
+            if (match) {
+                plan.city_id = String(match.value);
+                return plan.city_id;
+            }
+            return '';
+        }
+
+        function resolveCityIdsForMultiPlans() {
+            multiCityPlans.forEach((plan) => resolveCityIdForPlan(plan));
+        }
+
+        function normalizeRestaurantRowId(row) {
+            return String(row?.restaurant_id || row?.id || '').trim();
+        }
+
+        function normalizeRestaurantRowName(row) {
+            return String(row?.restaurant_name || row?.name || row?.label || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        }
+
+        function isHydratedRestaurantServiceRow(row) {
+            if (!row || typeof row !== 'object') return false;
+            if (String(row.service_type || row.type || '').toLowerCase() === 'restaurant') return true;
+            return normalizeRestaurantRowId(row) !== '';
+        }
+
+        function trackHydratedRestaurantRef(hydratedRefs, dayNum, row) {
+            const rid = normalizeRestaurantRowId(row);
+            const name = normalizeRestaurantRowName(row);
+            if (rid) hydratedRefs.add(`${dayNum}|id|${rid}`);
+            if (name) hydratedRefs.add(`${dayNum}|name|${name}`);
+        }
+
+        function legacyRestaurantAlreadyHydrated(hydratedRefs, dayNum, row) {
+            const rid = normalizeRestaurantRowId(row);
+            const name = normalizeRestaurantRowName(row);
+            if (rid && hydratedRefs.has(`${dayNum}|id|${rid}`)) return true;
+            if (name && hydratedRefs.has(`${dayNum}|name|${name}`)) return true;
+            return false;
+        }
+
+        function restaurantDayItemHasTransfer(item) {
+            const t = item?.transfer && typeof item.transfer === 'object' ? item.transfer : {};
+            return parseFloat(String(t.cost ?? t.transfer_price ?? 0)) > 0
+                || !!(t.pickup_location || t.drop_location || t.pickup_location_label || t.drop_location_label);
+        }
+
+        function dedupeRestaurantDayItems(items) {
+            const list = Array.isArray(items) ? items : [];
+            const dropIndices = new Set();
+            const restaurantGroups = new Map();
+
+            list.forEach((item, idx) => {
+                if (item?.type !== 'restaurant' || !String(item.id || '').trim()) return;
+                const dayNum = parseInt(String(item.day || 1), 10) || 1;
+                const key = `${dayNum}|${String(item.id || '').trim()}`;
+                if (!restaurantGroups.has(key)) {
+                    restaurantGroups.set(key, []);
+                }
+                restaurantGroups.get(key).push({ item, idx });
             });
+
+            restaurantGroups.forEach((group) => {
+                if (group.length <= 1) return;
+                const best = group.reduce((winner, current) => {
+                    const wXfer = restaurantDayItemHasTransfer(winner.item);
+                    const cXfer = restaurantDayItemHasTransfer(current.item);
+                    if (cXfer && !wXfer) return current;
+                    if (wXfer && !cXfer) return winner;
+                    const wMeal = String(winner.item?.meal?.dish || winner.item?.meal?.meal_type || '').trim();
+                    const cMeal = String(current.item?.meal?.dish || current.item?.meal?.meal_type || '').trim();
+                    if (cMeal && !wMeal) return current;
+                    return winner;
+                });
+                group.forEach((entry) => {
+                    if (entry.idx !== best.idx) dropIndices.add(entry.idx);
+                });
+            });
+
+            return list.filter((_, idx) => !dropIndices.has(idx));
         }
 
         function hydrateFromEditPayload() {
@@ -2060,14 +3014,21 @@
                             : Object.values(hotelSource && typeof hotelSource === 'object' ? hotelSource : {});
                         hotelVals.forEach(h => {
                             if (!h || typeof h !== 'object') return;
+                            const nights = Math.max(1, parseInt(String(h.night || 1), 10) || 1);
+                            const checkinDay = Math.max(1, parseInt(String(h.checkin_day || h.booked_day || dayNum), 10) || dayNum);
+                            const totalPrice = parseFloat(String(h.total_price ?? h.price ?? 0)) || 0;
+                            const perNightStored = parseFloat(String(h.price_per_night ?? 0)) || 0;
+                            const perNight = perNightStored > 0
+                                ? perNightStored
+                                : (totalPrice > 0 && nights > 0 ? totalPrice / nights : 0);
                             hotels.push({
-                                day: dayNum,
+                                day: checkinDay,
                                 cat: '',
                                 cat_label: '',
                                 hotel_id: String(h.hotel_id || ''),
                                 hotel_name: String(h.hotel_name || ''),
                                 city_name: String(h.city || cityName || ''),
-                                night: Math.max(0, parseInt(String(h.night || (daysCount - 1)), 10) || Math.max(0, daysCount - 1)),
+                                night: nights,
                                 room_id: String(h.room_id || ''),
                                 room_type: String(h.room_type || ''),
                                 bed_id: String(h.bed_id || ''),
@@ -2080,9 +3041,23 @@
                                 transfer_city: String(h.transfer_city || ''),
                                 transfer_pickup: String(h.transfer_pickup || ''),
                                 transfer_drop: String(h.transfer_drop || ''),
-                                price: parseFloat(String(h.price || 0)) || 0,
+                                room_price: parseFloat(String(h.room_price ?? perNight)) || perNight,
+                                breakfast_price: parseFloat(String(h.breakfast_price ?? 0)) || 0,
+                                lunch_price: parseFloat(String(h.lunch_price ?? 0)) || 0,
+                                dinner_price: parseFloat(String(h.dinner_price ?? 0)) || 0,
+                                price: perNight,
                                 priority: parseInt(String(h.priority || 1), 10) || 1
                             });
+                        });
+
+                        Object.values(dayNode.arrivals && typeof dayNode.arrivals === 'object' ? dayNode.arrivals : {}).forEach((row) => {
+                            hydrateTransferLegDayItem(dayNum, row, cityName, seenDayActivityKeys, 'arrival');
+                        });
+                        Object.values(dayNode.departures && typeof dayNode.departures === 'object' ? dayNode.departures : {}).forEach((row) => {
+                            hydrateTransferLegDayItem(dayNum, row, cityName, seenDayActivityKeys, 'departure');
+                        });
+                        Object.values(dayNode.transfers && typeof dayNode.transfers === 'object' ? dayNode.transfers : {}).forEach((row) => {
+                            hydrateTransferLegDayItem(dayNum, row, cityName, seenDayActivityKeys, 'attraction transfer');
                         });
 
                         const attrVals = Object.values(dayNode.attractions && typeof dayNode.attractions === 'object' ? dayNode.attractions : {});
@@ -2090,56 +3065,165 @@
                             if (!a || typeof a !== 'object') return;
                             const aid = String(a.attraction_id || '');
                             const tid = String(a.ticket_id || '');
-                            const dedupeKey = `${dayNum}|attraction|${aid}|${tid}`;
+                            const rawT = a.transfer && typeof a.transfer === 'object' ? a.transfer : {};
+                            const normalizedTransfer = normalizeHydratedTransfer(rawT);
+                            const transferType = String(normalizedTransfer.transfer_type || '').trim().toLowerCase();
+                            const isTransferOnly = !aid && (
+                                transferType === 'arrival'
+                                || transferType === 'departure'
+                                || transferType === 'attraction transfer'
+                                || String(a.name || '').toLowerCase().includes('arrival')
+                                || String(a.name || '').toLowerCase().includes('departure')
+                                || String(a.name || '').toLowerCase().includes('transfer')
+                            );
+                            const dedupeKey = isTransferOnly
+                                ? `${dayNum}|transfer|${transferType}|${normalizedTransfer.pickup_location}|${normalizedTransfer.drop_location}`
+                                : `${dayNum}|attraction|${aid}|${tid}`;
                             if (seenDayActivityKeys.has(dedupeKey)) return;
                             seenDayActivityKeys.add(dedupeKey);
-                            const rawT = a.transfer && typeof a.transfer === 'object' ? a.transfer : {};
                             const resolvedAttractionCity = String(
-                                a.city || rawT.city || cityName || ''
+                                a.city || normalizedTransfer.city || cityName || ''
                             );
-                            const hasXfer = String(rawT.required || '').toLowerCase() === 'yes'
-                                || !!(rawT.pickup_location || rawT.drop_location);
+                            const hasXfer = String(normalizedTransfer.required || '').toLowerCase() === 'yes'
+                                || !!(normalizedTransfer.pickup_location || normalizedTransfer.drop_location);
+                            const transferOnlyLabel = transferType === 'arrival'
+                                ? 'Day Arrival'
+                                : transferType === 'departure'
+                                    ? 'Day Departure'
+                                    : (String(a.name || '').trim() || 'Attraction Transfer');
                             dayItems.push({
                                 day: dayNum,
                                 type: 'attraction',
                                 id: aid,
-                                label: String(a.name || ''),
+                                label: isTransferOnly ? transferOnlyLabel : String(a.name || ''),
                                 city_name: resolvedAttractionCity,
                                 ticket_id: tid,
                                 ticket_name: String(a.ticket_name || ''),
-                                transfer: {
-                                    required: hasXfer ? 'Yes' : String(rawT.required || 'No'),
-                                    city: String(rawT.city || ''),
-                                    pickup_location: String(rawT.pickup_location || ''),
-                                    drop_location: String(rawT.drop_location || ''),
-                                    transfer_type: String(rawT.transfer_type || ''),
-                                    additional_transfers: Array.isArray(rawT.additional_transfers) ? rawT.additional_transfers : [],
-                                    type: String(rawT.type || ''),
-                                    way: String(rawT.way || ''),
-                                    vehicle_id: String(rawT.vehicle_id || ''),
-                                    vehicle_name: String(rawT.vehicle_name || ''),
-                                    pickup_location_id: String(rawT.pickup_location_id || ''),
-                                    cost: parseFloat(String(rawT.cost || 0)) || 0,
-                                    pickup_time: String(rawT.pickup_time || ''),
-                                }
+                                ticket_price: parseFloat(String(a.ticket_price ?? a.price ?? 0)) || 0,
+                                price: parseFloat(String(a.ticket_price ?? a.price ?? 0)) || 0,
+                                transfer: buildHydratedItemTransferFields(normalizedTransfer, hasXfer),
                             });
-                            const addlXfer = rawT.additional_transfers;
+                            const addlXfer = normalizedTransfer.additional_transfers;
                             if (Array.isArray(addlXfer) && addlXfer.length) {
                                 ensureDayTransferExtras(dayNum);
-                                const mapped = addlXfer.map(item => ({
-                                    city: String(item?.city ?? ''),
-                                    pickup_location: String(item?.pickup_location ?? ''),
-                                    drop_location: String(item?.drop_location ?? ''),
-                                })).filter(item => item.pickup_location || item.drop_location);
+                                const mapped = addlXfer.map(item => {
+                                    const row = normalizeHydratedTransfer(item);
+                                    return {
+                                        city: String(row?.city ?? ''),
+                                        pickup_location: String(row?.pickup_location_value || row?.pickup_location_id || row?.pickup_location || ''),
+                                        drop_location: String(row?.drop_location_value || row?.drop_location_id || row?.drop_location || ''),
+                                        pickup_location_label: String(row?.pickup_location_label || row?.pickup_location || ''),
+                                        drop_location_label: String(row?.drop_location_label || row?.drop_location || ''),
+                                    };
+                                }).filter(item => item.pickup_location || item.drop_location || item.city);
                                 dayTransferExtras[dayNum] = [...(dayTransferExtras[dayNum] || []), ...mapped];
                             }
+                        });
+
+                        const serviceVals = Object.values(dayNode.services && typeof dayNode.services === 'object' ? dayNode.services : {});
+                        const hydratedRestaurantRefs = new Set();
+                        serviceVals.forEach(s => {
+                            if (!isHydratedRestaurantServiceRow(s)) return;
+                            const rid = normalizeRestaurantRowId(s);
+                            const normalizedTransfer = normalizeHydratedTransfer(s.transfer || {});
+                            const transferType = String(normalizedTransfer.transfer_type || '').trim().toLowerCase();
+                            const serviceType = String(s.service_type || '').toLowerCase();
+                            if (!rid) {
+                                const isRestaurantTransfer = serviceType === 'restaurant_transfer'
+                                    || transferType === 'restaurant transfer'
+                                    || String(s.restaurant_name || s.name || '').toLowerCase().includes('transfer');
+                                if (!isRestaurantTransfer) return;
+                                const dedupeKey = `${dayNum}|restaurant_transfer|${normalizedTransfer.pickup_location}|${normalizedTransfer.drop_location}`;
+                                if (seenDayActivityKeys.has(dedupeKey)) return;
+                                seenDayActivityKeys.add(dedupeKey);
+                                dayItems.push({
+                                    day: dayNum,
+                                    type: 'restaurant',
+                                    id: '',
+                                    label: 'Restaurant Transfer',
+                                    city_name: String(s.city || cityName || ''),
+                                    meal_price: 0,
+                                    price: 0,
+                                    meal: {
+                                        meal_type: '',
+                                        dish: '',
+                                        time_slot: '',
+                                    },
+                                    transfer: {
+                                        required: String(normalizedTransfer.required || 'Yes'),
+                                        city: String(normalizedTransfer.city || ''),
+                                        transfer_type: 'Restaurant Transfer',
+                                        pickup_location: String(normalizedTransfer.pickup_location || ''),
+                                        drop_location: String(normalizedTransfer.drop_location || ''),
+                                        pickup_location_value: String(normalizedTransfer.pickup_location_value || normalizedTransfer.pickup_location_id || ''),
+                                        drop_location_value: String(normalizedTransfer.drop_location_value || normalizedTransfer.drop_location_id || ''),
+                                        pickup_location_label: String(normalizedTransfer.pickup_location_label || ''),
+                                        drop_location_label: String(normalizedTransfer.drop_location_label || ''),
+                                        cost: parseFloat(String(normalizedTransfer.cost ?? normalizedTransfer.transfer_price ?? 0)) || 0,
+                                        transfer_price: parseFloat(String(normalizedTransfer.transfer_price ?? normalizedTransfer.cost ?? 0)) || 0,
+                                        additional_transfers: [],
+                                    },
+                                });
+                                return;
+                            }
+                            const mt = String(s.meal_configuration?.meal_type || '');
+                            const dish = String(s.meal_configuration?.dish || '');
+                            const dedupeKey = `${dayNum}|restaurant|${rid}|${mt}|${dish}`;
+                            if (seenDayActivityKeys.has(dedupeKey)) return;
+                            seenDayActivityKeys.add(dedupeKey);
+                            trackHydratedRestaurantRef(hydratedRestaurantRefs, dayNum, s);
+                            dayItems.push({
+                                day: dayNum,
+                                type: 'restaurant',
+                                id: rid,
+                                label: String(s.restaurant_name || ''),
+                                city_name: String(s.city || cityName || ''),
+                                meal_price: parseFloat(String(s.meal_price ?? s.price ?? s.meal_configuration?.meal_price ?? 0)) || 0,
+                                price: parseFloat(String(s.meal_price ?? s.price ?? s.meal_configuration?.meal_price ?? 0)) || 0,
+                                meal: {
+                                    meal_id: String(s.meal_configuration?.meal_id || ''),
+                                    meal_type: mt,
+                                    dish: dish,
+                                    meal_name: String(s.meal_configuration?.meal_name || ''),
+                                    meal_period: String(s.meal_configuration?.meal_period || ''),
+                                    meal_price: parseFloat(String(s.meal_price ?? s.price ?? s.meal_configuration?.meal_price ?? 0)) || 0,
+                                    time_slot: String(s.meal_configuration?.time_slot || '')
+                                },
+                                transfer: (() => {
+                                    const normalizedTransfer = normalizeHydratedTransfer(s.transfer || {});
+                                    return {
+                                        required: String(normalizedTransfer.required || 'No'),
+                                        city: String(normalizedTransfer.city || ''),
+                                        type: String(normalizedTransfer.type || ''),
+                                        way: String(normalizedTransfer.way || ''),
+                                        vehicle_id: String(normalizedTransfer.vehicle_id || ''),
+                                        vehicle_name: String(normalizedTransfer.vehicle_name || ''),
+                                        pickup_location_id: String(normalizedTransfer.pickup_location_id || normalizedTransfer.pickup_location_value || ''),
+                                        drop_location_id: String(normalizedTransfer.drop_location_id || normalizedTransfer.drop_location_value || ''),
+                                        pickup_location: String(normalizedTransfer.pickup_location || ''),
+                                        drop_location: String(normalizedTransfer.drop_location || ''),
+                                        pickup_location_value: String(normalizedTransfer.pickup_location_value || normalizedTransfer.pickup_location_id || ''),
+                                        drop_location_value: String(normalizedTransfer.drop_location_value || normalizedTransfer.drop_location_id || ''),
+                                        pickup_location_label: String(normalizedTransfer.pickup_location_label || ''),
+                                        drop_location_label: String(normalizedTransfer.drop_location_label || ''),
+                                        transfer_type: String(normalizedTransfer.transfer_type || ''),
+                                        cost: parseFloat(String(normalizedTransfer.cost ?? normalizedTransfer.transfer_price ?? 0)) || 0,
+                                        transfer_price: parseFloat(String(normalizedTransfer.transfer_price ?? normalizedTransfer.cost ?? 0)) || 0,
+                                        pickup_time: String(normalizedTransfer.pickup_time || ''),
+                                        additional_transfers: [],
+                                    };
+                                })()
+                            });
                         });
 
                         const legacyRestVals = Object.values(dayNode.restaurants && typeof dayNode.restaurants === 'object' ? dayNode.restaurants : {});
                         legacyRestVals.forEach(r => {
                             if (!r || typeof r !== 'object') return;
-                            const rid = String(r.restaurant_id || '');
-                            const dedupeKey = `${dayNum}|restaurant_raw|${rid}`;
+                            if (legacyRestaurantAlreadyHydrated(hydratedRestaurantRefs, dayNum, r)) {
+                                return;
+                            }
+                            const rid = normalizeRestaurantRowId(r);
+                            const dedupeKey = `${dayNum}|restaurant_raw|${rid}|${normalizeRestaurantRowName(r)}`;
                             if (seenDayActivityKeys.has(dedupeKey)) return;
                             seenDayActivityKeys.add(dedupeKey);
                             dayItems.push({
@@ -2168,43 +3252,6 @@
                                 }
                             });
                         });
-
-                        const serviceVals = Object.values(dayNode.services && typeof dayNode.services === 'object' ? dayNode.services : {});
-                        serviceVals.forEach(s => {
-                            if (!s || typeof s !== 'object') return;
-                            if (String(s.service_type || '').toLowerCase() !== 'restaurant') return;
-                            const rid = String(s.restaurant_id || '');
-                            const mt = String(s.meal_configuration?.meal_type || '');
-                            const dish = String(s.meal_configuration?.dish || '');
-                            const dedupeKey = `${dayNum}|restaurant|${rid}|${mt}|${dish}`;
-                            if (seenDayActivityKeys.has(dedupeKey)) return;
-                            seenDayActivityKeys.add(dedupeKey);
-                            dayItems.push({
-                                day: dayNum,
-                                type: 'restaurant',
-                                id: rid,
-                                label: String(s.restaurant_name || ''),
-                                city_name: String(s.city || cityName || ''),
-                                meal: {
-                                    meal_type: mt,
-                                    dish: dish,
-                                    time_slot: String(s.meal_configuration?.time_slot || '')
-                                },
-                                transfer: {
-                                    required: String(s.transfer?.required || 'No'),
-                                    city: String(s.transfer?.city || ''),
-                                    type: String(s.transfer?.type || ''),
-                                    way: String(s.transfer?.way || ''),
-                                    vehicle_id: String(s.transfer?.vehicle_id || ''),
-                                    vehicle_name: String(s.transfer?.vehicle_name || ''),
-                                    pickup_location_id: String(s.transfer?.pickup_location_id || ''),
-                                    pickup_location: String(s.transfer?.pickup_location || ''),
-                                    drop_location: String(s.transfer?.drop_location || ''),
-                                    cost: parseFloat(String(s.transfer?.cost || 0)) || 0,
-                                    pickup_time: String(s.transfer?.pickup_time || '')
-                                }
-                            });
-                        });
                     });
                 });
             });
@@ -2214,38 +3261,46 @@
             }
             resolveCityIdsForMultiPlans();
 
-            const dedupedHotels = [];
-            const seenHotelDayKeys = new Set();
+            const hotelMergeMap = new Map();
             hotels.forEach((h) => {
                 const hotelId = String(h.hotel_id || '').trim();
+                if (!hotelId) return;
+                const cityKey = String(h.city_name || '').trim().toLowerCase();
+                const key = `${hotelId}|${cityKey}`;
                 const dayNum = parseInt(String(h.day || 1), 10) || 1;
-                const key = `${dayNum}|${hotelId}`;
-                if (!hotelId || seenHotelDayKeys.has(key)) return;
-                seenHotelDayKeys.add(key);
-                dedupedHotels.push({
-                    ...h,
-                    day: dayNum,
-                    night: parseInt(String(h.night || Math.max(1, daysCount - 1)), 10) || Math.max(1, daysCount - 1),
-                });
+                const nights = Math.max(1, parseInt(String(h.night || 1), 10) || 1);
+                const existing = hotelMergeMap.get(key);
+                if (!existing) {
+                    hotelMergeMap.set(key, { ...h, day: dayNum, night: nights });
+                    return;
+                }
+                existing.day = Math.min(existing.day, dayNum);
+                existing.night = Math.max(existing.night, nights);
             });
-            hotels = dedupedHotels;
+            hotels = Array.from(hotelMergeMap.values());
+
+            dayItems = dedupeRestaurantDayItems(dayItems);
+
+            dayItems = (Array.isArray(dayItems) ? dayItems : []).map((item) => {
+                if (!item?.transfer || typeof item.transfer !== 'object') return item;
+                return { ...item, transfer: normalizeHydratedTransfer(item.transfer) };
+            });
 
             renderMultiCityRows();
+            setSectionCityOptions();
             syncHotelNightsWithDays();
             renderHotelRows();
             renderActivityRows();
             hydrateAllDayTransferCityOptions();
-            // Multi City drives day-wise city mapping for attractions/restaurants/transfers.
-            syncDayCitySelectorsFromMultiCity();
             updateAllDayTransferVisibility();
             renderAllExtraTransferRows();
+            scheduleTransferOptionsReload(false);
         }
 
         function toggleHotelTransferFields() {
-            const isChecked = document.getElementById('hotel_arrival_departure')?.checked;
             const locked = hotelsHaveArrivalDepartureTransferSaved();
             updateAllDayTransferVisibility();
-            if (!isChecked && !locked) {
+            if (!locked) {
                 hotelTransferState = { city: '', pickup: '', drop: '' };
                 clearEndDayTransferSelectionsOnly();
             }
@@ -2255,19 +3310,28 @@
             for (let d = 1; d <= daysCount; d++) {
                 const wrap = document.getElementById(`day_transfer_wrap_${d}`);
                 if (wrap) {
-                    // Transfer inputs are available for every day (Arrival/Departure/Transfer).
                     wrap.style.display = '';
+                }
+                const arrivalWrap = document.getElementById(`day_arrival_wrap_${d}`);
+                if (arrivalWrap) {
+                    arrivalWrap.style.display = shouldShowArrivalForDay(d) ? '' : 'none';
+                }
+                const departureWrap = document.getElementById(`day_departure_wrap_${d}`);
+                if (departureWrap) {
+                    departureWrap.style.display = shouldShowDepartureForDay(d) ? '' : 'none';
                 }
                 const extraWrap = document.getElementById(`extra_transfer_wrap_${d}`);
                 if (extraWrap) {
-                    const showExtra = daysCount >= 3 && d > 1 && d < daysCount;
+                    const isLegDay = shouldShowArrivalForDay(d) || shouldShowDepartureForDay(d);
+                    const showExtra = daysCount >= 3 && d > 1 && d < daysCount && !isLegDay;
                     extraWrap.style.display = showExtra ? '' : 'none';
                 }
             }
 
-            const dmcOk = !!(document.getElementById('dmc_id')?.value);
-            if (transferLocationOptions.length === 0 && dmcOk) {
-                loadTransferOptionsForCity(1);
+            if (serviceTransferOptions.length > 0 || transferLocationOptions.length > 0) {
+                for (let d = 1; d <= daysCount; d++) {
+                    populateServiceTransferSelectsForDay(d);
+                }
             }
         }
 
@@ -2282,14 +3346,15 @@
                 data_name: c.name,
                 data_country: c.country,
             }));
+            isSyncingTransferCity = true;
+            const fallbackCity = hotelTransferState.city || document.getElementById('hotel_city_select')?.value || '';
             for (let d = 1; d <= daysCount; d++) {
-                setSelectOptions(`transfer_city_select_${d}`, options);
-                if (hotelTransferState.city) {
-                    safeSetSelectValue(`transfer_city_select_${d}`, hotelTransferState.city);
-                } else if (document.getElementById('hotel_city_select')?.value) {
-                    safeSetSelectValue(`transfer_city_select_${d}`, document.getElementById('hotel_city_select').value);
+                setSelectOptions(`transfer_city_select_${d}`, options, true);
+                if (fallbackCity) {
+                    safeSetSelectValueSilent(`transfer_city_select_${d}`, fallbackCity);
                 }
             }
+            isSyncingTransferCity = false;
             renderAllExtraTransferRows();
         }
 
@@ -2316,12 +3381,12 @@
             dayTransferExtras[dayVal][idx][key] = v;
             if (key === 'pickup_location') {
                 dayTransferExtras[dayVal][idx].pickup_location_label = getTransferLocationLabel(
-                    `transfer_pickup_select_${dayVal}`,
+                    `attraction_transfer_pickup_select_${dayVal}`,
                     v
                 );
             } else if (key === 'drop_location') {
                 dayTransferExtras[dayVal][idx].drop_location_label = getTransferLocationLabel(
-                    `transfer_drop_select_${dayVal}`,
+                    `attraction_transfer_drop_select_${dayVal}`,
                     v
                 );
             }
@@ -2333,15 +3398,16 @@
                 if (!transfer || typeof transfer !== 'object') return;
                 const day = parseInt(String(item.day || 1), 10) || 1;
                 const type = transfer.transfer_type || '';
+                const itemType = String(item?.type || '').trim();
                 if (transfer.pickup_location && !transfer.pickup_location_label) {
                     transfer.pickup_location_label = getTransferLocationLabel(
-                        resolveTransferSelectId(day, 'pickup', type),
+                        resolveTransferSelectId(day, 'pickup', type, itemType),
                         transfer.pickup_location
                     );
                 }
                 if (transfer.drop_location && !transfer.drop_location_label) {
                     transfer.drop_location_label = getTransferLocationLabel(
-                        resolveTransferSelectId(day, 'drop', type),
+                        resolveTransferSelectId(day, 'drop', type, itemType),
                         transfer.drop_location
                     );
                 }
@@ -2374,7 +3440,7 @@
                 const cityLabel = c.country ? `${c.name}, ${c.country}` : c.name;
                 return `<option value="${escapeHtml(c.name)}">${escapeHtml(cityLabel)}</option>`;
             }).join('');
-            const dayOptions = getTransferOptionsForDay(dayVal);
+            const dayOptions = getServiceTransferOptionsForDay(dayVal);
             const optionMarkup = dayOptions.map((x) => {
                 const label = formatTransferLocationLabel(x);
                 return `<option value="${escapeHtml(x.value)}">${escapeHtml(label)}</option>`;
@@ -2491,8 +3557,82 @@
             }
         }
 
-        async function loadTransferOptionsForCity(dayVal = activeDay) {
-            const cityName = getCityNameFromSelect(`transfer_city_select_${dayVal}`) || getCityNameFromSelect('hotel_city_select');
+        function applyTransferOptionsPayload(data) {
+            transferLocationOptions = Array.isArray(data?.locations) ? data.locations : [];
+            serviceTransferOptions = Array.isArray(data?.service_transfer_locations)
+                ? data.service_transfer_locations
+                : (Array.isArray(data?.arrival_drop_locations)
+                    ? data.arrival_drop_locations.filter((x) => String(x?.type || '').toLowerCase() !== 'port')
+                    : []);
+            transferArrivalPickupOptions = Array.isArray(data?.arrival_pickup_ports)
+                ? data.arrival_pickup_ports
+                : transferLocationOptions.filter(x => String(x?.type || '').toLowerCase() === 'port'
+                    || String(x?.value || '').startsWith('port:'));
+            transferArrivalDropOptions = Array.isArray(data?.arrival_drop_locations)
+                ? data.arrival_drop_locations
+                : transferLocationOptions;
+            zoneTransferOptions = Array.isArray(data?.zones) ? data.zones : [];
+            mergeTransferLocationLabels(transferLocationOptions);
+            mergeTransferLocationLabels(serviceTransferOptions);
+            mergeTransferLocationLabels(transferArrivalPickupOptions);
+            mergeTransferLocationLabels(transferArrivalDropOptions);
+            mergeTransferLocationLabels(zoneTransferOptions);
+            const portCanon = String(
+                data?.default_port_value ?? data?.default_pickup ?? ''
+            ).trim();
+            transferDefaults = { defaultPort: portCanon };
+        }
+
+        function applyTransferOptionsToDayUI(dayVal, silent = true) {
+            const day = parseInt(String(dayVal || 1), 10) || 1;
+            const dayOptions = getTransferOptionsForDay(day);
+            populateServiceTransferSelectsForDay(day, silent);
+            setSelectOptions(`arrival_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalPickupOptions), silent);
+            setSelectOptions(`arrival_drop_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions), silent);
+            setSelectOptions(`departure_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions.length ? transferArrivalDropOptions : dayOptions), silent);
+            setSelectOptions(`departure_drop_select_${day}`, mapTransferSelectOptions(getDepartureDropPortOptions()), silent);
+            renderExtraTransferRows(day);
+        }
+
+        function applyTransferOptionsToAllDaysWithSameCity(cacheKey, dayVal) {
+            const matchedDays = [];
+            for (let d = 1; d <= daysCount; d++) {
+                if (buildTransferOptionsCacheKey(d) === cacheKey) {
+                    matchedDays.push(d);
+                }
+            }
+            if (!matchedDays.length) {
+                matchedDays.push(parseInt(String(dayVal || 1), 10) || 1);
+            }
+            matchedDays.forEach((d) => applyTransferOptionsToDayUI(d, true));
+            const needsLegDefaults = matchedDays.some((d) => shouldShowArrivalForDay(d) || shouldShowDepartureForDay(d));
+            if (needsLegDefaults) {
+                isApplyingTransferDefaults = true;
+                applyTransferDefaults();
+                isApplyingTransferDefaults = false;
+            }
+            backfillTransferLabelsOnDayItems();
+        }
+
+        async function loadTransferOptionsForCity(dayVal = activeDay, options = {}) {
+            const force = options.force === true;
+            syncTransferCityFromActivity(dayVal);
+            const cacheKey = buildTransferOptionsCacheKey(dayVal);
+            if (!force && transferOptionsCache[cacheKey]) {
+                applyTransferOptionsPayload(transferOptionsCache[cacheKey]);
+                applyTransferOptionsToAllDaysWithSameCity(cacheKey, dayVal);
+                return;
+            }
+            if (!force && transferOptionsInflight[cacheKey]) {
+                return transferOptionsInflight[cacheKey];
+            }
+
+            const cityName = getCityNameFromSelect(`activity_city_select_${dayVal}`)
+                || getCityNameFromSelect(`transfer_city_select_${dayVal}`)
+                || getCityNameFromSelect('hotel_city_select');
+            if (!String(cityName || '').trim()) {
+                return;
+            }
             const dmcId = document.getElementById('dmc_id').value || '';
             const masterDmcId = document.getElementById('master_dmc_id')?.value || '';
             const country = document.getElementById('country')?.value || '';
@@ -2503,126 +3643,108 @@
             if (country) {
                 url += `&country=${encodeURIComponent(country)}`;
             }
-            try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('Failed');
-                const data = await res.json();
-                transferLocationOptions = Array.isArray(data?.locations) ? data.locations : [];
-                transferArrivalPickupOptions = Array.isArray(data?.arrival_pickup_ports)
-                    ? data.arrival_pickup_ports
-                    : transferLocationOptions.filter(x => String(x?.type || '').toLowerCase() === 'port'
-                        || String(x?.value || '').startsWith('port:'));
-                transferArrivalDropOptions = Array.isArray(data?.arrival_drop_locations)
-                    ? data.arrival_drop_locations
-                    : transferLocationOptions;
-                zoneTransferOptions = Array.isArray(data?.zones) ? data.zones : [];
-                mergeTransferLocationLabels(transferLocationOptions);
-                mergeTransferLocationLabels(transferArrivalPickupOptions);
-                mergeTransferLocationLabels(transferArrivalDropOptions);
-                mergeTransferLocationLabels(zoneTransferOptions);
-                const portCanon = String(
-                    data?.default_port_value ?? data?.default_pickup ?? ''
-                ).trim();
-                transferDefaults = { defaultPort: portCanon };
-            } catch (e) {
-                transferLocationOptions = [];
-                transferArrivalPickupOptions = [];
-                transferArrivalDropOptions = [];
-                zoneTransferOptions = [];
-                transferDefaults = { defaultPort: '' };
-            }
-            const day = parseInt(String(dayVal || 1), 10) || 1;
-            const dayOptions = getTransferOptionsForDay(day);
-            setSelectOptions(`transfer_pickup_select_${day}`, mapTransferSelectOptions(dayOptions));
-            setSelectOptions(`transfer_drop_select_${day}`, mapTransferSelectOptions(dayOptions));
-            setSelectOptions(`arrival_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalPickupOptions));
-            setSelectOptions(`arrival_drop_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions));
-            setSelectOptions(`departure_pickup_select_${day}`, mapTransferSelectOptions(transferArrivalDropOptions.length ? transferArrivalDropOptions : dayOptions));
-            setSelectOptions(`departure_drop_select_${day}`, mapTransferSelectOptions(getDepartureDropPortOptions()));
-            // Arrival/Departure defaults are only meant for Day 1 + Last Day.
-            // Avoid recalculating them when loading middle-day transfer options.
-            if (day === 1 || day === daysCount) {
-                applyTransferDefaults();
-            }
-            renderExtraTransferRows(day);
-            backfillTransferLabelsOnDayItems();
+
+            const request = (async () => {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('Failed');
+                    const data = await res.json();
+                    transferOptionsCache[cacheKey] = data;
+                    applyTransferOptionsPayload(data);
+                } catch (e) {
+                    transferOptionsCache[cacheKey] = {
+                        locations: [],
+                        service_transfer_locations: [],
+                        arrival_pickup_ports: [],
+                        arrival_drop_locations: [],
+                        zones: [],
+                    };
+                    applyTransferOptionsPayload(transferOptionsCache[cacheKey]);
+                } finally {
+                    delete transferOptionsInflight[cacheKey];
+                }
+                applyTransferOptionsToAllDaysWithSameCity(cacheKey, dayVal);
+            })();
+
+            transferOptionsInflight[cacheKey] = request;
+            return request;
+        }
+
+        function invalidateTransferOptionsCacheForDay(dayVal) {
+            const key = buildTransferOptionsCacheKey(dayVal);
+            delete transferOptionsCache[key];
+            delete transferOptionsInflight[key];
+        }
+
+        function invalidateTransferOptionsCache() {
+            Object.keys(transferOptionsCache).forEach((k) => delete transferOptionsCache[k]);
+            Object.keys(transferOptionsInflight).forEach((k) => delete transferOptionsInflight[k]);
         }
 
         function applyTransferDefaults() {
             if (!isArrivalDepartureTransfersActive() && !itineraryUsesMiddleDayTransfers()) return;
-
-            /** Middle itinerary days populate their own attraction transfers — no arrival/hotel defaults. */
             if (!isArrivalDepartureTransfersActive() && itineraryUsesMiddleDayTransfers()) {
                 return;
             }
 
-            /** Arrival / Departure scripted defaults only (middle-day attraction transfers unchanged elsewhere). */
             const portVal = String(transferDefaults.defaultPort || '').trim();
-            const dayOneHotel = getDayOneHotelDropValueAndLabel();
-            const checkoutHotel = getDeparturePickupHotelValueAndLabel();
 
-            const pickup1El = document.getElementById('transfer_pickup_select_1');
-            const drop1El = document.getElementById('transfer_drop_select_1');
-
-            /** Day 1 — Arrival: pickup = DMC default port; drop = Day 1 hotel from hotels grid */
-            if (pickup1El && portVal && !String(pickup1El.value || '').trim()) {
-                ensureTransferLocationOption(
-                    'transfer_pickup_select_1',
-                    portVal,
-                    labelForStoredTransferLocation(portVal)
-                );
-                safeSetSelectValue('transfer_pickup_select_1', portVal);
-            }
-
-            if (drop1El && dayOneHotel.value && !String(drop1El.value || '').trim()) {
-                ensureTransferLocationOption(`transfer_drop_select_1`, dayOneHotel.value, dayOneHotel.label || 'Day 1 hotel');
-                safeSetSelectValue(`transfer_drop_select_1`, dayOneHotel.value);
-            }
-
-            if (portVal) {
-                ensureTransferLocationOption('arrival_pickup_select_1', portVal, labelForStoredTransferLocation(portVal));
-                safeSetSelectValue('arrival_pickup_select_1', portVal);
-            }
-            const arrivalDrop1El = document.getElementById('arrival_drop_select_1');
-            if (arrivalDrop1El && dayOneHotel.value && !String(arrivalDrop1El.value || '').trim()) {
-                ensureTransferLocationOption('arrival_drop_select_1', dayOneHotel.value, dayOneHotel.label || 'Day 1 hotel');
-                safeSetSelectValue('arrival_drop_select_1', dayOneHotel.value);
-            }
-
-            /** Last day — Departure: pickup = hotel covering checkout; drop = same default port */
-            if (daysCount >= 2 && portVal) {
-                const lastD = daysCount;
-                const pickLastEl = document.getElementById(`transfer_pickup_select_${lastD}`);
-                const dropLastEl = document.getElementById(`transfer_drop_select_${lastD}`);
-                const depHotelVal = checkoutHotel.value;
-
-                if (pickLastEl && depHotelVal && !String(pickLastEl.value || '').trim()) {
-                    ensureTransferLocationOption(
-                        `transfer_pickup_select_${lastD}`,
-                        depHotelVal,
-                        checkoutHotel.label || labelForStoredTransferLocation(depHotelVal)
-                    );
-                    safeSetSelectValue(`transfer_pickup_select_${lastD}`, depHotelVal);
+            for (let d = 1; d <= daysCount; d++) {
+                if (shouldShowArrivalForDay(d)) {
+                    const arrivalHotel = getArrivalHotelForDay(d);
+                    if (portVal) {
+                        ensureTransferLocationOption(`arrival_pickup_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
+                        safeSetSelectValue(`arrival_pickup_select_${d}`, portVal);
+                    }
+                    const arrivalDropEl = document.getElementById(`arrival_drop_select_${d}`);
+                    if (arrivalDropEl && arrivalHotel.value && !String(arrivalDropEl.value || '').trim()) {
+                        ensureTransferLocationOption(`arrival_drop_select_${d}`, arrivalHotel.value, arrivalHotel.label || 'Hotel');
+                        safeSetSelectValue(`arrival_drop_select_${d}`, arrivalHotel.value);
+                    }
                 }
-                if (dropLastEl && !String(dropLastEl.value || '').trim()) {
-                    ensureTransferLocationOption(
-                        `transfer_drop_select_${lastD}`,
-                        portVal,
-                        labelForStoredTransferLocation(portVal)
-                    );
-                    safeSetSelectValue(`transfer_drop_select_${lastD}`, portVal);
-                }
-                enforceDepartureDropPort(lastD, true);
-                const depPickupEl = document.getElementById(`departure_pickup_select_${lastD}`);
-                if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
-                    ensureTransferLocationOption(
-                        `departure_pickup_select_${lastD}`,
-                        depHotelVal,
-                        checkoutHotel.label || labelForStoredTransferLocation(depHotelVal)
-                    );
-                    safeSetSelectValue(`departure_pickup_select_${lastD}`, depHotelVal);
+
+                if (shouldShowDepartureForDay(d) && portVal) {
+                    const departureHotel = getDepartureHotelForDay(d);
+                    const depHotelVal = departureHotel.value;
+                    enforceDepartureDropPort(d, true);
+                    const depPickupEl = document.getElementById(`departure_pickup_select_${d}`);
+                    if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
+                        ensureTransferLocationOption(
+                            `departure_pickup_select_${d}`,
+                            depHotelVal,
+                            departureHotel.label || labelForStoredTransferLocation(depHotelVal)
+                        );
+                        safeSetSelectValue(`departure_pickup_select_${d}`, depHotelVal);
+                    }
+                    const depDropEl = document.getElementById(`departure_drop_select_${d}`);
+                    if (depDropEl && !String(depDropEl.value || '').trim()) {
+                        ensureTransferLocationOption(`departure_drop_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
+                        safeSetSelectValue(`departure_drop_select_${d}`, portVal);
+                    }
                 }
             }
+        }
+
+        function getLegTransferPickupForDay(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            if (shouldShowArrivalForDay(d)) {
+                return String(document.getElementById(`arrival_pickup_select_${d}`)?.value || '').trim();
+            }
+            if (shouldShowDepartureForDay(d)) {
+                return String(document.getElementById(`departure_pickup_select_${d}`)?.value || '').trim();
+            }
+            return '';
+        }
+
+        function getLegTransferDropForDay(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            if (shouldShowArrivalForDay(d)) {
+                return String(document.getElementById(`arrival_drop_select_${d}`)?.value || '').trim();
+            }
+            if (shouldShowDepartureForDay(d)) {
+                return String(document.getElementById(`departure_drop_select_${d}`)?.value || '').trim();
+            }
+            return '';
         }
 
         function loadCityData() {
@@ -2695,38 +3817,271 @@
             return (dayTransferExtras[dayVal] || []).filter(x => x && (x.pickup_location || x.drop_location));
         }
 
-        function getDayTransferPayload(dayVal) {
-            const pickupSelectId = `transfer_pickup_select_${dayVal}`;
-            const dropSelectId = `transfer_drop_select_${dayVal}`;
+        function parseDayTransferPriceInput(prefix, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const el = document.getElementById(`${prefix}_price_${d}`);
+            return parseFloat(el?.value || '0') || 0;
+        }
+
+        function setDayTransferPriceInput(prefix, dayVal, amount) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const el = document.getElementById(`${prefix}_price_${d}`);
+            if (el) {
+                el.value = parseFloat(amount ?? 0).toFixed(2);
+            }
+        }
+
+        function resolveTransferPriceFieldPrefix(transferType, itemType = '') {
+            const type = String(transferType || '').trim().toLowerCase();
+            const serviceType = String(itemType || '').trim().toLowerCase();
+            if (type === 'arrival') return 'arrival';
+            if (type === 'departure') return 'departure';
+            if (type === 'restaurant transfer') return 'restaurant_transfer';
+            if (serviceType === 'restaurant' && type !== 'attraction transfer') return 'restaurant_transfer';
+            return 'attraction_transfer';
+        }
+
+        function inferTransferTypeFromItem(item) {
+            const transfer = item?.transfer && typeof item.transfer === 'object' ? item.transfer : {};
+            const savedType = String(transfer.transfer_type || '').trim();
+            if (savedType) return savedType;
+            const label = String(item?.label || '').trim().toLowerCase();
+            if (label === 'day arrival' || label === 'arrival') return 'Arrival';
+            if (label === 'day departure' || label === 'departure') return 'Departure';
+            if (label === 'restaurant transfer') return 'Restaurant Transfer';
+            if (label === 'attraction transfer' || label === 'day transfer') return 'Attraction Transfer';
+            if (item?.type === 'restaurant') return 'Restaurant Transfer';
+            if (item?.type === 'attraction' && String(item?.id || '').trim()) return 'Attraction Transfer';
+            return 'Attraction Transfer';
+        }
+
+        function isTransferOnlyActivityItem(item) {
+            if (!item) return false;
+            const label = String(item.label || '').trim().toLowerCase();
+            if (item.type === 'restaurant' && !String(item.id || '').trim()) {
+                return label === 'restaurant transfer';
+            }
+            if (item.type !== 'attraction' || String(item.id || '').trim()) return false;
+            return label === 'day transfer'
+                || label === 'attraction transfer'
+                || label === 'day arrival'
+                || label === 'day departure'
+                || label === 'arrival'
+                || label === 'departure';
+        }
+
+        function setDayButtonText(buttonId, text) {
+            const el = document.getElementById(buttonId);
+            if (el) el.textContent = text;
+        }
+
+        function resetDayActivityEditButtons() {
+            for (let d = 1; d <= daysCount; d++) {
+                setDayButtonText(`attraction_add_btn_${d}`, 'Add Attraction');
+                setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Add Transfer');
+                setDayButtonText(`restaurant_add_btn_${d}`, 'Add Restaurant');
+                setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Add Transfer');
+                setDayButtonText(`arrival_add_btn_${d}`, 'Add Arrival');
+                setDayButtonText(`departure_add_btn_${d}`, 'Add Departure');
+            }
+        }
+
+        function updateDayActivityEditButtons(rowDay, item) {
+            resetDayActivityEditButtons();
+            const d = parseInt(String(rowDay || 1), 10) || 1;
+            if (!item) return;
+            const transferType = String(inferTransferTypeFromItem(item) || '').toLowerCase();
+            const transferOnly = isTransferOnlyActivityItem(item);
+            if (item.type === 'attraction' && String(item.id || '').trim()) {
+                setDayButtonText(`attraction_add_btn_${d}`, 'Update Attraction');
+                if (item.transfer && (item.transfer.pickup_location || item.transfer.drop_location || parseFloat(item.transfer.cost ?? 0) > 0)) {
+                    setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Update Transfer');
+                }
+            } else if (item.type === 'restaurant' && String(item.id || '').trim()) {
+                setDayButtonText(`restaurant_add_btn_${d}`, 'Update Restaurant');
+                if (item.transfer && (item.transfer.pickup_location || item.transfer.drop_location || parseFloat(item.transfer.cost ?? 0) > 0)) {
+                    setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Update Transfer');
+                }
+            } else if (transferOnly) {
+                if (transferType === 'arrival') {
+                    setDayButtonText(`arrival_add_btn_${d}`, 'Update Arrival');
+                } else if (transferType === 'departure') {
+                    setDayButtonText(`departure_add_btn_${d}`, 'Update Departure');
+                } else if (transferType === 'restaurant transfer') {
+                    setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Update Transfer');
+                } else {
+                    setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Update Transfer');
+                }
+            }
+        }
+
+        function scrollToDayCard(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const anchor = document.getElementById(`day_items_${d}`)
+                || document.getElementById(`activity_city_select_${d}`);
+            const card = anchor?.closest('.day-card');
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        async function applyTransferFieldsToDayForm(rowDay, item) {
+            const transfer = item?.transfer && typeof item.transfer === 'object' ? item.transfer : {};
+            const transferType = inferTransferTypeFromItem(item);
+            const itemType = String(item?.type || '').trim();
+            const pickupSelectId = resolveTransferSelectId(rowDay, 'pickup', transferType, itemType);
+            const dropSelectId = resolveTransferSelectId(rowDay, 'drop', transferType, itemType);
+            const transferCost = parseFloat(transfer.cost ?? transfer.transfer_price ?? 0) || 0;
+            const hasTransferData = String(transfer.required || '').toLowerCase() === 'yes'
+                || !!(transfer.pickup_location || transfer.drop_location || transfer.city)
+                || transferCost > 0
+                || (Array.isArray(transfer.additional_transfers) && transfer.additional_transfers.length > 0);
+            if (!hasTransferData) return;
+
+            const extraRows = Array.isArray(transfer.additional_transfers)
+                ? transfer.additional_transfers
+                    .map((row) => ({
+                        city: String(row?.city || ''),
+                        pickup_location: String(row?.pickup_location || ''),
+                        drop_location: String(row?.drop_location || ''),
+                        pickup_location_label: String(row?.pickup_location_label || ''),
+                        drop_location_label: String(row?.drop_location_label || ''),
+                    }))
+                    .filter((row) => row.pickup_location || row.drop_location || row.city)
+                : [];
+            dayTransferExtras[rowDay] = extraRows;
+            renderExtraTransferRows(rowDay);
+
+            if (transfer.city) {
+                const transferCitySelect = document.getElementById(`transfer_city_select_${rowDay}`);
+                const transferCityMatch = transferCitySelect
+                    ? Array.from(transferCitySelect.options).find(opt => {
+                        const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
+                        const target = String(transfer.city || '').split(',')[0].trim().toLowerCase();
+                        return nm === target;
+                    })
+                    : null;
+                if (transferCityMatch) {
+                    isSyncingTransferCity = true;
+                    safeSetSelectValueSilent(`transfer_city_select_${rowDay}`, transferCityMatch.value);
+                    isSyncingTransferCity = false;
+                }
+            }
+
+            await loadTransferOptionsForCity(rowDay);
+
+            const tType = String(transferType || '').trim().toLowerCase();
+            const pickupResolved = resolveTransferLocationForForm(transfer, 'pickup', pickupSelectId);
+            const dropResolved = resolveTransferLocationForForm(transfer, 'drop', dropSelectId);
+
+            if (pickupResolved.value || pickupResolved.label) {
+                ensureTransferLocationOption(pickupSelectId, pickupResolved.value, pickupResolved.label);
+                safeSetSelectValue(pickupSelectId, pickupResolved.value);
+                if (tType === 'arrival') {
+                    ensureTransferLocationOption(`arrival_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
+                    safeSetSelectValue(`arrival_pickup_select_${rowDay}`, pickupResolved.value);
+                } else if (tType === 'departure') {
+                    ensureTransferLocationOption(`departure_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
+                    safeSetSelectValue(`departure_pickup_select_${rowDay}`, pickupResolved.value);
+                }
+            }
+            if (dropResolved.value || dropResolved.label) {
+                ensureTransferLocationOption(dropSelectId, dropResolved.value, dropResolved.label);
+                safeSetSelectValue(dropSelectId, dropResolved.value);
+                if (tType === 'arrival') {
+                    ensureTransferLocationOption(`arrival_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
+                    safeSetSelectValue(`arrival_drop_select_${rowDay}`, dropResolved.value);
+                } else if (tType === 'departure') {
+                    ensureTransferLocationOption(`departure_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
+                    safeSetSelectValue(`departure_drop_select_${rowDay}`, dropResolved.value);
+                }
+            }
+
+            setDayTransferPriceInput(
+                resolveTransferPriceFieldPrefix(transferType, itemType),
+                rowDay,
+                transferCost
+            );
+            renderExtraTransferRows(rowDay);
+        }
+
+        function getAttractionTransferPayload(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const pickupSelectId = `attraction_transfer_pickup_select_${d}`;
+            const dropSelectId = `attraction_transfer_drop_select_${d}`;
             const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
             const dropVal = String(document.getElementById(dropSelectId)?.value || '').trim();
-            const extras = getFilteredAdditionalTransfers(dayVal).map(row => {
-                const pickup = String(row.pickup_location || '').trim();
-                const drop = String(row.drop_location || '').trim();
+            const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
+            const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
+            const extras = getFilteredAdditionalTransfers(d).map((row) => {
+                const pickupToken = String(row.pickup_location_value || row.pickup_location || '').trim();
+                const dropToken = String(row.drop_location_value || row.drop_location || '').trim();
+                const pickupStored = buildStoredTransferLocationFields(pickupSelectId, pickupToken);
+                const dropStored = buildStoredTransferLocationFields(dropSelectId, dropToken);
                 return {
                     city: String(row.city || ''),
-                    pickup_location: pickup,
-                    pickup_location_label: String(row.pickup_location_label || '').trim()
-                        || getTransferLocationLabel(pickupSelectId, pickup)
-                        || labelForStoredTransferLocation(pickup),
-                    drop_location: drop,
-                    drop_location_label: String(row.drop_location_label || '').trim()
-                        || getTransferLocationLabel(dropSelectId, drop)
-                        || labelForStoredTransferLocation(drop),
+                    pickup_location: pickupStored.location,
+                    pickup_location_value: pickupStored.location_value,
+                    pickup_location_label: pickupStored.location_label,
+                    drop_location: dropStored.location,
+                    drop_location_value: dropStored.location_value,
+                    drop_location_label: dropStored.location_label,
                 };
             });
-            const hasPrimaryTransfer = !!pickupVal || !!dropVal;
-            ensureDayTransferExtras(dayVal);
+            const transferPrice = parseDayTransferPriceInput('attraction_transfer', d);
+            const hasPrimaryTransfer = !!pickupVal || !!dropVal || transferPrice > 0;
+            ensureDayTransferExtras(d);
             return {
                 required: (hasPrimaryTransfer || extras.length) ? 'Yes' : 'No',
-                transfer_type: getTransferTypeLabelForDay(dayVal),
-                city: getCityNameFromSelect(`transfer_city_select_${dayVal}`) || '',
-                pickup_location: pickupVal,
-                pickup_location_label: getTransferLocationLabel(pickupSelectId, pickupVal),
-                drop_location: dropVal,
-                drop_location_label: getTransferLocationLabel(dropSelectId, dropVal),
-                additional_transfers: extras
+                transfer_type: 'Attraction Transfer',
+                city: getCityNameFromSelect(`activity_city_select_${d}`) || getCityNameFromSelect(`transfer_city_select_${d}`) || '',
+                pickup_location: pickupFields.location,
+                pickup_location_value: pickupFields.location_value,
+                pickup_location_label: pickupFields.location_label,
+                drop_location: dropFields.location,
+                drop_location_value: dropFields.location_value,
+                drop_location_label: dropFields.location_label,
+                cost: transferPrice,
+                transfer_price: transferPrice,
+                additional_transfers: extras,
             };
+        }
+
+        function getRestaurantTransferPayload(dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const pickupSelectId = `restaurant_transfer_pickup_select_${d}`;
+            const dropSelectId = `restaurant_transfer_drop_select_${d}`;
+            const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
+            const dropVal = String(document.getElementById(dropSelectId)?.value || '').trim();
+            const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
+            const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
+            const transferPrice = parseDayTransferPriceInput('restaurant_transfer', d);
+            return {
+                required: (pickupVal || dropVal || transferPrice > 0) ? 'Yes' : 'No',
+                transfer_type: 'Restaurant Transfer',
+                city: getCityNameFromSelect(`activity_city_select_${d}`) || getCityNameFromSelect(`transfer_city_select_${d}`) || '',
+                type: '',
+                way: '',
+                vehicle_id: '',
+                vehicle_name: '',
+                pickup_location_id: pickupFields.location_value,
+                pickup_location: pickupFields.location,
+                pickup_location_value: pickupFields.location_value,
+                pickup_location_label: pickupFields.location_label,
+                drop_location: dropFields.location,
+                drop_location_value: dropFields.location_value,
+                drop_location_label: dropFields.location_label,
+                drop_location_id: dropFields.location_value,
+                cost: transferPrice,
+                transfer_price: transferPrice,
+                pickup_time: '',
+                additional_transfers: [],
+            };
+        }
+
+        /** @deprecated use getAttractionTransferPayload or getRestaurantTransferPayload */
+        function getDayTransferPayload(dayVal) {
+            return getAttractionTransferPayload(dayVal);
         }
 
         function getArrivalTransferPayload(dayVal) {
@@ -2735,14 +4090,23 @@
             const dropSelectId = `arrival_drop_select_${d}`;
             const pickupVal = String(document.getElementById(pickupSelectId)?.value || '').trim();
             const dropVal = String(document.getElementById(dropSelectId)?.value || '').trim();
+            const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
+            const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
+            const transferPrice = parseDayTransferPriceInput('arrival', d);
             return {
                 required: 'Yes',
                 transfer_type: 'Arrival',
                 city: getCityNameFromSelect(`transfer_city_select_${d}`) || getCityNameFromSelect(`activity_city_select_${d}`) || '',
-                pickup_location: pickupVal,
-                pickup_location_label: getTransferLocationLabel(pickupSelectId, pickupVal),
-                drop_location: dropVal,
-                drop_location_label: getTransferLocationLabel(dropSelectId, dropVal),
+                pickup_location: pickupFields.location,
+                pickup_location_value: pickupFields.location_value,
+                pickup_location_label: pickupFields.location_label,
+                pickup_location_id: pickupFields.location_value,
+                drop_location: dropFields.location,
+                drop_location_value: dropFields.location_value,
+                drop_location_label: dropFields.location_label,
+                drop_location_id: dropFields.location_value,
+                cost: transferPrice,
+                transfer_price: transferPrice,
                 additional_transfers: []
             };
         }
@@ -2756,14 +4120,23 @@
             const dropVal = transferTypeFromValue(dropFromSelect) === 'port'
                 ? dropFromSelect
                 : (resolveDefaultPortValue() || dropFromSelect);
+            const pickupFields = buildStoredTransferLocationFields(pickupSelectId, pickupVal);
+            const dropFields = buildStoredTransferLocationFields(dropSelectId, dropVal);
+            const transferPrice = parseDayTransferPriceInput('departure', d);
             return {
                 required: 'Yes',
                 transfer_type: 'Departure',
                 city: getCityNameFromSelect(`transfer_city_select_${d}`) || getCityNameFromSelect(`activity_city_select_${d}`) || '',
-                pickup_location: pickupVal,
-                pickup_location_label: getTransferLocationLabel(pickupSelectId, pickupVal),
-                drop_location: dropVal,
-                drop_location_label: getTransferLocationLabel(dropSelectId, dropVal),
+                pickup_location: pickupFields.location,
+                pickup_location_value: pickupFields.location_value,
+                pickup_location_label: pickupFields.location_label,
+                pickup_location_id: pickupFields.location_value,
+                drop_location: dropFields.location,
+                drop_location_value: dropFields.location_value,
+                drop_location_label: dropFields.location_label,
+                drop_location_id: dropFields.location_value,
+                cost: transferPrice,
+                transfer_price: transferPrice,
                 additional_transfers: []
             };
         }
@@ -2777,12 +4150,21 @@
                 safeSetSelectValue(`restaurant_meal_period_${d}`, '');
                 setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Select restaurant first' }]);
             }
-            safeSetSelectValue(`transfer_pickup_select_${d}`, '');
-            safeSetSelectValue(`transfer_drop_select_${d}`, '');
+            safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, '');
+            safeSetSelectValue(`attraction_transfer_drop_select_${d}`, '');
+            safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, '');
+            safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, '');
             safeSetSelectValue(`arrival_pickup_select_${d}`, '');
             safeSetSelectValue(`arrival_drop_select_${d}`, '');
             safeSetSelectValue(`departure_pickup_select_${d}`, '');
             safeSetSelectValue(`departure_drop_select_${d}`, '');
+            ['attraction_transfer', 'restaurant_transfer', 'arrival', 'departure'].forEach((prefix) => {
+                setDayTransferPriceInput(prefix, d, 0);
+            });
+            const attractionPriceEl = document.getElementById(`attraction_price_${d}`);
+            if (attractionPriceEl) attractionPriceEl.value = '0.00';
+            const restaurantPriceEl = document.getElementById(`restaurant_price_${d}`);
+            if (restaurantPriceEl) restaurantPriceEl.value = '0.00';
             dayTransferExtras[d] = [];
             renderExtraTransferRows(d);
         }
@@ -2828,16 +4210,23 @@
                     const periodLabel = String(meal.meal_period_label || '').trim();
                     const typeLabel = String(meal.type_label || '').trim();
                     const name = String(meal.name || '').trim();
+                    const mealPrice = parseFloat(meal.type) === 1
+                        ? (parseFloat(meal.adult_price) || 0)
+                        : (parseFloat(meal.price) || parseFloat(meal.adult_price) || 0);
                     const labelParts = [periodLabel, typeLabel, name].filter(Boolean);
                     return {
                         value: String(meal.meal_id ?? ''),
-                        label: labelParts.join(' · ') || `Meal ${meal.meal_id}`,
+                        label: `${labelParts.join(' · ') || `Meal ${meal.meal_id}`}${mealPrice > 0 ? ` — SGD ${mealPrice.toFixed(2)}` : ''}`,
+                        price: mealPrice,
+                        adult_price: parseFloat(meal.adult_price) || 0,
+                        child_price: parseFloat(meal.child_price) || 0,
                         data_meal_period_label: periodLabel,
                         data_type_label: typeLabel,
                         data_meal_name: name,
                         data_meal_period: String(meal.meal_period ?? ''),
                     };
                 }));
+                applyRestaurantMealPrice(d);
             } catch (e) {
                 setSelectOptions(`restaurant_meal_select_${d}`, [{ value: '', label: 'Error loading meals' }]);
             }
@@ -2857,42 +4246,60 @@
                 if (!res.ok) throw new Error('Failed to fetch tickets');
                 const data = await res.json();
                 const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
-                setSelectOptions(`attraction_ticket_select_${dayVal}`, tickets.map(t => ({
-                    value: t.ticket_id,
-                    label: t.name || `Ticket ${t.ticket_id}`,
-                })));
+                setSelectOptions(`attraction_ticket_select_${dayVal}`, tickets.map(t => {
+                    const adult = parseFloat(t.adult_price) || 0;
+                    return {
+                        value: t.ticket_id,
+                        label: `${t.name || `Ticket ${t.ticket_id}`}${adult > 0 ? ` — SGD ${adult.toFixed(2)}` : ''}`,
+                        adult_price: adult,
+                        child_price: parseFloat(t.child_price) || 0,
+                        senior_price: parseFloat(t.senior_adult_price) || 0,
+                        price: adult,
+                    };
+                }));
+                applyAttractionTicketPrice(dayVal);
             } catch (e) {
                 setSelectOptions(`attraction_ticket_select_${dayVal}`, []);
             }
         }
 
-        async function populateDayServiceOptionsByCity(dayVal, cityName) {
+        async function populateDayServiceOptionsByCity(dayVal, cityName, options = {}) {
+            const loadTransfers = options.loadTransfers !== false;
+            const silent = options.silent !== false;
             const normalizedCity = String(cityName || '').split(',')[0].trim();
             if (!normalizedCity) {
-                setSelectOptions(`attraction_select_${dayVal}`, []);
-                setSelectOptions(`restaurant_select_${dayVal}`, []);
-                setSelectOptions(`attraction_ticket_select_${dayVal}`, []);
+                setSelectOptions(`attraction_select_${dayVal}`, [], silent);
+                setSelectOptions(`restaurant_select_${dayVal}`, [], silent);
+                setSelectOptions(`attraction_ticket_select_${dayVal}`, [], silent);
                 return;
             }
             const dmcId = document.getElementById('dmc_id').value || '';
             try {
                 const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
                 const data = await res.json();
-                setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => ({
-                    value: x.attraction_id,
-                    label: x.name + (x.location ? ` - ${x.location}` : ''),
-                    price: x.adult_price || 0
-                })));
+                setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => {
+                    const adult = parseFloat(x.adult_price) || 0;
+                    return {
+                        value: x.attraction_id,
+                        label: `${x.name}${x.location ? ` - ${x.location}` : ''}${adult > 0 ? ` — from SGD ${adult.toFixed(2)}` : ''}`,
+                        price: adult,
+                        adult_price: adult,
+                    };
+                }), silent);
                 setSelectOptions(`restaurant_select_${dayVal}`, (data.restaurants || []).map(x => ({
                     value: x.restaurant_id,
                     label: x.name + (x.city ? ` - ${x.city}` : '')
-                })));
-                setSelectOptions(`restaurant_meal_select_${dayVal}`, [{ value: '', label: 'Select restaurant first' }]);
-                setSelectOptions(`attraction_ticket_select_${dayVal}`, []);
+                })), silent);
+                setSelectOptions(`restaurant_meal_select_${dayVal}`, [{ value: '', label: 'Select restaurant first' }], silent);
+                setSelectOptions(`attraction_ticket_select_${dayVal}`, [], silent);
             } catch (e) {
-                setSelectOptions(`attraction_select_${dayVal}`, []);
-                setSelectOptions(`restaurant_select_${dayVal}`, []);
-                setSelectOptions(`attraction_ticket_select_${dayVal}`, []);
+                setSelectOptions(`attraction_select_${dayVal}`, [], silent);
+                setSelectOptions(`restaurant_select_${dayVal}`, [], silent);
+                setSelectOptions(`attraction_ticket_select_${dayVal}`, [], silent);
+            }
+            syncTransferCityFromActivity(dayVal);
+            if (loadTransfers) {
+                await loadTransferOptionsForCity(dayVal);
             }
         }
 
@@ -2943,12 +4350,8 @@
                 }
             }
 
-            // Fallback to cached city payload if endpoint has no rows
-            if (!list.length && hotelsFlat.length) {
+            if (!list.length && hotelsFlat.length && cityName) {
                 list = hotelsFlat.filter(x => String(x.hotel_star_rating ?? '').trim() === String(category).trim());
-            }
-            if (!list.length) {
-                list = hotelsByRating[category] || [];
             }
 
             setSelectOptions('hotel_select', list.map(x => {
@@ -2966,6 +4369,7 @@
             setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
             setSelectOptions('hotel_meal_plan', []);
             hotelRoomsCache = [];
+            resetHotelPriceFields();
         }
 
         async function loadRoomsForSelectedHotel() {
@@ -2975,6 +4379,7 @@
                 setSelectOptions('hotel_room_select', [{ value: '', label: 'Select hotel first' }]);
                 setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
                 setSelectOptions('hotel_meal_plan', []);
+                resetHotelPriceFields();
                 toggleHotelMealTypeVisibility();
                 return;
             }
@@ -2995,15 +4400,25 @@
                 hotelRoomsCache = rooms;
                 if (!rooms.length) {
                     setSelectOptions('hotel_room_select', [{ value: '', label: 'No rooms available for this hotel' }]);
+                    resetHotelPriceFields();
                     return;
                 }
-                setSelectOptions('hotel_room_select', rooms.map(room => ({
-                    value: String(room.room_id ?? ''),
-                    label: String(room.room_type || `Room ${room.room_id}`),
-                })));
+                setSelectOptions('hotel_room_select', rooms.map(room => {
+                    const roomPrice = parseFloat(room.double_weekday_price) || parseFloat(room.weekday_price) || 0;
+                    return {
+                        value: String(room.room_id ?? ''),
+                        label: `${room.room_type || `Room ${room.room_id}`} — SGD ${roomPrice.toFixed(2)}`,
+                        double_weekday_price: room.double_weekday_price,
+                        breakfast_price: room.breakfast_price,
+                        lunch_price: room.lunch_price,
+                        dinner_price: room.dinner_price,
+                    };
+                }));
+                applyHotelRoomBasePrice();
             } catch (e) {
                 hotelRoomsCache = [];
                 setSelectOptions('hotel_room_select', [{ value: '', label: 'Error loading rooms' }]);
+                resetHotelPriceFields();
             }
         }
 
@@ -3086,6 +4501,204 @@
             if (isRoomOnly && mealTypeSel) {
                 safeSetSelectValue('hotel_meal_type', '');
             }
+            applyHotelMealPlanPrices();
+        }
+
+        function parsePriceInput(id) {
+            const val = parseFloat(document.getElementById(id)?.value || '0');
+            return Number.isFinite(val) ? val : 0;
+        }
+
+        function setPriceInput(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const num = parseFloat(value);
+            el.value = Number.isFinite(num) ? num.toFixed(2) : '0.00';
+        }
+
+        function getSelectedRoomPricing() {
+            const roomOp = getSelectedOption('hotel_room_select');
+            if (!roomOp || !roomOp.value) return null;
+            const room = (hotelRoomsCache || []).find(r => String(r.room_id) === String(roomOp.value));
+            return room || null;
+        }
+
+        function applyHotelRoomBasePrice() {
+            const room = getSelectedRoomPricing();
+            if (!room) {
+                setPriceInput('hotel_room_price', 0);
+                return;
+            }
+            const roomPrice = parseFloat(room.double_weekday_price) || parseFloat(room.weekday_price) || 0;
+            setPriceInput('hotel_room_price', roomPrice);
+            applyHotelMealPlanPrices();
+            updateHotelPriceTotal();
+        }
+
+        function applyHotelMealPlanPrices() {
+            const room = getSelectedRoomPricing();
+            const mealOp = getSelectedOption('hotel_meal_plan');
+            const plan = String(mealOp?.value || mealOp?.textContent || '').toLowerCase();
+            const breakfast = parseFloat(room?.breakfast_price) || 0;
+            const lunch = parseFloat(room?.lunch_price) || 0;
+            const dinner = parseFloat(room?.dinner_price) || 0;
+
+            setPriceInput('hotel_breakfast_price', plan.includes('breakfast') ? breakfast : 0);
+            setPriceInput('hotel_lunch_price', plan.includes('lunch') ? lunch : 0);
+            setPriceInput('hotel_dinner_price', plan.includes('dinner') ? dinner : 0);
+            updateHotelPriceTotal();
+        }
+
+        function updateHotelPriceTotal() {
+            const total = parsePriceInput('hotel_room_price')
+                + parsePriceInput('hotel_breakfast_price')
+                + parsePriceInput('hotel_lunch_price')
+                + parsePriceInput('hotel_dinner_price');
+            const badge = document.getElementById('hotel_price_total_badge');
+            if (badge) {
+                badge.textContent = `Total: SGD ${total.toFixed(2)}`;
+            }
+        }
+
+        function resetHotelPriceFields() {
+            ['hotel_room_price', 'hotel_breakfast_price', 'hotel_lunch_price', 'hotel_dinner_price'].forEach(id => setPriceInput(id, 0));
+            updateHotelPriceTotal();
+        }
+
+        function getHotelPerNightPrice(row) {
+            const room = parseFloat(row?.room_price ?? 0) || 0;
+            const breakfast = parseFloat(row?.breakfast_price ?? 0) || 0;
+            const lunch = parseFloat(row?.lunch_price ?? 0) || 0;
+            const dinner = parseFloat(row?.dinner_price ?? 0) || 0;
+            const total = room + breakfast + lunch + dinner;
+            if (total > 0) return total;
+            return parseFloat(row?.price ?? 0) || 0;
+        }
+
+        function getHotelStayTotalPrice(row) {
+            const perNight = getHotelPerNightPrice(row);
+            const nights = Math.max(1, parseInt(String(row?.night || 1), 10) || 1);
+            return perNight * nights;
+        }
+
+        function getActivityItemServicePrice(item) {
+            if (!item) return 0;
+            if (item.type === 'restaurant' && String(item.id || '').trim()) {
+                return parseFloat(item.meal_price ?? item.price ?? item.meal?.meal_price ?? 0) || 0;
+            }
+            if (item.type === 'attraction' && String(item.id || '').trim()) {
+                return parseFloat(item.ticket_price ?? item.price ?? 0) || 0;
+            }
+            return 0;
+        }
+
+        function getActivityItemTransferPrice(item) {
+            const transfer = item?.transfer && typeof item.transfer === 'object' ? item.transfer : {};
+            return parseFloat(transfer.cost ?? transfer.transfer_price ?? 0) || 0;
+        }
+
+        function getActivityItemTotalPrice(item) {
+            return getActivityItemServicePrice(item) + getActivityItemTransferPrice(item);
+        }
+
+        function getHotelCheckoutDay(row) {
+            return hotelStayEndDay(row);
+        }
+
+        function hotelCoversDay(row, dayNum) {
+            const d = parseInt(String(dayNum || 0), 10) || 0;
+            if (d < 1) return false;
+            const start = parseInt(String(row?.day || 1), 10) || 1;
+            return d >= start && d <= getHotelCheckoutDay(row);
+        }
+
+        function getHotelStayDayNumbers(row) {
+            const start = parseInt(String(row?.day || 1), 10) || 1;
+            const checkout = getHotelCheckoutDay(row);
+            const days = [];
+            for (let d = start; d <= checkout; d++) {
+                days.push(d);
+            }
+            return days;
+        }
+
+        function formatHotelStayDayLabel(row) {
+            const days = getHotelStayDayNumbers(row);
+            if (!days.length) return '-';
+            return days.map((d) => `Day${d}`).join(', ');
+        }
+
+        function formatHotelStayDayBadgesHtml(row) {
+            const days = getHotelStayDayNumbers(row);
+            if (!days.length) {
+                return '<span class="badge bg-light text-dark border">-</span>';
+            }
+            if (days.length === 1) {
+                return `<span class="badge bg-light text-dark border">${escapeHtml(`Day${days[0]}`)}</span>`;
+            }
+            return days.map((d) =>
+                `<span class="badge bg-light text-dark border me-1 mb-1">${escapeHtml(`Day${d}`)}</span>`
+            ).join('');
+        }
+
+        function formatHotelPriceBreakdown(row) {
+            const parts = [];
+            const room = parseFloat(row?.room_price ?? 0) || 0;
+            const breakfast = parseFloat(row?.breakfast_price ?? 0) || 0;
+            const lunch = parseFloat(row?.lunch_price ?? 0) || 0;
+            const dinner = parseFloat(row?.dinner_price ?? 0) || 0;
+            if (room > 0) parts.push(`Room ${room.toFixed(2)}`);
+            if (breakfast > 0) parts.push(`B ${breakfast.toFixed(2)}`);
+            if (lunch > 0) parts.push(`L ${lunch.toFixed(2)}`);
+            if (dinner > 0) parts.push(`D ${dinner.toFixed(2)}`);
+            return parts.length ? parts.join(' + ') : '—';
+        }
+
+        function formatHotelRoomMealSummary(row) {
+            const room = String(row?.room_type || row?.room_id || '-').replace(/\s*—\s*SGD.*$/i, '').trim();
+            const meal = [row?.meal_plan, row?.meal_type].filter(Boolean).join(' · ');
+            return meal ? `${room} · ${meal}` : room;
+        }
+
+        async function loadHotelCityServices() {
+            const cityName = getCityNameFromSelect('hotel_city_select');
+            if (!cityName) {
+                setSelectOptions('hotel_select', []);
+                setSelectOptions('hotel_category', document.getElementById('hotel_category') ? Array.from(document.getElementById('hotel_category').options).slice(1).map(o => ({ value: o.value, label: o.textContent })) : []);
+                return;
+            }
+            const dmcId = document.getElementById('dmc_id').value || '';
+            try {
+                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=hotels&dmc_id=${encodeURIComponent(dmcId)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    hotelsFlat = data.hotels_flat || [];
+                    hotelsByRating = data.hotels || {};
+                }
+            } catch (e) {
+                // keep existing cache
+            }
+            await filterHotelOptions();
+        }
+
+        function applyAttractionTicketPrice(dayVal) {
+            const ticketOp = getSelectedOption(`attraction_ticket_select_${dayVal}`);
+            const priceEl = document.getElementById(`attraction_price_${dayVal}`);
+            if (!priceEl || !ticketOp) return;
+            const adult = parseFloat(ticketOp.dataset?.adultPrice || ticketOp.dataset?.price || '0');
+            if (Number.isFinite(adult) && adult > 0) {
+                priceEl.value = adult.toFixed(2);
+            }
+        }
+
+        function applyRestaurantMealPrice(dayVal) {
+            const mealOp = getSelectedOption(`restaurant_meal_select_${dayVal}`);
+            const priceEl = document.getElementById(`restaurant_price_${dayVal}`);
+            if (!priceEl || !mealOp) return;
+            const mealPrice = parseFloat(mealOp.dataset?.price || mealOp.dataset?.adultPrice || '0');
+            if (Number.isFinite(mealPrice) && mealPrice > 0) {
+                priceEl.value = mealPrice.toFixed(2);
+            }
         }
 
         async function resolveHotelCategoryForEdit(hotelId, cityName) {
@@ -3130,9 +4743,6 @@
             hotelRoomsCache = [];
             safeSetSelectValue('hotel_meal_type', '');
             document.getElementById('hotel_priority').value = '1';
-            document.getElementById('hotel_guide_required').checked = false;
-            document.getElementById('hotel_arrival_departure').checked = false;
-            safeSetSelectValue('hotel_arrival_departure_type', '');
             document.getElementById('hotelAddBtn').textContent = 'Add Hotel';
             editingHotelIndex = null;
             toggleHotelMealTypeVisibility();
@@ -3180,13 +4790,17 @@
                 bed_type: bedOp?.textContent || '',
                 meal_plan: mealPlanOp?.value || '',
                 meal_type: document.getElementById('hotel_meal_type')?.value || '',
-                guide_required: document.getElementById('hotel_guide_required')?.checked ? 'Yes' : 'No',
-                arrival_departure: document.getElementById('hotel_arrival_departure')?.checked ? 'Yes' : 'No',
-                arrival_departure_type: document.getElementById('hotel_arrival_departure_type')?.value || '',
+                guide_required: 'No',
+                arrival_departure: 'No',
+                arrival_departure_type: '',
                 transfer_city: selectedTransferCity,
-                transfer_pickup: isArrivalDepartureTransfersActive() ? (document.getElementById(`transfer_pickup_select_${derivedDay}`)?.value || '') : '',
-                transfer_drop: isArrivalDepartureTransfersActive() ? (document.getElementById(`transfer_drop_select_${derivedDay}`)?.value || '') : '',
-                price: parseFloat(hotelOp.dataset.price || '0'),
+                transfer_pickup: isArrivalDepartureTransfersActive() ? getLegTransferPickupForDay(derivedDay) : '',
+                transfer_drop: isArrivalDepartureTransfersActive() ? getLegTransferDropForDay(derivedDay) : '',
+                room_price: parsePriceInput('hotel_room_price'),
+                breakfast_price: parsePriceInput('hotel_breakfast_price'),
+                lunch_price: parsePriceInput('hotel_lunch_price'),
+                dinner_price: parsePriceInput('hotel_dinner_price'),
+                price: parsePriceInput('hotel_room_price') + parsePriceInput('hotel_breakfast_price') + parsePriceInput('hotel_lunch_price') + parsePriceInput('hotel_dinner_price'),
                 priority: parseInt(document.getElementById('hotel_priority').value || '1', 10)
             };
 
@@ -3270,12 +4884,14 @@
             toggleHotelMealTypeVisibility();
 
             safeSetSelectValue('hotel_meal_type', x.meal_type || '');
+            setPriceInput('hotel_room_price', x.room_price ?? x.price ?? 0);
+            setPriceInput('hotel_breakfast_price', x.breakfast_price ?? 0);
+            setPriceInput('hotel_lunch_price', x.lunch_price ?? 0);
+            setPriceInput('hotel_dinner_price', x.dinner_price ?? 0);
+            updateHotelPriceTotal();
             document.getElementById('hotel_priority').value = String(x.priority || 1);
-            document.getElementById('hotel_guide_required').checked = (x.guide_required || 'No') === 'Yes';
-            document.getElementById('hotel_arrival_departure').checked = (x.arrival_departure || 'No') === 'Yes';
-            safeSetSelectValue('hotel_arrival_departure_type', x.arrival_departure_type || '');
             toggleHotelTransferFields();
-            const shouldLoadXferOpts = ((x.arrival_departure || 'No') === 'Yes') || hotelsHaveArrivalDepartureTransferSaved();
+            const shouldLoadXferOpts = hotelsHaveArrivalDepartureTransferSaved();
             if (shouldLoadXferOpts) {
                 // When Multi City is configured, transfer city selectors are locked by day mapping.
                 if (!multiCityPlans.length && x.transfer_city) {
@@ -3286,18 +4902,26 @@
                         return nm === target;
                     });
                     if (transferCityMatch) {
-                        safeSetSelectValue(`transfer_city_select_${activeDay}`, transferCityMatch.value);
+                        isSyncingTransferCity = true;
+                        safeSetSelectValueSilent(`transfer_city_select_${activeDay}`, transferCityMatch.value);
+                        isSyncingTransferCity = false;
                     }
                 }
-                await loadTransferOptionsForCity();
-                if (x.transfer_pickup) {
+                await loadTransferOptionsForCity(activeDay);
+                const pickupSelectId = shouldShowArrivalForDay(activeDay)
+                    ? `arrival_pickup_select_${activeDay}`
+                    : (shouldShowDepartureForDay(activeDay) ? `departure_pickup_select_${activeDay}` : '');
+                const dropSelectId = shouldShowArrivalForDay(activeDay)
+                    ? `arrival_drop_select_${activeDay}`
+                    : (shouldShowDepartureForDay(activeDay) ? `departure_drop_select_${activeDay}` : '');
+                if (x.transfer_pickup && pickupSelectId) {
                     const hotelPickupLabel = labelForStoredTransferLocation(x.transfer_pickup) || x.transfer_pickup;
-                    ensureTransferLocationOption(`transfer_pickup_select_${activeDay}`, x.transfer_pickup, hotelPickupLabel);
-                    safeSetSelectValue(`transfer_pickup_select_${activeDay}`, x.transfer_pickup);
+                    ensureTransferLocationOption(pickupSelectId, x.transfer_pickup, hotelPickupLabel);
+                    safeSetSelectValue(pickupSelectId, x.transfer_pickup);
                 }
-                if (x.transfer_drop) {
-                    ensureTransferLocationOption(`transfer_drop_select_${activeDay}`, x.transfer_drop, x.transfer_drop);
-                    safeSetSelectValue(`transfer_drop_select_${activeDay}`, x.transfer_drop);
+                if (x.transfer_drop && dropSelectId) {
+                    ensureTransferLocationOption(dropSelectId, x.transfer_drop, x.transfer_drop);
+                    safeSetSelectValue(dropSelectId, x.transfer_drop);
                 }
             }
             document.getElementById('hotelAddBtn').textContent = 'Update Hotel';
@@ -3308,26 +4932,35 @@
             const body = document.getElementById('hotelRows');
             const current = [...hotels].sort((a, b) => (a.day || 0) - (b.day || 0));
             if (!current.length) {
-                body.innerHTML = '<tr><td colspan="14" class="text-muted">No hotels added</td></tr>';
+                body.innerHTML = '<tr><td colspan="8" class="text-muted">No hotels added</td></tr>';
             } else {
                 body.innerHTML = current.map((x) => {
                     const idx = hotels.indexOf(x);
+                    const perNight = getHotelPerNightPrice(x);
+                    const stayTotal = getHotelStayTotalPrice(x);
+                    const hotelLabel = String(x.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || x.hotel_name || '-';
                     return `
                         <tr>
-                            <td>${escapeHtml(String(x.day != null ? x.day : '-'))}</td>
+                            <td><div class="d-flex flex-wrap gap-1">${formatHotelStayDayBadgesHtml(x)}</div></td>
                             <td>${escapeHtml(x.city_name || '-')}</td>
-                            <td>${escapeHtml(x.cat_label)}</td>
-                            <td>${escapeHtml(x.hotel_name)}</td>
+                            <td>
+                                <div class="hotel-cell-title">${escapeHtml(hotelLabel)}</div>
+                                <div class="hotel-cell-meta">${escapeHtml(x.cat_label || '')}</div>
+                            </td>
                             <td>${escapeHtml(String(x.night || 1))}</td>
-                            <td>${escapeHtml(x.room_type || x.room_id || '-')}</td>
-                            <td>${escapeHtml(x.bed_type || x.bed_id || '-')}</td>
-                            <td>${escapeHtml(x.meal_plan || '-')}</td>
-                            <td>${escapeHtml(x.meal_type || '-')}</td>
-                            <td>${escapeHtml(x.guide_required || 'No')}</td>
-                            <td>${escapeHtml(x.arrival_departure || 'No')}</td>
-                            <td>${escapeHtml(x.arrival_departure_type || '-')}</td>
-                            <td>${x.priority}</td>
-                            <td class="action-cell">
+                            <td>
+                                <div class="hotel-cell-title">${escapeHtml(formatHotelRoomMealSummary(x))}</div>
+                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}</div>` : ''}
+                            </td>
+                            <td class="text-end">
+                                <div class="hotel-price-night">SGD ${perNight.toFixed(2)}</div>
+                                <div class="hotel-price-breakdown">${escapeHtml(formatHotelPriceBreakdown(x))}</div>
+                            </td>
+                            <td class="text-end">
+                                <div class="hotel-price-total">SGD ${stayTotal.toFixed(2)}</div>
+                                <div class="hotel-price-breakdown">${Math.max(1, parseInt(String(x.night || 1), 10) || 1)} night(s)</div>
+                            </td>
+                            <td class="action-cell text-end">
                                 <span class="action-buttons">
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="editHotel(${idx})" title="Edit" aria-label="Edit">${actionIcon('edit')}</button>
                                     <button type="button" class="btn btn-sm btn-outline-danger btn-icon" onclick="removeHotel(${idx})" title="Remove" aria-label="Remove">${actionIcon('remove')}</button>
@@ -3339,13 +4972,18 @@
             }
             document.getElementById('hotels_json').value = JSON.stringify(hotels);
             updateAllDayTransferVisibility();
+            for (let d = 1; d <= daysCount; d++) {
+                populateServiceTransferSelectsForDay(d);
+            }
         }
 
         function isTransferOnlyPlaceholderItem(item) {
-            return item
-                && item.type === 'attraction'
-                && !String(item.id || '').trim()
-                && String(item.label || '').toLowerCase() === 'day transfer';
+            if (!item || String(item.id || '').trim()) return false;
+            const label = String(item.label || '').toLowerCase();
+            if (item.type === 'restaurant') {
+                return label === 'restaurant transfer';
+            }
+            return label === 'day transfer' || label === 'attraction transfer';
         }
 
         function removeTransferOnlyPlaceholderForDay(dayVal, preserveIndex = null) {
@@ -3374,11 +5012,14 @@
                 return parseInt(String(x.day || 0), 10) === d && isTransferOnlyPlaceholderItem(x);
             });
 
-            const transferPayload = getDayTransferPayload(d);
+            const transferPayload = getAttractionTransferPayload(d);
             const hasTransferData = transferPayload.required === 'Yes'
                 || String(transferPayload.city || '').trim()
                 || String(transferPayload.pickup_location || '').trim()
+                || String(transferPayload.pickup_location_value || '').trim()
                 || String(transferPayload.drop_location || '').trim()
+                || String(transferPayload.drop_location_value || '').trim()
+                || parseFloat(transferPayload.cost ?? 0) > 0
                 || (Array.isArray(transferPayload.additional_transfers) && transferPayload.additional_transfers.length > 0);
 
             if (hasRealItems || !hasTransferData) {
@@ -3417,6 +5058,7 @@
                 return;
             }
 
+            const ticketPrice = parseFloat(document.getElementById(`attraction_price_${dayVal}`)?.value || '0') || 0;
             const payload = {
                 day: normalizedDay,
                 type: 'attraction',
@@ -3425,7 +5067,9 @@
                 city_name: getCityNameFromSelect(`activity_city_select_${dayVal}`) || '',
                 ticket_id: ticketOp?.value || '',
                 ticket_name: ticketOp?.textContent || '',
-                transfer: getDayTransferPayload(normalizedDay)
+                ticket_price: ticketPrice,
+                price: ticketPrice,
+                transfer: getAttractionTransferPayload(normalizedDay)
             };
             if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
                 dayItems[editingActivityIndex] = payload;
@@ -3435,18 +5079,24 @@
             }
             renderActivityRows();
             resetDayEntryFields(normalizedDay);
+            resetDayActivityEditButtons();
         }
 
         function addDayEntryForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
             const attractionOp = getSelectedOption(`attraction_select_${normalizedDay}`);
             const restaurantOp = getSelectedOption(`restaurant_select_${normalizedDay}`);
-            const transferPayload = getDayTransferPayload(normalizedDay);
-            const hasTransfer = transferPayload.required === 'Yes'
-                || !!transferPayload.city
-                || !!transferPayload.pickup_location
-                || !!transferPayload.drop_location
-                || (Array.isArray(transferPayload.additional_transfers) && transferPayload.additional_transfers.length > 0);
+            const attractionTransferPayload = getAttractionTransferPayload(normalizedDay);
+            const restaurantTransferPayload = getRestaurantTransferPayload(normalizedDay);
+            const hasAttractionTransfer = attractionTransferPayload.required === 'Yes'
+                || !!attractionTransferPayload.pickup_location
+                || !!attractionTransferPayload.drop_location
+                || parseFloat(attractionTransferPayload.cost ?? 0) > 0
+                || (Array.isArray(attractionTransferPayload.additional_transfers) && attractionTransferPayload.additional_transfers.length > 0);
+            const hasRestaurantTransfer = restaurantTransferPayload.required === 'Yes'
+                || !!restaurantTransferPayload.pickup_location
+                || !!restaurantTransferPayload.drop_location
+                || parseFloat(restaurantTransferPayload.cost ?? 0) > 0;
 
             let addedCount = 0;
             if (attractionOp) {
@@ -3465,27 +5115,11 @@
                 }
             }
 
-            // Allow saving day transfer-only entries without forcing attraction selection.
-            if (!attractionOp && !restaurantOp && hasTransfer) {
-                const payload = {
-                    day: normalizedDay,
-                    type: 'attraction',
-                    id: '',
-                    label: 'Day Transfer',
-                    city_name: getCityNameFromSelect(`activity_city_select_${normalizedDay}`) || transferPayload.city || '',
-                    ticket_id: '',
-                    ticket_name: '',
-                    transfer: transferPayload
-                };
-                if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
-                    dayItems[editingActivityIndex] = payload;
-                    editingActivityIndex = null;
-                } else {
-                    dayItems.push(payload);
-                }
-                addedCount++;
-                renderActivityRows();
-                resetDayEntryFields(normalizedDay);
+            if (!attractionOp && hasAttractionTransfer) {
+                if (addAttractionTransferItemForDay(normalizedDay)) addedCount++;
+            }
+            if (!restaurantOp && hasRestaurantTransfer) {
+                if (addRestaurantTransferItemForDay(normalizedDay)) addedCount++;
             }
 
             if (!addedCount) {
@@ -3507,33 +5141,25 @@
             }
 
             const periodOp = getSelectedOption(`restaurant_meal_period_${dayVal}`);
+            const mealPrice = parseFloat(document.getElementById(`restaurant_price_${dayVal}`)?.value || '0') || 0;
             const payload = {
                 day: normalizedDay,
                 type: 'restaurant',
                 id: selOp.value,
                 label: selOp.textContent,
                 city_name: getCityNameFromSelect(`activity_city_select_${dayVal}`) || '',
+                meal_price: mealPrice,
+                price: mealPrice,
                 meal: {
                     meal_id: mealOp.value,
                     meal_type: (periodOp?.textContent || mealOp.dataset?.mealPeriodLabel || '').trim(),
                     dish: (mealOp.dataset?.typeLabel || '').trim(),
                     meal_name: (mealOp.dataset?.mealName || mealOp.textContent || '').trim(),
                     meal_period: periodOp?.value || mealOp.dataset?.mealPeriod || '',
+                    meal_price: mealPrice,
                     time_slot: ''
                 },
-                transfer: {
-                    required: getDayTransferPayload(normalizedDay).required,
-                    city: getDayTransferPayload(normalizedDay).city,
-                    type: '',
-                    way: '',
-                    vehicle_id: '',
-                    vehicle_name: '',
-                    pickup_location_id: '',
-                    pickup_location: getDayTransferPayload(normalizedDay).pickup_location,
-                    drop_location: getDayTransferPayload(normalizedDay).drop_location,
-                    cost: 0,
-                    pickup_time: ''
-                }
+                transfer: getRestaurantTransferPayload(normalizedDay)
             };
             if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
                 dayItems[editingActivityIndex] = payload;
@@ -3543,12 +5169,19 @@
             }
             renderActivityRows();
             resetDayEntryFields(normalizedDay);
+            resetDayActivityEditButtons();
         }
 
-        function addTransferItemForDay(dayVal) {
+        function addAttractionTransferItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const transferPayload = getDayTransferPayload(normalizedDay);
-            return addTransferLikeItemForDay(normalizedDay, 'Day Transfer', transferPayload);
+            const transferPayload = getAttractionTransferPayload(normalizedDay);
+            return addTransferLikeItemForDay(normalizedDay, 'Attraction Transfer', transferPayload, 'attraction');
+        }
+
+        function addRestaurantTransferItemForDay(dayVal) {
+            const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
+            const transferPayload = getRestaurantTransferPayload(normalizedDay);
+            return addTransferLikeItemForDay(normalizedDay, 'Restaurant Transfer', transferPayload, 'restaurant');
         }
 
         function addArrivalItemForDay(dayVal) {
@@ -3563,26 +5196,42 @@
             return addTransferLikeItemForDay(normalizedDay, 'Day Departure', transferPayload);
         }
 
-        function addTransferLikeItemForDay(normalizedDay, label, transferPayload) {
+        function addTransferLikeItemForDay(normalizedDay, label, transferPayload, itemType = 'attraction') {
+            const transferCost = parseFloat(transferPayload.cost ?? transferPayload.transfer_price ?? 0) || 0;
             const hasTransfer = transferPayload.required === 'Yes'
                 || !!transferPayload.city
                 || !!transferPayload.pickup_location
                 || !!transferPayload.drop_location
+                || transferCost > 0
                 || (Array.isArray(transferPayload.additional_transfers) && transferPayload.additional_transfers.length > 0);
             if (!hasTransfer) {
                 alert(`Select ${String(label || 'transfer').replace(/^Day\s+/i, '').toLowerCase()} details first.`);
                 return false;
             }
+            const isRestaurant = String(itemType || '').toLowerCase() === 'restaurant';
             const payload = {
                 day: normalizedDay,
-                type: 'attraction',
+                type: isRestaurant ? 'restaurant' : 'attraction',
                 id: '',
-                label: label || 'Day Transfer',
+                label: label || (isRestaurant ? 'Restaurant Transfer' : 'Attraction Transfer'),
                 city_name: getCityNameFromSelect(`activity_city_select_${normalizedDay}`) || transferPayload.city || '',
                 ticket_id: '',
                 ticket_name: '',
                 transfer: transferPayload
             };
+            if (isRestaurant) {
+                payload.meal_price = 0;
+                payload.price = 0;
+                payload.meal = {
+                    meal_id: '',
+                    meal_type: '',
+                    dish: '',
+                    meal_name: '',
+                    meal_period: '',
+                    meal_price: 0,
+                    time_slot: '',
+                };
+            }
             if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
                 dayItems[editingActivityIndex] = payload;
                 editingActivityIndex = null;
@@ -3591,13 +5240,20 @@
             }
             renderActivityRows();
             resetDayEntryFields(normalizedDay);
+            resetDayActivityEditButtons();
             return true;
         }
 
         function removeActivity(idx) {
+            const wasEditing = editingActivityIndex === idx;
+            const editedDay = wasEditing ? parseInt(String(dayItems[idx]?.day || 1), 10) || 1 : null;
             dayItems.splice(idx, 1);
-            if (editingActivityIndex === idx) {
+            if (wasEditing) {
                 editingActivityIndex = null;
+                if (editedDay) resetDayEntryFields(editedDay);
+                resetDayActivityEditButtons();
+            } else if (editingActivityIndex !== null && editingActivityIndex > idx) {
+                editingActivityIndex -= 1;
             }
             renderActivityRows();
         }
@@ -3605,45 +5261,69 @@
         async function editActivity(idx) {
             const x = dayItems[idx];
             if (!x) return;
+
             editingActivityIndex = idx;
             isPrefillingActivityForm = true;
             const rowDay = parseInt(String(x.day || 1), 10) || 1;
             activeDay = Math.max(1, Math.min(daysCount, rowDay));
-            initDays();
+
+            if (!document.getElementById(`activity_city_select_${rowDay}`)) {
+                initDays();
+            } else {
+                updateAllDayTransferVisibility();
+            }
             renderHotelRows();
             renderActivityRows();
 
-            const citySelectId = `activity_city_select_${rowDay}`;
-            const citySelect = document.getElementById(citySelectId);
-            if (citySelect && x.city_name) {
-                const cityMatch = Array.from(citySelect.options).find(opt => {
-                    const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
-                    const target = String(x.city_name || '').split(',')[0].trim().toLowerCase();
-                    return nm === target;
-                });
-                if (cityMatch) {
-                    safeSetSelectValue(citySelectId, cityMatch.value);
-                }
-            }
+            resetDayEntryFields(rowDay, true);
+            updateDayActivityEditButtons(rowDay, x);
 
+            const citySelectId = `activity_city_select_${rowDay}`;
             const resolvedCityName =
-                getCityNameFromSelect(citySelectId)
-                || String(x.city_name || '').split(',')[0].trim()
+                String(x.city_name || '').split(',')[0].trim()
                 || String(x.transfer?.city || '').split(',')[0].trim()
+                || getCityNameFromSelect(citySelectId)
                 || getCityNameFromSelect(`transfer_city_select_${rowDay}`)
                 || getCityNameFromSelect('hotel_city_select')
                 || getCityNameFromSelect('city_id')
                 || '';
-            await populateDayServiceOptionsByCity(rowDay, resolvedCityName);
 
-            if (x.type === 'attraction' && String(x.id || '').trim()) {
+            if (resolvedCityName) {
+                const citySelect = document.getElementById(citySelectId);
+                if (citySelect) {
+                    const cityMatch = Array.from(citySelect.options).find(opt => {
+                        const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
+                        return nm === resolvedCityName.trim().toLowerCase();
+                    });
+                    if (cityMatch) {
+                        isSyncingCitySelectors = true;
+                        safeSetSelectValueSilent(citySelectId, cityMatch.value);
+                        activityCityByDay[rowDay] = resolvedCityName;
+                        syncTransferCityFromActivity(rowDay);
+                        isSyncingCitySelectors = false;
+                    }
+                }
+            }
+
+            await populateDayServiceOptionsByCity(rowDay, resolvedCityName, { loadTransfers: false, silent: true });
+
+            const hasAttraction = x.type === 'attraction' && String(x.id || '').trim();
+            const hasRestaurant = x.type === 'restaurant' && String(x.id || '').trim();
+
+            try {
+            if (hasAttraction) {
                 ensureSelectOptionByValue(`attraction_select_${rowDay}`, x.id || '', x.label || '');
                 safeSetSelectValue(`attraction_select_${rowDay}`, x.id || '');
-                loadTicketsForAttractionForDay(rowDay).then(() => {
+                await loadTicketsForAttractionForDay(rowDay);
+                if (x.ticket_id) {
                     ensureSelectOptionByValue(`attraction_ticket_select_${rowDay}`, x.ticket_id || '', x.ticket_name || '');
                     safeSetSelectValue(`attraction_ticket_select_${rowDay}`, x.ticket_id || '');
-                });
-            } else if (x.type === 'restaurant') {
+                }
+                const priceEl = document.getElementById(`attraction_price_${rowDay}`);
+                if (priceEl) {
+                    priceEl.value = parseFloat(x.ticket_price ?? x.price ?? 0).toFixed(2);
+                }
+            } else if (hasRestaurant) {
                 ensureSelectOptionByValue(`restaurant_select_${rowDay}`, x.id || '', x.label || '');
                 safeSetSelectValue(`restaurant_select_${rowDay}`, x.id || '');
                 const periodVal = String(x.meal?.meal_period || mealPeriodValueFromLabel(x.meal?.meal_type) || '');
@@ -3663,77 +5343,17 @@
                         safeSetSelectValue(`restaurant_meal_select_${rowDay}`, legacyMatch.value);
                     }
                 }
+                const restPriceEl = document.getElementById(`restaurant_price_${rowDay}`);
+                if (restPriceEl) {
+                    restPriceEl.value = parseFloat(x.meal_price ?? x.price ?? x.meal?.meal_price ?? 0).toFixed(2);
+                }
             }
 
-            const transfer = x.transfer && typeof x.transfer === 'object' ? x.transfer : {};
-            const requiresTransfer = String(transfer.required || '').toLowerCase() === 'yes'
-                || !!(transfer.pickup_location || transfer.drop_location || transfer.city);
-            if (requiresTransfer) {
-                const extraRows = Array.isArray(transfer.additional_transfers)
-                    ? transfer.additional_transfers
-                        .map((row) => ({
-                            city: String(row?.city || ''),
-                            pickup_location: String(row?.pickup_location || ''),
-                            drop_location: String(row?.drop_location || ''),
-                        }))
-                        .filter((row) => row.pickup_location || row.drop_location || row.city)
-                    : [];
-                dayTransferExtras[rowDay] = extraRows;
-                renderExtraTransferRows(rowDay);
-                const transferCitySelectId = `transfer_city_select_${rowDay}`;
-                const transferCitySelect = document.getElementById(transferCitySelectId);
-                if (transferCitySelect && transfer.city) {
-                    const transferCityMatch = Array.from(transferCitySelect.options).find(opt => {
-                        const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
-                        const target = String(transfer.city || '').split(',')[0].trim().toLowerCase();
-                        return nm === target;
-                    });
-                    if (transferCityMatch) {
-                        safeSetSelectValue(transferCitySelectId, transferCityMatch.value);
-                    }
-                }
-                loadTransferOptionsForCity(rowDay).then(() => {
-                    const tType = String(transfer.transfer_type || '').trim().toLowerCase();
-                    const pickupSelectId = resolveTransferSelectId(rowDay, 'pickup', transfer.transfer_type);
-                    const dropSelectId = resolveTransferSelectId(rowDay, 'drop', transfer.transfer_type);
-                    const pickupLabel = displayTransferLocation(
-                        transfer.pickup_location,
-                        pickupSelectId,
-                        transfer.pickup_location_label
-                    );
-                    const dropLabel = displayTransferLocation(
-                        transfer.drop_location,
-                        dropSelectId,
-                        transfer.drop_location_label
-                    );
-                    if (transfer.pickup_location) {
-                        ensureTransferLocationOption(`transfer_pickup_select_${rowDay}`, transfer.pickup_location, pickupLabel);
-                        if (tType === 'arrival') {
-                            ensureTransferLocationOption(`arrival_pickup_select_${rowDay}`, transfer.pickup_location, pickupLabel);
-                            safeSetSelectValue(`arrival_pickup_select_${rowDay}`, transfer.pickup_location);
-                        } else if (tType === 'departure') {
-                            ensureTransferLocationOption(`departure_pickup_select_${rowDay}`, transfer.pickup_location, pickupLabel);
-                            safeSetSelectValue(`departure_pickup_select_${rowDay}`, transfer.pickup_location);
-                        } else {
-                            safeSetSelectValue(`transfer_pickup_select_${rowDay}`, transfer.pickup_location);
-                        }
-                    }
-                    if (transfer.drop_location) {
-                        ensureTransferLocationOption(`transfer_drop_select_${rowDay}`, transfer.drop_location, dropLabel);
-                        if (tType === 'arrival') {
-                            ensureTransferLocationOption(`arrival_drop_select_${rowDay}`, transfer.drop_location, dropLabel);
-                            safeSetSelectValue(`arrival_drop_select_${rowDay}`, transfer.drop_location);
-                        } else if (tType === 'departure') {
-                            ensureTransferLocationOption(`departure_drop_select_${rowDay}`, transfer.drop_location, dropLabel);
-                            safeSetSelectValue(`departure_drop_select_${rowDay}`, transfer.drop_location);
-                        } else {
-                            safeSetSelectValue(`transfer_drop_select_${rowDay}`, transfer.drop_location);
-                        }
-                    }
-                    renderExtraTransferRows(rowDay);
-                });
+            await applyTransferFieldsToDayForm(rowDay, x);
+            scrollToDayCard(rowDay);
+            } finally {
+                isPrefillingActivityForm = false;
             }
-            setTimeout(() => { isPrefillingActivityForm = false; }, 250);
         }
 
         function renderActivityRows() {
@@ -3756,15 +5376,16 @@
                             <table class="table table-sm data-table-sm mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:14%">Type</th>
-                                        <th style="width:22%">Pickup</th>
-                                        <th style="width:22%">Drop</th>
+                                        <th style="width:12%">Type</th>
+                                        <th style="width:18%">Pickup</th>
+                                        <th style="width:18%">Drop</th>
                                         <th>Details</th>
-                                        <th style="width:140px">Actions</th>
+                                        <th style="width:100px" class="text-end">Total</th>
+                                        <th style="width:120px">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="5" class="text-muted">No services added for Day ${d}</td></tr>
+                                    <tr><td colspan="6" class="text-muted">No services added for Day ${d}</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3778,7 +5399,13 @@
                     const normalizedLabel = String(x.label || '').trim().toLowerCase();
                     const isTransferLikeOnly = x.type === 'attraction'
                         && (!String(x.id || '').trim())
-                        && (normalizedLabel === 'day transfer' || normalizedLabel === 'day arrival' || normalizedLabel === 'day departure');
+                        && (normalizedLabel === 'day transfer'
+                            || normalizedLabel === 'attraction transfer'
+                            || normalizedLabel === 'day arrival'
+                            || normalizedLabel === 'day departure')
+                        || (x.type === 'restaurant'
+                            && (!String(x.id || '').trim())
+                            && normalizedLabel === 'restaurant transfer');
                     const transferTypeLabel = String(transfer.transfer_type || '').trim() || (
                         normalizedLabel === 'day arrival' ? 'Arrival'
                             : normalizedLabel === 'day departure' ? 'Departure'
@@ -3786,21 +5413,15 @@
                     );
 
                     const transferTypeForSelect = transfer.transfer_type || transferTypeLabel;
-                    const pickupSelectId = resolveTransferSelectId(d, 'pickup', transferTypeForSelect);
-                    const dropSelectId = resolveTransferSelectId(d, 'drop', transferTypeForSelect);
-                    const pickupDisplay = displayTransferLocation(
-                        transfer.pickup_location,
-                        pickupSelectId,
-                        transfer.pickup_location_label
-                    );
-                    const dropDisplay = displayTransferLocation(
-                        transfer.drop_location,
-                        dropSelectId,
-                        transfer.drop_location_label
-                    );
+                    const itemType = String(x.type || '').trim();
+                    const pickupDisplay = getTransferLocationDisplay(transfer, 'pickup', d, itemType);
+                    const dropDisplay = getTransferLocationDisplay(transfer, 'drop', d, itemType);
+                    const lineTotal = getActivityItemTotalPrice(x);
                     const cityDisplay = transfer.city || x.city_name || '-';
-                    const transferSummary = (transfer.required === 'Yes' || transfer.pickup_location || transfer.drop_location)
-                        ? ` | ${transfer.transfer_type || 'Transfer'}: ${pickupDisplay} -> ${dropDisplay}`
+                    const transferCost = parseFloat(transfer.cost ?? transfer.transfer_price ?? 0) || 0;
+                    const transferPriceSuffix = transferCost > 0 ? ` (SGD ${transferCost.toFixed(2)})` : '';
+                    const transferSummary = (transfer.required === 'Yes' || transfer.pickup_location || transfer.drop_location || transferCost > 0)
+                        ? ` | ${transfer.transfer_type || 'Transfer'}: ${pickupDisplay} -> ${dropDisplay}${transferPriceSuffix}`
                         : '';
                     const pickupCell = pickupDisplay;
                     const dropCell = dropDisplay;
@@ -3808,29 +5429,41 @@
                     let details = '';
                     let detailsHtml = '';
                     if (x.type === 'restaurant') {
+                        const mealPrice = parseFloat(x.meal_price ?? x.price ?? x.meal?.meal_price ?? 0);
                         details = `${x.label || 'Restaurant'} | Dish: ${x.meal?.dish || '-'} | City: ${x.city_name || '-'}`;
+                        if (mealPrice > 0) details += ` | Meal: SGD ${mealPrice.toFixed(2)}`;
+                        if (transferCost > 0) details += ` | Transfer: SGD ${transferCost.toFixed(2)}`;
                         if (transferSummary) details += transferSummary;
                         detailsHtml = `
                             <span class="detail-chip">${escapeHtml(x.label || 'Restaurant')}</span>
                             <span class="detail-chip">Dish: ${escapeHtml(x.meal?.dish || '-')}</span>
                             <span class="detail-chip">City: ${escapeHtml(x.city_name || '-')}</span>
+                            ${mealPrice > 0 ? `<span class="detail-chip text-primary fw-semibold">Meal SGD ${mealPrice.toFixed(2)}</span>` : ''}
+                            ${transferCost > 0 ? `<span class="detail-chip text-success fw-semibold">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
                             ${transferSummary ? `<span class="detail-chip">${escapeHtml((transfer.transfer_type || 'Transfer') + ': ' + pickupDisplay + ' -> ' + dropDisplay)}</span>` : ''}
                         `;
                     } else if (isTransferLikeOnly) {
                         details = `${transferTypeLabel} | City: ${cityDisplay} | ${pickupDisplay} -> ${dropDisplay}`;
+                        if (transferCost > 0) details += ` | SGD ${transferCost.toFixed(2)}`;
                         detailsHtml = `
                             <span class="detail-chip">${escapeHtml(transferTypeLabel)}</span>
                             <span class="detail-chip">City: ${escapeHtml(cityDisplay)}</span>
                             <span class="detail-chip">${escapeHtml(pickupDisplay)} -> ${escapeHtml(dropDisplay)}</span>
+                            ${transferCost > 0 ? `<span class="detail-chip text-primary fw-semibold">SGD ${transferCost.toFixed(2)}</span>` : ''}
                         `;
                     } else {
+                        const ticketPrice = parseFloat(x.ticket_price ?? x.price ?? 0);
                         details = `${x.label || 'Attraction'} | City: ${x.city_name || '-'}`;
                         if (x.ticket_name) details += ` | Ticket: ${x.ticket_name}`;
+                        if (ticketPrice > 0) details += ` | Ticket: SGD ${ticketPrice.toFixed(2)}`;
+                        if (transferCost > 0) details += ` | Transfer: SGD ${transferCost.toFixed(2)}`;
                         if (transferSummary) details += transferSummary;
                         detailsHtml = `
                             <span class="detail-chip">${escapeHtml(x.label || 'Attraction')}</span>
                             <span class="detail-chip">City: ${escapeHtml(x.city_name || '-')}</span>
                             ${x.ticket_name ? `<span class="detail-chip">Ticket: ${escapeHtml(x.ticket_name)}</span>` : ''}
+                            ${ticketPrice > 0 ? `<span class="detail-chip text-primary fw-semibold">Ticket SGD ${ticketPrice.toFixed(2)}</span>` : ''}
+                            ${transferCost > 0 ? `<span class="detail-chip text-success fw-semibold">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
                             ${transferSummary ? `<span class="detail-chip">${escapeHtml((transfer.transfer_type || 'Transfer') + ': ' + pickupDisplay + ' -> ' + dropDisplay)}</span>` : ''}
                         `;
                     }
@@ -3841,6 +5474,11 @@
                             <td class="small text-muted align-middle">${escapeHtml(pickupCell)}</td>
                             <td class="small text-muted align-middle">${escapeHtml(dropCell)}</td>
                             <td class="small text-muted align-middle">${detailsHtml || escapeHtml(details)}</td>
+                            <td class="text-end align-middle">
+                                ${lineTotal > 0
+                                    ? `<div class="hotel-price-total">SGD ${lineTotal.toFixed(2)}</div>`
+                                    : '<span class="text-muted">-</span>'}
+                            </td>
                             <td class="text-end align-middle action-cell">
                                 <span class="action-buttons">
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="editActivity(${idx})" title="Edit" aria-label="Edit">${actionIcon('edit')}</button>
@@ -3856,11 +5494,12 @@
                         <table class="table table-sm data-table-sm mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:14%">Type</th>
-                                    <th style="width:22%">Pickup</th>
-                                    <th style="width:22%">Drop</th>
+                                    <th style="width:12%">Type</th>
+                                    <th style="width:18%">Pickup</th>
+                                    <th style="width:18%">Drop</th>
                                     <th>Details</th>
-                                    <th style="width:140px">Actions</th>
+                                    <th style="width:100px" class="text-end">Total</th>
+                                    <th style="width:120px">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
@@ -3990,11 +5629,132 @@
                 const citySel = selects[0];
                 const pickupSel = selects[1];
                 const dropSel = selects[2];
+                const pickupVal = String(pickupSel?.value || '').trim();
+                const dropVal = String(dropSel?.value || '').trim();
+                const pickupStored = buildStoredTransferLocationFields(pickupSel?.id || '', pickupVal);
+                const dropStored = buildStoredTransferLocationFields(dropSel?.id || '', dropVal);
                 return {
                     city: String(citySel?.value || '').trim(),
-                    pickup_location: String(pickupSel?.value || '').trim(),
-                    drop_location: String(dropSel?.value || '').trim(),
+                    pickup_location: pickupStored.location,
+                    pickup_location_value: pickupStored.location_value,
+                    pickup_location_label: pickupStored.location_label,
+                    drop_location: dropStored.location,
+                    drop_location_value: dropStored.location_value,
+                    drop_location_label: dropStored.location_label,
                 };
+            });
+        }
+
+        /** Professional day-scoped keys: "Day 1 Hotel", "Day 2 Attraction 1", "Day 1 Arrival", etc. */
+        function buildDayBucketKey(dayNum, label, index = 1, omitIndexWhenOne = false) {
+            const d = Math.max(1, parseInt(String(dayNum || 1), 10) || 1);
+            const idx = Math.max(1, parseInt(String(index || 1), 10) || 1);
+            if (omitIndexWhenOne && idx === 1) {
+                return `Day ${d} ${label}`;
+            }
+            return `Day ${d} ${label} ${idx}`;
+        }
+
+        function classifyAttractionDayItemForPayload(item) {
+            if (String(item?.id || '').trim()) return 'attraction';
+            if (!isTransferOnlyActivityItem(item)) return 'attraction';
+            const transferType = String(inferTransferTypeFromItem(item) || '').toLowerCase();
+            if (transferType === 'arrival') return 'arrival';
+            if (transferType === 'departure') return 'departure';
+            return 'attraction_transfer';
+        }
+
+        function emptyDayPayloadBuckets(dayNum) {
+            return {
+                day: dayNum,
+                hotels: {},
+                attractions: {},
+                arrivals: {},
+                departures: {},
+                transfers: {},
+                restaurants: {},
+                services: {},
+            };
+        }
+
+        function buildTransferLegPayloadRow(dayNum, transferOut, cityName, kind) {
+            const transferPrice = parseFloat(transferOut.cost ?? transferOut.transfer_price ?? 0) || 0;
+            const isArrival = kind === 'arrival';
+            const isDeparture = kind === 'departure';
+            const name = isArrival ? 'Arrival' : isDeparture ? 'Departure' : 'Attraction Transfer';
+            const serviceType = isArrival ? 'arrival' : isDeparture ? 'departure' : 'attraction_transfer';
+            return {
+                booked_day: dayNum,
+                day: dayNum,
+                service_type: serviceType,
+                name,
+                label: isArrival ? 'Day Arrival' : isDeparture ? 'Day Departure' : 'Attraction Transfer',
+                city: cityName,
+                total_price: transferPrice,
+                transfer: transferOut,
+            };
+        }
+
+        function buildHydratedItemTransferFields(normalizedTransfer, hasXfer = null) {
+            const xfer = normalizedTransfer && typeof normalizedTransfer === 'object' ? normalizedTransfer : {};
+            const hasTransfer = hasXfer !== null
+                ? hasXfer
+                : (String(xfer.required || '').toLowerCase() === 'yes'
+                    || !!(xfer.pickup_location || xfer.drop_location));
+            return {
+                required: hasTransfer ? 'Yes' : String(xfer.required || 'No'),
+                city: String(xfer.city || ''),
+                pickup_location: String(xfer.pickup_location || ''),
+                drop_location: String(xfer.drop_location || ''),
+                pickup_location_value: String(xfer.pickup_location_value || xfer.pickup_location_id || ''),
+                drop_location_value: String(xfer.drop_location_value || xfer.drop_location_id || ''),
+                pickup_location_label: String(xfer.pickup_location_label || ''),
+                drop_location_label: String(xfer.drop_location_label || ''),
+                transfer_type: String(xfer.transfer_type || ''),
+                additional_transfers: Array.isArray(xfer.additional_transfers)
+                    ? xfer.additional_transfers.map((row) => normalizeHydratedTransfer(row))
+                    : [],
+                type: String(xfer.type || ''),
+                way: String(xfer.way || ''),
+                vehicle_id: String(xfer.vehicle_id || ''),
+                vehicle_name: String(xfer.vehicle_name || ''),
+                pickup_location_id: String(xfer.pickup_location_id || xfer.pickup_location_value || ''),
+                drop_location_id: String(xfer.drop_location_id || xfer.drop_location_value || ''),
+                cost: parseFloat(String(xfer.cost ?? xfer.transfer_price ?? 0)) || 0,
+                transfer_price: parseFloat(String(xfer.transfer_price ?? xfer.cost ?? 0)) || 0,
+                pickup_time: String(xfer.pickup_time || ''),
+            };
+        }
+
+        function hydrateTransferLegDayItem(dayNum, row, cityName, seenDayActivityKeys, defaultTransferType) {
+            if (!row || typeof row !== 'object') return;
+            const normalizedTransfer = normalizeHydratedTransfer(row.transfer || {});
+            const transferType = String(
+                normalizedTransfer.transfer_type || row.service_type || defaultTransferType || ''
+            ).trim().toLowerCase();
+            const dedupeKey = `${dayNum}|transfer|${transferType}|${normalizedTransfer.pickup_location}|${normalizedTransfer.drop_location}`;
+            if (seenDayActivityKeys.has(dedupeKey)) return;
+            seenDayActivityKeys.add(dedupeKey);
+            const isArrival = transferType === 'arrival';
+            const isDeparture = transferType === 'departure';
+            const label = isArrival
+                ? 'Day Arrival'
+                : isDeparture
+                    ? 'Day Departure'
+                    : (String(row.label || row.name || '').trim() || 'Attraction Transfer');
+            const hasXfer = String(normalizedTransfer.required || '').toLowerCase() === 'yes'
+                || !!(normalizedTransfer.pickup_location || normalizedTransfer.drop_location);
+            dayItems.push({
+                day: dayNum,
+                type: 'attraction',
+                id: '',
+                label,
+                city_name: String(row.city || normalizedTransfer.city || cityName || ''),
+                ticket_id: '',
+                ticket_name: '',
+                ticket_price: 0,
+                price: parseFloat(String(row.total_price ?? normalizedTransfer.cost ?? 0)) || 0,
+                transfer: buildHydratedItemTransferFields(normalizedTransfer, hasXfer),
             });
         }
 
@@ -4029,10 +5789,9 @@
             for (let d = 1; d <= daysCount; d++) {
                 const isSameDay = (value, fallback = 0) => (parseInt(String(value ?? fallback), 10) || fallback) === d;
                 let h = [];
-                let derivedNight = null;
                 if (normalizedPlans.length) {
                     // Multi City is the single source of truth for which city is “active” for day d.
-                    // Hotels occupy nights range: [checkin_day, checkout_day - 1]
+                    // Hotels are stored once on check-in day only.
                     const planForDay = normalizedPlans
                         .filter(p => d >= p.day_in && d <= p.day_out)
                         .sort((a, b) => b.day_in - a.day_in)[0] || null;
@@ -4040,42 +5799,42 @@
                     if (planForDay) {
                         const cityKey = String(planForDay.city_name || '').trim().toLowerCase();
                         const start = parseInt(String(planForDay.day_in || 1), 10) || 1;
-                        const nights = Math.max(1, parseInt(String(planForDay.day_out || start), 10) - start);
-                        derivedNight = nights;
-                        const end = start + nights - 1;
+                        const end = start + Math.max(1, parseInt(String(planForDay.day_out || start), 10) - start) - 1;
 
                         if (d >= start && d <= end) {
                             h = hotels.filter(x => {
                                 const hotelStart = parseInt(String(x.day || 1), 10) || 1;
-                                const hotelEndExclusive = hotelStayEndDay(x);
                                 return String(x.city_name || '').trim().toLowerCase() === cityKey
-                                    && d >= hotelStart
-                                    && d < hotelEndExclusive;
+                                    && d === hotelStart;
                             });
                         }
                     }
                 } else {
-                    // Legacy fallback when Multi City is not configured.
-                    h = hotels.filter(x => isSameDay(x.day, 1));
-                    if (!h.length) {
-                        h = hotels.filter((x) => {
-                            const start = parseInt(String(x.day || 1), 10) || 1;
-                            const nights = Math.max(1, parseInt(String(x.night || 1), 10) || 1);
-                            const end = Math.min(daysCount, start + nights - 1);
-                            return d >= start && d <= end;
-                        });
-                    }
+                    // Legacy fallback when Multi City is not configured — one hotel row on check-in day only.
+                    h = hotels.filter((x) => isSameDay(x.day, d));
                 }
                 const a = dayItems.filter(x => isSameDay(x.day, 0) && x.type === 'attraction');
                 const r = dayItems.filter(x => isSameDay(x.day, 0) && x.type === 'restaurant');
 
                 const hotelMap = {};
                 const attrMap = {};
-                const restMap = {};
+                const arrivalMap = {};
+                const departureMap = {};
+                const transferMap = {};
                 const serviceMap = {};
+                let attractionSeq = 0;
+                let arrivalSeq = 0;
+                let departureSeq = 0;
+                let attractionTransferSeq = 0;
+                let restaurantSeq = 0;
+                let restaurantTransferSeq = 0;
 
                 h.forEach((x, i) => {
-                    hotelMap[`Hotel ${i + 1}`] = {
+                    const nights = Math.max(1, parseInt(String(x.night || '1'), 10) || 1);
+                    const perNight = getHotelPerNightPrice(x);
+                    const totalPrice = perNight * nights;
+                    hotelMap[buildDayBucketKey(d, 'Hotel', i + 1)] = {
+                        booked_day: d,
                         hotel_id: resolveHotelUniqueIdForPayload(x.hotel_id),
                         hotel_name: x.hotel_name,
                         city: x.city_name || '',
@@ -4084,20 +5843,33 @@
                         bed_id: String(x.bed_id || ''),
                         bed_type: String(x.bed_type || ''),
                         meal_plan: x.meal_plan || '',
-                        price: x.price || 0,
-                        night: derivedNight != null ? derivedNight : (parseInt(String(x.night || '1'), 10) || 1),
+                        room_price: parseFloat(x.room_price ?? 0),
+                        breakfast_price: parseFloat(x.breakfast_price ?? 0),
+                        lunch_price: parseFloat(x.lunch_price ?? 0),
+                        dinner_price: parseFloat(x.dinner_price ?? 0),
+                        price_per_night: perNight,
+                        price: totalPrice,
+                        total_price: totalPrice,
+                        night: nights,
+                        checkin_day: parseInt(String(x.day || d), 10) || d,
+                        checkout_day: getHotelCheckoutDay(x),
+                        stay_days: getHotelStayDayNumbers(x),
                         meal_type: x.meal_type || '',
                         guide_required: x.guide_required || 'No',
                         arrival_departure: x.arrival_departure || 'No',
                         arrival_departure_type: x.arrival_departure_type || '',
                         transfer_city: x.transfer_city || '',
-                        transfer_pickup: x.transfer_pickup || '',
-                        transfer_drop: x.transfer_drop || '',
+                        transfer_pickup: exportHotelLocationForJson(x.transfer_pickup),
+                        transfer_drop: exportHotelLocationForJson(x.transfer_drop),
                         priority: parseInt(String(x.priority || '1'), 10) || 1
                     };
                 });
-                a.forEach((x, i) => {
-                    const transferOut = { ...(x.transfer && typeof x.transfer === 'object' ? x.transfer : {}) };
+                a.forEach((x) => {
+                    const transferOut = exportTransferForJson(
+                        x.transfer && typeof x.transfer === 'object' ? x.transfer : {},
+                        d,
+                        'attraction'
+                    );
                     const fallbackCityName =
                         String(x.city_name || '').trim()
                         || String(transferOut.city || '').trim()
@@ -4108,24 +5880,45 @@
                     if (!transferOut.city && fallbackCityName) {
                         transferOut.city = fallbackCityName;
                     }
-                    const uiExtras = getFilteredAdditionalTransfers(d).map(row => ({
-                        city: String(row.city || ''),
-                        pickup_location: String(row.pickup_location || ''),
-                        drop_location: String(row.drop_location || ''),
-                    }));
-                    if (uiExtras.length) {
-                        transferOut.additional_transfers = uiExtras;
+                    const itemKind = classifyAttractionDayItemForPayload(x);
+                    if (itemKind === 'arrival') {
+                        arrivalSeq += 1;
+                        arrivalMap[buildDayBucketKey(d, 'Arrival', arrivalSeq, true)] = buildTransferLegPayloadRow(
+                            d, transferOut, fallbackCityName, 'arrival'
+                        );
+                        return;
                     }
-                    attrMap[`Attraction ${i + 1}`] = {
+                    if (itemKind === 'departure') {
+                        departureSeq += 1;
+                        departureMap[buildDayBucketKey(d, 'Departure', departureSeq, true)] = buildTransferLegPayloadRow(
+                            d, transferOut, fallbackCityName, 'departure'
+                        );
+                        return;
+                    }
+                    if (itemKind === 'attraction_transfer') {
+                        attractionTransferSeq += 1;
+                        transferMap[buildDayBucketKey(d, 'Attraction Transfer', attractionTransferSeq)] = buildTransferLegPayloadRow(
+                            d, transferOut, fallbackCityName, 'attraction_transfer'
+                        );
+                        return;
+                    }
+                    attractionSeq += 1;
+                    const attractionTicketPrice = parseFloat(x.ticket_price ?? x.price ?? 0) || 0;
+                    const attractionTransferPrice = parseFloat(transferOut.cost ?? transferOut.transfer_price ?? 0) || 0;
+                    attrMap[buildDayBucketKey(d, 'Attraction', attractionSeq)] = {
+                        booked_day: d,
                         attraction_id: String(x.id),
                         name: x.label,
                         city: fallbackCityName,
                         ticket_id: x.ticket_id ? String(x.ticket_id) : '',
                         ticket_name: x.ticket_name || '',
+                        ticket_price: attractionTicketPrice,
+                        price: attractionTicketPrice,
+                        total_price: attractionTicketPrice + attractionTransferPrice,
                         transfer: transferOut
                     };
                 });
-                r.forEach((x, i) => {
+                r.filter((x) => String(x.id || '').trim() || isTransferOnlyActivityItem(x)).forEach((x) => {
                     const fallbackCityName =
                         String(x.city_name || '').trim()
                         || String(x.transfer?.city || '').trim()
@@ -4133,29 +5926,39 @@
                         || getCityNameFromSelect(`transfer_city_select_${d}`)
                         || effectiveCityName
                         || '';
-                    restMap[`Restaurant ${i + 1}`] = {
-                        restaurant_id: String(x.id),
-                        name: x.label,
-                        city: fallbackCityName,
-                    };
-                });
-                r.forEach((x, i) => {
-                    const fallbackCityName =
-                        String(x.city_name || '').trim()
-                        || String(x.transfer?.city || '').trim()
-                        || getCityNameFromSelect(`activity_city_select_${d}`)
-                        || getCityNameFromSelect(`transfer_city_select_${d}`)
-                        || effectiveCityName
-                        || '';
-                    const transferOut = { ...(x.transfer && typeof x.transfer === 'object' ? x.transfer : {}) };
+                    const transferOut = exportTransferForJson(
+                        x.transfer && typeof x.transfer === 'object' ? x.transfer : {},
+                        d,
+                        'restaurant'
+                    );
                     if (!transferOut.city && fallbackCityName) {
                         transferOut.city = fallbackCityName;
                     }
-                    serviceMap[`Service ${i + 1}`] = {
-                        service_type: 'restaurant',
-                        restaurant_id: String(x.id),
-                        restaurant_name: x.label,
+                    const restaurantMealPrice = parseFloat(x.meal_price ?? x.price ?? x.meal?.meal_price ?? 0) || 0;
+                    const restaurantTransferPrice = parseFloat(transferOut.cost ?? transferOut.transfer_price ?? 0) || 0;
+                    const hasRestaurantId = String(x.id || '').trim();
+                    let serviceKey;
+                    let serviceType;
+                    if (hasRestaurantId) {
+                        restaurantSeq += 1;
+                        serviceKey = buildDayBucketKey(d, 'Restaurant', restaurantSeq);
+                        serviceType = 'restaurant';
+                    } else {
+                        restaurantTransferSeq += 1;
+                        serviceKey = buildDayBucketKey(d, 'Restaurant Transfer', restaurantTransferSeq);
+                        serviceType = 'restaurant_transfer';
+                    }
+                    serviceMap[serviceKey] = {
+                        booked_day: d,
+                        day: d,
+                        service_type: serviceType,
+                        restaurant_id: String(x.id || ''),
+                        restaurant_name: hasRestaurantId ? x.label : 'Restaurant Transfer',
+                        name: hasRestaurantId ? x.label : 'Restaurant Transfer',
                         city: fallbackCityName,
+                        meal_price: restaurantMealPrice,
+                        price: restaurantMealPrice,
+                        total_price: restaurantMealPrice + restaurantTransferPrice,
                         meal_configuration: x.meal || {},
                         transfer: transferOut
                     };
@@ -4165,7 +5968,10 @@
                     day: d,
                     hotels: hotelMap,
                     attractions: attrMap,
-                    restaurants: restMap,
+                    arrivals: arrivalMap,
+                    departures: departureMap,
+                    transfers: transferMap,
+                    restaurants: {},
                     services: serviceMap
                 };
             }
@@ -4181,13 +5987,7 @@
                     const cityDays = {};
                     let dayPos = 0;
                     for (let d = plan.day_in; d <= plan.day_out; d++, dayPos++) {
-                        const source = days[String(d - 1)] || {
-                            day: d,
-                            hotels: {},
-                            attractions: {},
-                            restaurants: {},
-                            services: {}
-                        };
+                        const source = days[String(d - 1)] || emptyDayPayloadBuckets(d);
                         cityDays[String(dayPos)] = source;
                     }
                     citiesForPayload.push({
@@ -4298,113 +6098,216 @@
             return warnings;
         }
 
-        function renderPreviewTransfer(transfer) {
-            if (!transfer || typeof transfer !== 'object') return '';
-            const required = String(transfer.required || 'No');
-            if (required !== 'Yes') {
-                return '<span class="text-muted">Transfer: No</span>';
-            }
-            const parts = [
-                `Type: ${escapeHtml(transfer.type || '-')}`,
-                `Way: ${escapeHtml(transfer.way || '-')}`,
-                `Vehicle: ${escapeHtml(transfer.vehicle_name || '-')}`,
-                `Pickup: ${escapeHtml(displayTransferLocation(transfer.pickup_location, '', transfer.pickup_location_label))}`,
-            ];
-            if (transfer.pickup_time) {
-                parts.push(`Time: ${escapeHtml(transfer.pickup_time)}`);
-            }
-            if (transfer.cost != null && transfer.cost !== '') {
-                parts.push(`Cost: ${escapeHtml(String(transfer.cost))}`);
-            }
-            const extras = Array.isArray(transfer.additional_transfers) ? transfer.additional_transfers : [];
-            let html = `<div class="preview-line ms-2"><span class="text-muted">Transfer:</span> ${parts.join(' · ')}</div>`;
-            if (extras.length) {
-                html += extras.map((row, i) => `
-                    <div class="preview-line ms-3">
-                        <span class="text-muted">Extra ${i + 1}:</span>
-                        ${escapeHtml(displayTransferLocation(row.pickup_location, '', row.pickup_location_label))} → ${escapeHtml(displayTransferLocation(row.drop_location, '', row.drop_location_label))}
-                    </div>
-                `).join('');
-            }
-            return html;
+        function getPackagePreviewGrandTotal() {
+            const hotelTotal = (Array.isArray(hotels) ? hotels : []).reduce((sum, h) => sum + getHotelStayTotalPrice(h), 0);
+            const activityTotal = (Array.isArray(dayItems) ? dayItems : []).reduce((sum, x) => sum + getActivityItemTotalPrice(x), 0);
+            return hotelTotal + activityTotal;
         }
 
-        function renderPreviewDayBlock(day) {
-            if (!day || typeof day !== 'object') return '';
-            const dayNum = day.day ?? '?';
-            const hotelList = Object.values(day.hotels || {});
-            const attractionList = Object.values(day.attractions || {});
-            const restaurantList = Object.values(day.restaurants || {});
-            const serviceList = Object.values(day.services || {});
+        function renderPreviewTransferLine(transfer, dayNum, itemType = '') {
+            if (!transfer || typeof transfer !== 'object') return '';
+            const required = String(transfer.required || 'No');
+            const pickup = getTransferLocationDisplay(transfer, 'pickup', dayNum, itemType);
+            const drop = getTransferLocationDisplay(transfer, 'drop', dayNum, itemType);
+            const previewCost = parseFloat(transfer.cost ?? transfer.transfer_price ?? 0) || 0;
+            const hasTransfer = required === 'Yes' || pickup !== '-' || drop !== '-' || previewCost > 0;
+            if (!hasTransfer) return '';
 
-            let inner = `<div class="preview-day-title">Day ${escapeHtml(String(dayNum))}</div>`;
+            const typeLabel = String(transfer.transfer_type || 'Transfer').trim();
+            const route = (pickup !== '-' && drop !== '-')
+                ? `${pickup} → ${drop}`
+                : (pickup !== '-' ? pickup : drop);
+            return `
+                <div class="preview-transfer-chip">
+                    <strong>${escapeHtml(typeLabel)}:</strong>
+                    ${escapeHtml(route)}
+                    ${previewCost > 0 ? ` · <span class="text-success fw-semibold">SGD ${previewCost.toFixed(2)}</span>` : ''}
+                </div>
+            `;
+        }
 
-            if (!hotelList.length && !attractionList.length && !restaurantList.length && !serviceList.length) {
+        function renderPreviewActivityTableRows(dayNum) {
+            const itemsForDay = (Array.isArray(dayItems) ? dayItems : [])
+                .filter((x) => parseInt(String(x.day || 0), 10) === dayNum);
+
+            if (!itemsForDay.length) return '';
+
+            const rows = itemsForDay.map((x) => {
+                const transfer = x.transfer && typeof x.transfer === 'object' ? x.transfer : {};
+                const normalizedLabel = String(x.label || '').trim().toLowerCase();
+                const isTransferLikeOnly = (x.type === 'attraction' && !String(x.id || '').trim()
+                    && (normalizedLabel.includes('transfer') || normalizedLabel.includes('arrival') || normalizedLabel.includes('departure')))
+                    || (x.type === 'restaurant' && !String(x.id || '').trim() && normalizedLabel === 'restaurant transfer');
+                const typeLabel = x.type === 'restaurant'
+                    ? 'Restaurant'
+                    : (isTransferLikeOnly ? (transfer.transfer_type || x.label || 'Transfer') : 'Attraction');
+                const itemType = String(x.type || '').trim();
+                const pickup = getTransferLocationDisplay(transfer, 'pickup', dayNum, itemType);
+                const drop = getTransferLocationDisplay(transfer, 'drop', dayNum, itemType);
+                const lineTotal = getActivityItemTotalPrice(x);
+                const servicePrice = getActivityItemServicePrice(x);
+                const transferPrice = getActivityItemTransferPrice(x);
+
+                let details = '';
+                if (x.type === 'restaurant' && String(x.id || '').trim()) {
+                    details = `${x.label || 'Restaurant'}${x.meal?.dish ? ` · ${x.meal.dish}` : ''}`;
+                } else if (isTransferLikeOnly) {
+                    details = String(transfer.transfer_type || x.label || 'Transfer');
+                } else {
+                    details = `${x.label || 'Attraction'}${x.ticket_name ? ` · ${x.ticket_name}` : ''}`;
+                }
+                const priceParts = [];
+                if (servicePrice > 0) {
+                    priceParts.push(x.type === 'restaurant' ? `Meal SGD ${servicePrice.toFixed(2)}` : `Ticket SGD ${servicePrice.toFixed(2)}`);
+                }
+                if (transferPrice > 0) priceParts.push(`Transfer SGD ${transferPrice.toFixed(2)}`);
+
+                return `
+                    <tr>
+                        <td><span class="badge bg-primary-subtle text-primary">${escapeHtml(typeLabel)}</span></td>
+                        <td class="small">${pickup !== '-' ? escapeHtml(pickup) : '<span class="text-muted">-</span>'}</td>
+                        <td class="small">${drop !== '-' ? escapeHtml(drop) : '<span class="text-muted">-</span>'}</td>
+                        <td class="small">
+                            <div>${escapeHtml(details)}</div>
+                            ${priceParts.length ? `<div class="text-muted" style="font-size:0.76rem;">${escapeHtml(priceParts.join(' + '))}</div>` : ''}
+                            ${renderPreviewTransferLine(transfer, dayNum, itemType)}
+                        </td>
+                        <td class="text-end fw-semibold ${lineTotal > 0 ? 'text-success' : 'text-muted'}">
+                            ${lineTotal > 0 ? `SGD ${lineTotal.toFixed(2)}` : '-'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="table-responsive modern-table-wrap mt-2 mb-2">
+                    <table class="table table-sm data-table-sm mb-0 preview-service-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:12%">Type</th>
+                                <th style="width:18%">Pickup</th>
+                                <th style="width:18%">Drop</th>
+                                <th>Details</th>
+                                <th style="width:90px" class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderPreviewDayBlockLive(dayNum, cityName = '') {
+            const d = parseInt(String(dayNum || 0), 10) || 0;
+            if (d < 1) return '';
+
+            const hotelsForDay = (Array.isArray(hotels) ? hotels : []).filter((h) => hotelCoversDay(h, d));
+            const itemsForDay = (Array.isArray(dayItems) ? dayItems : [])
+                .filter((x) => parseInt(String(x.day || 0), 10) === d);
+            const resolvedCity = cityName
+                || getMultiCityPlanForDay(d)?.city_name
+                || hotelsForDay[0]?.city_name
+                || itemsForDay[0]?.city_name
+                || '';
+
+            let inner = `
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div class="preview-day-title mb-0">Day ${escapeHtml(String(d))}</div>
+                    ${resolvedCity ? `<span class="badge bg-light text-dark border">${escapeHtml(resolvedCity)}</span>` : ''}
+                </div>
+            `;
+
+            if (!hotelsForDay.length && !itemsForDay.length) {
                 inner += '<div class="preview-empty">No services scheduled</div>';
-            } else {
-                hotelList.forEach((h) => {
-                    inner += `
-                        <div class="preview-line"><strong>Hotel:</strong>
-                            ${escapeHtml(h.hotel_name || '-')}
-                            <span class="text-muted"> · ${escapeHtml(h.city || '')} · ${escapeHtml(String(h.night || 1))} night(s) · ${escapeHtml(h.room_type || 'No room')} · ${escapeHtml(h.bed_type || 'No bed')} · ${escapeHtml(h.meal_plan || 'No meal')}</span>
-                        </div>`;
-                    if ((h.guide_required || 'No') === 'Yes') {
-                        inner += '<div class="preview-line ms-3"><span class="text-muted">Guide required</span></div>';
-                    }
-                    if ((h.arrival_departure || 'No') === 'Yes') {
-                        inner += `<div class="preview-line ms-3"><span class="text-muted">Arrival/Departure:</span> ${escapeHtml(h.arrival_departure_type || '-')}</div>`;
-                    }
-                });
-                attractionList.forEach((a) => {
-                    inner += `
-                        <div class="preview-line"><strong>Attraction:</strong>
-                            ${escapeHtml(a.name || '-')}
-                            ${a.ticket_name ? `<span class="text-muted"> · Ticket: ${escapeHtml(a.ticket_name)}</span>` : ''}
-                        </div>`;
-                    inner += renderPreviewTransfer(a.transfer);
-                });
-                restaurantList.forEach((r) => {
-                    inner += `<div class="preview-line"><strong>Restaurant:</strong> ${escapeHtml(r.name || '-')}</div>`;
-                });
-                serviceList.forEach((s) => {
-                    const meal = s.meal_configuration && typeof s.meal_configuration === 'object' ? s.meal_configuration : null;
-                    inner += `
-                        <div class="preview-line"><strong>Restaurant service:</strong>
-                            ${escapeHtml(s.restaurant_name || s.name || '-')}
-                            ${meal ? `<span class="text-muted"> · ${escapeHtml(meal.meal_type || '-')} / ${escapeHtml(meal.dish || '-')} @ ${escapeHtml(meal.time_slot || '-')}</span>` : ''}
-                        </div>`;
-                    inner += renderPreviewTransfer(s.transfer);
-                });
+                return `<div class="preview-day-block">${inner}</div>`;
             }
+
+            hotelsForDay.forEach((h) => {
+                const checkin = parseInt(String(h.day || 1), 10) || 1;
+                const isCheckinDay = d === checkin;
+                const perNight = getHotelPerNightPrice(h);
+                const stayTotal = getHotelStayTotalPrice(h);
+                const hotelLabel = String(h.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || h.hotel_name || '-';
+                const stayLabel = formatHotelStayDayLabel(h);
+
+                inner += `
+                    <div class="preview-line mb-2">
+                        <strong>Hotel</strong>
+                        ${!isCheckinDay ? `<span class="preview-hotel-continuation">(continued stay · booked ${escapeHtml(stayLabel)})</span>` : ''}
+                        <div class="mt-1">
+                            <span class="fw-semibold">${escapeHtml(hotelLabel)}</span>
+                            <span class="text-muted"> · ${escapeHtml(String(h.night || 1))} night(s) · ${escapeHtml(formatHotelRoomMealSummary(h))}</span>
+                            ${isCheckinDay
+                                ? `<span class="text-primary fw-semibold"> · SGD ${perNight.toFixed(2)}/night · Total SGD ${stayTotal.toFixed(2)}</span>`
+                                : `<span class="text-muted"> · Part of ${escapeHtml(stayLabel)} stay</span>`}
+                        </div>
+                    </div>
+                `;
+            });
+
+            inner += renderPreviewActivityTableRows(d);
 
             return `<div class="preview-day-block">${inner}</div>`;
         }
 
         function renderPackagePreviewHtml(payload) {
-            const master = payload.Master_DMC[0] || {};
-            const dest = (master.destinations || [])[0] || {};
-
             let html = '';
+            const grandTotal = getPackagePreviewGrandTotal();
+            const activityCount = (Array.isArray(dayItems) ? dayItems : []).length;
 
             const warnings = getPreviewWarnings(payload);
             if (warnings.length) {
-                html += `<div class="preview-warnings mb-3">${warnings.map(w => `<div class="alert alert-warning mb-0 py-2">${escapeHtml(w)}</div>`).join('')}</div>`;
+                html += `<div class="preview-warnings mb-3">${warnings.map(w => `<div class="alert alert-warning mb-2 py-2">${escapeHtml(w)}</div>`).join('')}</div>`;
             }
+
+            html += `
+                <div class="preview-summary-grid">
+                    <div class="preview-summary-card">
+                        <div class="label">Total Days</div>
+                        <div class="value">${escapeHtml(String(daysCount || 1))}</div>
+                    </div>
+                    <div class="preview-summary-card">
+                        <div class="label">Cities</div>
+                        <div class="value">${escapeHtml(String(multiCityPlans.length || 1))}</div>
+                    </div>
+                    <div class="preview-summary-card">
+                        <div class="label">Hotels</div>
+                        <div class="value">${escapeHtml(String((Array.isArray(hotels) ? hotels : []).length))}</div>
+                    </div>
+                    <div class="preview-summary-card">
+                        <div class="label">Day Services</div>
+                        <div class="value">${escapeHtml(String(activityCount))}</div>
+                    </div>
+                    <div class="preview-summary-card grand-total">
+                        <div class="label">Package Total</div>
+                        <div class="value">SGD ${grandTotal.toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
 
             if (multiCityPlans.length) {
                 html += `
                     <h6 class="fw-semibold mb-2">Multi City itinerary</h6>
                     <div class="table-responsive modern-table-wrap mb-3">
                         <table class="table table-sm data-table-sm mb-0">
-                            <thead><tr><th>City</th><th>Check-in</th><th>Check-out</th></tr></thead>
+                            <thead><tr><th>City</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Covered Days</th></tr></thead>
                             <tbody>
-                                ${multiCityPlans.map(p => `
+                                ${multiCityPlans.map(p => {
+                                    const nights = Math.max(1, (parseInt(String(p.day_out || 0), 10) || 0) - (parseInt(String(p.day_in || 0), 10) || 0));
+                                    const covered = [];
+                                    for (let d = parseInt(String(p.day_in || 1), 10) || 1; d <= (parseInt(String(p.day_out || p.day_in), 10) || 1); d++) {
+                                        covered.push(`Day${d}`);
+                                    }
+                                    return `
                                     <tr>
                                         <td>${escapeHtml(p.city_name || '-')}</td>
                                         <td>Day ${escapeHtml(String(p.day_in || '-'))}</td>
                                         <td>Day ${escapeHtml(String(p.day_out || '-'))}</td>
+                                        <td>${escapeHtml(String(nights))}</td>
+                                        <td>${escapeHtml(covered.join(', '))}</td>
                                     </tr>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -4413,21 +6316,23 @@
 
             if (hotels.length) {
                 html += `
-                    <h6 class="fw-semibold mb-2">Hotels (${hotels.length})</h6>
+                    <h6 class="fw-semibold mb-2">Hotels summary</h6>
                     <div class="table-responsive modern-table-wrap mb-3">
                         <table class="table table-sm data-table-sm mb-0">
-                            <thead><tr><th>Day</th><th>City</th><th>Hotel</th><th>Nights</th><th>Room</th><th>Bed</th><th>Meal</th><th>Guide</th></tr></thead>
+                            <thead><tr><th>Stay Days</th><th>City</th><th>Hotel</th><th>Nights</th><th>Room &amp; Meal</th><th class="text-end">Price / Night</th><th class="text-end">Total</th></tr></thead>
                             <tbody>
                                 ${[...hotels].sort((a, b) => (a.day || 0) - (b.day || 0)).map(h => `
                                     <tr>
-                                        <td>${escapeHtml(String(h.day || 1))}</td>
+                                        <td>${formatHotelStayDayBadgesHtml(h)}</td>
                                         <td>${escapeHtml(h.city_name || '-')}</td>
-                                        <td>${escapeHtml(h.hotel_name || '-')}</td>
+                                        <td>
+                                            <div class="hotel-cell-title">${escapeHtml(String(h.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || h.hotel_name || '-')}</div>
+                                            ${h.cat_label ? `<div class="hotel-cell-meta">${escapeHtml(h.cat_label)}</div>` : ''}
+                                        </td>
                                         <td>${escapeHtml(String(h.night || 1))}</td>
-                                        <td>${escapeHtml(h.room_type || '-')}</td>
-                                        <td>${escapeHtml(h.bed_type || '-')}</td>
-                                        <td>${escapeHtml(h.meal_plan || '-')}</td>
-                                        <td>${escapeHtml(h.guide_required || 'No')}</td>
+                                        <td>${escapeHtml(formatHotelRoomMealSummary(h))}</td>
+                                        <td class="text-end">SGD ${getHotelPerNightPrice(h).toFixed(2)}</td>
+                                        <td class="text-end fw-semibold text-success">SGD ${getHotelStayTotalPrice(h).toFixed(2)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -4436,37 +6341,35 @@
                 `;
             }
 
-            html += '<h6 class="fw-semibold mb-2">Day-by-day package</h6>';
+            html += '<h6 class="fw-semibold mb-2">Day-by-day itinerary</h6>';
+            html += '<p class="text-muted small mb-3">Hotels appear on each covered day (check-in through check-out). Service totals include ticket/meal plus transfer.</p>';
 
-            const cities = Array.isArray(dest.cities) ? dest.cities : [];
-            if (!cities.length) {
-                html += '<p class="preview-empty">No city data in package.</p>';
-            } else {
-                cities.forEach((cityNode) => {
-                    const cityName = cityNode.city || 'Unknown city';
-                    const checkIn = cityNode.checkin_day ? ` · Check-in Day ${cityNode.checkin_day}` : '';
-                    const checkOut = cityNode.checkout_day ? ` · Check-out Day ${cityNode.checkout_day}` : '';
-                    const packages = Array.isArray(cityNode.packages) ? cityNode.packages : [];
-                    const pkg = packages[0] || {};
-                    const dayMap = pkg.days || {};
-                    const dayKeys = Object.keys(dayMap).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-
+            if (multiCityPlans.length) {
+                multiCityPlans.forEach((plan) => {
+                    const cityName = plan.city_name || 'Unknown city';
+                    const dayIn = parseInt(String(plan.day_in || 1), 10) || 1;
+                    const dayOut = parseInt(String(plan.day_out || dayIn), 10) || dayIn;
                     html += `
                         <div class="preview-city-card">
-                            <div class="preview-city-head">${escapeHtml(cityName)}${escapeHtml(checkIn)}${escapeHtml(checkOut)}</div>
+                            <div class="preview-city-head">
+                                ${escapeHtml(cityName)}
+                                · Check-in Day ${dayIn}
+                                · Check-out Day ${dayOut}
+                                · ${Math.max(1, dayOut - dayIn)} night(s)
+                            </div>
                             <div class="preview-city-body">
                     `;
-
-                    if (!dayKeys.length) {
-                        html += '<div class="p-3 preview-empty">No days in this city slice.</div>';
-                    } else {
-                        dayKeys.forEach((key) => {
-                            html += renderPreviewDayBlock(dayMap[key]);
-                        });
+                    for (let d = dayIn; d <= dayOut; d++) {
+                        html += renderPreviewDayBlockLive(d, cityName);
                     }
-
-                    html += '</div></div></div>';
+                    html += '</div></div>';
                 });
+            } else {
+                html += '<div class="preview-city-card"><div class="preview-city-body">';
+                for (let d = 1; d <= daysCount; d++) {
+                    html += renderPreviewDayBlockLive(d);
+                }
+                html += '</div></div>';
             }
 
             return html;
@@ -4591,7 +6494,7 @@
                 renderHotelRows();
                 renderActivityRows();
                 if (multiCityPlans.length) {
-                    syncDayCitySelectorsFromMultiCity();
+                    setSectionCityOptions();
                     syncHotelDayDropdownWithMultiCity();
                 }
             });
@@ -4610,6 +6513,7 @@
             });
             $('#hotel_room_select').on('change select2:select select2:clear', function () {
                 if (isPrefillingHotelForm) return;
+                applyHotelRoomBasePrice();
                 loadBedsForSelectedRoom();
                 loadMealPlansForSelectedHotel();
             });
@@ -4619,51 +6523,48 @@
             $('#hotel_meal_plan').on('change select2:select select2:clear', function () {
                 toggleHotelMealTypeVisibility();
             });
-            $('#hotel_arrival_departure').on('change', function () {
-                toggleHotelTransferFields();
-                if (this.checked || hotelsHaveArrivalDepartureTransferSaved() || itineraryUsesMiddleDayTransfers()) {
-                    // Ensure end-days dropdowns are populated when Arrival/Departure is enabled.
-                    loadTransferOptionsForCity(1);
-                    if (daysCount >= 2) loadTransferOptionsForCity(daysCount);
-                }
-            });
             $(document).on('change select2:select select2:clear', '[id^="transfer_city_select_"]', function () {
+                if (isSyncingTransferCity || isApplyingTransferDefaults || isHydratingDayServices) return;
                 const dayVal = getDayFromElementId(this.id);
                 if (!transferSectionActiveForDay(dayVal)) return;
                 hotelTransferState.city = this.value || '';
-                loadTransferOptionsForCity(dayVal);
+                invalidateTransferOptionsCacheForDay(dayVal);
+                loadTransferOptionsForCity(dayVal, { force: true });
             });
-            $(document).on('change select2:select select2:clear', '[id^="transfer_pickup_select_"]', function () {
-                const pickedValue = this.value || '';
-                hotelTransferState.pickup = pickedValue;
+            $(document).on('change select2:select select2:clear', '[id^="arrival_pickup_select_"], [id^="departure_pickup_select_"]', function () {
+                hotelTransferState.pickup = this.value || '';
             });
-            $(document).on('change select2:select select2:clear', '[id^="transfer_drop_select_"]', function () {
-                const pickedValue = this.value || '';
-                hotelTransferState.drop = pickedValue;
+            $(document).on('change select2:select select2:clear', '[id^="arrival_drop_select_"], [id^="departure_drop_select_"]', function () {
+                hotelTransferState.drop = this.value || '';
             });
 
             $('#city_id').on('change', function () {
+                if (isSyncingCitySelectors) return;
                 syncCountryFromCityOrDefault();
                 autoLoadBySelection();
                 syncSectionCitySelectionsFromMain();
+                invalidateTransferOptionsCache();
                 hydrateAllDayTransferCityOptions();
+                scheduleTransferOptionsReload(true);
             });
 
             $('#hotel_city_select').on('change select2:select select2:clear', function () {
-                if (isPrefillingHotelForm) return;
+                if (isPrefillingHotelForm || isSyncingCitySelectors) return;
                 syncMainCityFromSection('hotel_city_select');
-                filterHotelOptions();
+                loadHotelCityServices();
                 // Existing hotel rows keep their own ranges; only refresh the new row helper.
                 syncHotelDayDropdownWithMultiCity();
                 if (!hotelTransferState.city) {
                     hotelTransferState.city = this.value || '';
+                    isSyncingTransferCity = true;
                     for (let d = 1; d <= daysCount; d++) {
-                        safeSetSelectValue(`transfer_city_select_${d}`, this.value || '');
+                        safeSetSelectValueSilent(`transfer_city_select_${d}`, this.value || '');
                     }
+                    isSyncingTransferCity = false;
                 }
                 if (isArrivalDepartureTransfersActive() || itineraryUsesMiddleDayTransfers()) {
-                    loadTransferOptionsForCity(1);
-                    if (daysCount >= 2) loadTransferOptionsForCity(daysCount);
+                    invalidateTransferOptionsCache();
+                    scheduleTransferOptionsReload(true);
                 }
             });
 
@@ -4671,6 +6572,10 @@
                 if (isPrefillingActivityForm) return;
                 const d = getDayFromElementId(this.id);
                 loadTicketsForAttractionForDay(d);
+            });
+            $(document).on('change select2:select select2:clear', '[id^="attraction_ticket_select_"]', function () {
+                if (isPrefillingActivityForm) return;
+                applyAttractionTicketPrice(getDayFromElementId(this.id));
             });
 
             $(document).on('change select2:select select2:clear', '[id^="restaurant_select_"]', function () {
@@ -4684,12 +6589,32 @@
                 const d = getDayFromElementId(this.id);
                 loadMealsForRestaurantForDay(d);
             });
+            $(document).on('change select2:select select2:clear', '[id^="restaurant_meal_select_"]', function () {
+                if (isPrefillingActivityForm) return;
+                applyRestaurantMealPrice(getDayFromElementId(this.id));
+            });
 
             $(document).on('change select2:select select2:clear', '[id^="activity_city_select_"]', function () {
-                if (isPrefillingActivityForm) return;
+                if (isPrefillingActivityForm || isHydratingDayServices || isSyncingCitySelectors) return;
                 const dayVal = getDayFromElementId(this.id);
                 const cityName = getCityNameFromSelect(this.id);
-                populateDayServiceOptionsByCity(dayVal, cityName);
+                const prevCity = String(activityCityByDay[dayVal] || '');
+                if (prevCity === cityName) return;
+                activityCityByDay[dayVal] = cityName;
+                syncTransferCityFromActivity(dayVal);
+                invalidateTransferOptionsCacheForDay(dayVal);
+                populateDayServiceOptionsByCity(dayVal, cityName, { loadTransfers: false, silent: true });
+                scheduleTransferOptionsReload(true);
+            });
+
+            $(document).on('change select2:select select2:clear', '[id^="attraction_select_"]', function () {
+                if (isPrefillingActivityForm) return;
+                applyAttractionTransferDefaults(getDayFromElementId(this.id));
+            });
+
+            $(document).on('change select2:select select2:clear', '[id^="restaurant_select_"]', function () {
+                if (isPrefillingActivityForm) return;
+                applyRestaurantTransferDefaults(getDayFromElementId(this.id));
             });
 
             $(document).on('change select2:select select2:clear', '.extra-transfer-input', function () {
