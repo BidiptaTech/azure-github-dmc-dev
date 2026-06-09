@@ -159,6 +159,10 @@ class DayLevelController extends Controller
         return null;
     }
 
+    /**
+     * Resolve the Master DMC for a DMC account: sales/staff → DMC (11) → Master DMC (10).
+     * Never treat the child DMC userId as the master id.
+     */
     private function resolveMasterDmcIdForDmc(User $dmcUser): int
     {
         $parentId = (int) ($dmcUser->master_dmc_id ?? 0);
@@ -169,16 +173,102 @@ class DayLevelController extends Controller
                 ->first();
 
             if ($parent && in_array((int) $parent->role_id, [10, 19], true)) {
-                $parentCompany = strtolower((string) ($parent->company_name ?? ''));
-                $isTravclicks  = $parentId === 3 || str_contains($parentCompany, 'travclicks');
-
-                if (!$isTravclicks) {
-                    return (int) $parent->userId;
-                }
+                return (int) $parent->userId;
             }
         }
 
-        return (int) $dmcUser->userId;
+        $walker = $dmcUser;
+        for ($depth = 0; $depth < 12; $depth++) {
+            $walkerParentId = (int) ($walker->created_by ?? 0);
+            if ($walkerParentId <= 0) {
+                break;
+            }
+
+            $parent = User::query()
+                ->where('userId', $walkerParentId)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$parent) {
+                break;
+            }
+
+            if (in_array((int) $parent->role_id, [10, 19], true)) {
+                return (int) $parent->userId;
+            }
+
+            $walker = $parent;
+        }
+
+        return (int) ($dmcUser->master_dmc_id ?: 0);
+    }
+
+    private function resolveMasterDmcIdForDmcUserId(int $dmcUserId): int
+    {
+        if ($dmcUserId <= 0) {
+            return 0;
+        }
+
+        $dmcUser = User::query()
+            ->where('userId', $dmcUserId)
+            ->whereNull('deleted_at')
+            ->first();
+
+        return $dmcUser ? $this->resolveMasterDmcIdForDmc($dmcUser) : 0;
+    }
+
+    /**
+     * Flat export rows must group under the real Master DMC (from DMC chain), not a child DMC id.
+     *
+     * @param  list<array<string, mixed>>  $payload
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeFlatExportMasterDmcIds(array $payload): array
+    {
+        foreach ($payload as $i => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            $resolvedMaster = $this->resolveMasterDmcIdForDmcUserId($dmcId);
+            if ($resolvedMaster > 0) {
+                $payload[$i]['Master_DMC_id'] = $resolvedMaster;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Correct day_levels.master_dmc_id (and inter_city) when a child DMC id was stored as master.
+     */
+    private function reconcileStoredMasterDmcIds($rows): void
+    {
+        foreach ($rows as $row) {
+            if (! $row instanceof DayLevel) {
+                continue;
+            }
+
+            $resolved = $this->resolveMasterDmcIdForDmcUserId((int) $row->dmc_id);
+            if ($resolved <= 0 || (int) $row->master_dmc_id === $resolved) {
+                continue;
+            }
+
+            $row->master_dmc_id = $resolved;
+
+            $ic = $row->inter_city;
+            if (is_array($ic) && isset($ic['Master_DMC']) && is_array($ic['Master_DMC'])) {
+                foreach ($ic['Master_DMC'] as $i => $masterNode) {
+                    if (is_array($masterNode)) {
+                        $ic['Master_DMC'][$i]['Master_DMC_id'] = $resolved;
+                    }
+                }
+                $row->inter_city = $ic;
+            }
+
+            $row->save();
+        }
     }
 
     // =========================================================================
@@ -1285,7 +1375,9 @@ class DayLevelController extends Controller
         }
 
         $rows = $query->get();
-        $payload = $this->buildFlatDayLevelPackagesPayload($rows);
+        $payload = $this->normalizeFlatExportMasterDmcIds(
+            $this->buildFlatDayLevelPackagesPayload($rows)
+        );
 
         if ($request->filled('master_dmc_id')) {
             $filterMaster = (int) $request->query('master_dmc_id');
@@ -1449,7 +1541,6 @@ class DayLevelController extends Controller
                     throw new \RuntimeException('Missing Master_DMC node in payload.');
                 }
 
-                $incomingMasterId = (int) ($masterNode['Master_DMC_id'] ?? $dayLevel->master_dmc_id);
                 $rawDestinations = is_array($masterNode['destinations'] ?? null) ? $masterNode['destinations'] : [];
                 $destinations = [];
                 foreach ($rawDestinations as $destination) {
@@ -1494,6 +1585,11 @@ class DayLevelController extends Controller
 
                 $meta = $this->computeDayLevelMetadataFromDestinations($mergedDestinations);
                 $services = $this->extractTransferServicesFromDestinations($mergedDestinations);
+                $resolvedDmcId = (int) ($mergedDestinations[0]['DMC_id'] ?? $dayLevel->dmc_id);
+                $incomingMasterId = $this->resolveMasterDmcIdForDmcUserId($resolvedDmcId);
+                if ($incomingMasterId <= 0) {
+                    $incomingMasterId = (int) ($masterNode['Master_DMC_id'] ?? $dayLevel->master_dmc_id);
+                }
                 $country = (string) ($mergedDestinations[0]['country'] ?? $meta['country'] ?? '');
                 $country = $country !== '' ? $country : null;
 
@@ -1716,11 +1812,6 @@ class DayLevelController extends Controller
         $rowsByMasterAndDmc = [];
 
         foreach ($payload['Master_DMC'] as $masterNode) {
-            $masterId = (int) ($masterNode['Master_DMC_id'] ?? 0);
-            if ($masterId <= 0) {
-                continue;
-            }
-
             foreach (($masterNode['destinations'] ?? []) as $destinationNode) {
                 $destination = $this->unwrapDestinationNode($destinationNode);
                 if (!is_array($destination)) {
@@ -1728,6 +1819,14 @@ class DayLevelController extends Controller
                 }
                 $dmcId = (int) ($destination['DMC_id'] ?? 0);
                 if ($dmcId <= 0) {
+                    continue;
+                }
+
+                $masterId = $this->resolveMasterDmcIdForDmcUserId($dmcId);
+                if ($masterId <= 0) {
+                    $masterId = (int) ($masterNode['Master_DMC_id'] ?? 0);
+                }
+                if ($masterId <= 0) {
                     continue;
                 }
 
@@ -3055,7 +3154,21 @@ class DayLevelController extends Controller
                 ->latest()
                 ->get();
 
-            $payload = $this->buildFlatDayLevelPackagesPayload($rows);
+            $this->reconcileStoredMasterDmcIds($rows);
+
+            $payload = $this->normalizeFlatExportMasterDmcIds(
+                $this->buildFlatDayLevelPackagesPayload($rows)
+            );
+            $packageIds = array_values(array_filter(array_map(
+                fn (array $entry) => trim((string) ($entry['package_id'] ?? $entry['id'] ?? '')),
+                array_filter($payload, 'is_array')
+            )));
+            Log::info('Day-level Azure JSON refresh starting', [
+                'day_level_rows' => $rows->count(),
+                'package_count'  => count($payload),
+                'package_ids'    => $packageIds,
+            ]);
+
             $json = $this->encodeFlatPackagesForBlobStorage($payload);
             if ($json === null) {
                 Log::warning('Day-level Azure JSON refresh skipped: payload could not be encoded as a JSON array.');
@@ -3066,6 +3179,13 @@ class DayLevelController extends Controller
             $combinedUrl = $this->storeDayLevelJsonOnAzure($json, 'day-level-combined.json');
             if ($combinedUrl === null) {
                 Log::warning('Day-level combined JSON was not uploaded to Azure (check file_storage=azure and AZURE_AI_* credentials).');
+            } else {
+                Log::info('Day-level combined JSON synced to Azure', [
+                    'url'           => $combinedUrl,
+                    'package_count' => count($payload),
+                    'package_ids'   => $packageIds,
+                    'bytes'         => strlen($json),
+                ]);
             }
 
             $masterIds = [];
@@ -3086,7 +3206,18 @@ class DayLevelController extends Controller
                 ));
                 $masterJson = $this->encodeFlatPackagesForBlobStorage($masterPackages);
                 if ($masterJson !== null) {
-                    $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
+                    $masterUrl = $this->storeDayLevelJsonOnAzure($masterJson, 'master-dmc-' . $masterId . '.json');
+                    if ($masterUrl !== null) {
+                        Log::info('Day-level master DMC JSON synced to Azure', [
+                            'master_dmc_id' => $masterId,
+                            'url'           => $masterUrl,
+                            'package_count' => count($masterPackages),
+                            'package_ids'   => array_values(array_filter(array_map(
+                                fn (array $entry) => trim((string) ($entry['package_id'] ?? $entry['id'] ?? '')),
+                                $masterPackages
+                            ))),
+                        ]);
+                    }
                 }
             }
         } catch (\Throwable $e) {
