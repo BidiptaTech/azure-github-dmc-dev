@@ -57,7 +57,7 @@ class SingleTourPackageController extends Controller
     public function create(Request $request, $enquiry_id = null)
     {
         $user = Auth::user();
-        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1081,6 +1081,14 @@ class SingleTourPackageController extends Controller
      */
     public function edit(Request $request, $id)
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         if (!$id) {
             \Log::error('No tour_id provided for edit view');
             return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');

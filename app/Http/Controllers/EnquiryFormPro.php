@@ -219,7 +219,7 @@ class EnquiryFormPro extends Controller
     public function create(Request $request)
     {
         $user = Auth::user();
-        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -2715,7 +2715,7 @@ class EnquiryFormPro extends Controller
     public function edit($tour_id)
     {
         $user = Auth::user();
-        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
