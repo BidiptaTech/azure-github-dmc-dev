@@ -22,29 +22,119 @@
             --form-label-color: #495057;
             --form-border: #dee2e6;
             --form-panel-bg: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%);
+            /* Compact density (~75% feel at 100% zoom) */
+            --dl-field-h: 32px;
+            --dl-field-fs: 0.8125rem;
+            --dl-label-fs: 0.75rem;
+            --dl-btn-fs: 0.75rem;
+            --dl-radius: 6px;
+            --dl-card-pad: 0.95rem;
+            --dl-section-pad: 0.75rem 1rem;
+            --dl-label-offset: calc(0.2rem + 1.05em);
+        }
+        #dayForm {
+            font-size: var(--dl-field-fs);
+        }
+        #dayForm .g-2,
+        #dayForm .g-3 {
+            --bs-gutter-x: 0.5rem;
+            --bs-gutter-y: 0.5rem;
         }
         #dayForm .form-label {
             color: var(--form-label-color);
-            font-size: 0.875rem;
+            font-size: var(--dl-label-fs);
             font-weight: 600;
+            margin-bottom: 0.2rem;
+            line-height: 1.2;
         }
         #dayForm .form-control,
-        #dayForm .form-select,
-        .select2-container .select2-selection--single {
-            min-height: 40px;
+        #dayForm .form-select {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            padding: 0.25rem 0.5rem;
             border: 1px solid var(--form-border);
+            border-radius: var(--dl-radius);
+            font-size: var(--dl-field-fs);
+            line-height: 1.25;
+        }
+        #dayForm .input-group.price-input-group {
+            height: var(--dl-field-h);
+            min-height: var(--dl-field-h);
+            flex-wrap: nowrap;
+        }
+        #dayForm .input-group.price-input-group .input-group-text {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            padding: 0 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            border-radius: var(--dl-radius) 0 0 var(--dl-radius);
+            display: flex;
+            align-items: center;
+        }
+        #dayForm .input-group.price-input-group .form-control {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            border-radius: 0 var(--dl-radius) var(--dl-radius) 0;
+            padding: 0.25rem 0.45rem;
+        }
+        #dayForm .select2-container {
+            width: 100% !important;
+        }
+        #dayForm .select2-container .select2-selection--single {
+            min-height: var(--dl-field-h) !important;
+            height: var(--dl-field-h) !important;
+            border: 1px solid var(--form-border) !important;
+            border-radius: var(--dl-radius) !important;
+            font-size: var(--dl-field-fs);
+            padding: 0 !important;
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: calc(var(--dl-field-h) - 2px) !important;
+            padding-left: 0.5rem !important;
+            padding-right: 1.5rem !important;
+            font-size: var(--dl-field-fs);
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: calc(var(--dl-field-h) - 2px) !important;
+            top: 1px !important;
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__clear {
+            margin-right: 1.25rem;
+            font-size: 0.85rem;
+        }
+        #dayForm .btn {
+            min-height: var(--dl-field-h);
+            padding: 0.2rem 0.65rem;
+            font-size: var(--dl-btn-fs);
+            line-height: 1.2;
+        }
+        #dayForm .align-items-end > [class*="col-"].d-flex > .btn,
+        #dayForm .align-items-end > [class*="col-"] > .btn.w-100.mt-4,
+        #dayForm .align-items-end > [class*="col-"] > .btn.w-100 {
+            margin-top: var(--dl-label-offset) !important;
+            width: 100%;
+        }
+        #dayForm .hotels-add-btn,
+        #dayForm .align-items-end > [class*="col-"]:not(.d-flex) > .btn.w-100 {
+            margin-top: 0 !important;
+        }
+        .section-header-icon {
+            width: 28px;
+            height: 28px;
             border-radius: 8px;
-            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.95rem;
         }
-        .select2-container .select2-selection--single {
-            height: 40px;
-            padding-top: 5px;
+        .section-header-icon--light {
+            background: rgba(255, 255, 255, 0.2);
         }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 36px;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__clear {
-            margin-right: 16px;
+        .section-header-icon--muted {
+            background: rgba(73, 80, 87, 0.12);
+            color: #495057;
         }
         .day-tab-btn.active {
             background: var(--form-brand);
@@ -97,13 +187,19 @@
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
         #dayForm .sketch-card > .card-body {
-            padding: 1.75rem;
+            padding: var(--dl-card-pad);
             background: #fff;
+        }
+        .stp-page-banner {
+            margin-bottom: 0.75rem !important;
         }
         .stp-page-banner .card-header {
             background: var(--form-gradient-page);
             border: none;
-            padding: 1.25rem 1.75rem;
+            padding: 0.75rem 1rem;
+        }
+        .stp-page-banner h4 {
+            font-size: 1.1rem;
         }
         .stp-page-banner h4,
         .stp-page-banner .banner-subtitle {
@@ -114,9 +210,11 @@
             font-size: 0.85rem;
         }
         .stp-back-btn {
-            border-radius: 8px;
+            border-radius: var(--dl-radius);
             font-weight: 600;
-            padding: 0.5rem 1.25rem;
+            padding: 0.3rem 0.85rem;
+            font-size: var(--dl-btn-fs);
+            min-height: var(--dl-field-h);
             background: rgba(255, 255, 255, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.6);
             color: #495057;
@@ -129,8 +227,12 @@
         #dayForm .sketch-card .card-header,
         #dayForm .modern-section-header {
             border: none;
-            padding: 1.15rem 1.5rem;
+            padding: var(--dl-section-pad);
             color: #fff;
+        }
+        #dayForm .sketch-card .card-header strong,
+        #dayForm .modern-section-header strong {
+            font-size: 0.9rem;
         }
         #dayForm .dmc-form-section .card-header,
         #dayForm .card.attraction-day-section > .card-header {
@@ -171,39 +273,45 @@
         }
         .day-card {
             border: 0;
-            box-shadow: 0 0.45rem 1.25rem rgba(67, 89, 113, 0.10);
+            box-shadow: 0 0.25rem 0.75rem rgba(67, 89, 113, 0.08);
             overflow: hidden;
-            margin-bottom: 1.75rem !important;
+            margin-bottom: 0.75rem !important;
         }
         .day-card > .card-body {
-            padding-top: 1.75rem !important;
+            padding: var(--dl-card-pad) !important;
         }
         #dayWiseServiceBlocks {
-            padding-top: 1.25rem;
+            padding-top: 0.5rem;
         }
         .day-service-transfer-panel {
             border: 1px solid rgba(102, 126, 234, 0.22);
-            border-radius: 10px;
+            border-radius: var(--dl-radius);
             background: var(--form-panel-bg);
-            padding: 1rem 1.15rem 1.1rem;
-            margin-top: 0.35rem;
+            padding: 0.65rem 0.75rem 0.7rem;
+            margin-top: 0.25rem;
         }
         .day-service-transfer-panel__header {
             display: flex;
             align-items: flex-start;
-            gap: 0.65rem;
-            margin-bottom: 0.85rem;
-            padding-bottom: 0.65rem;
+            gap: 0.45rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.45rem;
             border-bottom: 1px solid rgba(102, 126, 234, 0.12);
         }
+        .day-service-transfer-panel__header strong {
+            font-size: 0.82rem;
+        }
+        .day-service-transfer-panel__header .small {
+            font-size: 0.7rem !important;
+        }
         .day-service-transfer-panel__icon {
-            width: 2rem;
-            height: 2rem;
-            border-radius: 8px;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 0.8rem;
             flex-shrink: 0;
         }
         .attraction-transfer-panel .day-service-transfer-panel__icon {
@@ -311,8 +419,9 @@
             margin-left: 0;
         }
         #dayForm .btn-icon {
-            width: 2rem;
-            height: 2rem;
+            width: 1.65rem;
+            height: 1.65rem;
+            min-height: 1.65rem;
             padding: 0;
             display: inline-flex;
             align-items: center;
@@ -330,11 +439,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 2.25rem;
-            height: 2.25rem;
+            min-width: 1.65rem;
+            height: 1.65rem;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.18);
             font-weight: 700;
+            font-size: 0.8rem;
+        }
+        .day-card-header strong {
+            font-size: 0.9rem;
+        }
+        .day-card-header .small {
+            font-size: 0.7rem !important;
         }
         .detail-chip {
             display: inline-block;
@@ -350,9 +466,10 @@
             color: var(--form-brand) !important;
             background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
             border: 1px solid rgba(102, 126, 234, 0.15);
-            border-radius: 8px;
-            padding: 0.5rem 0.85rem;
-            font-size: 0.9rem;
+            border-radius: var(--dl-radius);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.78rem;
+            margin-bottom: 0.15rem;
         }
         .section-label {
             font-weight: 600;
@@ -365,7 +482,7 @@
         .hotels-section .card-header,
         .multi-city-section .card-header,
         .dmc-form-section .card-header {
-            padding: 1rem 1.25rem;
+            padding: var(--dl-section-pad);
         }
         .hotels-section .card-header .section-subtitle,
         .multi-city-section .card-header .section-subtitle {
@@ -376,40 +493,41 @@
             margin-top: 0.2rem;
         }
         .hotels-form-body {
-            padding: 1.25rem 1.5rem 1.5rem;
+            padding: var(--dl-card-pad);
         }
         .hotels-form-panel {
             background: var(--form-panel-bg);
             border: 1px solid #b3d9ff;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.08);
-            padding: 1.15rem 1.25rem 1.25rem;
+            border-radius: var(--dl-radius);
+            box-shadow: 0 1px 4px rgba(102, 126, 234, 0.06);
+            padding: 0.65rem 0.75rem 0.75rem;
         }
         .hotels-form-panel + .hotels-form-panel {
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
         .hotels-form-panel-title {
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--form-brand);
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.45rem;
         }
         .hotels-form-panel .form-label {
-            font-size: 0.8rem;
+            font-size: var(--dl-label-fs);
             font-weight: 600;
             color: #566a7f;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.2rem;
         }
         .hotels-form-panel .form-control,
         .hotels-form-panel .form-select {
-            font-size: 0.875rem;
+            font-size: var(--dl-field-fs);
             border-color: #d9dee3;
-            min-height: 38px;
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
         }
         .hotels-form-panel .form-check {
-            min-height: 38px;
+            min-height: var(--dl-field-h);
             display: flex;
             align-items: center;
             padding-left: 1.75rem;
@@ -419,7 +537,7 @@
             margin-top: 0;
         }
         .hotels-form-panel .form-check-label {
-            font-size: 0.875rem;
+            font-size: var(--dl-field-fs);
             font-weight: 500;
             color: #566a7f;
             padding-left: 2px;
@@ -427,27 +545,30 @@
         .pricing-panel {
             background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
             border: 1px solid #c7d2fe;
-            border-radius: 0.65rem;
-            padding: 1rem 1.15rem;
+            border-radius: var(--dl-radius);
+            padding: 0.65rem 0.75rem;
         }
         .pricing-panel-title {
-            font-size: 0.8rem;
+            font-size: 0.68rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: #4338ca;
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.45rem;
         }
         .pricing-panel .price-input-group .input-group-text {
             background: #fff;
             border-color: #c7d2fe;
             color: #4338ca;
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
         }
         .pricing-panel .form-control {
             border-color: #c7d2fe;
             background: #fff;
+        }
+        .pricing-panel .price-input-group {
+            height: var(--dl-field-h);
         }
         .pricing-panel .form-control:focus {
             border-color: #6366f1;
@@ -513,12 +634,18 @@
             max-width: 5.5rem;
         }
         .hotels-add-btn {
-            min-height: 38px;
-            padding-left: 1.25rem;
-            padding-right: 1.25rem;
+            min-height: var(--dl-field-h);
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
         }
         .hotels-section .modern-table-wrap {
-            margin-top: 1.25rem;
+            margin-top: 0.65rem;
+        }
+        #dayForm .modern-table-wrap.mt-3 {
+            margin-top: 0.5rem !important;
+        }
+        #dayForm small.text-muted {
+            font-size: 0.7rem;
         }
         #packagePreviewModal .modal-header {
             background: var(--form-gradient-primary);
@@ -527,7 +654,7 @@
             padding: 1rem 1.25rem;
         }
         #dayForm .form-actions-bar {
-            padding: 1.25rem;
+            padding: 0.75rem;
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -635,13 +762,45 @@
             color: #8592a3;
             font-style: italic;
         }
+        .container-xxl.container-p-y:has(#dayForm) {
+            padding-top: 0.65rem !important;
+            padding-bottom: 0.85rem !important;
+        }
+        #dayForm .card-header.gap-2 {
+            gap: 0.35rem !important;
+        }
+        #dayForm .sketch-card {
+            border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+        }
+        #dayForm .data-table-sm td,
+        #dayForm .data-table-sm th {
+            padding: 0.35rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        #dayForm .data-table-sm thead th {
+            font-size: 0.68rem;
+        }
+        #dayForm .form-actions-bar .btn {
+            min-height: 34px;
+            padding: 0.3rem 1rem;
+            font-size: 0.8125rem;
+        }
+        #dayForm .alert {
+            padding: 0.45rem 0.75rem;
+            font-size: 0.8125rem;
+            margin-bottom: 0.5rem;
+        }
+        #dayForm .section-subtitle {
+            font-size: 0.72rem !important;
+        }
     </style>
 @endpush
 
 @section('content')
     <div class="content-wrapper">
         <div class="container-xxl flex-grow-1 container-p-y">
-            <div class="row mb-4 stp-page-banner">
+            <div class="row mb-2 stp-page-banner">
                 <div class="col-12">
                     <div class="card shadow-sm border-0 sketch-card">
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -694,7 +853,7 @@
                     <div class="col-12">
                         <div class="card sketch-card dmc-form-section">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-settings-3-line text-white"></i>
                                 </div>
                                 <div>
@@ -728,7 +887,7 @@
                     <div class="col-12">
                         <div class="card sketch-card multi-city-section">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-map-pin-line text-white"></i>
                                 </div>
                                 <div>
@@ -789,8 +948,8 @@
                     <div class="col-12">
                         <div class="card sketch-card hotels-section">
                             <div class="card-header modern-section-header d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(73,80,87,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                    <i class="ri-hotel-line" style="color:#495057;"></i>
+                                <div class="section-header-icon section-header-icon--muted">
+                                    <i class="ri-hotel-line"></i>
                                 </div>
                                 <div>
                                     <strong class="d-block">Hotels</strong>
@@ -938,7 +1097,7 @@
                     <div class="col-12">
                         <div class="card sketch-card attraction-day-section border-0">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-calendar-event-line text-white"></i>
                                 </div>
                                 <div>
@@ -1044,7 +1203,9 @@
         let isSyncingTransferCity = false;
         let isApplyingTransferDefaults = false;
         let isHydratingDayServices = false;
+        let isHydratingEditPayload = false;
         let hydrateDayServicesInFlight = null;
+        let hydrateDayServicesQueued = false;
         let transferOptionsLoadTimer = null;
         const transferOptionsCache = {};
         const transferOptionsInflight = {};
@@ -1914,11 +2075,8 @@
         }
 
         function applyCountryFilter() {
-            const selectedCountry = String(document.getElementById('country').value || '').trim().toLowerCase();
-            const filteredByCountry = allCities.filter(c => {
-                if (!selectedCountry) return true;
-                return String(c.country || '').trim().toLowerCase() === selectedCountry;
-            });
+            const selectedCountry = String(document.getElementById('country').value || '').trim();
+            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             const filtered = filteredByCountry.length ? filteredByCountry : allCities;
             const prevCityId = $('#city_id').val();
             setSelectOptions('city_id', filtered.map(c => ({
@@ -1953,12 +2111,82 @@
             return String(op.dataset.name || op.textContent || '').split(',')[0].trim();
         }
 
+        function cityMatchesCountry(city, country) {
+            const wanted = String(country || '').trim().toLowerCase();
+            if (!wanted) return true;
+            return String(city?.country || '').trim().toLowerCase() === wanted;
+        }
+
+        function normalizeCityNameKey(cityName) {
+            return String(cityName || '').split(',')[0].trim().toLowerCase();
+        }
+
+        function findCityRecordByName(cityName) {
+            const key = normalizeCityNameKey(cityName);
+            if (!key) return null;
+            return allCities.find(c => normalizeCityNameKey(c.name) === key) || null;
+        }
+
+        function ensureCityOptionInSelect(selectId, cityId) {
+            const cityIdStr = String(cityId || '').trim();
+            if (!cityIdStr) return;
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            if (Array.from(sel.options).some(o => String(o.value) === cityIdStr)) return;
+            const rec = allCities.find(c => String(c.value) === cityIdStr) || null;
+            if (!rec) return;
+            const op = document.createElement('option');
+            op.value = String(rec.value);
+            op.textContent = rec.country ? `${rec.name}, ${rec.country}` : rec.name;
+            op.dataset.name = rec.name;
+            op.dataset.country = rec.country || '';
+            sel.appendChild(op);
+            const $sel = $(sel);
+            if ($sel.data('select2')) {
+                $sel.trigger('change.select2');
+            }
+        }
+
+        function resolveCityIdForDay(dayNum) {
+            const d = parseInt(String(dayNum || 0), 10) || 0;
+            if (d < 1) return '';
+            const planCityId = resolveCityIdForPlan(getMultiCityPlanForDay(d));
+            if (planCityId) return planCityId;
+
+            const fromItems = (Array.isArray(dayItems) ? dayItems : []).find(
+                x => (parseInt(String(x?.day || 0), 10) || 0) === d && String(x?.city_name || '').trim()
+            );
+            const fromHotels = (Array.isArray(hotels) ? hotels : []).find(
+                h => hotelCoversDay(h, d) && String(h?.city_name || '').trim()
+            );
+            const cityName = String(
+                fromItems?.city_name || fromHotels?.city_name || activityCityByDay[d] || ''
+            ).trim();
+            const hit = findCityRecordByName(cityName);
+            return hit ? String(hit.value) : '';
+        }
+
+        function syncDayCitySelectorsFromStoredData(force = false) {
+            isSyncingCitySelectors = true;
+            for (let d = 1; d <= daysCount; d++) {
+                const cityId = resolveCityIdForDay(d);
+                if (!cityId) continue;
+                const act = document.getElementById(`activity_city_select_${d}`);
+                if (act && (force || !String(act.value || '').trim())) {
+                    ensureCityOptionInSelect(`activity_city_select_${d}`, cityId);
+                    safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
+                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
+                }
+            }
+            isSyncingCitySelectors = false;
+        }
+
         function getSectionCityOptions() {
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
             const selectedCountry = document.getElementById('country').value || '';
             const source = (multiCityFiltered && multiCityFiltered.length)
                 ? multiCityFiltered
-                : allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+                : allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             return source.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
@@ -2218,25 +2446,24 @@
             return candidates[0] || null;
         }
 
-        function syncDayCitySelectorsFromMultiCity() {
-            // Multi City drives which cities are available; user can still choose.
-            if (!multiCityPlans.length) {
+        function syncDayCitySelectorsFromMultiCity(force = false) {
+            if (!multiCityPlans.length && !force) {
                 return;
             }
             isSyncingCitySelectors = true;
             for (let d = 1; d <= daysCount; d++) {
-                const planForDay = getMultiCityPlanForDay(d);
-                const cityId = resolveCityIdForPlan(planForDay);
+                const cityId = resolveCityIdForDay(d);
                 if (!cityId) continue;
                 const act = document.getElementById(`activity_city_select_${d}`);
                 const tr = document.getElementById(`transfer_city_select_${d}`);
-                // Default to Multi City mapped city only when empty.
-                if (act && !String(act.value || '').trim()) {
+                if (act && (force || !String(act.value || '').trim())) {
+                    ensureCityOptionInSelect(`activity_city_select_${d}`, cityId);
                     safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
                     activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
                 }
-                if (tr && !String(tr.value || '').trim()) {
+                if (tr && (force || !String(tr.value || '').trim())) {
                     isSyncingTransferCity = true;
+                    ensureCityOptionInSelect(`transfer_city_select_${d}`, cityId);
                     safeSetSelectValueSilent(`transfer_city_select_${d}`, cityId);
                     isSyncingTransferCity = false;
                 }
@@ -2247,21 +2474,25 @@
         function getDayCityOptionsFromMultiCity() {
             if (!multiCityPlans.length) return null;
             const selectedCountry = document.getElementById('country').value || '';
-            const filteredByCountry = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             const allowedIds = new Set(
                 multiCityPlans
-                    .map(p => String(p?.city_id || '').trim())
+                    .map(p => String(resolveCityIdForPlan(p) || p?.city_id || '').trim())
                     .filter(Boolean)
             );
             const allowedNames = new Set(
                 multiCityPlans
-                    .map(p => String(p?.city_name || '').split(',')[0].trim().toLowerCase())
+                    .map(p => normalizeCityNameKey(p?.city_name))
                     .filter(Boolean)
             );
-            const filtered = filteredByCountry.filter(c => {
+            const matchPlanCity = (c) => {
                 if (allowedIds.has(String(c.value))) return true;
-                return allowedNames.has(String(c.name || '').trim().toLowerCase());
-            });
+                return allowedNames.has(normalizeCityNameKey(c.name));
+            };
+            let filtered = filteredByCountry.filter(matchPlanCity);
+            if (!filtered.length) {
+                filtered = allCities.filter(matchPlanCity);
+            }
             return filtered.length ? filtered : [];
         }
 
@@ -2433,7 +2664,7 @@
             for (let d = 1; d <= daysCount; d++) {
                 const dayHeaderClass = dayHeaderClasses[(d - 1) % dayHeaderClasses.length];
                 html += `
-                    <div class="card sketch-card day-card mb-3">
+                    <div class="card sketch-card day-card mb-2">
                         <div class="card-header day-card-header ${dayHeaderClass}">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="day-pill">${d}</span>
@@ -2662,49 +2893,60 @@
 
         async function hydrateDayServiceBlocksOptions() {
             if (hydrateDayServicesInFlight) {
+                hydrateDayServicesQueued = true;
                 return hydrateDayServicesInFlight;
             }
-            hydrateDayServicesInFlight = (async () => {
-            isHydratingDayServices = true;
-            const selectedCountry = document.getElementById('country').value || '';
-            const filteredCities = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
-            const multiCityFiltered = getDayCityOptionsFromMultiCity();
-            const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
-            const cityOptions = source.map(c => ({
-                value: c.value,
-                label: c.country ? `${c.name}, ${c.country}` : c.name,
-                data_name: c.name,
-                data_country: c.country,
-            }));
-            for (let d = 1; d <= daysCount; d++) {
-                setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
-                setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
-                setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
-                setSelectOptions(`attraction_ticket_select_${d}`, [], true);
-                if (!activityCityByDay[d]) {
-                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
-                }
-            }
-            if (multiCityPlans.length) {
-                syncDayCitySelectorsFromMultiCity();
-                const seenCities = new Set();
-                for (let d = 1; d <= daysCount; d++) {
-                    const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
-                    activityCityByDay[d] = cityName;
-                    if (!cityName || seenCities.has(cityName)) continue;
-                    seenCities.add(cityName);
-                    await populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
-                }
-            }
-            hydrateAllDayTransferCityOptions();
-            isHydratingDayServices = false;
-            scheduleTransferOptionsReload(false);
-            })();
-            try {
-                return await hydrateDayServicesInFlight;
-            } finally {
+            const runHydrate = async () => {
+                do {
+                    hydrateDayServicesQueued = false;
+                    isHydratingDayServices = true;
+                    const selectedCountry = document.getElementById('country').value || '';
+                    const filteredCities = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
+                    const multiCityFiltered = getDayCityOptionsFromMultiCity();
+                    const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
+                    const cityOptions = source.map(c => ({
+                        value: c.value,
+                        label: c.country ? `${c.name}, ${c.country}` : c.name,
+                        data_name: c.name,
+                        data_country: c.country,
+                    }));
+                    const forceCitySync = isHydratingEditPayload || multiCityPlans.length > 0;
+                    for (let d = 1; d <= daysCount; d++) {
+                        setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
+                        setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                        setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                        setSelectOptions(`attraction_ticket_select_${d}`, [], true);
+                    }
+                    if (multiCityPlans.length || isHydratingEditPayload) {
+                        syncDayCitySelectorsFromMultiCity(forceCitySync);
+                        syncDayCitySelectorsFromStoredData(forceCitySync);
+                    } else {
+                        syncSectionCitySelectionsFromMain();
+                    }
+                    for (let d = 1; d <= daysCount; d++) {
+                        if (!activityCityByDay[d]) {
+                            activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
+                        }
+                    }
+                    if (multiCityPlans.length || isHydratingEditPayload) {
+                        const seenCities = new Set();
+                        for (let d = 1; d <= daysCount; d++) {
+                            const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
+                            activityCityByDay[d] = cityName;
+                            if (!cityName || seenCities.has(cityName)) continue;
+                            seenCities.add(cityName);
+                            await populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
+                        }
+                    }
+                    hydrateAllDayTransferCityOptions();
+                    isHydratingDayServices = false;
+                    scheduleTransferOptionsReload(false);
+                } while (hydrateDayServicesQueued);
+            };
+            hydrateDayServicesInFlight = runHydrate().finally(() => {
                 hydrateDayServicesInFlight = null;
-            }
+            });
+            return hydrateDayServicesInFlight;
         }
 
         function getSelectedOption(selectId) {
@@ -2767,9 +3009,9 @@
             if (!plan) return '';
             const direct = String(plan.city_id || '').trim();
             if (direct) return direct;
-            const key = String(plan.city_name || '').split(',')[0].trim().toLowerCase();
+            const key = normalizeCityNameKey(plan.city_name);
             if (!key) return '';
-            const fromAll = allCities.find(c => String(c.name || '').trim().toLowerCase() === key);
+            const fromAll = allCities.find(c => normalizeCityNameKey(c.name) === key);
             if (fromAll) {
                 plan.city_id = String(fromAll.value);
                 return plan.city_id;
@@ -2865,11 +3107,13 @@
             return list.filter((_, idx) => !dropIndices.has(idx));
         }
 
-        function hydrateFromEditPayload() {
+        async function hydrateFromEditPayload() {
             const payload = window.__EDIT_PAYLOAD__;
             if (!payload || !Array.isArray(payload.Master_DMC) || !payload.Master_DMC.length) {
                 return;
             }
+            isHydratingEditPayload = true;
+            try {
 
             const meta = window.__EDIT_DAY_LEVEL_META__ || {};
             if (meta.master_dmc_id) {
@@ -3287,14 +3531,20 @@
             });
 
             renderMultiCityRows();
+            resolveCityIdsForMultiPlans();
             setSectionCityOptions();
+            await hydrateDayServiceBlocksOptions();
+            syncDayCitySelectorsFromMultiCity(true);
+            syncDayCitySelectorsFromStoredData(true);
             syncHotelNightsWithDays();
             renderHotelRows();
             renderActivityRows();
-            hydrateAllDayTransferCityOptions();
             updateAllDayTransferVisibility();
             renderAllExtraTransferRows();
             scheduleTransferOptionsReload(false);
+            } finally {
+                isHydratingEditPayload = false;
+            }
         }
 
         function toggleHotelTransferFields() {
@@ -6465,7 +6715,7 @@
             renderInterRows();
             toggleRestaurantTransferConfig();
             syncSectionCitySelectionsFromMain();
-            hydrateFromEditPayload();
+            hydrateFromEditPayload().catch(() => {});
 
             document.getElementById('days').addEventListener('input', function () {
                 const newDays = Math.max(1, parseInt(this.value || '1', 10) || 1);
