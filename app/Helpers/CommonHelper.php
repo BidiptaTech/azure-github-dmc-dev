@@ -454,6 +454,34 @@ class CommonHelper
         return $previousId ? $previousId + 1 : 1;
     }
 
+    /**
+     * Generate the next unique orders.booking_id (used by edit-tour service routes).
+     */
+    public static function nextOrderBookingId(): int
+    {
+        $bookingId = (int) self::createId((int) (Order::max('booking_id') ?? 0));
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = (int) self::createId($bookingId);
+        }
+
+        return $bookingId;
+    }
+
+    /**
+     * Backfill missing booking_id values so edit-tour update routes resolve correctly.
+     */
+    public static function ensureOrdersHaveBookingIds($orders): void
+    {
+        foreach ($orders as $order) {
+            if (!empty($order->booking_id)) {
+                continue;
+            }
+
+            $order->booking_id = self::nextOrderBookingId();
+            $order->save();
+        }
+    }
+
     /*
     *Date Format Maintain for Api
     *Date 14-01-2025
