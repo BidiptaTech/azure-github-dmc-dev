@@ -69,8 +69,8 @@ use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Api\DayLevelController;
-use App\Http\Controllers\Api\ExternalApiReceiveController;
+use App\Http\Controllers\DayLevelController;
+use App\Http\Controllers\ExternalApiReceiveController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -79,7 +79,6 @@ use App\Http\Controllers\Api\ExternalApiReceiveController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
 | Here is where you can register web routes for your application. These
 | routes are loaded by the RouteServiceProvider and all of them will
 | be assigned to the "web" middleware group. Make something great!
@@ -1353,6 +1352,15 @@ Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
 
 Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
     ->name('day-level.hotels-by-rating');
+
+Route::get('day-level/rooms-by-hotel', [DayLevelController::class, 'roomsByHotel'])
+    ->name('day-level.rooms-by-hotel');
+
+Route::get('day-level/beds-by-room', [DayLevelController::class, 'bedsByRoom'])
+    ->name('day-level.beds-by-room');
+
+Route::get('day-level/meals-by-restaurant', [DayLevelController::class, 'mealsByRestaurant'])
+    ->name('day-level.meals-by-restaurant');
 
 Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
     ->name('day-level.meal-plans-by-hotel');

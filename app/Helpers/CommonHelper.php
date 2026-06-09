@@ -454,6 +454,34 @@ class CommonHelper
         return $previousId ? $previousId + 1 : 1;
     }
 
+    /**
+     * Generate the next unique orders.booking_id (used by edit-tour service routes).
+     */
+    public static function nextOrderBookingId(): int
+    {
+        $bookingId = (int) self::createId((int) (Order::max('booking_id') ?? 0));
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = (int) self::createId($bookingId);
+        }
+
+        return $bookingId;
+    }
+
+    /**
+     * Backfill missing booking_id values so edit-tour update routes resolve correctly.
+     */
+    public static function ensureOrdersHaveBookingIds($orders): void
+    {
+        foreach ($orders as $order) {
+            if (!empty($order->booking_id)) {
+                continue;
+            }
+
+            $order->booking_id = self::nextOrderBookingId();
+            $order->save();
+        }
+    }
+
     /*
     *Date Format Maintain for Api
     *Date 14-01-2025
@@ -1618,6 +1646,96 @@ class CommonHelper
     }
 
     /**
+     * Notify DMC when an external/day-level auto-booking creates a tour (uses DMC_email from package JSON).
+     *
+     * @param  string  $dmcEmail
+     * @param  array<string, mixed>  $tourData
+     * @return bool|string
+     */
+    public static function resolveEmailLogoUrl(?string $logo): ?string
+    {
+        $logo = trim((string) $logo);
+        if ($logo === '') {
+            return null;
+        }
+
+        if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://') || str_starts_with($logo, 'data:image')) {
+            return $logo;
+        }
+
+        return url(ltrim($logo, '/'));
+    }
+
+    public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [])
+    {
+        $dmcEmail = trim($dmcEmail);
+        if ($dmcEmail === '' || ! filter_var($dmcEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid DMC email address';
+        }
+
+        try {
+            $cities = $tourData['cities'] ?? [];
+            if (is_string($cities)) {
+                $cities = array_filter(array_map('trim', explode(',', $cities)));
+            }
+            if (! is_array($cities)) {
+                $cities = [];
+            }
+            $citiesLabel = implode(', ', array_values(array_filter(array_map('strval', $cities))));
+
+            $emailData = [
+                'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
+                'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
+                'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
+                'dmc_contact_email' => (string) ($tourData['dmc_contact_email'] ?? ''),
+                'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
+                'diff' => (int) ($tourData['diff'] ?? 0),
+                'requested_days' => (int) ($tourData['requested_days'] ?? 0),
+                'available_days' => (int) ($tourData['available_days'] ?? 0),
+                'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
+                'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
+                'country' => (string) ($tourData['country'] ?? ''),
+                'destination' => (string) ($tourData['destination'] ?? 'N/A'),
+                'cities_label' => $citiesLabel !== '' ? $citiesLabel : (string) ($tourData['city'] ?? ''),
+                'check_in_date' => isset($tourData['check_in_time'])
+                    ? Carbon::parse($tourData['check_in_time'])->format('M d, Y')
+                    : ($tourData['check_in_date'] ?? 'N/A'),
+                'check_out_date' => isset($tourData['check_out_time'])
+                    ? Carbon::parse($tourData['check_out_time'])->format('M d, Y')
+                    : ($tourData['check_out_date'] ?? 'N/A'),
+                'adults' => (int) ($tourData['adults'] ?? $tourData['adult'] ?? 0),
+                'children' => (int) ($tourData['children'] ?? $tourData['child'] ?? 0),
+                'infants' => (int) ($tourData['infants'] ?? $tourData['infant'] ?? 0),
+                'agent_name' => (string) ($tourData['agent_name'] ?? ''),
+                'agency_name' => (string) ($tourData['agency_name'] ?? ''),
+                'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
+                'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
+                'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
+            ];
+            $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
+
+            $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
+
+            $html = view('mails.tour_auto_booked_dmc', $emailData)->render();
+            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
+
+            Log::info('Tour auto-booked sender email sent', [
+                'email' => $dmcEmail,
+                'tour_display_id' => $emailData['tour_display_id'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Tour auto-booked DMC email failed', [
+                'dmc_email' => $dmcEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /**
      * Send welcome email to agency when first DMC selects them
      * Date: Current
      * 
@@ -1779,16 +1897,15 @@ class CommonHelper
         }
     }
 
-    public static function url() {
-        if (!function_exists('root_url')) {
-            function root_url($path = '')
-            {
-                $base = config('app.url');
-                $root = preg_replace('#/backadm-dmc/?$#', '', $base);
-                return rtrim($root, '/') . '/' . ltrim($path, '/');
-            }
-        }
-        return root_url('login');
+    /**
+     * App root URL (strips /backadm-dmc from APP_URL). Defaults to login path.
+     */
+    public static function url(string $path = 'login'): string
+    {
+        $base = (string) config('app.url');
+        $root = preg_replace('#/backadm-dmc/?$#', '', $base);
+
+        return rtrim($root, '/') . '/' . ltrim($path, '/');
     }
 
     /**

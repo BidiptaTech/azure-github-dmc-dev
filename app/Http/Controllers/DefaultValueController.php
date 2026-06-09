@@ -173,9 +173,10 @@ class DefaultValueController extends Controller
         // Get ports (following EnquiryFormPro pattern)
         $ports = Port::where('status', 1)
             ->select('port_id', 'port_name', 'country')
+            ->where('country', $user->country ?? '')
             ->orderBy('port_name')
             ->get();
-        
+        // dd($ports->toArray());
         // Get guides for this DMC
         $guides = Guide::where('dmc_id', $dmcId)
             ->whereIn('status', [1, 3]) // Active guides
@@ -335,9 +336,10 @@ class DefaultValueController extends Controller
         // Get ports (following EnquiryFormPro pattern)
         $ports = Port::where('status', 1)
             ->select('port_id', 'port_name', 'country')
+            ->where('country', $user->country ?? '')
             ->orderBy('port_name')
             ->get();
-        
+        // dd($ports->toArray());
         // Get guides for this DMC
         $guides = Guide::where('dmc_id', $dmcId)
             ->whereIn('status', [1, 3]) // Active guides

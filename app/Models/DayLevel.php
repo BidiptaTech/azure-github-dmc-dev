@@ -620,7 +620,7 @@ class DayLevel extends Model
                     } else {
                         // Merge duplicate day numbers (can happen when city buckets split the same package).
                         $daysByNumber[$dayNumber] = array_replace($daysByNumber[$dayNumber], $normalizedDay);
-                        foreach (['hotels', 'attractions', 'restaurants', 'services', 'Transfer', 'Guide'] as $bucket) {
+                        foreach (['hotels', 'attractions', 'arrivals', 'departures', 'transfers', 'restaurants', 'services', 'Transfer', 'Guide'] as $bucket) {
                             if (!array_key_exists($bucket, $normalizedDay)) {
                                 continue;
                             }
@@ -718,10 +718,14 @@ class DayLevel extends Model
         $mealMetaByHotel = $this->getHotelMealMetaMap($hotels);
 
         return $hotels->map(function ($h) use ($mealMetaByHotel) {
-                $hotelId = (int) ($h->id ?? 0);
-                $meta = $mealMetaByHotel[$hotelId] ?? ['meal_types' => [], 'dishes' => []];
+                $uniqueId = trim((string) ($h->hotel_unique_id ?? ''));
+                $exportHotelId = $uniqueId !== '' ? $uniqueId : (string) ((int) ($h->id ?? 0));
+                $meta = $mealMetaByHotel[$exportHotelId]
+                    ?? $mealMetaByHotel[(int) ($h->id ?? 0)]
+                    ?? ['meal_types' => [], 'dishes' => []];
+
                 return [
-                    'hotel_id' => $hotelId,
+                    'hotel_id' => $exportHotelId,
                     'hotel_name' => (string) ($h->name ?? ''),
                     'city' => (string) ($h->city ?? ''),
                     'country' => (string) ($h->country ?? ''),
@@ -796,9 +800,13 @@ class DayLevel extends Model
                 'cities' => self::daysMapToJsonObject($this->indexList($citySummaries)),
                 'hotels' => is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : [],
                 'attractions' => is_array($dayNode['attractions'] ?? null) ? $dayNode['attractions'] : [],
+                'arrivals'    => is_array($dayNode['arrivals'] ?? null) ? $dayNode['arrivals'] : [],
+                'departures'  => is_array($dayNode['departures'] ?? null) ? $dayNode['departures'] : [],
+                'transfers'   => is_array($dayNode['transfers'] ?? null) ? $dayNode['transfers'] : [],
                 'restaurants' => is_array($dayNode['restaurants'] ?? null) ? $dayNode['restaurants'] : [],
-                'Transfer' => $this->extractDayTransfers($dayNode),
-                'Guide' => $this->extractDayGuides($dayNode),
+                'services'    => is_array($dayNode['services'] ?? null) ? $dayNode['services'] : [],
+                'Transfer'    => $this->extractDayTransfers($dayNode),
+                'Guide'       => $this->extractDayGuides($dayNode),
             ];
         }
 
@@ -1142,10 +1150,10 @@ class DayLevel extends Model
 
         $mapped = [];
         foreach ($hotels as $hotel) {
-            $hotelId = (int) ($hotel->id ?? 0);
-            $u = (string) ($hotel->hotel_unique_id ?? '');
-            $meta = $byUnique[$u] ?? ['meal_types' => [], 'dishes' => []];
-            $mapped[$hotelId] = [
+            $uniqueId = trim((string) ($hotel->hotel_unique_id ?? ''));
+            $exportKey = $uniqueId !== '' ? $uniqueId : (string) ((int) ($hotel->id ?? 0));
+            $meta = $byUnique[$uniqueId] ?? ['meal_types' => [], 'dishes' => []];
+            $mapped[$exportKey] = [
                 'meal_types' => array_values(array_keys($meta['meal_types'] ?? [])),
                 'dishes' => array_values(array_keys($meta['dishes'] ?? [])),
             ];
@@ -1214,12 +1222,16 @@ class DayLevel extends Model
         }
 
         foreach ((array) ($dayNode['attractions'] ?? []) as $attraction) {
-            if (!is_array($attraction) || !is_array($attraction['transfer'] ?? null)) {
+            if (! is_array($attraction) || trim((string) ($attraction['attraction_id'] ?? '')) === '') {
+                continue;
+            }
+            if (! is_array($attraction['transfer'] ?? null)) {
                 continue;
             }
             $transfer = $attraction['transfer'];
             $transfers[] = [
                 'type' => 'attraction_transfer',
+                'booked_day' => (int) ($attraction['booked_day'] ?? $dayNode['day'] ?? 0),
                 'required' => (string) ($transfer['required'] ?? ''),
                 'transfer_type' => (string) ($transfer['transfer_type'] ?? ''),
                 'city' => (string) ($transfer['city'] ?? ''),
@@ -1235,9 +1247,33 @@ class DayLevel extends Model
                 }
                 $transfers[] = [
                     'type' => 'attraction_transfer_additional',
+                    'booked_day' => (int) ($attraction['booked_day'] ?? $dayNode['day'] ?? 0),
                     'city' => (string) ($extra['city'] ?? ''),
                     'pickup_location' => (string) ($extra['pickup_location'] ?? ''),
                     'drop_location' => (string) ($extra['drop_location'] ?? ''),
+                ];
+            }
+        }
+
+        foreach ([
+            'arrivals' => 'arrival',
+            'departures' => 'departure',
+            'transfers' => 'attraction_transfer',
+        ] as $bucket => $legType) {
+            foreach ((array) ($dayNode[$bucket] ?? []) as $leg) {
+                if (! is_array($leg) || ! is_array($leg['transfer'] ?? null)) {
+                    continue;
+                }
+                $transfer = $leg['transfer'];
+                $transfers[] = [
+                    'type' => $legType,
+                    'booked_day' => (int) ($leg['booked_day'] ?? $leg['day'] ?? $dayNode['day'] ?? 0),
+                    'required' => (string) ($transfer['required'] ?? ''),
+                    'transfer_type' => (string) ($transfer['transfer_type'] ?? $legType),
+                    'city' => (string) ($transfer['city'] ?? $leg['city'] ?? ''),
+                    'pickup_location' => (string) ($transfer['pickup_location'] ?? ''),
+                    'drop_location' => (string) ($transfer['drop_location'] ?? ''),
+                    'cost' => (float) ($transfer['cost'] ?? $transfer['transfer_price'] ?? $leg['total_price'] ?? 0),
                 ];
             }
         }
@@ -1371,6 +1407,9 @@ class DayLevel extends Model
             'day'         => (int) ($dayNode['day'] ?? $fallbackDay),
             'hotels'      => $this->normalizeNamedMap($dayNode['hotels'] ?? [], 'Hotel', 'hotel_id', 'hotel_name', true),
             'attractions' => $this->normalizeNamedMap($dayNode['attractions'] ?? [], 'Attraction', 'attraction_id', 'name'),
+            'arrivals'    => is_array($dayNode['arrivals'] ?? null) ? $dayNode['arrivals'] : [],
+            'departures'  => is_array($dayNode['departures'] ?? null) ? $dayNode['departures'] : [],
+            'transfers'   => is_array($dayNode['transfers'] ?? null) ? $dayNode['transfers'] : [],
             'restaurants' => $this->normalizeNamedMap($dayNode['restaurants'] ?? [], 'Restaurant', 'restaurant_id', 'name'),
             'services'    => $this->normalizeDayServices($services),
         ];
@@ -1430,43 +1469,7 @@ class DayLevel extends Model
     private function orderNamedEntry(array $row, string $idField, string $nameField, bool $includePrice, string $prefix): array
     {
         if (str_starts_with($prefix, 'Hotel')) {
-            $entry = [
-                'hotel_id'   => (string) ($row['hotel_id'] ?? ''),
-                'hotel_name' => (string) ($row['hotel_name'] ?? ''),
-            ];
-            if (array_key_exists('city', $row)) {
-                $entry['city'] = (string) ($row['city'] ?? '');
-            }
-            if (array_key_exists('meal_plan', $row)) {
-                $entry['meal_plan'] = (string) ($row['meal_plan'] ?? '');
-            }
-            if ($includePrice) {
-                $entry['price'] = (float) ($row['price'] ?? 0);
-            }
-            $entry['night'] = (int) ($row['night'] ?? 1);
-            if (array_key_exists('meal_type', $row)) {
-                $entry['meal_type'] = (string) ($row['meal_type'] ?? '');
-            }
-            if (array_key_exists('guide_required', $row)) {
-                $entry['guide_required'] = (string) ($row['guide_required'] ?? 'No');
-            }
-            if (array_key_exists('arrival_departure', $row)) {
-                $entry['arrival_departure'] = (string) ($row['arrival_departure'] ?? 'No');
-            }
-            if (array_key_exists('arrival_departure_type', $row)) {
-                $entry['arrival_departure_type'] = (string) ($row['arrival_departure_type'] ?? '');
-            }
-            if (array_key_exists('priority', $row)) {
-                $entry['priority'] = (int) ($row['priority'] ?? 1);
-            }
-            foreach (['transfer_city', 'transfer_pickup', 'transfer_drop'] as $hotelXferField) {
-                if (! array_key_exists($hotelXferField, $row)) {
-                    continue;
-                }
-                $entry[$hotelXferField] = strip_tags((string) ($row[$hotelXferField] ?? ''));
-            }
-
-            return $entry;
+            return self::normalizeRawHotelRow($row, $includePrice);
         }
 
         if (str_starts_with($prefix, 'Attraction')) {
@@ -1598,7 +1601,10 @@ class DayLevel extends Model
                     if (! is_array($hotel)) {
                         continue;
                     }
-                    $day['hotels'][$hotelKey] = self::enrichHotelTransferLocationLabels($hotel, $labels);
+                    $day['hotels'][$hotelKey] = self::enrichHotelTransferLocationLabels(
+                        self::normalizeRawHotelRow($hotel),
+                        $labels
+                    );
                 }
             }
 
@@ -1621,6 +1627,21 @@ class DayLevel extends Model
                     }
                     $day['services'][$serviceKey]['transfer'] = self::enrichTransferLocationLabels(
                         $service['transfer'],
+                        $labels
+                    );
+                }
+            }
+
+            foreach (['arrivals', 'departures', 'transfers'] as $transferBucket) {
+                if (! isset($day[$transferBucket]) || ! is_array($day[$transferBucket])) {
+                    continue;
+                }
+                foreach ($day[$transferBucket] as $legKey => $leg) {
+                    if (! is_array($leg) || ! isset($leg['transfer']) || ! is_array($leg['transfer'])) {
+                        continue;
+                    }
+                    $day[$transferBucket][$legKey]['transfer'] = self::enrichTransferLocationLabels(
+                        $leg['transfer'],
                         $labels
                     );
                 }
@@ -1763,11 +1784,26 @@ class DayLevel extends Model
         }
 
         if ($byType['hotel'] !== []) {
-            $hotelIds = array_keys($byType['hotel']);
+            $hotelIds = array_map('strval', array_keys($byType['hotel']));
+            $numericHotelIds = array_values(array_filter(
+                $hotelIds,
+                static fn (string $id) => $id !== '' && ctype_digit($id)
+            ));
+            $uniqueHotelIds = array_values(array_diff($hotelIds, $numericHotelIds));
+
             $hotels = Hotel::query()
                 ->whereNull('deleted_at')
-                ->where(function ($q) use ($hotelIds) {
-                    $q->whereIn('id', $hotelIds)->orWhereIn('hotel_unique_id', $hotelIds);
+                ->where(function ($q) use ($numericHotelIds, $uniqueHotelIds) {
+                    if ($numericHotelIds !== []) {
+                        $q->whereIn('id', array_map('intval', $numericHotelIds));
+                    }
+                    if ($uniqueHotelIds !== []) {
+                        if ($numericHotelIds !== []) {
+                            $q->orWhereIn('hotel_unique_id', $uniqueHotelIds);
+                        } else {
+                            $q->whereIn('hotel_unique_id', $uniqueHotelIds);
+                        }
+                    }
                 })
                 ->get(['id', 'hotel_unique_id', 'name', 'city']);
             foreach ($hotels as $hotel) {
@@ -1841,7 +1877,7 @@ class DayLevel extends Model
             if (! is_array($hotel)) {
                 continue;
             }
-            $hotelId = (string) ($hotel['hotel_id'] ?? '');
+            $hotelId = self::resolveHotelUniqueId((string) ($hotel['hotel_id'] ?? ''));
             $name = (string) ($hotel['hotel_name'] ?? $hotel['name'] ?? '');
             if ($hotelId !== '' && $name !== '') {
                 $labels['hotel:' . $hotelId] = $name;
@@ -2550,10 +2586,10 @@ class DayLevel extends Model
             ? self::normalizeAttractionsMap($dayNode['attractions'])
             : [];
         $restaurants = is_array($dayNode['restaurants'] ?? null) ? $dayNode['restaurants'] : [];
+        $arrivals = is_array($dayNode['arrivals'] ?? null) ? $dayNode['arrivals'] : [];
+        $departures = is_array($dayNode['departures'] ?? null) ? $dayNode['departures'] : [];
+        $transfers = is_array($dayNode['transfers'] ?? null) ? $dayNode['transfers'] : [];
         $services = is_array($dayNode['services'] ?? null) ? $dayNode['services'] : [];
-        if ($services === []) {
-            $services = [];
-        }
 
         $cities = self::rawCitiesListFromDayNode($dayNode, $citySummaries);
 
@@ -2561,6 +2597,9 @@ class DayLevel extends Model
             'day'         => $day,
             'hotels'      => $hotels,
             'attractions' => $attractions,
+            'arrivals'    => $arrivals,
+            'departures'  => $departures,
+            'transfers'   => $transfers,
             'restaurants' => $restaurants,
             'services'    => $services,
             'cities'      => $cities,
@@ -2571,6 +2610,101 @@ class DayLevel extends Model
      * @param  array<string, mixed>  $hotels
      * @return array<string, mixed>
      */
+    /**
+     * Map legacy hotels.id to rooms.hotel_id (hotel_unique_id) for JSON export.
+     */
+    public static function resolveHotelUniqueId(string $hotelId): string
+    {
+        $hotelId = trim($hotelId);
+        if ($hotelId === '') {
+            return '';
+        }
+        if (! ctype_digit($hotelId)) {
+            return $hotelId;
+        }
+
+        static $byNumericId = null;
+        if ($byNumericId === null) {
+            $byNumericId = [];
+            foreach (Hotel::query()->whereNull('deleted_at')->get(['id', 'hotel_unique_id']) as $hotel) {
+                $unique = trim((string) ($hotel->hotel_unique_id ?? ''));
+                $byNumericId[(string) ((int) ($hotel->id ?? 0))] = $unique !== '' ? $unique : (string) ((int) ($hotel->id ?? 0));
+            }
+        }
+
+        return $byNumericId[$hotelId] ?? $hotelId;
+    }
+
+    private static function normalizeTransferLocationToken(string $value): string
+    {
+        $value = trim(strip_tags($value));
+        if ($value === '' || ! str_starts_with($value, 'hotel:')) {
+            return $value;
+        }
+
+        $id = substr($value, 6);
+
+        return 'hotel:' . self::resolveHotelUniqueId($id);
+    }
+
+    /**
+     * Canonical hotel row for structured + Azure raw_package JSON.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public static function normalizeRawHotelRow(array $row, bool $includePrice = true): array
+    {
+        $hotelId = self::resolveHotelUniqueId((string) ($row['hotel_id'] ?? ''));
+        $city = (string) ($row['city'] ?? $row['city_name'] ?? '');
+
+        $bookedDay = (int) ($row['booked_day'] ?? $row['checkin_day'] ?? 0);
+
+        $entry = [
+            'hotel_id'   => $hotelId,
+            'hotel_name' => (string) ($row['hotel_name'] ?? ''),
+            'city'       => $city,
+            'room_id'    => (string) ($row['room_id'] ?? ''),
+            'room_type'  => (string) ($row['room_type'] ?? ''),
+            'bed_id'     => (string) ($row['bed_id'] ?? ''),
+            'bed_type'   => (string) ($row['bed_type'] ?? ''),
+            'meal_plan'  => (string) ($row['meal_plan'] ?? ''),
+        ];
+        if ($includePrice) {
+            $entry['price'] = (float) ($row['price'] ?? 0);
+        }
+        $entry['night'] = (int) ($row['night'] ?? 1);
+        $entry['meal_type'] = (string) ($row['meal_type'] ?? '');
+        $entry['guide_required'] = (string) ($row['guide_required'] ?? 'No');
+        $entry['arrival_departure'] = (string) ($row['arrival_departure'] ?? 'No');
+        $entry['arrival_departure_type'] = (string) ($row['arrival_departure_type'] ?? '');
+        $entry['priority'] = (int) ($row['priority'] ?? 1);
+        if ($bookedDay > 0) {
+            $entry['booked_day'] = $bookedDay;
+        }
+
+        foreach ([
+            'transfer_city',
+            'transfer_pickup',
+            'transfer_drop',
+            'transfer_pickup_label',
+            'transfer_drop_label',
+        ] as $field) {
+            if (! array_key_exists($field, $row)) {
+                continue;
+            }
+            $value = (string) ($row[$field] ?? '');
+            if ($field === 'transfer_pickup' || $field === 'transfer_drop') {
+                $value = self::normalizeTransferLocationToken($value);
+            } else {
+                $value = strip_tags($value);
+            }
+            $entry[$field] = $value;
+        }
+
+        return $entry;
+    }
+
     private static function formatRawHotelsMap(array $hotels): array
     {
         $out = [];
@@ -2579,10 +2713,7 @@ class DayLevel extends Model
                 $out[$label] = $row;
                 continue;
             }
-            if (array_key_exists('hotel_id', $row)) {
-                $row['hotel_id'] = (string) ($row['hotel_id'] ?? '');
-            }
-            $out[$label] = $row;
+            $out[$label] = self::normalizeRawHotelRow($row);
         }
 
         return $out;
