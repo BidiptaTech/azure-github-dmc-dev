@@ -186,6 +186,14 @@ class DayLevelController extends Controller
     // =========================================================================
     public function create()
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         $context = $this->resolveDmcContext();
 
         $cities = City::whereNull('deleted_at')
@@ -264,17 +272,7 @@ class DayLevelController extends Controller
 
             $this->applyHotelDmcFilter($hotelsQuery, $dmcId);
 
-            $hotels = $hotelsQuery->get(['id', 'hotel_unique_id', 'name', 'hotel_star_rating', 'city']);
-
-            // Fallback: if no hotel is mapped to this dmc_id, still return city hotels
-            if ($hotels->isEmpty()) {
-                $hotels = Hotel::whereNull('deleted_at')
-                    ->where('is_active', 1)
-                    ->whereIn('hotel_star_rating', array_keys(self::HOTEL_STAR_RATINGS))
-                    ->where('city', 'ilike', "%{$cityName}%")
-                    ->orderBy('name')
-                    ->get(['id', 'hotel_unique_id', 'name', 'hotel_star_rating', 'city']);
-            }
+            $hotels = $hotelsQuery->get(['id', 'hotel_unique_id', 'name', 'hotel_star_rating', 'city', 'dmc_id']);
 
             $result['hotels'] = $hotels
                 ->groupBy('hotel_star_rating')
@@ -400,21 +398,7 @@ class DayLevelController extends Controller
 
         $this->applyHotelDmcFilter($query, $dmcId);
 
-        $hotels = $query->get(['id', 'hotel_unique_id', 'name', 'city', 'hotel_star_rating']);
-
-        // Keep rating dropdown useful even if this DMC has no explicit mapping.
-        if ($hotels->isEmpty()) {
-            $fallbackQuery = Hotel::whereNull('deleted_at')
-                ->where('is_active', 1)
-                ->where('hotel_star_rating', (int) $rating)
-                ->orderBy('name');
-
-            if (!blank($cityName)) {
-                $fallbackQuery->where('city', 'ilike', "%{$cityName}%");
-            }
-
-            $hotels = $fallbackQuery->get(['id', 'hotel_unique_id', 'name', 'city', 'hotel_star_rating']);
-        }
+        $hotels = $query->get(['id', 'hotel_unique_id', 'name', 'city', 'hotel_star_rating', 'dmc_id']);
 
         return response()->json($hotels);
     }
@@ -432,13 +416,39 @@ class DayLevelController extends Controller
             return response()->json([]);
         }
 
-        $rooms = $this->queryAvailableRoomsForHotel($hotelUniqueId, $dmcId, ['room_id', 'room_type']);
+        $priceColumns = [
+            'room_id', 'room_type', 'weekday_price', 'weekend_price',
+            'double_weekday_price', 'double_weekend_price',
+            'breakfast', 'lunch', 'dinner',
+            'breakfast_included', 'lunch_included', 'dinner_included',
+            'breakfast_price', 'lunch_price', 'dinner_price',
+            'created_by', 'dmc_id',
+        ];
+        $columns = array_values(array_filter($priceColumns, fn ($col) => Schema::hasColumn('rooms', $col)));
+        $rooms = $this->queryAvailableRoomsForHotel($hotelUniqueId, $dmcId, $columns);
 
         return response()->json(
-            $rooms->map(fn ($room) => [
-                'room_id'   => $room->room_id,
-                'room_type' => (string) ($room->room_type ?? ''),
-            ])->values()
+            $rooms->map(function ($room) {
+                return [
+                    'room_id'              => $room->room_id,
+                    'room_type'            => (string) ($room->room_type ?? ''),
+                    'weekday_price'        => (float) ($room->weekday_price ?? 0),
+                    'weekend_price'        => (float) ($room->weekend_price ?? 0),
+                    'double_weekday_price' => (float) ($room->double_weekday_price ?? 0),
+                    'double_weekend_price' => (float) ($room->double_weekend_price ?? 0),
+                    'breakfast_price'      => (float) ($room->breakfast_price ?? 0),
+                    'lunch_price'          => (float) ($room->lunch_price ?? 0),
+                    'dinner_price'         => (float) ($room->dinner_price ?? 0),
+                    'breakfast'            => $room->breakfast ?? null,
+                    'lunch'                => $room->lunch ?? null,
+                    'dinner'               => $room->dinner ?? null,
+                    'breakfast_included'   => $room->breakfast_included ?? null,
+                    'lunch_included'       => $room->lunch_included ?? null,
+                    'dinner_included'      => $room->dinner_included ?? null,
+                    'created_by'           => $room->created_by ?? null,
+                    'dmc_id'               => $room->dmc_id ?? null,
+                ];
+            })->values()
         );
     }
 
@@ -839,8 +849,16 @@ class DayLevelController extends Controller
             ];
         })->filter(fn ($z) => $z['id'] !== '')->values();
 
+        $serviceTransferLocations = $hotelLocations
+            ->concat($attractionLocations)
+            ->concat($restaurantLocations)
+            ->concat($zones)
+            ->values();
+
         return response()->json([
             'locations' => $locationsPorts->concat($hotelLocations)->values(),
+            /** Hotels, attractions, restaurants & zones for per-service transfer pickup/drop. */
+            'service_transfer_locations' => $serviceTransferLocations,
             /** Arrival pickup dropdown: Master DMC country ports only. */
             'arrival_pickup_ports' => $arrivalPickupPorts->values(),
             /** Arrival drop: ports (city/country) + DMC hotels, attractions, restaurants. */
@@ -973,23 +991,31 @@ class DayLevelController extends Controller
             return response()->json(['tickets' => []]);
         }
 
-        $attraction = Attraction::query()
-            ->where('attraction_id', $attractionId)
-            ->whereJsonContains('dmc_id', $dmcId)
-            ->first();
+        $attractionQuery = Attraction::query()
+            ->where('attraction_id', $attractionId);
 
-        if (!$attraction) {
+        $this->applyServiceDmcFilter($attractionQuery, $dmcId);
+
+        if ($attractionQuery->first() === null) {
             return response()->json(['tickets' => []]);
         }
 
         $tickets = Ticket::query()
             ->where('attraction_id', $attractionId)
             ->where('dmc_id', $dmcId)
-            ->select('ticket_id', 'name')
+            ->select('ticket_id', 'name', 'adult_price', 'child_price', 'senior_adult_price')
             ->orderBy('name')
             ->get();
 
-        return response()->json(['tickets' => $tickets]);
+        return response()->json([
+            'tickets' => $tickets->map(fn ($ticket) => [
+                'ticket_id'          => $ticket->ticket_id,
+                'name'               => (string) ($ticket->name ?? ''),
+                'adult_price'        => (float) ($ticket->adult_price ?? 0),
+                'child_price'        => (float) ($ticket->child_price ?? 0),
+                'senior_adult_price' => (float) ($ticket->senior_adult_price ?? 0),
+            ])->values(),
+        ]);
     }
 
     private function getExistingRoomMealColumns(): array
@@ -1217,6 +1243,14 @@ class DayLevelController extends Controller
     // =========================================================================
     public function index()
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         $ids = $this->resolveDmcIds();
 
         $dayLevels = DayLevel::with(['city', 'guide', 'dmc', 'masterDmc'])
@@ -1312,6 +1346,14 @@ class DayLevelController extends Controller
     // =========================================================================
     public function edit(Request $request, DayLevel $dayLevel)
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         $context = $this->resolveDmcContext();
         $dmcId   = (int) ($dayLevel->dmc_id ?: $context['dmc_id']);
         $masterId = (int) ($dayLevel->master_dmc_id ?: $context['master_dmc_id']);
@@ -1560,6 +1602,14 @@ class DayLevelController extends Controller
     // =========================================================================
     public function destroy(DayLevel $dayLevel)
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         $dayLevel->delete();
         $this->refreshCombinedJsonFile();
         return redirect()->route('day-level.index')->with('success', 'Day Level deleted.');
@@ -2477,6 +2527,9 @@ class DayLevelController extends Controller
                         is_array($normalizedDay['hotels'] ?? null) ? $normalizedDay['hotels'] : []
                     );
                     $normalizedDay['attractions'] = is_array($normalizedDay['attractions'] ?? null) ? $normalizedDay['attractions'] : [];
+                    $normalizedDay['arrivals'] = is_array($normalizedDay['arrivals'] ?? null) ? $normalizedDay['arrivals'] : [];
+                    $normalizedDay['departures'] = is_array($normalizedDay['departures'] ?? null) ? $normalizedDay['departures'] : [];
+                    $normalizedDay['transfers'] = is_array($normalizedDay['transfers'] ?? null) ? $normalizedDay['transfers'] : [];
                     $normalizedDay['restaurants'] = is_array($normalizedDay['restaurants'] ?? null) ? $normalizedDay['restaurants'] : [];
                     $normalizedDay['Transfer'] = is_array($normalizedDay['Transfer'] ?? null)
                         ? $normalizedDay['Transfer']
@@ -2498,7 +2551,7 @@ class DayLevelController extends Controller
                         $daysByNumber[$dayNumber] = $normalizedDay;
                     } else {
                         $daysByNumber[$dayNumber] = array_replace($daysByNumber[$dayNumber], $normalizedDay);
-                        foreach (['hotels', 'attractions', 'restaurants', 'services', 'Transfer', 'Guide'] as $bucket) {
+                        foreach (['hotels', 'attractions', 'arrivals', 'departures', 'transfers', 'restaurants', 'services', 'Transfer', 'Guide'] as $bucket) {
                             if (!array_key_exists($bucket, $normalizedDay)) {
                                 continue;
                             }
@@ -2602,10 +2655,13 @@ class DayLevelController extends Controller
                     is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : []
                 ),
                 'attractions' => is_array($dayNode['attractions'] ?? null) ? $dayNode['attractions'] : [],
+                'arrivals'    => is_array($dayNode['arrivals'] ?? null) ? $dayNode['arrivals'] : [],
+                'departures'  => is_array($dayNode['departures'] ?? null) ? $dayNode['departures'] : [],
+                'transfers'   => is_array($dayNode['transfers'] ?? null) ? $dayNode['transfers'] : [],
                 'restaurants' => is_array($dayNode['restaurants'] ?? null) ? $dayNode['restaurants'] : [],
-                'Transfer' => $this->extractDayTransfers($dayNode),
-                'Guide' => $this->extractDayGuides($dayNode),
-                'services' => is_array($dayNode['services'] ?? null) ? $dayNode['services'] : [],
+                'Transfer'    => $this->extractDayTransfers($dayNode),
+                'Guide'       => $this->extractDayGuides($dayNode),
+                'services'    => is_array($dayNode['services'] ?? null) ? $dayNode['services'] : [],
             ];
         }
 
@@ -2772,12 +2828,16 @@ class DayLevelController extends Controller
         }
 
         foreach ((array) ($dayNode['attractions'] ?? []) as $attraction) {
-            if (!is_array($attraction) || !is_array($attraction['transfer'] ?? null)) {
+            if (! is_array($attraction) || trim((string) ($attraction['attraction_id'] ?? '')) === '') {
+                continue;
+            }
+            if (! is_array($attraction['transfer'] ?? null)) {
                 continue;
             }
             $transfer = $attraction['transfer'];
             $transfers[] = [
                 'type' => 'attraction_transfer',
+                'booked_day' => (int) ($attraction['booked_day'] ?? $dayNode['day'] ?? 0),
                 'required' => (string) ($transfer['required'] ?? ''),
                 'transfer_type' => (string) ($transfer['transfer_type'] ?? ''),
                 'city' => (string) ($transfer['city'] ?? ''),
@@ -2793,9 +2853,33 @@ class DayLevelController extends Controller
                 }
                 $transfers[] = [
                     'type' => 'attraction_transfer_additional',
+                    'booked_day' => (int) ($attraction['booked_day'] ?? $dayNode['day'] ?? 0),
                     'city' => (string) ($extra['city'] ?? ''),
                     'pickup_location' => (string) ($extra['pickup_location'] ?? ''),
                     'drop_location' => (string) ($extra['drop_location'] ?? ''),
+                ];
+            }
+        }
+
+        foreach ([
+            'arrivals' => 'arrival',
+            'departures' => 'departure',
+            'transfers' => 'attraction_transfer',
+        ] as $bucket => $legType) {
+            foreach ((array) ($dayNode[$bucket] ?? []) as $leg) {
+                if (! is_array($leg) || ! is_array($leg['transfer'] ?? null)) {
+                    continue;
+                }
+                $transfer = $leg['transfer'];
+                $transfers[] = [
+                    'type' => $legType,
+                    'booked_day' => (int) ($leg['booked_day'] ?? $leg['day'] ?? $dayNode['day'] ?? 0),
+                    'required' => (string) ($transfer['required'] ?? ''),
+                    'transfer_type' => (string) ($transfer['transfer_type'] ?? $legType),
+                    'city' => (string) ($transfer['city'] ?? $leg['city'] ?? ''),
+                    'pickup_location' => (string) ($transfer['pickup_location'] ?? ''),
+                    'drop_location' => (string) ($transfer['drop_location'] ?? ''),
+                    'cost' => (float) ($transfer['cost'] ?? $transfer['transfer_price'] ?? $leg['total_price'] ?? 0),
                 ];
             }
         }
@@ -2805,10 +2889,12 @@ class DayLevelController extends Controller
                 continue;
             }
             $transfer = $service['transfer'];
+            $serviceType = strtolower((string) ($service['service_type'] ?? ''));
             $transfers[] = [
-                'type' => 'service_transfer',
+                'type' => $serviceType === 'restaurant_transfer' ? 'restaurant_transfer' : 'service_transfer',
+                'booked_day' => (int) ($service['booked_day'] ?? $service['day'] ?? $dayNode['day'] ?? 0),
                 'required' => (string) ($transfer['required'] ?? ''),
-                'city' => (string) ($transfer['city'] ?? ''),
+                'city' => (string) ($transfer['city'] ?? $service['city'] ?? ''),
                 'pickup_location' => (string) ($transfer['pickup_location'] ?? ''),
                 'drop_location' => (string) ($transfer['drop_location'] ?? ''),
                 'vehicle_id' => (string) ($transfer['vehicle_id'] ?? ''),
@@ -2846,7 +2932,46 @@ class DayLevelController extends Controller
                 $out[$label] = $hotel;
                 continue;
             }
-            $hotel['night'] = (int) ($hotel['night'] ?? 1);
+            $nights = max(1, (int) ($hotel['night'] ?? 1));
+            $hotel['night'] = $nights;
+            $perNight = (float) ($hotel['price_per_night'] ?? 0);
+            if ($perNight <= 0) {
+                $room = (float) ($hotel['room_price'] ?? 0);
+                $meals = (float) ($hotel['breakfast_price'] ?? 0)
+                    + (float) ($hotel['lunch_price'] ?? 0)
+                    + (float) ($hotel['dinner_price'] ?? 0);
+                $perNight = $room + $meals;
+            }
+            if ($perNight <= 0) {
+                $storedPrice = (float) ($hotel['price'] ?? 0);
+                $perNight = ($storedPrice > 0 && $nights > 1) ? ($storedPrice / $nights) : $storedPrice;
+            }
+            if ($perNight > 0) {
+                $hotel['price_per_night'] = $perNight;
+            }
+            $total = (float) ($hotel['total_price'] ?? 0);
+            if ($total <= 0 && $perNight > 0) {
+                $total = $perNight * $nights;
+            }
+            if ($total > 0) {
+                $hotel['total_price'] = $total;
+                $hotel['price'] = $total;
+            }
+            if (!isset($hotel['checkin_day']) && isset($hotel['day'])) {
+                $hotel['checkin_day'] = (int) $hotel['day'];
+            }
+            $checkin = max(1, (int) ($hotel['checkin_day'] ?? $hotel['day'] ?? 1));
+            if (!isset($hotel['checkout_day'])) {
+                $hotel['checkout_day'] = $checkin + $nights;
+            }
+            if (!isset($hotel['stay_days']) || !is_array($hotel['stay_days'])) {
+                $stayDays = [];
+                $checkout = max($checkin, (int) ($hotel['checkout_day'] ?? ($checkin + $nights)));
+                for ($d = $checkin; $d <= $checkout; $d++) {
+                    $stayDays[] = $d;
+                }
+                $hotel['stay_days'] = $stayDays;
+            }
             $out[$label] = $hotel;
         }
         return $out;

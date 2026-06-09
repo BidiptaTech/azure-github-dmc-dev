@@ -86,9 +86,9 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            {{-- <tr>
                                 <td colspan="7" class="text-center text-muted">No Day Level records found.</td>
-                            </tr>
+                            </tr> --}}
                         @endforelse
                     </tbody>
                 </table>
