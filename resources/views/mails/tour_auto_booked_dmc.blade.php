@@ -112,20 +112,89 @@
                 </div>
 
                 @if(!empty($booked_services) && count($booked_services) > 0)
-                <div style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-radius: 16px; padding: 24px 26px; margin-bottom: 24px; border: 2px solid #c4b5fd;">
-                    <h3 style="font-size: 16px; font-weight: 700; margin: 0 0 12px 0; color: #7c3aed;">
-                        Services booked
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 17px; font-weight: 700; margin: 0 0 16px 0; color: #7c3aed;">
+                        Your itinerary
                     </h3>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 15px; color: #1e293b; line-height: 1.8;">
-                        @foreach($booked_services as $service)
-                        <li>
-                            {{ $service['type'] ?? 'Service' }}: {{ $service['name'] ?? '—' }}
-                            @if(!empty($service['date']))
-                            , {{ $service['date'] }}
-                            @endif
-                        </li>
-                        @endforeach
-                    </ul>
+
+                    @foreach($booked_services as $service)
+                    @php
+                        $accent = $service['accent'] ?? '#8b5cf6';
+                        $currency = $currency_code ?? 'SGD';
+                    @endphp
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 14px; border: 1px solid #e2e8f0; border-left: 4px solid {{ $accent }}; border-radius: 12px; overflow: hidden; background: #ffffff;">
+                        <tr>
+                            <td style="padding: 16px 18px;">
+                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                    <tr>
+                                        <td style="vertical-align: top;">
+                                            <span style="display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: {{ $accent }}; background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px;">
+                                                {{ $service['badge'] ?? strtoupper($service['type'] ?? 'SERVICE') }}
+                                            </span>
+                                            @if(!empty($service['pax']))
+                                            <span style="font-size: 12px; color: #64748b; margin-left: 6px;">{{ $service['pax'] }}</span>
+                                            @endif
+                                            @if(!empty($service['time']))
+                                            <span style="font-size: 12px; color: #64748b; margin-left: 6px;">{{ $service['time'] }}</span>
+                                            @endif
+                                            <div style="font-size: 17px; font-weight: 700; color: #1e293b; margin: 6px 0 2px 0;">
+                                                {{ $service['title'] ?? ($service['name'] ?? '—') }}
+                                            </div>
+                                            @if(!empty($service['subtitle']))
+                                            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">{{ $service['subtitle'] }}</div>
+                                            @endif
+                                            @if(!empty($service['date']) || !empty($service['day']))
+                                            <div style="font-size: 13px; color: #475569; margin-bottom: 10px;">
+                                                @if(!empty($service['date'])){{ $service['date'] }}@endif
+                                                @if(!empty($service['day']))<span style="color: #7c3aed;"> · {{ $service['day'] }}</span>@endif
+                                            </div>
+                                            @endif
+                                        </td>
+                                        @if(!empty($service['price']))
+                                        <td style="vertical-align: top; text-align: right; white-space: nowrap; padding-left: 12px;">
+                                            <div style="font-size: 12px; color: #64748b;">Est.</div>
+                                            <div style="font-size: 16px; font-weight: 700; color: #059669;">{{ $currency }} {{ $service['price'] }}</div>
+                                        </td>
+                                        @endif
+                                    </tr>
+                                </table>
+
+                                @if(!empty($service['lines']) && is_array($service['lines']))
+                                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                                    @foreach($service['lines'] as $line)
+                                    <tr>
+                                        <td style="padding: 4px 0; font-size: 13px; color: #64748b; width: 34%; vertical-align: top;">{{ $line['label'] ?? '' }}</td>
+                                        <td style="padding: 4px 0; font-size: 13px; color: #1e293b; font-weight: 500; vertical-align: top;">{{ $line['value'] ?? '' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </table>
+                                @elseif(!empty($service['details']))
+                                <div style="font-size: 13px; color: #64748b; margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px;">{{ $service['details'] }}</div>
+                                @endif
+                            </td>
+                        </tr>
+                    </table>
+                    @endforeach
+
+                    @if(!empty($total_estimation) && (float) $total_estimation > 0)
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #6ee7b7; border-radius: 12px;">
+                        <tr>
+                            <td style="padding: 16px 20px;">
+                                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                                    <tr>
+                                        <td style="font-size: 15px; font-weight: 600; color: #065f46;">Total estimation</td>
+                                        <td style="text-align: right; font-size: 20px; font-weight: 700; color: #047857;">
+                                            {{ $total_estimation_formatted ?? (($currency_code ?? 'SGD') . ' ' . number_format((float) $total_estimation, 2)) }}
+                                        </td>
+                                    </tr>
+                                </table>
+                                <div style="font-size: 12px; color: #047857; margin-top: 6px;">
+                                    Estimated package total based on booked services. Final invoice may vary.
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    @endif
                 </div>
                 @endif
 
