@@ -1359,6 +1359,9 @@ class HotelController extends Controller
             'event_type' => 'required|string',
             'price' => 'nullable|numeric',
             'surcharge' => 'nullable|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'date_range' => 'required|string',
             'rate_status' => 'nullable|integer',
         ];
@@ -1399,6 +1402,9 @@ class HotelController extends Controller
             'price' => $request->price ? $request->price : $request->surcharge,
             'weekday_price' => 0.00,
             'weekend_price' => 0.00,
+            'breakfast_price' => $request->breakfast_price ?? 0.00,
+            'lunch_price' => $request->lunch_price ?? 0.00,
+            'dinner_price' => $request->dinner_price ?? 0.00,
             'start_date' => $firstDate,
             'end_date' => $lastDate,
             'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1428,6 +1434,9 @@ class HotelController extends Controller
             'weekend_price' => 'required|numeric',
             'double_weekday_price' => 'required|numeric',
             'double_weekend_price' => 'required|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'season_status' => 'nullable|integer',
         ];
         
@@ -1490,6 +1499,9 @@ class HotelController extends Controller
             'weekend_price' => $request->weekend_price,
             'double_weekday_price' => $request->double_weekday_price,
             'double_weekend_price' => $request->double_weekend_price,
+            'breakfast_price' => $request->breakfast_price ?? 0.00,
+            'lunch_price' => $request->lunch_price ?? 0.00,
+            'dinner_price' => $request->dinner_price ?? 0.00,
             'start_date' => $firstDate,
             'end_date' => $lastDate,
             'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1558,6 +1570,9 @@ class HotelController extends Controller
         $rate->price = $request->price;
         $rate->weekday_price = $request->weekday_price ? $request->weekday_price : 0.00;
         $rate->weekend_price = $request->weekend_price ? $request->weekend_price : 0.00;
+        $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+        $rate->lunch_price = $request->lunch_price ?? 0.00;
+        $rate->dinner_price = $request->dinner_price ?? 0.00;
         $rate->start_date = $firstDate;
         $rate->end_date = $lastDate;
         $rate->is_active = $request->rate_status == 1 ? 1 : 0;
@@ -1588,6 +1603,9 @@ class HotelController extends Controller
             'weekend_price' => 'required|numeric|min:0',
             'double_weekday_price' => 'required|numeric',
             'double_weekend_price' => 'required|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'start_date' => 'required|date|before_or_equal:end_date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'season_status' => 'nullable|integer',
@@ -1609,6 +1627,9 @@ class HotelController extends Controller
         $rate->weekend_price = $request->weekend_price;
         $rate->double_weekday_price = $request->double_weekday_price;
         $rate->double_weekend_price = $request->double_weekend_price;
+        $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+        $rate->lunch_price = $request->lunch_price ?? 0.00;
+        $rate->dinner_price = $request->dinner_price ?? 0.00;
         $rate->start_date = $request->start_date;
         $rate->end_date = $request->end_date;
         $rate->is_active = $request->season_status == 1 ? 1 : 0;
