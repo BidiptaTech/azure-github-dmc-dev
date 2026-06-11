@@ -1278,9 +1278,16 @@
                                         <!-- night buttons -->
                                     </div>
                                 
-                                    <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
-                                        <i class="ri-add-line me-1"></i> Add
-                                    </button>
+                                    <div class="d-flex align-items-end" style="gap: 8px;">
+                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <span class="get-price-spinner spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                                            <i class="ri-money-dollar-circle-line me-1"></i> Get Price
+                                        </button>
+
+                                        <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-add-line me-1"></i> Add
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 
@@ -15577,6 +15584,118 @@
             
             console.log('Room type dependent fields cleared');
         }
+
+        // Get Price via HotelPriceHelper (AJAX)
+        window.getHotelPrice = function() {
+            const hotelSelect = document.getElementById('hotelSelect');
+            const roomTypeSelect = document.getElementById('roomTypeSelect');
+            const bedTypeSelect = document.getElementById('bedTypeSelect');
+            const mealPlanSelect = document.getElementById('mealPlanSelect');
+            const selectedPersonsInput = document.getElementById('selectedPersons');
+            const getPriceBtn = document.getElementById('getPriceBtn');
+
+            const hotelUniqueId = hotelSelect ? hotelSelect.value : '';
+            if (!hotelUniqueId) {
+                showNotification('Please select a hotel first.', 'warning');
+                return;
+            }
+
+            // room_id from the selected room type option (data-room-id), fallback to value
+            let roomId = roomTypeSelect ? roomTypeSelect.value : '';
+            if (roomTypeSelect && roomTypeSelect.selectedIndex >= 0) {
+                const roomOpt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                if (roomOpt && roomOpt.dataset && roomOpt.dataset.roomId) {
+                    roomId = roomOpt.dataset.roomId;
+                }
+            }
+            if (!roomId) {
+                showNotification('Please select a room type first.', 'warning');
+                return;
+            }
+
+            // bed_id from the selected bed type option (data-bed-id)
+            let bedId = '';
+            if (bedTypeSelect && bedTypeSelect.selectedIndex >= 0) {
+                const bedOpt = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                if (bedOpt && bedOpt.dataset && bedOpt.dataset.bedId) {
+                    bedId = bedOpt.dataset.bedId;
+                }
+            }
+
+            const mealPlan = mealPlanSelect ? mealPlanSelect.value : '';
+            const pax = parseInt(selectedPersonsInput ? selectedPersonsInput.value : '1') || 1;
+
+            // Build the list of date strings from the selected nights.
+            const selectedNights = document.querySelectorAll('.night-btn.active');
+            if (selectedNights.length === 0) {
+                showNotification('Please select at least one night.', 'warning');
+                return;
+            }
+            const planStart = getHotelNightPlanStart();
+            if (!planStart) {
+                showNotification('Unable to determine the stay start date.', 'warning');
+                return;
+            }
+            const dates = Array.from(selectedNights)
+                .map(btn => parseInt(btn.dataset.night))
+                .sort((a, b) => a - b)
+                .map(night => moment(planStart).add(night - 1, 'days').format('YYYY-MM-DD'));
+
+            // Toggle spinner / disabled state on the button.
+            const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
+            if (spinner) spinner.classList.remove('d-none');
+            if (getPriceBtn) getPriceBtn.disabled = true;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')
+                ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                : '{{ csrf_token() }}';
+
+            fetch('{{ route("get-hotel-price") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    hotel_unique_id: hotelUniqueId,
+                    room_id: roomId,
+                    bed_id: bedId,
+                    meal_plan: mealPlan,
+                    pax: pax,
+                    dates: dates
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.success) {
+                    // Show the calculated grand total in the price field.
+                    const roomPriceDisplay = document.getElementById('roomPriceDisplay');
+                    if (roomPriceDisplay) {
+                        roomPriceDisplay.value = Number(data.grand_total).toFixed(2);
+                        roomPriceDisplay.dataset.manuallyEdited = 'false';
+                    }
+                    window.lastHotelPriceResult = data;
+                    console.log('Hotel price result:', data);
+                    showNotification(
+                        `Price calculated: SGD ${Number(data.grand_total).toFixed(2)} ` +
+                        `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
+                        'success'
+                    );
+                } else {
+                    showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching hotel price:', error);
+                showNotification('Error calculating hotel price.', 'error');
+            })
+            .finally(() => {
+                if (spinner) spinner.classList.add('d-none');
+                if (getPriceBtn) getPriceBtn.disabled = false;
+            });
+        };
 
             // Add Hotel Function
         window.addHotel = function() {
