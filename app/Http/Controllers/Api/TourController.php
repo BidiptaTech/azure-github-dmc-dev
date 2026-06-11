@@ -953,9 +953,9 @@ class TourController extends Controller
                 $checkOutTime = Carbon::createFromFormat('d/m/Y', $tourValidation['check_out']);
                 
                 // Generate tour ID
-                $max_tour_id = Tour::max('tour_id') ?? 0;
-                $tourId = CommonHelper::createId($max_tour_id);
-                $display_id = 'DMC-ORD' . $tourId;
+                // $max_tour_id = Tour::max('tour_id') ?? 0;
+                // $tourId = CommonHelper::createId($max_tour_id);
+                // $display_id = 'DMC-ORD' . $tourId;
                 
                 // Get country names and cities
                 $countryNames = $tourValidation['destination'];
@@ -1063,12 +1063,12 @@ class TourController extends Controller
                 $tour->child = $tourValidation['child'] ?? 0;
                 $tour->infant = $tourValidation['infant'] ?? 0;
                 $tour->agent_id = $agent_id;
-                $tour->tour_id = $tourId;
+                // $tour->tour_id = $tourId;
                 $tour->male_count = $tourValidation['male'];
                 $tour->female_count = $tourValidation['female'];
                 $tour->check_in_time = $checkInTime;
                 $tour->check_out_time = $checkOutTime;
-                $tour->display_id = $display_id;
+                // $tour->display_id = $display_id;
                 // Set initial status based on booking type
                 $tour->tour_status = ($bookingType == 'enquiry') ? "New Enquiry" : "Confirmed";
                 $tour->city = $request->city;
@@ -1078,6 +1078,9 @@ class TourController extends Controller
                 $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
                 $tour->save();
                 $tour->refresh();
+                
+                $tour->display_id = 'DMC-ORD' . $tour->tour_id;
+                $tour->save();
                 
                 // Prepare service response
                 $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
@@ -1197,12 +1200,13 @@ class TourController extends Controller
                         $order->tour_id = $tour_id;
                         $order->data = $validatedData['data'];
                         $order->type = $validatedData['type'];
-                        $order->booking_id = $bookId;
+                        // $order->booking_id = $bookId;
                         $order->status = 1; // Assuming status 1 means active or confirmed
                         $order->bookingType = $bookingType;
                         $order->discount = $commission;
                         $order->markup_percentage = $markup_percentage;
                         $order->save();
+                        $order->refresh();
                         $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                         
                         // Update tour status based on booking type
@@ -1358,12 +1362,13 @@ class TourController extends Controller
                 $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
-                $order->booking_id = $bookId;
+                // $order->booking_id = $bookId;
                 $order->status = 1; // Assuming status 1 means active or confirmed
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                $order->refresh();
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 
                 // Update tour status based on booking type
