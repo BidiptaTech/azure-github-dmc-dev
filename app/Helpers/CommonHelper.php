@@ -1797,8 +1797,12 @@ class CommonHelper
                 'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
                 'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
                 'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
+                'currency_code' => strtoupper(trim((string) ($tourData['currency_code'] ?? 'SGD'))) ?: 'SGD',
+                'total_estimation' => round((float) ($tourData['total_estimation'] ?? 0), 2),
             ];
             $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
+            $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
+                . number_format($emailData['total_estimation'], 2);
 
             $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
