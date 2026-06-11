@@ -1231,6 +1231,11 @@ class ExternalApiReceiveController extends Controller
 
         try {
             $availability = $this->resolvePackageAvailability($payload);
+            $bookedServices = $this->buildBookedServicesForEmail($orders);
+            $totalEstimation = round(array_sum(array_map(
+                static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+                $bookedServices
+            )), 2);
 
             $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
                 'dmc_name' => $senderName,
@@ -1255,7 +1260,9 @@ class ExternalApiReceiveController extends Controller
                 'dmc_label' => $dmcName,
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
                 'booked_at' => now()->format('M d, Y H:i'),
-                'booked_services' => $this->buildBookedServicesForEmail($orders),
+                'booked_services' => $bookedServices,
+                'total_estimation' => $totalEstimation,
+                'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
             ]);
 
             if ($sent !== true) {
@@ -1410,7 +1417,7 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * @return list<array{type: string, name: string, day: ?string, date: ?string, details: ?string}>
+     * @return list<array<string, mixed>>
      */
     protected function buildBookedServicesForEmail(Collection $orders): array
     {
@@ -1421,15 +1428,14 @@ class ExternalApiReceiveController extends Controller
             $typeKey = strtolower((string) ($order->type ?? 'service'));
             $dayNum = $data['external_day'] ?? $data['day'] ?? null;
 
-            $services[] = [
-                'type' => $this->formatOrderTypeLabel($typeKey),
-                'name' => $this->resolveOrderServiceName($typeKey, $data),
-                'day' => $dayNum !== null && $dayNum !== '' ? 'Day ' . (int) $dayNum : null,
-                'date' => $this->formatServiceBookingDateForEmail($typeKey, $data),
-                'details' => $this->buildServiceDetailsForEmail($typeKey, $data),
-                '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
-                '_sort_date' => $this->resolveServiceSortDate($typeKey, $data),
-            ];
+            if (! in_array($typeKey, ['entry_port', 'exit_port'], true)) {
+                $transferCard = $this->buildTransferItineraryFromOptions($typeKey, $data, $dayNum);
+                if ($transferCard !== null) {
+                    $services[] = $transferCard;
+                }
+            }
+
+            $services[] = $this->buildItineraryCardForOrder($typeKey, $data, $dayNum);
         }
 
         usort($services, static function (array $a, array $b): int {
@@ -1438,14 +1444,425 @@ class ExternalApiReceiveController extends Controller
                 return $dayCmp;
             }
 
-            return strcmp((string) ($a['_sort_date'] ?? ''), (string) ($b['_sort_date'] ?? ''));
+            $dateCmp = strcmp((string) ($a['_sort_date'] ?? ''), (string) ($b['_sort_date'] ?? ''));
+            if ($dateCmp !== 0) {
+                return $dateCmp;
+            }
+
+            return ($a['_sort_order'] ?? 0) <=> ($b['_sort_order'] ?? 0);
         });
 
         return array_map(static function (array $service): array {
-            unset($service['_sort_day'], $service['_sort_date']);
+            unset($service['_sort_day'], $service['_sort_date'], $service['_sort_order']);
 
             return $service;
         }, $services);
+    }
+
+    protected function resolveItineraryCurrency(array $payload, array $primaryDmc): string
+    {
+        $candidates = [
+            $payload['currency'] ?? null,
+            $payload['currency_code'] ?? null,
+            $primaryDmc['currency'] ?? null,
+        ];
+
+        foreach ($candidates as $code) {
+            $code = strtoupper(trim((string) $code));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        $country = strtolower($this->resolveDayLevelCountry($payload, $primaryDmc));
+
+        return match (true) {
+            str_contains($country, 'singapore') => 'SGD',
+            str_contains($country, 'india') => 'INR',
+            str_contains($country, 'thailand') => 'THB',
+            str_contains($country, 'malaysia') => 'MYR',
+            str_contains($country, 'indonesia') => 'IDR',
+            str_contains($country, 'united arab') || str_contains($country, 'dubai') => 'AED',
+            default => 'USD',
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildItineraryCardForOrder(string $typeKey, array $data, $dayNum): array
+    {
+        $badge = $this->formatItineraryBadge($typeKey);
+        $name = $this->resolveOrderServiceName($typeKey, $data);
+        $date = $this->formatServiceBookingDateForEmail($typeKey, $data);
+        $time = $this->resolveServiceTimeForEmail($typeKey, $data);
+        $pax = $this->resolveServicePaxLabel($typeKey, $data);
+        $priceValue = $this->resolveOrderPrice($data);
+        $lines = $this->buildItineraryLinesForOrder($typeKey, $data);
+
+        return [
+            'badge' => $badge,
+            'accent' => $this->itineraryAccentColor($typeKey),
+            'type' => $this->formatOrderTypeLabel($typeKey),
+            'title' => $name,
+            'subtitle' => $this->resolveItinerarySubtitle($typeKey, $data),
+            'name' => $name,
+            'day' => $dayNum !== null && $dayNum !== '' ? 'Day ' . (int) $dayNum : null,
+            'date' => $date,
+            'time' => $time,
+            'pax' => $pax,
+            'details' => $this->buildServiceDetailsForEmail($typeKey, $data),
+            'lines' => $lines,
+            'price_value' => $priceValue,
+            'price' => $priceValue > 0 ? number_format($priceValue, 2) : null,
+            '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
+            '_sort_date' => $this->resolveServiceSortDate($typeKey, $data),
+            '_sort_order' => 2,
+        ];
+    }
+
+    /**
+     * @return ?array<string, mixed>
+     */
+    protected function buildTransferItineraryFromOptions(string $parentType, array $data, $dayNum): ?array
+    {
+        $transfer = $data['transfer_options'] ?? null;
+        if (! is_array($transfer) || empty($transfer['transfer_required'])) {
+            return null;
+        }
+
+        $pickup = trim((string) (
+            $transfer['pickup_location_name']
+            ?? $transfer['pickup_location']
+            ?? $transfer['pickup']
+            ?? ''
+        ));
+        $dropoff = trim((string) (
+            $transfer['destination']
+            ?? $transfer['drop_location_name']
+            ?? $transfer['dropoff']
+            ?? ''
+        ));
+
+        if ($pickup === '' && $dropoff === '') {
+            return null;
+        }
+
+        $transferType = trim((string) ($transfer['type'] ?? 'Private'));
+        $vehicle = trim((string) ($transfer['vehicle_name'] ?? ''));
+        $priceValue = (float) ($transfer['price'] ?? $transfer['cost'] ?? 0);
+        $time = trim((string) ($transfer['pickup_time'] ?? ''));
+        $passengers = $transfer['passengers'] ?? null;
+
+        $lines = array_values(array_filter([
+            $pickup !== '' ? ['label' => 'From', 'value' => $pickup] : null,
+            $dropoff !== '' ? ['label' => 'To', 'value' => $dropoff] : null,
+            $transferType !== '' ? ['label' => 'Transfer type', 'value' => $transferType . ' Transfer'] : null,
+            $vehicle !== '' ? ['label' => 'Vehicle', 'value' => $vehicle] : null,
+            ! empty($transfer['way']) ? ['label' => 'Way', 'value' => (string) $transfer['way']] : null,
+            $passengers ? ['label' => 'Passengers', 'value' => (string) $passengers] : null,
+            $parentType === 'hotel' ? ['label' => 'Linked to', 'value' => 'Hotel arrival / departure'] : null,
+        ]));
+
+        return [
+            'badge' => 'ARRIVAL',
+            'accent' => '#3b82f6',
+            'type' => 'Transfer',
+            'title' => 'Transfer Service',
+            'subtitle' => 'Shared / private transfer for your package',
+            'name' => 'Transfer Service',
+            'day' => $dayNum !== null && $dayNum !== '' ? 'Day ' . (int) $dayNum : null,
+            'date' => $this->formatServiceBookingDateForEmail($parentType, $data),
+            'time' => $time !== '' ? $time : null,
+            'pax' => $this->formatPaxLabel($passengers, $data),
+            'details' => null,
+            'lines' => $lines,
+            'price_value' => $priceValue,
+            'price' => $priceValue > 0 ? number_format($priceValue, 2) : null,
+            '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
+            '_sort_date' => $this->resolveServiceSortDate($parentType, $data),
+            '_sort_order' => 1,
+        ];
+    }
+
+    protected function formatItineraryBadge(string $type): string
+    {
+        return match ($type) {
+            'entry_port' => 'ARRIVAL',
+            'exit_port' => 'DEPARTURE',
+            'hotel' => 'HOTEL',
+            'guide' => 'GUIDE',
+            'restaurant' => 'RESTAURANT',
+            'attraction' => 'ATTRACTION',
+            'vehicle', 'transfer', 'travel_point', 'travel_hourly', 'local_transport' => 'TRANSFER',
+            default => strtoupper(str_replace('_', ' ', $type)),
+        };
+    }
+
+    protected function itineraryAccentColor(string $type): string
+    {
+        return match ($type) {
+            'entry_port' => '#3b82f6',
+            'exit_port' => '#6366f1',
+            'hotel' => '#f59e0b',
+            'guide' => '#06b6d4',
+            'restaurant' => '#10b981',
+            'attraction' => '#ec4899',
+            default => '#8b5cf6',
+        };
+    }
+
+    protected function resolveItinerarySubtitle(string $type, array $data): ?string
+    {
+        return match ($type) {
+            'hotel' => 'Accommodation',
+            'guide' => 'Professional tour guide service',
+            'restaurant' => 'Dining experience',
+            'attraction' => 'Sightseeing & tickets',
+            'entry_port' => 'Airport / port arrival transfer',
+            'exit_port' => 'Departure transfer',
+            'vehicle', 'transfer', 'travel_point', 'travel_hourly', 'local_transport' => 'Transfer service',
+            default => null,
+        };
+    }
+
+    protected function resolveOrderPrice(array $data): float
+    {
+        foreach ([
+            $data['totalPrice'] ?? null,
+            $data['price'] ?? null,
+            $data['mealPrice'] ?? null,
+            $data['prices']['price'] ?? null,
+            $data['total_price'] ?? null,
+        ] as $candidate) {
+            if (is_numeric($candidate) && (float) $candidate > 0) {
+                return round((float) $candidate, 2);
+            }
+        }
+
+        return 0.0;
+    }
+
+    protected function resolveServiceTimeForEmail(string $type, array $data): ?string
+    {
+        $candidates = match ($type) {
+            'hotel' => [
+                $data['hotelDetails']['checkInTime'] ?? null,
+                $data['check_in_time'] ?? null,
+            ],
+            'restaurant', 'attraction' => [
+                $data['visitTime'] ?? null,
+                $data['time_slot'] ?? null,
+            ],
+            'guide' => [
+                $data['pickup_time'] ?? null,
+                $data['visitTime'] ?? null,
+                $data['time'] ?? null,
+            ],
+            'entry_port', 'exit_port', 'vehicle', 'transfer', 'travel_point', 'travel_hourly', 'local_transport' => [
+                $data['entrytime'] ?? null,
+                $data['time'] ?? null,
+                $data['pickup_time'] ?? null,
+                $data['transfer_options']['pickup_time'] ?? null,
+            ],
+            default => [$data['visitTime'] ?? null, $data['time'] ?? null],
+        };
+
+        foreach ($candidates as $time) {
+            $time = trim((string) $time);
+            if ($time !== '') {
+                return $time;
+            }
+        }
+
+        return null;
+    }
+
+    protected function resolveServicePaxLabel(string $type, array $data): ?string
+    {
+        if (in_array($type, ['entry_port', 'exit_port', 'vehicle', 'transfer', 'travel_point', 'travel_hourly', 'local_transport'], true)) {
+            return $this->formatPaxLabel($data['passengers'] ?? null, $data);
+        }
+
+        $adults = (int) ($data['adultCount'] ?? $data['adults'] ?? $data['selected_persons'] ?? 0);
+        $children = (int) ($data['childCount'] ?? $data['children'] ?? 0);
+
+        if ($type === 'hotel') {
+            $room = is_array($data['rooms'][0] ?? null) ? $data['rooms'][0] : [];
+            $bed = is_array($room['beds'][0] ?? null) ? $room['beds'][0] : [];
+            $headCount = (int) ($bed['head_count'] ?? $room['selected_persons'] ?? 0);
+            if ($headCount > 0) {
+                return $headCount . ' pax';
+            }
+        }
+
+        if ($adults > 0 || $children > 0) {
+            $parts = [];
+            if ($adults > 0) {
+                $parts[] = $adults . ' adult' . ($adults > 1 ? 's' : '');
+            }
+            if ($children > 0) {
+                $parts[] = $children . ' child' . ($children > 1 ? 'ren' : '');
+            }
+
+            return implode(', ', $parts);
+        }
+
+        return null;
+    }
+
+    protected function formatPaxLabel($passengers, array $data): ?string
+    {
+        if (is_numeric($passengers) && (int) $passengers > 0) {
+            return (int) $passengers . ' pax';
+        }
+
+        $adults = (int) ($data['adultCount'] ?? $data['adults'] ?? 0);
+        if ($adults > 0) {
+            return $adults . ' pax';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<array{label: string, value: string}>
+     */
+    protected function buildItineraryLinesForOrder(string $type, array $data): array
+    {
+        $lines = [];
+
+        switch ($type) {
+            case 'hotel':
+                $hotelDetails = is_array($data['hotelDetails'] ?? null) ? $data['hotelDetails'] : [];
+                $room = is_array($data['rooms'][0] ?? null) ? $data['rooms'][0] : [];
+                $bed = is_array($room['beds'][0] ?? null) ? $room['beds'][0] : [];
+
+                if (! empty($hotelDetails['location'])) {
+                    $lines[] = ['label' => 'Location', 'value' => (string) $hotelDetails['location']];
+                }
+                if (is_array($data['bookingDate'] ?? null) && count($data['bookingDate']) >= 2) {
+                    $checkIn = $this->parseDate($data['bookingDate'][0], Carbon::today())->format('M d, Y');
+                    $checkOut = $this->parseDate($data['bookingDate'][1], Carbon::today())->format('M d, Y');
+                    $lines[] = ['label' => 'Check-in', 'value' => $checkIn];
+                    $lines[] = ['label' => 'Check-out', 'value' => $checkOut];
+                    $nights = max(1, $this->parseDate($data['bookingDate'][0], Carbon::today())
+                        ->diffInDays($this->parseDate($data['bookingDate'][1], Carbon::today())));
+                    $lines[] = ['label' => 'Nights', 'value' => (string) $nights];
+                }
+                if (! empty($hotelDetails['checkInTime'])) {
+                    $lines[] = ['label' => 'Hotel check-in time', 'value' => (string) $hotelDetails['checkInTime']];
+                }
+                if (! empty($hotelDetails['checkOutTime'])) {
+                    $lines[] = ['label' => 'Hotel check-out time', 'value' => (string) $hotelDetails['checkOutTime']];
+                }
+                if (! empty($room['room_type'])) {
+                    $roomLabel = (string) $room['room_type'];
+                    if (! empty($room['number_of_rooms'])) {
+                        $roomLabel = 'Room 1: ' . $roomLabel;
+                    }
+                    $lines[] = ['label' => 'Room', 'value' => $roomLabel];
+                }
+                if (! empty($room['number_of_rooms'])) {
+                    $count = (int) $room['number_of_rooms'];
+                    $lines[] = ['label' => 'Rooms', 'value' => $count . ' room' . ($count > 1 ? 's' : '')];
+                }
+                if (! empty($bed['bed_type'])) {
+                    $bedLine = (string) $bed['bed_type'];
+                    if (! empty($bed['head_count'])) {
+                        $bedLine .= ' (' . (int) $bed['head_count'] . ' pax)';
+                    }
+                    $lines[] = ['label' => 'Bed', 'value' => $bedLine];
+                }
+                $meal = $bed['selectedMeals']['meal_1']['type'] ?? ($bed['mealTypes'][0] ?? null);
+                if (is_string($meal) && trim($meal) !== '') {
+                    $lines[] = ['label' => 'Meal plan', 'value' => ucwords(str_replace('_', ' ', trim($meal)))];
+                }
+                break;
+
+            case 'attraction':
+                if (! empty($data['ticketName'])) {
+                    $lines[] = ['label' => 'Ticket', 'value' => (string) $data['ticketName']];
+                }
+                if (! empty($data['visitTime'])) {
+                    $lines[] = ['label' => 'Visit time', 'value' => (string) $data['visitTime']];
+                }
+                if (! empty($data['Selection'])) {
+                    $lines[] = ['label' => 'Transport', 'value' => (string) $data['Selection']];
+                }
+                break;
+
+            case 'restaurant':
+                if (! empty($data['mealType'])) {
+                    $lines[] = ['label' => 'Meal', 'value' => (string) $data['mealType']];
+                }
+                if (! empty($data['mealSpecificType'])) {
+                    $lines[] = ['label' => 'Dish / menu', 'value' => (string) $data['mealSpecificType']];
+                }
+                if (! empty($data['visitTime'])) {
+                    $lines[] = ['label' => 'Time', 'value' => (string) $data['visitTime']];
+                }
+                break;
+
+            case 'guide':
+                $languages = $data['languages'] ?? $data['guide_languages'] ?? $data['language'] ?? null;
+                if (is_array($languages)) {
+                    $languages = implode(', ', array_filter(array_map('strval', $languages)));
+                }
+                if (is_string($languages) && trim($languages) !== '') {
+                    $lines[] = ['label' => 'Languages', 'value' => trim($languages)];
+                }
+                $duration = $data['duration'] ?? $data['hours'] ?? $data['custom_hours'] ?? null;
+                if ($duration !== null && $duration !== '') {
+                    $lines[] = ['label' => 'Duration', 'value' => is_numeric($duration) ? $duration . ' hour(s)' : (string) $duration];
+                }
+                if (! empty($data['pickup_time'])) {
+                    $lines[] = ['label' => 'Pickup time', 'value' => (string) $data['pickup_time']];
+                }
+                break;
+
+            case 'entry_port':
+            case 'exit_port':
+            case 'vehicle':
+            case 'transfer':
+            case 'travel_point':
+            case 'travel_hourly':
+            case 'local_transport':
+                $pickup = trim((string) (
+                    $data['entrypickup'] ?? $data['pickup'] ?? $data['pickup_location_name']
+                    ?? ($data['transfer_options']['pickup_location_name'] ?? '')
+                ));
+                $dropoff = trim((string) (
+                    $data['entrydropoff'] ?? $data['dropoff'] ?? $data['drop_location_name']
+                    ?? ($data['transfer_options']['destination'] ?? '')
+                ));
+                if ($pickup !== '') {
+                    $lines[] = ['label' => 'From', 'value' => $pickup];
+                }
+                if ($dropoff !== '') {
+                    $lines[] = ['label' => 'To', 'value' => $dropoff];
+                }
+                $flightNo = $data['arrival_flight_no']
+                    ?? ($data['entry_port_flight']['flight_no'] ?? null)
+                    ?? ($data['flight_number'] ?? null);
+                if ($flightNo) {
+                    $lines[] = ['label' => 'Flight / transport no.', 'value' => (string) $flightNo];
+                }
+                $transferType = $data['type'] ?? $data['vehicles_name'] ?? ($data['transfer_options']['type'] ?? null);
+                if ($transferType) {
+                    $lines[] = ['label' => 'Transfer type', 'value' => (string) $transferType];
+                }
+                if (! empty($data['vehicles_name']) || ! empty($data['vehicle_name'])) {
+                    $lines[] = ['label' => 'Vehicle', 'value' => (string) ($data['vehicles_name'] ?? $data['vehicle_name'])];
+                }
+                break;
+        }
+
+        if (! empty($data['remarks'])) {
+            $lines[] = ['label' => 'Remarks', 'value' => (string) $data['remarks']];
+        }
+
+        return $lines;
     }
 
     protected function formatServiceBookingDateForEmail(string $type, array $data): ?string
