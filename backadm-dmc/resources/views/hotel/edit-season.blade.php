@@ -55,6 +55,33 @@
                               <input value="{{$rate->double_weekend_price}}" type="number" name="double_weekend_price" class="form-control" placeholder="Enter Base weekend price">
                         </div>
 
+                        <!-- Breakfast Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong></label>
+                           <input value="{{$rate->breakfast_price}}" type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price">
+                           @error('breakfast_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Lunch Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="lunch_price" class="form-label"><strong>Lunch Price</strong></label>
+                           <input value="{{$rate->lunch_price}}" type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price">
+                           @error('lunch_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Dinner Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="dinner_price" class="form-label"><strong>Dinner Price</strong></label>
+                           <input value="{{$rate->dinner_price}}" type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price">
+                           @error('dinner_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
                         <!-- Start Date -->
                         <div class="col-md-3 mb-3">
                            <label for="start_date" class="form-label"><strong>Start Date</strong><span class="text-danger">*</span></label>
