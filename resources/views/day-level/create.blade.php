@@ -6,45 +6,135 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
     <style>
         :root {
-            --form-brand: #667eea;
-            --form-brand-end: #764ba2;
-            --form-brand-hover: #5a67d8;
-            --form-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --form-gradient-page: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);
-            --form-gradient-teal: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);
-            --form-gradient-info: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);
-            --form-gradient-success: linear-gradient(135deg, #198754 0%, #20c997 100%);
-            --form-header-bg: #667eea;
+            --form-brand: #2f55d4;
+            --form-brand-end: #1e3a8a;
+            --form-brand-hover: #2545b8;
+            --form-gradient-primary: linear-gradient(135deg, #1e3a8a 0%, #2f55d4 100%);
+            --form-gradient-page: linear-gradient(135deg, #0f2557 0%, #1e3a8a 55%, #2f55d4 100%);
+            --form-gradient-teal: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+            --form-gradient-info: linear-gradient(135deg, #155e75 0%, #0e7490 100%);
+            --form-gradient-success: linear-gradient(135deg, #14532d 0%, #166534 100%);
+            --form-header-bg: #1e3a8a;
             --form-danger: #dc3545;
             --form-danger-hover: #bb2d3b;
-            --form-secondary: #8592a3;
-            --form-secondary-hover: #6c757d;
-            --form-label-color: #495057;
-            --form-border: #dee2e6;
-            --form-panel-bg: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%);
+            --form-secondary: #64748b;
+            --form-secondary-hover: #475569;
+            --form-label-color: #334155;
+            --form-border: #d8dee9;
+            --form-panel-bg: linear-gradient(135deg, #f8fafc 0%, #eef3fb 100%);
+            /* Compact density (~75% feel at 100% zoom) */
+            --dl-field-h: 32px;
+            --dl-field-fs: 0.8125rem;
+            --dl-label-fs: 0.75rem;
+            --dl-btn-fs: 0.75rem;
+            --dl-radius: 6px;
+            --dl-card-pad: 0.95rem;
+            --dl-section-pad: 0.75rem 1rem;
+            --dl-label-offset: calc(0.2rem + 1.05em);
+        }
+        #dayForm {
+            font-size: var(--dl-field-fs);
+        }
+        #dayForm .g-2,
+        #dayForm .g-3 {
+            --bs-gutter-x: 0.5rem;
+            --bs-gutter-y: 0.5rem;
         }
         #dayForm .form-label {
             color: var(--form-label-color);
-            font-size: 0.875rem;
+            font-size: var(--dl-label-fs);
             font-weight: 600;
+            margin-bottom: 0.2rem;
+            line-height: 1.2;
         }
         #dayForm .form-control,
-        #dayForm .form-select,
-        .select2-container .select2-selection--single {
-            min-height: 40px;
+        #dayForm .form-select {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            padding: 0.25rem 0.5rem;
             border: 1px solid var(--form-border);
+            border-radius: var(--dl-radius);
+            font-size: var(--dl-field-fs);
+            line-height: 1.25;
+        }
+        #dayForm .input-group.price-input-group {
+            height: var(--dl-field-h);
+            min-height: var(--dl-field-h);
+            flex-wrap: nowrap;
+        }
+        #dayForm .input-group.price-input-group .input-group-text {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            padding: 0 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            border-radius: var(--dl-radius) 0 0 var(--dl-radius);
+            display: flex;
+            align-items: center;
+        }
+        #dayForm .input-group.price-input-group .form-control {
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
+            border-radius: 0 var(--dl-radius) var(--dl-radius) 0;
+            padding: 0.25rem 0.45rem;
+        }
+        #dayForm .select2-container {
+            width: 100% !important;
+        }
+        #dayForm .select2-container .select2-selection--single {
+            min-height: var(--dl-field-h) !important;
+            height: var(--dl-field-h) !important;
+            border: 1px solid var(--form-border) !important;
+            border-radius: var(--dl-radius) !important;
+            font-size: var(--dl-field-fs);
+            padding: 0 !important;
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: calc(var(--dl-field-h) - 2px) !important;
+            padding-left: 0.5rem !important;
+            padding-right: 1.5rem !important;
+            font-size: var(--dl-field-fs);
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: calc(var(--dl-field-h) - 2px) !important;
+            top: 1px !important;
+        }
+        #dayForm .select2-container--default .select2-selection--single .select2-selection__clear {
+            margin-right: 1.25rem;
+            font-size: 0.85rem;
+        }
+        #dayForm .btn {
+            min-height: var(--dl-field-h);
+            padding: 0.2rem 0.65rem;
+            font-size: var(--dl-btn-fs);
+            line-height: 1.2;
+        }
+        #dayForm .align-items-end > [class*="col-"].d-flex > .btn,
+        #dayForm .align-items-end > [class*="col-"] > .btn.w-100.mt-4,
+        #dayForm .align-items-end > [class*="col-"] > .btn.w-100 {
+            margin-top: var(--dl-label-offset) !important;
+            width: 100%;
+        }
+        #dayForm .hotels-add-btn,
+        #dayForm .align-items-end > [class*="col-"]:not(.d-flex) > .btn.w-100 {
+            margin-top: 0 !important;
+        }
+        .section-header-icon {
+            width: 28px;
+            height: 28px;
             border-radius: 8px;
-            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.95rem;
         }
-        .select2-container .select2-selection--single {
-            height: 40px;
-            padding-top: 5px;
+        .section-header-icon--light {
+            background: rgba(255, 255, 255, 0.2);
         }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 36px;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__clear {
-            margin-right: 16px;
+        .section-header-icon--muted {
+            background: rgba(73, 80, 87, 0.12);
+            color: #495057;
         }
         .day-tab-btn.active {
             background: var(--form-brand);
@@ -84,9 +174,9 @@
             background: #f0f4ff;
         }
         .modern-table-wrap {
-            border: 1px solid rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(47, 85, 212, 0.15);
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
+            box-shadow: 0 2px 8px rgba(47, 85, 212, 0.08);
             overflow: hidden;
         }
         .sketch-card {
@@ -97,13 +187,19 @@
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
         #dayForm .sketch-card > .card-body {
-            padding: 1.75rem;
+            padding: var(--dl-card-pad);
             background: #fff;
+        }
+        .stp-page-banner {
+            margin-bottom: 0.75rem !important;
         }
         .stp-page-banner .card-header {
             background: var(--form-gradient-page);
             border: none;
-            padding: 1.25rem 1.75rem;
+            padding: 0.75rem 1rem;
+        }
+        .stp-page-banner h4 {
+            font-size: 1.1rem;
         }
         .stp-page-banner h4,
         .stp-page-banner .banner-subtitle {
@@ -114,9 +210,11 @@
             font-size: 0.85rem;
         }
         .stp-back-btn {
-            border-radius: 8px;
+            border-radius: var(--dl-radius);
             font-weight: 600;
-            padding: 0.5rem 1.25rem;
+            padding: 0.3rem 0.85rem;
+            font-size: var(--dl-btn-fs);
+            min-height: var(--dl-field-h);
             background: rgba(255, 255, 255, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.6);
             color: #495057;
@@ -129,8 +227,12 @@
         #dayForm .sketch-card .card-header,
         #dayForm .modern-section-header {
             border: none;
-            padding: 1.15rem 1.5rem;
+            padding: var(--dl-section-pad);
             color: #fff;
+        }
+        #dayForm .sketch-card .card-header strong,
+        #dayForm .modern-section-header strong {
+            font-size: 0.9rem;
         }
         #dayForm .dmc-form-section .card-header,
         #dayForm .card.attraction-day-section > .card-header {
@@ -151,16 +253,21 @@
         #dayForm .hotels-section .card-header .section-subtitle {
             opacity: 0.75;
         }
-        #dayForm .day-card .day-header-primary { background: var(--form-gradient-primary); }
-        #dayForm .day-card .day-header-success { background: var(--form-gradient-success); }
-        #dayForm .day-card .day-header-warning { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
-        #dayForm .day-card .day-header-danger { background: linear-gradient(135deg, #dc3545 0%, #e35d6a 100%); }
-        #dayForm .day-card .day-header-info { background: var(--form-gradient-info); }
-        #dayForm .day-card .day-header-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6f42c1 100%); }
+        /* Light professional day headers */
+        #dayForm .day-card .day-header-primary,
+        #dayForm .day-card .day-header-success,
+        #dayForm .day-card .day-header-warning,
+        #dayForm .day-card .day-header-danger,
+        #dayForm .day-card .day-header-info,
+        #dayForm .day-card .day-header-purple { background: #f6f8fc; }
+        #dayForm .day-card .card-header { letter-spacing: 0.01em; }
         #dayForm .day-card-header {
-            color: #fff;
-            border-bottom: 0;
+            color: #1f2d4d;
+            border-bottom: 1px solid #e6ebf4;
+            border-left: 3px solid var(--form-brand);
         }
+        #dayForm .day-card .card-header strong { color: #1f2d4d !important; }
+        #dayForm .day-card .card-header .small { color: #64748b !important; }
         #dayForm .modern-section-header strong,
         #dayForm .card-header strong,
         #dayForm .card-header .text-white {
@@ -171,53 +278,162 @@
         }
         .day-card {
             border: 0;
-            box-shadow: 0 0.45rem 1.25rem rgba(67, 89, 113, 0.10);
+            box-shadow: 0 0.25rem 0.75rem rgba(67, 89, 113, 0.08);
             overflow: hidden;
-            margin-bottom: 1.75rem !important;
+            margin-bottom: 0.75rem !important;
         }
         .day-card > .card-body {
-            padding-top: 1.75rem !important;
+            padding: var(--dl-card-pad) !important;
         }
         #dayWiseServiceBlocks {
-            padding-top: 1.25rem;
+            padding-top: 0.5rem;
         }
-        .day-service-transfer-panel {
-            border: 1px solid rgba(102, 126, 234, 0.22);
+        /* Grouped service sections: light, compact panels (service + its transfer share one grid) */
+        .day-service-group {
+            border: 1px solid #e6ebf4;
             border-radius: 10px;
-            background: var(--form-panel-bg);
-            padding: 1rem 1.15rem 1.1rem;
-            margin-top: 0.35rem;
+            background: #fff;
+            padding: 0.6rem 0.7rem 0.65rem;
+            margin-bottom: 0.6rem;
+        }
+        .day-service-group__header {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px dashed #e6ebf4;
+        }
+        .day-service-group__header strong {
+            font-size: 0.82rem;
+            color: #1f2d4d;
+            letter-spacing: 0.01em;
+        }
+        .day-service-group__hint {
+            font-size: 0.68rem;
+            color: #8492a6;
+            margin-left: auto;
+        }
+        .day-service-group__badge {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            flex-shrink: 0;
+        }
+        .group-attraction { border-left: 3px solid #93a8f4; }
+        .group-attraction .day-service-group__badge { background: #eef2ff; }
+        .group-restaurant { border-left: 3px solid #7fd8c4; }
+        .group-restaurant .day-service-group__badge { background: #e6f7f1; }
+        .group-arrival { border-left: 3px solid #8fc9f2; }
+        .group-arrival .day-service-group__badge { background: #e8f4fd; }
+        .group-departure { border-left: 3px solid #f2c98f; }
+        .group-departure .day-service-group__badge { background: #fdf3e4; }
+        .day-service-transfer-panel {
+            border: 1px dashed #dbe3f0;
+            border-radius: var(--dl-radius);
+            background: #f8fafd;
+            padding: 0.55rem 0.65rem 0.6rem;
+            margin-top: 0.55rem;
         }
         .day-service-transfer-panel__header {
             display: flex;
             align-items: flex-start;
-            gap: 0.65rem;
-            margin-bottom: 0.85rem;
-            padding-bottom: 0.65rem;
-            border-bottom: 1px solid rgba(102, 126, 234, 0.12);
+            gap: 0.45rem;
+            margin-bottom: 0.45rem;
+        }
+        .day-service-transfer-panel__header strong {
+            font-size: 0.78rem;
+            color: #3c4d6d;
+        }
+        .day-service-transfer-panel__header .small {
+            font-size: 0.68rem !important;
         }
         .day-service-transfer-panel__icon {
-            width: 2rem;
-            height: 2rem;
-            border-radius: 8px;
+            width: 1.4rem;
+            height: 1.4rem;
+            border-radius: 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 0.75rem;
             flex-shrink: 0;
         }
         .attraction-transfer-panel .day-service-transfer-panel__icon {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
+            background: #eef2ff;
         }
         .restaurant-transfer-panel .day-service-transfer-panel__icon {
-            background: linear-gradient(135deg, #20c997 0%, #198754 100%);
-            color: #fff;
+            background: #e6f7f1;
         }
+        .day-group-msg {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.35rem 0.6rem;
+            border-radius: 8px;
+            background: #fff8e6;
+            border: 1px solid #f3dfae;
+            color: #8a6116;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+        .day-group-msg.show { display: block; }
         .day-airport-transfer-wrap {
-            margin-top: 0.75rem;
-            padding-top: 0.5rem;
-            border-top: 1px dashed rgba(102, 126, 234, 0.25);
+            margin-top: 0.6rem;
+        }
+        /* Added-services listing */
+        .day-items-table td { vertical-align: middle; }
+        .item-type-badge {
+            display: inline-block;
+            padding: 0.22rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+        .item-type-badge--attraction { background: #eef2ff; color: #3a56c5; }
+        .item-type-badge--restaurant { background: #e6f7f1; color: #0f766e; }
+        .item-type-badge--arrival { background: #e8f4fd; color: #0b6aa2; }
+        .item-type-badge--departure { background: #fdf3e4; color: #9a6b1a; }
+        .item-type-badge--transfer { background: #eef1f6; color: #51607a; }
+        .item-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1f2d4d;
+            line-height: 1.25;
+        }
+        .item-meta {
+            font-size: 0.72rem;
+            color: #8492a6;
+            margin-top: 0.1rem;
+        }
+        .item-price-tag {
+            display: inline-block;
+            margin-top: 0.25rem;
+            margin-right: 0.25rem;
+            padding: 0.12rem 0.45rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .item-price-tag--meal { background: #eef2ff; color: #3a56c5; }
+        .item-price-tag--transfer { background: #e6f7f1; color: #0f766e; }
+        .item-route {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            font-size: 0.74rem;
+            color: #3c4d6d;
+            line-height: 1.3;
+        }
+        .item-route-stop { max-width: 16rem; }
+        .item-route-arrow {
+            color: #9aa7bd;
+            flex-shrink: 0;
         }
         #dayForm .btn,
         #packagePreviewModal .btn {
@@ -242,7 +458,7 @@
             color: #fff !important;
             border-color: transparent !important;
             background: var(--form-gradient-primary) !important;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+            box-shadow: 0 4px 12px rgba(47, 85, 212, 0.35);
             transform: translateY(-1px);
         }
         #dayForm .btn-primary,
@@ -250,7 +466,7 @@
             color: #fff !important;
             border: none !important;
             background: var(--form-gradient-primary) !important;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+            box-shadow: 0 4px 12px rgba(47, 85, 212, 0.35);
         }
         #dayForm .btn-primary:hover,
         #dayForm .btn-primary:focus,
@@ -259,8 +475,8 @@
         #packagePreviewModal .btn-primary:focus,
         #packagePreviewModal .btn-primary:active {
             color: #fff !important;
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.45);
+            background: linear-gradient(135deg, #16306e 0%, #2545b8 100%) !important;
+            box-shadow: 0 6px 16px rgba(30, 58, 138, 0.35);
             transform: translateY(-1px);
         }
         #dayForm .btn-outline-danger {
@@ -311,8 +527,9 @@
             margin-left: 0;
         }
         #dayForm .btn-icon {
-            width: 2rem;
-            height: 2rem;
+            width: 1.65rem;
+            height: 1.65rem;
+            min-height: 1.65rem;
             padding: 0;
             display: inline-flex;
             align-items: center;
@@ -324,17 +541,25 @@
             stroke: currentColor;
         }
         .day-card .day-card-header {
-            color: #fff;
+            color: #1f2d4d;
         }
         .day-pill {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 2.25rem;
-            height: 2.25rem;
+            min-width: 1.65rem;
+            height: 1.65rem;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.18);
+            background: #e8edfb;
+            color: var(--form-brand);
             font-weight: 700;
+            font-size: 0.8rem;
+        }
+        .day-card-header strong {
+            font-size: 0.9rem;
+        }
+        .day-card-header .small {
+            font-size: 0.7rem !important;
         }
         .detail-chip {
             display: inline-block;
@@ -342,17 +567,18 @@
             border-radius: 999px;
             background: #f0f4ff;
             color: var(--form-brand);
-            border: 1px solid rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(47, 85, 212, 0.2);
             font-weight: 600;
             margin: 0.1rem 0.15rem 0.1rem 0;
         }
         .day-card .fw-semibold.text-primary {
             color: var(--form-brand) !important;
             background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
-            border: 1px solid rgba(102, 126, 234, 0.15);
-            border-radius: 8px;
-            padding: 0.5rem 0.85rem;
-            font-size: 0.9rem;
+            border: 1px solid rgba(47, 85, 212, 0.15);
+            border-radius: var(--dl-radius);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.78rem;
+            margin-bottom: 0.15rem;
         }
         .section-label {
             font-weight: 600;
@@ -365,7 +591,7 @@
         .hotels-section .card-header,
         .multi-city-section .card-header,
         .dmc-form-section .card-header {
-            padding: 1rem 1.25rem;
+            padding: var(--dl-section-pad);
         }
         .hotels-section .card-header .section-subtitle,
         .multi-city-section .card-header .section-subtitle {
@@ -376,40 +602,41 @@
             margin-top: 0.2rem;
         }
         .hotels-form-body {
-            padding: 1.25rem 1.5rem 1.5rem;
+            padding: var(--dl-card-pad);
         }
         .hotels-form-panel {
             background: var(--form-panel-bg);
             border: 1px solid #b3d9ff;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.08);
-            padding: 1.15rem 1.25rem 1.25rem;
+            border-radius: var(--dl-radius);
+            box-shadow: 0 1px 4px rgba(47, 85, 212, 0.06);
+            padding: 0.65rem 0.75rem 0.75rem;
         }
         .hotels-form-panel + .hotels-form-panel {
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
         .hotels-form-panel-title {
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--form-brand);
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.45rem;
         }
         .hotels-form-panel .form-label {
-            font-size: 0.8rem;
+            font-size: var(--dl-label-fs);
             font-weight: 600;
             color: #566a7f;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.2rem;
         }
         .hotels-form-panel .form-control,
         .hotels-form-panel .form-select {
-            font-size: 0.875rem;
+            font-size: var(--dl-field-fs);
             border-color: #d9dee3;
-            min-height: 38px;
+            min-height: var(--dl-field-h);
+            height: var(--dl-field-h);
         }
         .hotels-form-panel .form-check {
-            min-height: 38px;
+            min-height: var(--dl-field-h);
             display: flex;
             align-items: center;
             padding-left: 1.75rem;
@@ -419,7 +646,7 @@
             margin-top: 0;
         }
         .hotels-form-panel .form-check-label {
-            font-size: 0.875rem;
+            font-size: var(--dl-field-fs);
             font-weight: 500;
             color: #566a7f;
             padding-left: 2px;
@@ -427,27 +654,30 @@
         .pricing-panel {
             background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
             border: 1px solid #c7d2fe;
-            border-radius: 0.65rem;
-            padding: 1rem 1.15rem;
+            border-radius: var(--dl-radius);
+            padding: 0.65rem 0.75rem;
         }
         .pricing-panel-title {
-            font-size: 0.8rem;
+            font-size: 0.68rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: #4338ca;
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.45rem;
         }
         .pricing-panel .price-input-group .input-group-text {
             background: #fff;
             border-color: #c7d2fe;
             color: #4338ca;
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.72rem;
         }
         .pricing-panel .form-control {
             border-color: #c7d2fe;
             background: #fff;
+        }
+        .pricing-panel .price-input-group {
+            height: var(--dl-field-h);
         }
         .pricing-panel .form-control:focus {
             border-color: #6366f1;
@@ -513,12 +743,18 @@
             max-width: 5.5rem;
         }
         .hotels-add-btn {
-            min-height: 38px;
-            padding-left: 1.25rem;
-            padding-right: 1.25rem;
+            min-height: var(--dl-field-h);
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
         }
         .hotels-section .modern-table-wrap {
-            margin-top: 1.25rem;
+            margin-top: 0.65rem;
+        }
+        #dayForm .modern-table-wrap.mt-3 {
+            margin-top: 0.5rem !important;
+        }
+        #dayForm small.text-muted {
+            font-size: 0.7rem;
         }
         #packagePreviewModal .modal-header {
             background: var(--form-gradient-primary);
@@ -527,7 +763,7 @@
             padding: 1rem 1.25rem;
         }
         #dayForm .form-actions-bar {
-            padding: 1.25rem;
+            padding: 0.75rem;
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -540,11 +776,11 @@
             opacity: 1;
         }
         .preview-city-card {
-            border: 1px solid rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(47, 85, 212, 0.15);
             border-radius: 12px;
             overflow: hidden;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
+            box-shadow: 0 2px 8px rgba(47, 85, 212, 0.08);
         }
         .preview-city-card .preview-city-head {
             background: var(--form-gradient-primary);
@@ -591,7 +827,7 @@
         }
         .preview-summary-card {
             background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
-            border: 1px solid rgba(102, 126, 234, 0.18);
+            border: 1px solid rgba(47, 85, 212, 0.18);
             border-radius: 10px;
             padding: 0.85rem 1rem;
         }
@@ -623,7 +859,7 @@
         .preview-transfer-chip {
             display: inline-block;
             background: #eef2ff;
-            border: 1px solid rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(47, 85, 212, 0.2);
             border-radius: 999px;
             padding: 0.15rem 0.55rem;
             font-size: 0.78rem;
@@ -635,13 +871,58 @@
             color: #8592a3;
             font-style: italic;
         }
+        .container-xxl.container-p-y:has(#dayForm) {
+            padding-top: 0.65rem !important;
+            padding-bottom: 0.85rem !important;
+        }
+        #dayForm .card-header.gap-2 {
+            gap: 0.35rem !important;
+        }
+        #dayForm .sketch-card {
+            border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+        }
+        #dayForm .data-table-sm td,
+        #dayForm .data-table-sm th {
+            padding: 0.35rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        #dayForm .data-table-sm thead th {
+            font-size: 0.68rem;
+        }
+        #dayForm .form-actions-bar .btn {
+            min-height: 34px;
+            padding: 0.3rem 1rem;
+            font-size: 0.8125rem;
+        }
+        #dayForm .btn.is-loading,
+        #packagePreviewModal .btn.is-loading {
+            opacity: 0.85;
+            pointer-events: none;
+            transform: none !important;
+        }
+        #dayForm .btn.is-loading .spinner-border,
+        #packagePreviewModal .btn.is-loading .spinner-border {
+            width: 0.85rem;
+            height: 0.85rem;
+            border-width: 0.14em;
+            vertical-align: -0.1em;
+        }
+        #dayForm .alert {
+            padding: 0.45rem 0.75rem;
+            font-size: 0.8125rem;
+            margin-bottom: 0.5rem;
+        }
+        #dayForm .section-subtitle {
+            font-size: 0.72rem !important;
+        }
     </style>
 @endpush
 
 @section('content')
     <div class="content-wrapper">
         <div class="container-xxl flex-grow-1 container-p-y">
-            <div class="row mb-4 stp-page-banner">
+            <div class="row mb-2 stp-page-banner">
                 <div class="col-12">
                     <div class="card shadow-sm border-0 sketch-card">
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -694,7 +975,7 @@
                     <div class="col-12">
                         <div class="card sketch-card dmc-form-section">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-settings-3-line text-white"></i>
                                 </div>
                                 <div>
@@ -728,7 +1009,7 @@
                     <div class="col-12">
                         <div class="card sketch-card multi-city-section">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-map-pin-line text-white"></i>
                                 </div>
                                 <div>
@@ -789,8 +1070,8 @@
                     <div class="col-12">
                         <div class="card sketch-card hotels-section">
                             <div class="card-header modern-section-header d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(73,80,87,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                    <i class="ri-hotel-line" style="color:#495057;"></i>
+                                <div class="section-header-icon section-header-icon--muted">
+                                    <i class="ri-hotel-line"></i>
                                 </div>
                                 <div>
                                     <strong class="d-block">Hotels</strong>
@@ -938,7 +1219,7 @@
                     <div class="col-12">
                         <div class="card sketch-card attraction-day-section border-0">
                             <div class="card-header modern-section-header text-white d-flex align-items-center gap-2">
-                                <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div class="section-header-icon section-header-icon--light">
                                     <i class="ri-calendar-event-line text-white"></i>
                                 </div>
                                 <div>
@@ -956,7 +1237,7 @@
                     <div class="col-12">
                         <div class="d-flex justify-content-center gap-2 flex-wrap form-actions-bar">
                             <button type="button" class="btn btn-outline-primary btn-lg px-4" id="packagePreviewBtn" onclick="openPackagePreview()">Preview Package</button>
-                            <button type="submit" class="btn btn-primary btn-lg px-5">{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="submit" class="btn btn-primary btn-lg px-5" id="mainSubmitBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}">{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                             <button type="reset" class="btn btn-outline-secondary btn-lg px-4" onclick="resetAll()">Reset</button>
                         </div>
                     </div>
@@ -973,7 +1254,7 @@
                         <div class="modal-body" id="packagePreviewBody"></div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" onclick="submitFromPreview()">Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="button" class="btn btn-primary" id="previewConfirmBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" onclick="submitFromPreview()">Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                         </div>
                     </div>
                 </div>
@@ -1044,7 +1325,9 @@
         let isSyncingTransferCity = false;
         let isApplyingTransferDefaults = false;
         let isHydratingDayServices = false;
+        let isHydratingEditPayload = false;
         let hydrateDayServicesInFlight = null;
+        let hydrateDayServicesQueued = false;
         let transferOptionsLoadTimer = null;
         const transferOptionsCache = {};
         const transferOptionsInflight = {};
@@ -1686,8 +1969,8 @@
             if (onlyIfEmpty && el && String(el.value || '').trim()) {
                 return;
             }
-            ensureTransferLocationOption(selectId, portVal, labelForStoredTransferLocation(portVal));
-            safeSetSelectValue(selectId, portVal);
+            const resolvedPortVal = ensureTransferLocationOption(selectId, portVal, labelForStoredTransferLocation(portVal));
+            safeSetSelectValue(selectId, resolvedPortVal);
         }
 
         /** Middle itinerary days always show transfer (pickup/drop for attractions etc.), unrelated to hotel arrival checkbox. */
@@ -1727,11 +2010,43 @@
             });
         }
 
+        /** Same hotel can arrive as hotel:<db id> (server lists) and hotel:<unique id> (booked rows). */
+        function hotelUniqueIdFromAnyHotelId(anyId) {
+            const id = String(anyId || '').trim();
+            if (!id) return '';
+            const hit = (Array.isArray(hotelsFlat) ? hotelsFlat : []).find(h =>
+                String(h.hotel_unique_id || '').trim() === id || String(h.id || '').trim() === id);
+            if (hit) return String(hit.hotel_unique_id || hit.id || id).trim();
+            return id;
+        }
+
+        function canonicalTransferOptionValue(value) {
+            const v = String(value || '').trim();
+            if (!v.toLowerCase().startsWith('hotel:')) return v;
+            return `hotel:${hotelUniqueIdFromAnyHotelId(v.slice(6))}`;
+        }
+
+        function normalizeTransferLabelKey(label) {
+            return String(label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
         function mapTransferSelectOptions(rows) {
-            return (Array.isArray(rows) ? rows : []).map((x) => ({
-                value: x.value,
-                label: formatTransferLocationLabel(x),
-            }));
+            const out = [];
+            const seenValues = new Set();
+            const seenLabels = new Set();
+            (Array.isArray(rows) ? rows : []).forEach((x) => {
+                const value = String(x?.value ?? '').trim();
+                if (!value) return;
+                const canonical = canonicalTransferOptionValue(value);
+                const label = formatTransferLocationLabel(x);
+                const labelKey = normalizeTransferLabelKey(label);
+                if (seenValues.has(canonical)) return;
+                if (labelKey && seenLabels.has(labelKey)) return;
+                seenValues.add(canonical);
+                if (labelKey) seenLabels.add(labelKey);
+                out.push({ value, label });
+            });
+            return out;
         }
 
         function getHotelsOnDayAsTransferOptions(dayVal) {
@@ -1762,11 +2077,17 @@
                     ? transferArrivalDropOptions.filter((x) => String(x?.type || '').toLowerCase() !== 'port')
                     : transferLocationOptions));
             const merged = [];
-            const seen = new Set();
+            const seenValues = new Set();
+            const seenLabels = new Set();
             [...base, ...getHotelsOnDayAsTransferOptions(dayVal)].forEach((row) => {
                 const value = String(row?.value ?? '').trim();
-                if (!value || seen.has(value)) return;
-                seen.add(value);
+                if (!value) return;
+                const canonical = canonicalTransferOptionValue(value);
+                const labelKey = normalizeTransferLabelKey(formatTransferLocationLabel(row));
+                if (seenValues.has(canonical)) return;
+                if (labelKey && seenLabels.has(labelKey)) return;
+                seenValues.add(canonical);
+                if (labelKey) seenLabels.add(labelKey);
                 merged.push(row);
             });
             mergeTransferLocationLabels(merged);
@@ -1806,19 +2127,18 @@
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const attractionOp = getSelectedOption(`attraction_select_${d}`);
             if (attractionOp?.value) {
-                const dropVal = `attraction:${attractionOp.value}`;
-                ensureTransferLocationOption(
+                const dropVal = ensureTransferLocationOption(
                     `attraction_transfer_drop_select_${d}`,
-                    dropVal,
-                    formatTransferLocationLabel({ value: dropVal, label: attractionOp.textContent, type: 'attraction' })
+                    `attraction:${attractionOp.value}`,
+                    formatTransferLocationLabel({ value: `attraction:${attractionOp.value}`, label: attractionOp.textContent, type: 'attraction' })
                 );
                 safeSetSelectValue(`attraction_transfer_drop_select_${d}`, dropVal);
             }
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
             const pickupEl = document.getElementById(`attraction_transfer_pickup_select_${d}`);
             if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                ensureTransferLocationOption(`attraction_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, hotel.value);
+                const pickupVal = ensureTransferLocationOption(`attraction_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(`attraction_transfer_pickup_select_${d}`, pickupVal);
             }
         }
 
@@ -1826,19 +2146,18 @@
             const d = parseInt(String(dayVal || 1), 10) || 1;
             const restaurantOp = getSelectedOption(`restaurant_select_${d}`);
             if (restaurantOp?.value) {
-                const dropVal = `restaurant:${restaurantOp.value}`;
-                ensureTransferLocationOption(
+                const dropVal = ensureTransferLocationOption(
                     `restaurant_transfer_drop_select_${d}`,
-                    dropVal,
-                    formatTransferLocationLabel({ value: dropVal, label: restaurantOp.textContent, type: 'restaurant' })
+                    `restaurant:${restaurantOp.value}`,
+                    formatTransferLocationLabel({ value: `restaurant:${restaurantOp.value}`, label: restaurantOp.textContent, type: 'restaurant' })
                 );
                 safeSetSelectValue(`restaurant_transfer_drop_select_${d}`, dropVal);
             }
             const hotel = getArrivalHotelForDay(d) || getDepartureHotelForDay(d);
             const pickupEl = document.getElementById(`restaurant_transfer_pickup_select_${d}`);
             if (hotel?.value && pickupEl && !String(pickupEl.value || '').trim()) {
-                ensureTransferLocationOption(`restaurant_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
-                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, hotel.value);
+                const pickupVal = ensureTransferLocationOption(`restaurant_transfer_pickup_select_${d}`, hotel.value, hotel.label || 'Hotel');
+                safeSetSelectValue(`restaurant_transfer_pickup_select_${d}`, pickupVal);
             }
         }
 
@@ -1914,11 +2233,8 @@
         }
 
         function applyCountryFilter() {
-            const selectedCountry = String(document.getElementById('country').value || '').trim().toLowerCase();
-            const filteredByCountry = allCities.filter(c => {
-                if (!selectedCountry) return true;
-                return String(c.country || '').trim().toLowerCase() === selectedCountry;
-            });
+            const selectedCountry = String(document.getElementById('country').value || '').trim();
+            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             const filtered = filteredByCountry.length ? filteredByCountry : allCities;
             const prevCityId = $('#city_id').val();
             setSelectOptions('city_id', filtered.map(c => ({
@@ -1953,12 +2269,82 @@
             return String(op.dataset.name || op.textContent || '').split(',')[0].trim();
         }
 
+        function cityMatchesCountry(city, country) {
+            const wanted = String(country || '').trim().toLowerCase();
+            if (!wanted) return true;
+            return String(city?.country || '').trim().toLowerCase() === wanted;
+        }
+
+        function normalizeCityNameKey(cityName) {
+            return String(cityName || '').split(',')[0].trim().toLowerCase();
+        }
+
+        function findCityRecordByName(cityName) {
+            const key = normalizeCityNameKey(cityName);
+            if (!key) return null;
+            return allCities.find(c => normalizeCityNameKey(c.name) === key) || null;
+        }
+
+        function ensureCityOptionInSelect(selectId, cityId) {
+            const cityIdStr = String(cityId || '').trim();
+            if (!cityIdStr) return;
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            if (Array.from(sel.options).some(o => String(o.value) === cityIdStr)) return;
+            const rec = allCities.find(c => String(c.value) === cityIdStr) || null;
+            if (!rec) return;
+            const op = document.createElement('option');
+            op.value = String(rec.value);
+            op.textContent = rec.country ? `${rec.name}, ${rec.country}` : rec.name;
+            op.dataset.name = rec.name;
+            op.dataset.country = rec.country || '';
+            sel.appendChild(op);
+            const $sel = $(sel);
+            if ($sel.data('select2')) {
+                $sel.trigger('change.select2');
+            }
+        }
+
+        function resolveCityIdForDay(dayNum) {
+            const d = parseInt(String(dayNum || 0), 10) || 0;
+            if (d < 1) return '';
+            const planCityId = resolveCityIdForPlan(getMultiCityPlanForDay(d));
+            if (planCityId) return planCityId;
+
+            const fromItems = (Array.isArray(dayItems) ? dayItems : []).find(
+                x => (parseInt(String(x?.day || 0), 10) || 0) === d && String(x?.city_name || '').trim()
+            );
+            const fromHotels = (Array.isArray(hotels) ? hotels : []).find(
+                h => hotelCoversDay(h, d) && String(h?.city_name || '').trim()
+            );
+            const cityName = String(
+                fromItems?.city_name || fromHotels?.city_name || activityCityByDay[d] || ''
+            ).trim();
+            const hit = findCityRecordByName(cityName);
+            return hit ? String(hit.value) : '';
+        }
+
+        function syncDayCitySelectorsFromStoredData(force = false) {
+            isSyncingCitySelectors = true;
+            for (let d = 1; d <= daysCount; d++) {
+                const cityId = resolveCityIdForDay(d);
+                if (!cityId) continue;
+                const act = document.getElementById(`activity_city_select_${d}`);
+                if (act && (force || !String(act.value || '').trim())) {
+                    ensureCityOptionInSelect(`activity_city_select_${d}`, cityId);
+                    safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
+                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
+                }
+            }
+            isSyncingCitySelectors = false;
+        }
+
         function getSectionCityOptions() {
             const multiCityFiltered = getDayCityOptionsFromMultiCity();
             const selectedCountry = document.getElementById('country').value || '';
             const source = (multiCityFiltered && multiCityFiltered.length)
                 ? multiCityFiltered
-                : allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+                : allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             return source.map(c => ({
                 value: c.value,
                 label: c.country ? `${c.name}, ${c.country}` : c.name,
@@ -2066,6 +2452,48 @@
             safeSetSelectValue('mc_day_out', String(nextSpan.day_out));
         }
 
+        function multiCityDayRangesOverlap(dayInA, dayOutA, dayInB, dayOutB) {
+            const aIn = parseInt(String(dayInA || 0), 10);
+            const aOut = parseInt(String(dayOutA || 0), 10);
+            const bIn = parseInt(String(dayInB || 0), 10);
+            const bOut = parseInt(String(dayOutB || 0), 10);
+            if (!Number.isFinite(aIn) || !Number.isFinite(aOut) || !Number.isFinite(bIn) || !Number.isFinite(bOut)) {
+                return false;
+            }
+            if (!(aIn <= bOut && aOut >= bIn)) return false;
+            // Consecutive cities may share one boundary day (e.g. City A Day 1–3, City B Day 3–6).
+            if (aOut === bIn || bOut === aIn) return false;
+            return true;
+        }
+
+        function multiCityPlansMatchCity(planA, planB) {
+            const idA = String(planA?.city_id || '').trim();
+            const idB = String(planB?.city_id || '').trim();
+            if (idA && idB && idA === idB) return true;
+            return normalizeCityNameKey(planA?.city_name) === normalizeCityNameKey(planB?.city_name);
+        }
+
+        /** Returns { type: 'duplicate'|'overlap', existing } or null when the plan is allowed. */
+        function findMultiCityPlanConflict(payload, excludeIndex = null) {
+            const dayIn = parseInt(String(payload?.day_in || 0), 10);
+            const dayOut = parseInt(String(payload?.day_out || 0), 10);
+            for (let i = 0; i < multiCityPlans.length; i++) {
+                if (excludeIndex !== null && i === excludeIndex) continue;
+                const existing = multiCityPlans[i];
+                const existingIn = parseInt(String(existing?.day_in || 0), 10);
+                const existingOut = parseInt(String(existing?.day_out || 0), 10);
+                if (multiCityPlansMatchCity(payload, existing)
+                    && existingIn === dayIn
+                    && existingOut === dayOut) {
+                    return { type: 'duplicate', existing };
+                }
+                if (multiCityDayRangesOverlap(dayIn, dayOut, existingIn, existingOut)) {
+                    return { type: 'overlap', existing };
+                }
+            }
+            return null;
+        }
+
         function addMultiCityPlan() {
             const cityOp = getSelectedOption('city_id');
             if (!cityOp) {
@@ -2078,12 +2506,27 @@
                 alert('Please enter valid day check-in/check-out values.');
                 return;
             }
+            if (dayOut > daysCount) {
+                alert(`Day check-out cannot exceed total package days (Day ${daysCount}).`);
+                return;
+            }
             const payload = {
                 city_id: cityOp.value,
                 city_name: cityOp.dataset.name || cityOp.textContent || '',
                 day_in: dayIn,
                 day_out: dayOut
             };
+            const excludeIndex = editingMultiCityIndex !== null ? editingMultiCityIndex : null;
+            const conflict = findMultiCityPlanConflict(payload, excludeIndex);
+            if (conflict) {
+                if (conflict.type === 'duplicate') {
+                    alert(`This city is already added for Day ${dayIn} to Day ${dayOut}.`);
+                } else {
+                    const ex = conflict.existing;
+                    alert(`Day ${dayIn} to Day ${dayOut} is already assigned to ${ex.city_name} (Day ${ex.day_in} to Day ${ex.day_out}). Please choose a different day range or city.`);
+                }
+                return;
+            }
             if (editingMultiCityIndex !== null && multiCityPlans[editingMultiCityIndex]) {
                 multiCityPlans[editingMultiCityIndex] = payload;
                 editingMultiCityIndex = null;
@@ -2218,25 +2661,24 @@
             return candidates[0] || null;
         }
 
-        function syncDayCitySelectorsFromMultiCity() {
-            // Multi City drives which cities are available; user can still choose.
-            if (!multiCityPlans.length) {
+        function syncDayCitySelectorsFromMultiCity(force = false) {
+            if (!multiCityPlans.length && !force) {
                 return;
             }
             isSyncingCitySelectors = true;
             for (let d = 1; d <= daysCount; d++) {
-                const planForDay = getMultiCityPlanForDay(d);
-                const cityId = resolveCityIdForPlan(planForDay);
+                const cityId = resolveCityIdForDay(d);
                 if (!cityId) continue;
                 const act = document.getElementById(`activity_city_select_${d}`);
                 const tr = document.getElementById(`transfer_city_select_${d}`);
-                // Default to Multi City mapped city only when empty.
-                if (act && !String(act.value || '').trim()) {
+                if (act && (force || !String(act.value || '').trim())) {
+                    ensureCityOptionInSelect(`activity_city_select_${d}`, cityId);
                     safeSetSelectValueSilent(`activity_city_select_${d}`, cityId);
                     activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
                 }
-                if (tr && !String(tr.value || '').trim()) {
+                if (tr && (force || !String(tr.value || '').trim())) {
                     isSyncingTransferCity = true;
+                    ensureCityOptionInSelect(`transfer_city_select_${d}`, cityId);
                     safeSetSelectValueSilent(`transfer_city_select_${d}`, cityId);
                     isSyncingTransferCity = false;
                 }
@@ -2247,21 +2689,25 @@
         function getDayCityOptionsFromMultiCity() {
             if (!multiCityPlans.length) return null;
             const selectedCountry = document.getElementById('country').value || '';
-            const filteredByCountry = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
+            const filteredByCountry = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
             const allowedIds = new Set(
                 multiCityPlans
-                    .map(p => String(p?.city_id || '').trim())
+                    .map(p => String(resolveCityIdForPlan(p) || p?.city_id || '').trim())
                     .filter(Boolean)
             );
             const allowedNames = new Set(
                 multiCityPlans
-                    .map(p => String(p?.city_name || '').split(',')[0].trim().toLowerCase())
+                    .map(p => normalizeCityNameKey(p?.city_name))
                     .filter(Boolean)
             );
-            const filtered = filteredByCountry.filter(c => {
+            const matchPlanCity = (c) => {
                 if (allowedIds.has(String(c.value))) return true;
-                return allowedNames.has(String(c.name || '').trim().toLowerCase());
-            });
+                return allowedNames.has(normalizeCityNameKey(c.name));
+            };
+            let filtered = filteredByCountry.filter(matchPlanCity);
+            if (!filtered.length) {
+                filtered = allCities.filter(matchPlanCity);
+            }
             return filtered.length ? filtered : [];
         }
 
@@ -2433,7 +2879,7 @@
             for (let d = 1; d <= daysCount; d++) {
                 const dayHeaderClass = dayHeaderClasses[(d - 1) % dayHeaderClasses.length];
                 html += `
-                    <div class="card sketch-card day-card mb-3">
+                    <div class="card sketch-card day-card mb-2">
                         <div class="card-header day-card-header ${dayHeaderClass}">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="day-pill">${d}</span>
@@ -2444,48 +2890,54 @@
                             </div>
                         </div>
                         <div class="card-body">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-md-4">
-                                <label class="form-label" for="activity_city_select_${d}">City</label>
-                                <select id="activity_city_select_${d}" class="form-select searchable-select">
-                                    <option value="">Select city</option>
-                                </select>
-                            </div>
-
-                            <div class="col-12"><div class="fw-semibold text-primary">Attraction</div></div>
-                            <div class="col-md-4">
-                                <label class="form-label" for="attraction_select_${d}">Attraction</label>
-                                <select id="attraction_select_${d}" class="form-select searchable-select">
-                                    <option value="">Select attraction</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="attraction_ticket_select_${d}">Select Ticket</label>
-                                <select id="attraction_ticket_select_${d}" class="form-select searchable-select">
-                                    <option value="">Select ticket</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label" for="attraction_price_${d}">Ticket Price</label>
-                                <div class="input-group price-input-group">
-                                    <span class="input-group-text">SGD</span>
-                                    <input type="number" class="form-control" id="attraction_price_${d}" min="0" step="0.01" placeholder="0.00">
+                            <div class="row g-2 align-items-end mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="activity_city_select_${d}">City</label>
+                                    <select id="activity_city_select_${d}" class="form-select searchable-select">
+                                        <option value="">Select city</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="col-md-3 d-flex">
-                                <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_add_btn_${d}" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
-                            </div>
 
-                            <div class="col-12">
+                            <div class="day-service-group group-attraction" id="attraction_group_${d}">
+                                <div class="day-service-group__header">
+                                    <span class="day-service-group__badge" aria-hidden="true">🎟</span>
+                                    <strong>Attraction</strong>
+                                    <span class="day-service-group__hint">Attraction &amp; its transfer share this section</span>
+                                </div>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="attraction_select_${d}">Attraction</label>
+                                        <select id="attraction_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select attraction</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="attraction_ticket_select_${d}">Select Ticket</label>
+                                        <select id="attraction_ticket_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select ticket</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="attraction_price_${d}">Ticket Price</label>
+                                        <div class="input-group price-input-group">
+                                            <span class="input-group-text">SGD</span>
+                                            <input type="number" class="form-control" id="attraction_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 d-flex">
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_add_btn_${d}" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
+                                    </div>
+                                </div>
                                 <div class="day-service-transfer-panel attraction-transfer-panel" id="attraction_transfer_panel_${d}">
                                     <div class="day-service-transfer-panel__header">
                                         <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
-                                            <strong class="text-primary">Attraction Transfer</strong>
+                                            <strong>Attraction Transfer</strong>
                                             <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at attraction</div>
                                         </div>
                                     </div>
-                                    <div class="row g-3 align-items-end">
+                                    <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
                                             <label class="form-label" for="attraction_transfer_pickup_select_${d}">Pickup Location</label>
                                             <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select">
@@ -2510,51 +2962,57 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="day-group-msg" id="attraction_group_msg_${d}" role="alert"></div>
                             </div>
 
-                            <div class="col-12"><div class="fw-semibold text-primary">Restaurant</div></div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="restaurant_select_${d}">Restaurant</label>
-                                <select id="restaurant_select_${d}" class="form-select searchable-select">
-                                    <option value="">Select restaurant</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
-                                <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
-                                    <option value="">All periods</option>
-                                    <option value="1">Breakfast</option>
-                                    <option value="2">Lunch</option>
-                                    <option value="3">Dinner</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
-                                <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
-                                    <option value="">Select restaurant first</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label" for="restaurant_price_${d}">Meal Price</label>
-                                <div class="input-group price-input-group">
-                                    <span class="input-group-text">SGD</span>
-                                    <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
+                            <div class="day-service-group group-restaurant" id="restaurant_group_${d}">
+                                <div class="day-service-group__header">
+                                    <span class="day-service-group__badge" aria-hidden="true">🍽</span>
+                                    <strong>Restaurant</strong>
+                                    <span class="day-service-group__hint">Restaurant &amp; its transfer share this section</span>
                                 </div>
-                            </div>
-                            <div class="col-md-1 d-flex">
-                                <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
-                            </div>
-
-                            <div class="col-12">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="restaurant_select_${d}">Restaurant</label>
+                                        <select id="restaurant_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select restaurant</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
+                                        <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
+                                            <option value="">All periods</option>
+                                            <option value="1">Breakfast</option>
+                                            <option value="2">Lunch</option>
+                                            <option value="3">Dinner</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
+                                        <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select restaurant first</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="restaurant_price_${d}">Meal Price</label>
+                                        <div class="input-group price-input-group">
+                                            <span class="input-group-text">SGD</span>
+                                            <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1 d-flex">
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
+                                    </div>
+                                </div>
                                 <div class="day-service-transfer-panel restaurant-transfer-panel" id="restaurant_transfer_panel_${d}">
                                     <div class="day-service-transfer-panel__header">
-                                        <span class="day-service-transfer-panel__icon" aria-hidden="true">🍽</span>
+                                        <span class="day-service-transfer-panel__icon" aria-hidden="true">🚐</span>
                                         <div>
-                                            <strong class="text-success">Restaurant Transfer</strong>
+                                            <strong>Restaurant Transfer</strong>
                                             <div class="small text-muted">Pickup from hotel, attraction or restaurant → drop at restaurant</div>
                                         </div>
                                     </div>
-                                    <div class="row g-3 align-items-end">
+                                    <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
                                             <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
@@ -2579,63 +3037,78 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="day-group-msg" id="restaurant_group_msg_${d}" role="alert"></div>
                             </div>
 
                             <select id="transfer_city_select_${d}" class="d-none" aria-hidden="true" tabindex="-1">
                                 <option value="">Select city</option>
                             </select>
 
-                            <div class="col-12 day-transfer-wrap day-airport-transfer-wrap" id="day_transfer_wrap_${d}">
-                                <div class="row g-3 align-items-end mt-2 day-arrival-wrap" id="day_arrival_wrap_${d}" style="display:none;">
-                                    <div class="col-12"><div class="fw-semibold text-primary">Arrival</div></div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
-                                        <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select pickup</option>
-                                        </select>
+                            <div class="day-transfer-wrap day-airport-transfer-wrap" id="day_transfer_wrap_${d}">
+                                <div class="day-service-group group-arrival day-arrival-wrap" id="day_arrival_wrap_${d}" style="display:none;">
+                                    <div class="day-service-group__header">
+                                        <span class="day-service-group__badge" aria-hidden="true">🛬</span>
+                                        <strong>Arrival</strong>
+                                        <span class="day-service-group__hint">Airport pickup on arrival day</span>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
-                                        <select id="arrival_drop_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select drop</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label" for="arrival_price_${d}">Transfer Price</label>
-                                        <div class="input-group price-input-group">
-                                            <span class="input-group-text">SGD</span>
-                                            <input type="number" class="form-control" id="arrival_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
+                                            <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select pickup</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
+                                            <select id="arrival_drop_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select drop</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="arrival_price_${d}">Transfer Price</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="arrival_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
                                         </div>
                                     </div>
-                                    <div class="col-md-2 d-flex">
-                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
-                                    </div>
+                                    <div class="day-group-msg" id="arrival_group_msg_${d}" role="alert"></div>
                                 </div>
 
-                                <div class="row g-3 align-items-end mt-2 day-departure-wrap" id="day_departure_wrap_${d}" style="display:none;">
-                                    <div class="col-12"><div class="fw-semibold text-primary">Departure</div></div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
-                                        <select id="departure_pickup_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select pickup</option>
-                                        </select>
+                                <div class="day-service-group group-departure day-departure-wrap" id="day_departure_wrap_${d}" style="display:none;">
+                                    <div class="day-service-group__header">
+                                        <span class="day-service-group__badge" aria-hidden="true">🛫</span>
+                                        <strong>Departure</strong>
+                                        <span class="day-service-group__hint">Airport drop on departure day</span>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
-                                        <select id="departure_drop_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select drop</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label" for="departure_price_${d}">Transfer Price</label>
-                                        <div class="input-group price-input-group">
-                                            <span class="input-group-text">SGD</span>
-                                            <input type="number" class="form-control" id="departure_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
+                                            <select id="departure_pickup_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select pickup</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
+                                            <select id="departure_drop_select_${d}" class="form-select searchable-select">
+                                                <option value="">Select drop</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="departure_price_${d}">Transfer Price</label>
+                                            <div class="input-group price-input-group">
+                                                <span class="input-group-text">SGD</span>
+                                                <input type="number" class="form-control" id="departure_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
                                         </div>
                                     </div>
-                                    <div class="col-md-2 d-flex">
-                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
-                                    </div>
+                                    <div class="day-group-msg" id="departure_group_msg_${d}" role="alert"></div>
                                 </div>
 
                                 <div class="mt-2 extra-transfer-wrap" id="extra_transfer_wrap_${d}" style="display:none;">
@@ -2646,8 +3119,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-3" id="day_items_${d}"></div>
-                        </div>
+                            <div class="mt-2" id="day_items_${d}"></div>
                         </div>
                     </div>
                 `;
@@ -2662,49 +3134,60 @@
 
         async function hydrateDayServiceBlocksOptions() {
             if (hydrateDayServicesInFlight) {
+                hydrateDayServicesQueued = true;
                 return hydrateDayServicesInFlight;
             }
-            hydrateDayServicesInFlight = (async () => {
-            isHydratingDayServices = true;
-            const selectedCountry = document.getElementById('country').value || '';
-            const filteredCities = allCities.filter(c => !selectedCountry || c.country === selectedCountry);
-            const multiCityFiltered = getDayCityOptionsFromMultiCity();
-            const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
-            const cityOptions = source.map(c => ({
-                value: c.value,
-                label: c.country ? `${c.name}, ${c.country}` : c.name,
-                data_name: c.name,
-                data_country: c.country,
-            }));
-            for (let d = 1; d <= daysCount; d++) {
-                setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
-                setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
-                setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
-                setSelectOptions(`attraction_ticket_select_${d}`, [], true);
-                if (!activityCityByDay[d]) {
-                    activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
-                }
-            }
-            if (multiCityPlans.length) {
-                syncDayCitySelectorsFromMultiCity();
-                const seenCities = new Set();
-                for (let d = 1; d <= daysCount; d++) {
-                    const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
-                    activityCityByDay[d] = cityName;
-                    if (!cityName || seenCities.has(cityName)) continue;
-                    seenCities.add(cityName);
-                    await populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
-                }
-            }
-            hydrateAllDayTransferCityOptions();
-            isHydratingDayServices = false;
-            scheduleTransferOptionsReload(false);
-            })();
-            try {
-                return await hydrateDayServicesInFlight;
-            } finally {
+            const runHydrate = async () => {
+                do {
+                    hydrateDayServicesQueued = false;
+                    isHydratingDayServices = true;
+                    const selectedCountry = document.getElementById('country').value || '';
+                    const filteredCities = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
+                    const multiCityFiltered = getDayCityOptionsFromMultiCity();
+                    const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
+                    const cityOptions = source.map(c => ({
+                        value: c.value,
+                        label: c.country ? `${c.name}, ${c.country}` : c.name,
+                        data_name: c.name,
+                        data_country: c.country,
+                    }));
+                    const forceCitySync = isHydratingEditPayload || multiCityPlans.length > 0;
+                    for (let d = 1; d <= daysCount; d++) {
+                        setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
+                        setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                        setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
+                        setSelectOptions(`attraction_ticket_select_${d}`, [], true);
+                    }
+                    if (multiCityPlans.length || isHydratingEditPayload) {
+                        syncDayCitySelectorsFromMultiCity(forceCitySync);
+                        syncDayCitySelectorsFromStoredData(forceCitySync);
+                    } else {
+                        syncSectionCitySelectionsFromMain();
+                    }
+                    for (let d = 1; d <= daysCount; d++) {
+                        if (!activityCityByDay[d]) {
+                            activityCityByDay[d] = getCityNameFromSelect(`activity_city_select_${d}`);
+                        }
+                    }
+                    // Populate every day block; fetchCityServicesData caches per city so
+                    // repeated cities (Day 2, Day 3, ...) reuse one request but still get options.
+                    await Promise.all(
+                        Array.from({ length: daysCount }, (_, i) => i + 1).map((d) => {
+                            const cityName = getCityNameFromSelect(`activity_city_select_${d}`);
+                            activityCityByDay[d] = cityName;
+                            if (!cityName) return Promise.resolve();
+                            return populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
+                        })
+                    );
+                    hydrateAllDayTransferCityOptions();
+                    isHydratingDayServices = false;
+                    scheduleTransferOptionsReload(false);
+                } while (hydrateDayServicesQueued);
+            };
+            hydrateDayServicesInFlight = runHydrate().finally(() => {
                 hydrateDayServicesInFlight = null;
-            }
+            });
+            return hydrateDayServicesInFlight;
         }
 
         function getSelectedOption(selectId) {
@@ -2767,9 +3250,9 @@
             if (!plan) return '';
             const direct = String(plan.city_id || '').trim();
             if (direct) return direct;
-            const key = String(plan.city_name || '').split(',')[0].trim().toLowerCase();
+            const key = normalizeCityNameKey(plan.city_name);
             if (!key) return '';
-            const fromAll = allCities.find(c => String(c.name || '').trim().toLowerCase() === key);
+            const fromAll = allCities.find(c => normalizeCityNameKey(c.name) === key);
             if (fromAll) {
                 plan.city_id = String(fromAll.value);
                 return plan.city_id;
@@ -2865,11 +3348,13 @@
             return list.filter((_, idx) => !dropIndices.has(idx));
         }
 
-        function hydrateFromEditPayload() {
+        async function hydrateFromEditPayload() {
             const payload = window.__EDIT_PAYLOAD__;
             if (!payload || !Array.isArray(payload.Master_DMC) || !payload.Master_DMC.length) {
                 return;
             }
+            isHydratingEditPayload = true;
+            try {
 
             const meta = window.__EDIT_DAY_LEVEL_META__ || {};
             if (meta.master_dmc_id) {
@@ -3287,14 +3772,20 @@
             });
 
             renderMultiCityRows();
+            resolveCityIdsForMultiPlans();
             setSectionCityOptions();
+            // City sync + per-day option population both happen inside
+            // hydrateDayServiceBlocksOptions (sync runs before populate).
+            await hydrateDayServiceBlocksOptions();
             syncHotelNightsWithDays();
             renderHotelRows();
             renderActivityRows();
-            hydrateAllDayTransferCityOptions();
             updateAllDayTransferVisibility();
             renderAllExtraTransferRows();
             scheduleTransferOptionsReload(false);
+            } finally {
+                isHydratingEditPayload = false;
+            }
         }
 
         function toggleHotelTransferFields() {
@@ -3529,19 +4020,37 @@
             });
         }
 
+        /**
+         * Ensures the location is selectable and returns the value to select.
+         * Reuses an existing option when it refers to the same place (exact value,
+         * canonical hotel value, or identical label) so dropdowns never list a
+         * hotel/attraction/restaurant twice.
+         */
         function ensureTransferLocationOption(selectId, value, fallbackLabel = '') {
-            if (!value) return;
+            const requested = String(value || '').trim();
+            if (!requested) return '';
             const select = document.getElementById(selectId);
-            if (!select) return;
-            const exists = Array.from(select.options).some(opt => String(opt.value) === String(value));
-            if (!exists) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = formatTransferLocationLabel(
-                    { value, label: fallbackLabel || value, type: transferTypeFromValue(value) }
-                );
-                select.appendChild(option);
-            }
+            if (!select) return requested;
+            const canonical = canonicalTransferOptionValue(requested);
+            const options = Array.from(select.options);
+            const byValue = options.find(opt => {
+                const v = String(opt.value || '').trim();
+                return v && (v === requested || canonicalTransferOptionValue(v) === canonical);
+            });
+            if (byValue) return String(byValue.value);
+            const formattedLabel = formatTransferLocationLabel(
+                { value: requested, label: fallbackLabel || requested, type: transferTypeFromValue(requested) }
+            );
+            const labelKey = normalizeTransferLabelKey(formattedLabel);
+            const byLabel = labelKey
+                ? options.find(opt => String(opt.value || '').trim() && normalizeTransferLabelKey(opt.textContent) === labelKey)
+                : null;
+            if (byLabel) return String(byLabel.value);
+            const option = document.createElement('option');
+            option.value = requested;
+            option.textContent = formattedLabel;
+            select.appendChild(option);
+            return requested;
         }
 
         function ensureSelectOptionByValue(selectId, value, label = '') {
@@ -3693,13 +4202,13 @@
                 if (shouldShowArrivalForDay(d)) {
                     const arrivalHotel = getArrivalHotelForDay(d);
                     if (portVal) {
-                        ensureTransferLocationOption(`arrival_pickup_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
-                        safeSetSelectValue(`arrival_pickup_select_${d}`, portVal);
+                        const arrivalPickupVal = ensureTransferLocationOption(`arrival_pickup_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
+                        safeSetSelectValue(`arrival_pickup_select_${d}`, arrivalPickupVal);
                     }
                     const arrivalDropEl = document.getElementById(`arrival_drop_select_${d}`);
                     if (arrivalDropEl && arrivalHotel.value && !String(arrivalDropEl.value || '').trim()) {
-                        ensureTransferLocationOption(`arrival_drop_select_${d}`, arrivalHotel.value, arrivalHotel.label || 'Hotel');
-                        safeSetSelectValue(`arrival_drop_select_${d}`, arrivalHotel.value);
+                        const arrivalDropVal = ensureTransferLocationOption(`arrival_drop_select_${d}`, arrivalHotel.value, arrivalHotel.label || 'Hotel');
+                        safeSetSelectValue(`arrival_drop_select_${d}`, arrivalDropVal);
                     }
                 }
 
@@ -3709,17 +4218,17 @@
                     enforceDepartureDropPort(d, true);
                     const depPickupEl = document.getElementById(`departure_pickup_select_${d}`);
                     if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
-                        ensureTransferLocationOption(
+                        const depPickupVal = ensureTransferLocationOption(
                             `departure_pickup_select_${d}`,
                             depHotelVal,
                             departureHotel.label || labelForStoredTransferLocation(depHotelVal)
                         );
-                        safeSetSelectValue(`departure_pickup_select_${d}`, depHotelVal);
+                        safeSetSelectValue(`departure_pickup_select_${d}`, depPickupVal);
                     }
                     const depDropEl = document.getElementById(`departure_drop_select_${d}`);
                     if (depDropEl && !String(depDropEl.value || '').trim()) {
-                        ensureTransferLocationOption(`departure_drop_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
-                        safeSetSelectValue(`departure_drop_select_${d}`, portVal);
+                        const depDropVal = ensureTransferLocationOption(`departure_drop_select_${d}`, portVal, labelForStoredTransferLocation(portVal));
+                        safeSetSelectValue(`departure_drop_select_${d}`, depDropVal);
                     }
                 }
             }
@@ -3975,25 +4484,25 @@
             const dropResolved = resolveTransferLocationForForm(transfer, 'drop', dropSelectId);
 
             if (pickupResolved.value || pickupResolved.label) {
-                ensureTransferLocationOption(pickupSelectId, pickupResolved.value, pickupResolved.label);
-                safeSetSelectValue(pickupSelectId, pickupResolved.value);
+                const pickupVal = ensureTransferLocationOption(pickupSelectId, pickupResolved.value, pickupResolved.label);
+                safeSetSelectValue(pickupSelectId, pickupVal);
                 if (tType === 'arrival') {
-                    ensureTransferLocationOption(`arrival_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
-                    safeSetSelectValue(`arrival_pickup_select_${rowDay}`, pickupResolved.value);
+                    const legVal = ensureTransferLocationOption(`arrival_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
+                    safeSetSelectValue(`arrival_pickup_select_${rowDay}`, legVal);
                 } else if (tType === 'departure') {
-                    ensureTransferLocationOption(`departure_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
-                    safeSetSelectValue(`departure_pickup_select_${rowDay}`, pickupResolved.value);
+                    const legVal = ensureTransferLocationOption(`departure_pickup_select_${rowDay}`, pickupResolved.value, pickupResolved.label);
+                    safeSetSelectValue(`departure_pickup_select_${rowDay}`, legVal);
                 }
             }
             if (dropResolved.value || dropResolved.label) {
-                ensureTransferLocationOption(dropSelectId, dropResolved.value, dropResolved.label);
-                safeSetSelectValue(dropSelectId, dropResolved.value);
+                const dropVal = ensureTransferLocationOption(dropSelectId, dropResolved.value, dropResolved.label);
+                safeSetSelectValue(dropSelectId, dropVal);
                 if (tType === 'arrival') {
-                    ensureTransferLocationOption(`arrival_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
-                    safeSetSelectValue(`arrival_drop_select_${rowDay}`, dropResolved.value);
+                    const legVal = ensureTransferLocationOption(`arrival_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
+                    safeSetSelectValue(`arrival_drop_select_${rowDay}`, legVal);
                 } else if (tType === 'departure') {
-                    ensureTransferLocationOption(`departure_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
-                    safeSetSelectValue(`departure_drop_select_${rowDay}`, dropResolved.value);
+                    const legVal = ensureTransferLocationOption(`departure_drop_select_${rowDay}`, dropResolved.value, dropResolved.label);
+                    safeSetSelectValue(`departure_drop_select_${rowDay}`, legVal);
                 }
             }
 
@@ -4263,6 +4772,23 @@
             }
         }
 
+        const cityServicesDataCache = {};
+
+        /** One fetch per city+DMC; every day block reuses the cached payload. */
+        async function fetchCityServicesData(cityName) {
+            const dmcId = document.getElementById('dmc_id').value || '';
+            const key = `${dmcId}|${String(cityName || '').trim().toLowerCase()}`;
+            if (!cityServicesDataCache[key]) {
+                cityServicesDataCache[key] = fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(cityName)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`)
+                    .then(r => r.json())
+                    .catch((e) => {
+                        delete cityServicesDataCache[key];
+                        throw e;
+                    });
+            }
+            return cityServicesDataCache[key];
+        }
+
         async function populateDayServiceOptionsByCity(dayVal, cityName, options = {}) {
             const loadTransfers = options.loadTransfers !== false;
             const silent = options.silent !== false;
@@ -4273,10 +4799,8 @@
                 setSelectOptions(`attraction_ticket_select_${dayVal}`, [], silent);
                 return;
             }
-            const dmcId = document.getElementById('dmc_id').value || '';
             try {
-                const res = await fetch(`${DAY_LEVEL_ROUTES.byCity}?city_name=${encodeURIComponent(normalizedCity)}&type=all&dmc_id=${encodeURIComponent(dmcId)}`);
-                const data = await res.json();
+                const data = await fetchCityServicesData(normalizedCity);
                 setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => {
                     const adult = parseFloat(x.adult_price) || 0;
                     return {
@@ -4916,12 +5440,12 @@
                     : (shouldShowDepartureForDay(activeDay) ? `departure_drop_select_${activeDay}` : '');
                 if (x.transfer_pickup && pickupSelectId) {
                     const hotelPickupLabel = labelForStoredTransferLocation(x.transfer_pickup) || x.transfer_pickup;
-                    ensureTransferLocationOption(pickupSelectId, x.transfer_pickup, hotelPickupLabel);
-                    safeSetSelectValue(pickupSelectId, x.transfer_pickup);
+                    const pickupVal = ensureTransferLocationOption(pickupSelectId, x.transfer_pickup, hotelPickupLabel);
+                    safeSetSelectValue(pickupSelectId, pickupVal);
                 }
                 if (x.transfer_drop && dropSelectId) {
-                    ensureTransferLocationOption(dropSelectId, x.transfer_drop, x.transfer_drop);
-                    safeSetSelectValue(dropSelectId, x.transfer_drop);
+                    const dropVal = ensureTransferLocationOption(dropSelectId, x.transfer_drop, x.transfer_drop);
+                    safeSetSelectValue(dropSelectId, dropVal);
                 }
             }
             document.getElementById('hotelAddBtn').textContent = 'Update Hotel';
@@ -5172,26 +5696,81 @@
             resetDayActivityEditButtons();
         }
 
+        const dayGroupMsgTimers = {};
+
+        function showDayGroupMessage(dayVal, group, text) {
+            const el = document.getElementById(`${group}_group_msg_${dayVal}`);
+            if (!el) {
+                alert(text);
+                return;
+            }
+            el.textContent = text;
+            el.classList.add('show');
+            const key = `${group}_${dayVal}`;
+            if (dayGroupMsgTimers[key]) clearTimeout(dayGroupMsgTimers[key]);
+            dayGroupMsgTimers[key] = setTimeout(() => {
+                el.classList.remove('show');
+            }, 4000);
+        }
+
         function addAttractionTransferItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
+            const hasAttraction = !!getSelectedOption(`attraction_select_${normalizedDay}`);
+            const editingItem = editingActivityIndex !== null ? dayItems[editingActivityIndex] : null;
+            const editingTransferOnly = !!(editingItem && !String(editingItem.id || '').trim());
+            if (!hasAttraction && !editingTransferOnly) {
+                showDayGroupMessage(normalizedDay, 'attraction', 'Please choose an attraction first, then add its transfer.');
+                return false;
+            }
+            if (hasAttraction) {
+                // Attraction + transfer are stored as one combined entry.
+                addAttractionItemForDay(normalizedDay);
+                return true;
+            }
+            // Legacy transfer-only row being edited.
             const transferPayload = getAttractionTransferPayload(normalizedDay);
             return addTransferLikeItemForDay(normalizedDay, 'Attraction Transfer', transferPayload, 'attraction');
         }
 
         function addRestaurantTransferItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
+            const hasRestaurant = !!getSelectedOption(`restaurant_select_${normalizedDay}`);
+            const editingItem = editingActivityIndex !== null ? dayItems[editingActivityIndex] : null;
+            const editingTransferOnly = !!(editingItem && !String(editingItem.id || '').trim());
+            if (!hasRestaurant && !editingTransferOnly) {
+                showDayGroupMessage(normalizedDay, 'restaurant', 'Please choose a restaurant first, then add its transfer.');
+                return false;
+            }
+            if (hasRestaurant) {
+                // Restaurant + transfer are stored as one combined entry.
+                addRestaurantItemForDay(normalizedDay);
+                return true;
+            }
+            // Legacy transfer-only row being edited.
             const transferPayload = getRestaurantTransferPayload(normalizedDay);
             return addTransferLikeItemForDay(normalizedDay, 'Restaurant Transfer', transferPayload, 'restaurant');
         }
 
         function addArrivalItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
+            const pickupOp = getSelectedOption(`arrival_pickup_select_${normalizedDay}`);
+            const dropOp = getSelectedOption(`arrival_drop_select_${normalizedDay}`);
+            if (!pickupOp || !dropOp) {
+                showDayGroupMessage(normalizedDay, 'arrival', 'Please select pickup and drop location first, then add the arrival.');
+                return false;
+            }
             const transferPayload = getArrivalTransferPayload(normalizedDay);
             return addTransferLikeItemForDay(normalizedDay, 'Day Arrival', transferPayload);
         }
 
         function addDepartureItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
+            const pickupOp = getSelectedOption(`departure_pickup_select_${normalizedDay}`);
+            const dropOp = getSelectedOption(`departure_drop_select_${normalizedDay}`);
+            if (!pickupOp || !dropOp) {
+                showDayGroupMessage(normalizedDay, 'departure', 'Please select pickup and drop location first, then add the departure.');
+                return false;
+            }
             const transferPayload = getDepartureTransferPayload(normalizedDay);
             return addTransferLikeItemForDay(normalizedDay, 'Day Departure', transferPayload);
         }
@@ -5373,19 +5952,18 @@
                 if (!itemsForDay.length) {
                     container.innerHTML = `
                         <div class="table-responsive modern-table-wrap mt-2">
-                            <table class="table table-sm data-table-sm mb-0">
+                            <table class="table table-sm data-table-sm day-items-table mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:12%">Type</th>
-                                        <th style="width:18%">Pickup</th>
-                                        <th style="width:18%">Drop</th>
-                                        <th>Details</th>
+                                        <th style="width:11%">Type</th>
+                                        <th style="width:36%">Service</th>
+                                        <th>Transfer</th>
                                         <th style="width:100px" class="text-end">Total</th>
-                                        <th style="width:120px">Actions</th>
+                                        <th style="width:90px" class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="6" class="text-muted">No services added for Day ${d}</td></tr>
+                                    <tr><td colspan="5" class="text-muted">No services added for Day ${d}</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -5412,68 +5990,72 @@
                                 : 'Transfer'
                     );
 
-                    const transferTypeForSelect = transfer.transfer_type || transferTypeLabel;
                     const itemType = String(x.type || '').trim();
                     const pickupDisplay = getTransferLocationDisplay(transfer, 'pickup', d, itemType);
                     const dropDisplay = getTransferLocationDisplay(transfer, 'drop', d, itemType);
                     const lineTotal = getActivityItemTotalPrice(x);
                     const cityDisplay = transfer.city || x.city_name || '-';
                     const transferCost = parseFloat(transfer.cost ?? transfer.transfer_price ?? 0) || 0;
-                    const transferPriceSuffix = transferCost > 0 ? ` (SGD ${transferCost.toFixed(2)})` : '';
-                    const transferSummary = (transfer.required === 'Yes' || transfer.pickup_location || transfer.drop_location || transferCost > 0)
-                        ? ` | ${transfer.transfer_type || 'Transfer'}: ${pickupDisplay} -> ${dropDisplay}${transferPriceSuffix}`
-                        : '';
-                    const pickupCell = pickupDisplay;
-                    const dropCell = dropDisplay;
+                    const hasTransfer = transfer.required === 'Yes' || transfer.pickup_location || transfer.drop_location || transferCost > 0;
 
-                    let details = '';
-                    let detailsHtml = '';
-                    if (x.type === 'restaurant') {
+                    let badgeClass = 'item-type-badge--attraction';
+                    let badgeText = 'Attraction';
+                    if (x.type === 'restaurant' && !isTransferLikeOnly) {
+                        badgeClass = 'item-type-badge--restaurant';
+                        badgeText = 'Restaurant';
+                    } else if (isTransferLikeOnly) {
+                        const tKey = transferTypeLabel.toLowerCase();
+                        badgeClass = tKey === 'arrival' ? 'item-type-badge--arrival'
+                            : tKey === 'departure' ? 'item-type-badge--departure'
+                                : 'item-type-badge--transfer';
+                        badgeText = transferTypeLabel;
+                    }
+
+                    let serviceCellHtml = '';
+                    if (x.type === 'restaurant' && !isTransferLikeOnly) {
                         const mealPrice = parseFloat(x.meal_price ?? x.price ?? x.meal?.meal_price ?? 0);
-                        details = `${x.label || 'Restaurant'} | Dish: ${x.meal?.dish || '-'} | City: ${x.city_name || '-'}`;
-                        if (mealPrice > 0) details += ` | Meal: SGD ${mealPrice.toFixed(2)}`;
-                        if (transferCost > 0) details += ` | Transfer: SGD ${transferCost.toFixed(2)}`;
-                        if (transferSummary) details += transferSummary;
-                        detailsHtml = `
-                            <span class="detail-chip">${escapeHtml(x.label || 'Restaurant')}</span>
-                            <span class="detail-chip">Dish: ${escapeHtml(x.meal?.dish || '-')}</span>
-                            <span class="detail-chip">City: ${escapeHtml(x.city_name || '-')}</span>
-                            ${mealPrice > 0 ? `<span class="detail-chip text-primary fw-semibold">Meal SGD ${mealPrice.toFixed(2)}</span>` : ''}
-                            ${transferCost > 0 ? `<span class="detail-chip text-success fw-semibold">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
-                            ${transferSummary ? `<span class="detail-chip">${escapeHtml((transfer.transfer_type || 'Transfer') + ': ' + pickupDisplay + ' -> ' + dropDisplay)}</span>` : ''}
+                        const metaParts = [];
+                        if (x.meal?.dish) metaParts.push(`Dish: ${escapeHtml(x.meal.dish)}`);
+                        if (x.meal?.meal_type) metaParts.push(escapeHtml(x.meal.meal_type));
+                        if (x.city_name) metaParts.push(escapeHtml(x.city_name));
+                        serviceCellHtml = `
+                            <div class="item-title">${escapeHtml(x.label || 'Restaurant')}</div>
+                            ${metaParts.length ? `<div class="item-meta">${metaParts.join(' · ')}</div>` : ''}
+                            ${mealPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Meal SGD ${mealPrice.toFixed(2)}</span>` : ''}
                         `;
                     } else if (isTransferLikeOnly) {
-                        details = `${transferTypeLabel} | City: ${cityDisplay} | ${pickupDisplay} -> ${dropDisplay}`;
-                        if (transferCost > 0) details += ` | SGD ${transferCost.toFixed(2)}`;
-                        detailsHtml = `
-                            <span class="detail-chip">${escapeHtml(transferTypeLabel)}</span>
-                            <span class="detail-chip">City: ${escapeHtml(cityDisplay)}</span>
-                            <span class="detail-chip">${escapeHtml(pickupDisplay)} -> ${escapeHtml(dropDisplay)}</span>
-                            ${transferCost > 0 ? `<span class="detail-chip text-primary fw-semibold">SGD ${transferCost.toFixed(2)}</span>` : ''}
+                        serviceCellHtml = `
+                            <div class="item-title">${escapeHtml(transferTypeLabel)} transfer</div>
+                            <div class="item-meta">${escapeHtml(cityDisplay)}</div>
                         `;
                     } else {
                         const ticketPrice = parseFloat(x.ticket_price ?? x.price ?? 0);
-                        details = `${x.label || 'Attraction'} | City: ${x.city_name || '-'}`;
-                        if (x.ticket_name) details += ` | Ticket: ${x.ticket_name}`;
-                        if (ticketPrice > 0) details += ` | Ticket: SGD ${ticketPrice.toFixed(2)}`;
-                        if (transferCost > 0) details += ` | Transfer: SGD ${transferCost.toFixed(2)}`;
-                        if (transferSummary) details += transferSummary;
-                        detailsHtml = `
-                            <span class="detail-chip">${escapeHtml(x.label || 'Attraction')}</span>
-                            <span class="detail-chip">City: ${escapeHtml(x.city_name || '-')}</span>
-                            ${x.ticket_name ? `<span class="detail-chip">Ticket: ${escapeHtml(x.ticket_name)}</span>` : ''}
-                            ${ticketPrice > 0 ? `<span class="detail-chip text-primary fw-semibold">Ticket SGD ${ticketPrice.toFixed(2)}</span>` : ''}
-                            ${transferCost > 0 ? `<span class="detail-chip text-success fw-semibold">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
-                            ${transferSummary ? `<span class="detail-chip">${escapeHtml((transfer.transfer_type || 'Transfer') + ': ' + pickupDisplay + ' -> ' + dropDisplay)}</span>` : ''}
+                        const metaParts = [];
+                        if (x.ticket_name) metaParts.push(`Ticket: ${escapeHtml(x.ticket_name)}`);
+                        if (x.city_name) metaParts.push(escapeHtml(x.city_name));
+                        serviceCellHtml = `
+                            <div class="item-title">${escapeHtml(x.label || 'Attraction')}</div>
+                            ${metaParts.length ? `<div class="item-meta">${metaParts.join(' · ')}</div>` : ''}
+                            ${ticketPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Ticket SGD ${ticketPrice.toFixed(2)}</span>` : ''}
                         `;
                     }
 
+                    const transferCellHtml = hasTransfer
+                        ? `
+                            <div class="item-route">
+                                <span class="item-route-stop">${escapeHtml(pickupDisplay)}</span>
+                                <span class="item-route-arrow" aria-hidden="true">→</span>
+                                <span class="item-route-stop">${escapeHtml(dropDisplay)}</span>
+                            </div>
+                            ${transferCost > 0 ? `<span class="item-price-tag item-price-tag--transfer">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
+                        `
+                        : '<span class="item-meta">No transfer</span>';
+
                     return `
                         <tr>
-                            <td class="fw-semibold align-middle"><span class="badge bg-primary-subtle text-primary">${escapeHtml(x.type === 'restaurant' ? 'Restaurant' : (isTransferLikeOnly ? transferTypeLabel : 'Attraction'))}</span></td>
-                            <td class="small text-muted align-middle">${escapeHtml(pickupCell)}</td>
-                            <td class="small text-muted align-middle">${escapeHtml(dropCell)}</td>
-                            <td class="small text-muted align-middle">${detailsHtml || escapeHtml(details)}</td>
+                            <td class="align-middle"><span class="item-type-badge ${badgeClass}">${escapeHtml(badgeText)}</span></td>
+                            <td class="align-middle">${serviceCellHtml}</td>
+                            <td class="align-middle">${transferCellHtml}</td>
                             <td class="text-end align-middle">
                                 ${lineTotal > 0
                                     ? `<div class="hotel-price-total">SGD ${lineTotal.toFixed(2)}</div>`
@@ -5491,15 +6073,14 @@
 
                 container.innerHTML = `
                     <div class="table-responsive modern-table-wrap mt-2">
-                        <table class="table table-sm data-table-sm mb-0">
+                        <table class="table table-sm data-table-sm day-items-table mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:12%">Type</th>
-                                    <th style="width:18%">Pickup</th>
-                                    <th style="width:18%">Drop</th>
-                                    <th>Details</th>
+                                    <th style="width:11%">Type</th>
+                                    <th style="width:36%">Service</th>
+                                    <th>Transfer</th>
                                     <th style="width:100px" class="text-end">Total</th>
-                                    <th style="width:120px">Actions</th>
+                                    <th style="width:90px" class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
@@ -6401,13 +6982,36 @@
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
         }
 
+        function setButtonLoading(btn) {
+            if (!btn || btn.dataset.loading === '1') return;
+            btn.dataset.loading = '1';
+            btn.dataset.originalHtml = btn.innerHTML;
+            const label = btn.dataset.loadingText || 'Please wait...';
+            btn.disabled = true;
+            btn.classList.add('is-loading');
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${label}`;
+        }
+
+        function clearButtonLoading(btn) {
+            if (!btn || btn.dataset.loading !== '1') return;
+            btn.dataset.loading = '';
+            btn.disabled = false;
+            btn.classList.remove('is-loading');
+            if (btn.dataset.originalHtml) {
+                btn.innerHTML = btn.dataset.originalHtml;
+            }
+        }
+
         function submitFromPreview() {
+            const confirmBtn = document.getElementById('previewConfirmBtn');
+            if (confirmBtn?.dataset.loading === '1') return;
             const payload = preparePayloadForSubmit();
             if (REQUIRE_MASTER_DMC_CITY && !payload) {
                 alert('Master DMC, DMC and city are required.');
                 return;
             }
             applyPayloadJsonToForm(payload);
+            setButtonLoading(confirmBtn);
             const modalEl = document.getElementById('packagePreviewModal');
             if (modalEl && typeof bootstrap !== 'undefined') {
                 const instance = bootstrap.Modal.getInstance(modalEl);
@@ -6465,7 +7069,7 @@
             renderInterRows();
             toggleRestaurantTransferConfig();
             syncSectionCitySelectionsFromMain();
-            hydrateFromEditPayload();
+            hydrateFromEditPayload().catch(() => {});
 
             document.getElementById('days').addEventListener('input', function () {
                 const newDays = Math.max(1, parseInt(this.value || '1', 10) || 1);
@@ -6630,21 +7234,27 @@
             hydrateAllDayTransferCityOptions();
 
             document.getElementById('dayForm').addEventListener('submit', function (e) {
+                const submitBtn = document.getElementById('mainSubmitBtn');
                 let payload = null;
                 try {
                     payload = preparePayloadForSubmit();
                 } catch (err) {
                     e.preventDefault();
+                    clearButtonLoading(submitBtn);
+                    clearButtonLoading(document.getElementById('previewConfirmBtn'));
                     console.error('Failed to build payload_json', err);
                     alert('Payload generation failed. Please check required fields and try again.');
                     return;
                 }
                 if (REQUIRE_MASTER_DMC_CITY && !payload) {
                     e.preventDefault();
+                    clearButtonLoading(submitBtn);
+                    clearButtonLoading(document.getElementById('previewConfirmBtn'));
                     alert('Master DMC, DMC and city are required.');
                     return;
                 }
                 applyPayloadJsonToForm(payload);
+                setButtonLoading(submitBtn);
             });
         });
     </script>

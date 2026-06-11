@@ -2283,8 +2283,6 @@ class DayLevelController extends Controller
 
     /**
      * Flat day-level export: one object per package with raw_package / raw_all_services strings.
-     * Top-level keys (city, country, DMC_email, total_days) come from the model export;
-     * raw_package hotels are rebuilt from DB-stored package rows with full pricing fields.
      *
      * @param  \Illuminate\Support\Collection<int, DayLevel>|iterable  $rows
      * @return list<array<string, mixed>>
@@ -2293,21 +2291,20 @@ class DayLevelController extends Controller
     {
         $payload = DayLevel::collectFlatPackageExportsFromRows($rows);
 
-        return $this->syncAzureRawPackagesFromStoredData($rows, $payload);
+        return $this->enrichAzureRawPackagesFromStoredRows($rows, $payload);
     }
 
     /**
-     * Rebuild raw_package JSON from persisted package/day data (same hotel shape as day_levels.hotels).
-     * Preserves export envelope keys: city, country, DMC_email, total_days.
+     * Merge persisted hotel pricing rows (day_levels.hotels) into raw_package day hotels.
+     * Top-level export keys (city, country, DMC_email, total_days) are left unchanged.
      *
      * @param  \Illuminate\Support\Collection<int, DayLevel>|iterable  $rows
      * @param  list<array<string, mixed>>  $payload
      * @return list<array<string, mixed>>
      */
-    private function syncAzureRawPackagesFromStoredData($rows, array $payload): array
+    private function enrichAzureRawPackagesFromStoredRows($rows, array $payload): array
     {
-        $packagesById = $this->indexStoredPackagesByPackageId($rows);
-        $hotelsByPackageId = $this->indexStoredHotelsByPackageId($rows);
+        $storedHotelsByPackage = $this->indexStoredHotelsByPackageId($rows);
 
         foreach ($payload as $i => $entry) {
             if (! is_array($entry)) {
@@ -2315,83 +2312,44 @@ class DayLevelController extends Controller
             }
 
             $packageId = trim((string) ($entry['package_id'] ?? $entry['id'] ?? ''));
-            if ($packageId === '' || ! isset($packagesById[$packageId])) {
+            if ($packageId === '') {
                 continue;
             }
 
-            $citySummaries = DayLevel::extractCitySummariesFromDestination(
-                $packagesById[$packageId]['destination'] ?? []
-            );
-            $rawPackage = $this->buildRawPackageForAzureExport(
-                $packagesById[$packageId]['package'],
-                $citySummaries,
-                $hotelsByPackageId[$packageId] ?? []
-            );
+            $rawPackage = json_decode((string) ($entry['raw_package'] ?? ''), true);
+            if (! is_array($rawPackage)) {
+                continue;
+            }
+
+            $storedHotels = $storedHotelsByPackage[$packageId] ?? [];
+            if ($storedHotels !== [] && is_array($rawPackage['days'] ?? null)) {
+                foreach ($rawPackage['days'] as $di => $dayNode) {
+                    if (! is_array($dayNode)) {
+                        continue;
+                    }
+                    $hotels = is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : [];
+                    $rawPackage['days'][$di]['hotels'] = $this->mergeStoredHotelPricingIntoDayHotels(
+                        $hotels,
+                        $storedHotels
+                    );
+                }
+            }
+
+            if (empty($rawPackage['days']) && isset($storedHotelsByPackage[$packageId])) {
+                $rawPackage = $this->buildRawPackageFromStoredPackage(
+                    $packageId,
+                    $rows,
+                    $storedHotelsByPackage[$packageId]
+                );
+            }
+
             $encoded = json_encode($rawPackage, JSON_UNESCAPED_SLASHES);
-            if ($encoded === false) {
-                continue;
+            if ($encoded !== false) {
+                $payload[$i]['raw_package'] = $encoded;
             }
-
-            $payload[$i]['raw_package'] = $encoded;
         }
 
         return $payload;
-    }
-
-    /**
-     * @param  \Illuminate\Support\Collection<int, DayLevel>|iterable  $rows
-     * @return array<string, array{package: array<string, mixed>, destination: array<string, mixed>}>
-     */
-    private function indexStoredPackagesByPackageId($rows): array
-    {
-        $byId = [];
-
-        foreach ($rows as $row) {
-            if (! $row instanceof DayLevel) {
-                continue;
-            }
-
-            foreach ($row->getStoredDestinations() as $destination) {
-                if (! is_array($destination)) {
-                    continue;
-                }
-
-                foreach ((array) ($destination['cities'] ?? []) as $city) {
-                    if (! is_array($city)) {
-                        continue;
-                    }
-                    foreach (array_values((array) ($city['packages'] ?? [])) as $package) {
-                        if (! is_array($package)) {
-                            continue;
-                        }
-                        $packageId = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
-                        if ($packageId === '') {
-                            continue;
-                        }
-                        $byId[$packageId] = [
-                            'package'     => $package,
-                            'destination' => $destination,
-                        ];
-                    }
-                }
-
-                foreach (DayLevel::unwrapPackagesList($destination) as $package) {
-                    if (! is_array($package)) {
-                        continue;
-                    }
-                    $packageId = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
-                    if ($packageId === '') {
-                        continue;
-                    }
-                    $byId[$packageId] = [
-                        'package'     => $package,
-                        'destination' => $destination,
-                    ];
-                }
-            }
-        }
-
-        return $byId;
     }
 
     /**
@@ -2428,14 +2386,10 @@ class DayLevelController extends Controller
                         if ($packageId === '') {
                             continue;
                         }
-                        if (! isset($byPackage[$packageId])) {
-                            $byPackage[$packageId] = [];
-                        }
-                        foreach ($storedHotels as $hotel) {
-                            if (is_array($hotel)) {
-                                $byPackage[$packageId][] = $hotel;
-                            }
-                        }
+                        $byPackage[$packageId] = array_values(array_filter(
+                            $storedHotels,
+                            static fn ($hotel) => is_array($hotel)
+                        ));
                     }
                 }
             }
@@ -2445,44 +2399,53 @@ class DayLevelController extends Controller
     }
 
     /**
-     * Build raw_package for Azure using the same hotel row shape persisted in day_levels.hotels.
-     *
-     * @param  array<string, mixed>  $package
-     * @param  list<array{city: string, city_checkin: string, city_checkout: string}>  $citySummaries
+     * @param  \Illuminate\Support\Collection<int, DayLevel>|iterable  $rows
      * @param  list<array<string, mixed>>  $storedHotels
      * @return array{package_id: string, total_days: int, days: list<array<string, mixed>>}
      */
-    private function buildRawPackageForAzureExport(array $package, array $citySummaries, array $storedHotels = []): array
+    private function buildRawPackageFromStoredPackage(string $packageId, $rows, array $storedHotels): array
     {
-        $packageId = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
-        $totalDays = (int) ($package['total_days'] ?? $package['totalDays'] ?? 0);
-        if ($totalDays <= 0) {
-            $totalDays = DayLevel::inferTotalDaysFromPackageDays($package);
-        }
-
-        $daysList = [];
-        foreach (DayLevel::flattenPackageDayNodes($package['days'] ?? []) as $dayNode) {
-            if (! is_array($dayNode)) {
+        foreach ($rows as $row) {
+            if (! $row instanceof DayLevel) {
                 continue;
             }
+            foreach ($row->getStoredDestinations() as $destination) {
+                if (! is_array($destination)) {
+                    continue;
+                }
+                foreach ((array) ($destination['cities'] ?? []) as $city) {
+                    if (! is_array($city)) {
+                        continue;
+                    }
+                    foreach (array_values((array) ($city['packages'] ?? [])) as $package) {
+                        if (! is_array($package)) {
+                            continue;
+                        }
+                        $id = trim((string) ($package['package_id'] ?? $package['packageId'] ?? ''));
+                        if ($id !== $packageId) {
+                            continue;
+                        }
 
-            $formatted = DayLevel::formatDayForRawPackageExport($dayNode, $citySummaries);
-            $formatted['hotels'] = $this->normalizeDayHotelsWithNight(
-                is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : []
-            );
-            $formatted['hotels'] = $this->mergeStoredHotelPricingIntoDayHotels(
-                $formatted['hotels'],
-                $storedHotels
-            );
-            $formatted['hotels'] = $this->resolveHotelIdsInHotelsMap($formatted['hotels']);
+                        $citySummaries = DayLevel::extractCitySummariesFromDestination($destination);
+                        $rawPackage = DayLevel::buildRawPackagePayload($package, $citySummaries);
+                        foreach ($rawPackage['days'] as $di => $dayNode) {
+                            $hotels = is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : [];
+                            $rawPackage['days'][$di]['hotels'] = $this->mergeStoredHotelPricingIntoDayHotels(
+                                $hotels,
+                                $storedHotels
+                            );
+                        }
 
-            $daysList[] = $formatted;
+                        return $rawPackage;
+                    }
+                }
+            }
         }
 
         return [
             'package_id' => $packageId,
-            'total_days' => $totalDays,
-            'days'       => $daysList,
+            'total_days' => 1,
+            'days'       => [],
         ];
     }
 
@@ -2494,7 +2457,7 @@ class DayLevelController extends Controller
     private function mergeStoredHotelPricingIntoDayHotels(array $hotels, array $storedHotels): array
     {
         if ($storedHotels === []) {
-            return $hotels;
+            return $this->normalizeDayHotelsWithNight($hotels);
         }
 
         $storedByKey = [];
@@ -2504,7 +2467,7 @@ class DayLevelController extends Controller
             }
             $key = implode('|', [
                 (string) ($stored['hotel_id'] ?? ''),
-                (string) ($stored['booked_day'] ?? $stored['checkin_day'] ?? ''),
+                (string) ($stored['booked_day'] ?? $stored['checkin_day'] ?? $stored['day'] ?? ''),
                 (string) ($stored['room_id'] ?? ''),
                 (string) ($stored['bed_id'] ?? ''),
             ]);
@@ -2520,7 +2483,7 @@ class DayLevelController extends Controller
 
             $lookupKey = implode('|', [
                 (string) ($hotel['hotel_id'] ?? ''),
-                (string) ($hotel['booked_day'] ?? $hotel['checkin_day'] ?? ''),
+                (string) ($hotel['booked_day'] ?? $hotel['checkin_day'] ?? $hotel['day'] ?? ''),
                 (string) ($hotel['room_id'] ?? ''),
                 (string) ($hotel['bed_id'] ?? ''),
             ]);
@@ -2529,28 +2492,8 @@ class DayLevelController extends Controller
                 $hotel = array_replace($storedByKey[$lookupKey], $hotel);
             }
 
-            $out[$label] = $this->normalizeDayHotelsWithNight([$label => $hotel])[$label] ?? $hotel;
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param  array<string, mixed>  $hotels
-     * @return array<string, mixed>
-     */
-    private function resolveHotelIdsInHotelsMap(array $hotels): array
-    {
-        $out = [];
-        foreach ($hotels as $label => $hotel) {
-            if (! is_array($hotel)) {
-                $out[$label] = $hotel;
-                continue;
-            }
-            if (isset($hotel['hotel_id'])) {
-                $hotel['hotel_id'] = DayLevel::resolveHotelUniqueId((string) $hotel['hotel_id']);
-            }
-            $out[$label] = $hotel;
+            $normalized = $this->normalizeDayHotelsWithNight([$label => $hotel]);
+            $out[$label] = $normalized[$label] ?? $hotel;
         }
 
         return $out;
@@ -3294,18 +3237,6 @@ class DayLevelController extends Controller
             if (!is_array($hotel)) {
                 $out[$label] = $hotel;
                 continue;
-            }
-            $checkin = max(1, (int) ($hotel['checkin_day'] ?? $hotel['day'] ?? $hotel['booked_day'] ?? 1));
-            if (! isset($hotel['booked_day'])) {
-                $hotel['booked_day'] = $checkin;
-            }
-            if (! isset($hotel['checkin_day'])) {
-                $hotel['checkin_day'] = $checkin;
-            }
-            foreach (['room_price', 'breakfast_price', 'lunch_price', 'dinner_price', 'price_per_night', 'price', 'total_price'] as $priceField) {
-                if (! array_key_exists($priceField, $hotel)) {
-                    $hotel[$priceField] = 0;
-                }
             }
             $nights = max(1, (int) ($hotel['night'] ?? 1));
             $hotel['night'] = $nights;
