@@ -304,14 +304,20 @@ class ExternalApiReceiveController extends Controller
     protected function makeOrder(Tour $tour, string $type, array $item, array $meta = []): Order
     {
         $data = $this->buildOrderData($tour, $type, $item, $meta);
+        $normalizedType = $this->normalizeOrderType($type);
+
+        if ($normalizedType === 'hotel') {
+            $data = $this->normalizeHotelOrderPayload($data, $tour);
+        }
+
         $bookingId = CommonHelper::nextOrderBookingId();
 
         return Order::create([
             'agent_id' => $tour->agent_id,
             'tour_id' => $tour->tour_id,
-            // 'booking_id' => $bookingId,
+            'booking_id' => $bookingId,
             'data' => [$data],
-            'type' => $this->normalizeOrderType($type),
+            'type' => $normalizedType,
             'status' => 1,
             'bookingType' => 'enquiry',
             'remarks' => $data['remarks'] ?? null,
@@ -393,9 +399,9 @@ class ExternalApiReceiveController extends Controller
         $nights = max(1, (int) ($item['night'] ?? $item['nights'] ?? 1));
         $checkOut = Carbon::parse($checkIn)->addDays($nights)->toDateString();
         $mealPlan = $this->resolveHotelMealPlan($item, $resolvedRoom);
-        $mealPlanLabel = $this->mealPlanToLabel(
+        $mealPlanLabel = strtolower($this->mealPlanToLabel(
             trim((string) ($item['meal_plan'] ?? $item['meal_type'] ?? '')) ?: $mealPlan
-        );
+        ));
         $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
         $adults = max(1, (int) $tour->adult);
         $occupancy = $adults <= 1 ? 'single' : 'double';
@@ -415,15 +421,15 @@ class ExternalApiReceiveController extends Controller
 
         $headCount = max(1, (int) ($resolvedBed?->adult_count ?? $resolvedBed?->max_occupancy ?? $adults));
         $bedType = trim((string) (
-            $item['bed_type']
+            $resolvedBed?->room_type
+            ?? $item['bed_type']
             ?? $item['bedType']
-            ?? $resolvedBed?->room_type
             ?? ''
         ));
         $roomType = trim((string) (
-            $item['room_type']
+            $resolvedRoom?->room_type
+            ?? $item['room_type']
             ?? $item['roomType']
-            ?? $resolvedRoom?->room_type
             ?? ''
         ));
 
@@ -466,16 +472,17 @@ class ExternalApiReceiveController extends Controller
             'rooms' => [[
                 'room_id' => is_numeric($roomId) ? (int) $roomId : $roomId,
                 'room_type' => $roomType,
+                'number_of_rooms' => $numberOfRooms,
                 'occupancy' => $occupancy,
                 'selected_persons' => $adults,
-                'number_of_rooms' => $numberOfRooms,
                 'beds' => [[
                     'bed_id' => $bedId !== null ? (string) $bedId : '',
                     'bed_type' => $bedType,
+                    'room_type' => $roomType,
                     'baby_cot' => (int) ($resolvedBed?->baby_cot ?? 0),
                     'head_count' => $headCount,
                     'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
-                    'price' => $bedPrice > 0 ? $bedPrice : $price,
+                    'price' => $bedPrice > 0 ? ($bedPrice * $nights * $numberOfRooms) : $price,
                     'mealTypes' => [$mealPlanLabel],
                     'selectedMeals' => [
                         'meal_1' => [
@@ -497,6 +504,162 @@ class ExternalApiReceiveController extends Controller
             'supplement' => filter_var($item['supplement'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'tour_id' => (string) $tour->tour_id,
         ]);
+    }
+
+    /**
+     * Align external API hotel order JSON with SingleTourPackageController::storeServiceOrders().
+     *
+     * @param  array<string, mixed>  $hotelData
+     * @return array<string, mixed>
+     */
+    protected function normalizeHotelOrderPayload(array $hotelData, Tour $tour): array
+    {
+        $hotelDetails = is_array($hotelData['hotelDetails'] ?? null) ? $hotelData['hotelDetails'] : [];
+        $hotelId = $hotelDetails['hotel_id'] ?? $hotelData['hotel_id'] ?? null;
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+        $createdBy = (int) ($tour->created_by ?? 0);
+        $rooms = is_array($hotelData['rooms'] ?? null) ? $hotelData['rooms'] : [];
+
+        if ($hotelId && $rooms !== []) {
+            $rooms = CommonHelper::fixHotelOrderRoomIds($rooms, $hotelId);
+            $rooms = $this->syncHotelRoomsFromDatabase($rooms, $dmcId, $createdBy);
+        }
+
+        foreach ($rooms as $roomIndex => $room) {
+            if (! is_array($room['beds'] ?? null)) {
+                continue;
+            }
+
+            $roomType = (string) ($room['room_type'] ?? '');
+            foreach ($room['beds'] as $bedIndex => $bed) {
+                if (! is_array($bed)) {
+                    continue;
+                }
+
+                $mealLabel = $bed['selectedMeals']['meal_1']['type'] ?? ($bed['mealTypes'][0] ?? 'room only');
+                $mealLower = strtolower(str_replace('_', ' ', trim((string) $mealLabel)));
+
+                $rooms[$roomIndex]['beds'][$bedIndex]['mealTypes'] = [$mealLower];
+                $rooms[$roomIndex]['beds'][$bedIndex]['room_type'] = $roomType;
+                if (isset($rooms[$roomIndex]['beds'][$bedIndex]['selectedMeals']['meal_1'])) {
+                    $rooms[$roomIndex]['beds'][$bedIndex]['selectedMeals']['meal_1']['type'] = $mealLower;
+                }
+            }
+        }
+
+        return [
+            'fullName' => $hotelData['fullName'] ?? 'Guest User',
+            'email' => $hotelData['email'] ?? 'guest@example.com',
+            'phone' => $hotelData['phone'] ?? '0000000000',
+            'countryCode' => $hotelData['countryCode'] ?? '65',
+            'address1' => $hotelData['address1'] ?? 'Address not provided',
+            'address2' => $hotelData['address2'] ?? null,
+            'state' => $hotelData['state'] ?? 'State not provided',
+            'zip' => $hotelData['zip'] ?? '000000',
+            'specialRequests' => $hotelData['specialRequests'] ?? null,
+            'id' => $hotelData['id'] ?? null,
+            'bookingType' => $hotelData['bookingType'] ?? 'enquiry',
+            'bookingDate' => $hotelData['bookingDate'] ?? [],
+            'hotelDetails' => [
+                'hotel_id' => $hotelId ?? ('hotel_' . time()),
+                'hotel_name' => $hotelDetails['hotel_name'] ?? $hotelData['hotel_name'] ?? 'Hotel Booking',
+                'image' => $hotelDetails['image'] ?? $hotelData['hotel_image'] ?? '',
+                'location' => $hotelDetails['location'] ?? $hotelData['hotel_location'] ?? 'Location not specified',
+                'checkInTime' => $hotelDetails['checkInTime'] ?? $hotelData['check_in_time'] ?? '15:00:00',
+                'checkOutTime' => $hotelDetails['checkOutTime'] ?? $hotelData['check_out_time'] ?? '12:00:00',
+                'cancellation_charge' => $hotelDetails['cancellation_charge'] ?? null,
+            ],
+            'priceMode' => $hotelData['priceMode'] ?? 'dmc',
+            'priceModeId' => (int) ($hotelData['priceModeId'] ?? ($dmcId ?: $createdBy)),
+            'rooms' => $rooms,
+            'totalPrice' => (float) ($hotelData['totalPrice'] ?? 0),
+            'price' => (float) ($hotelData['totalPrice'] ?? $hotelData['price'] ?? 0),
+            'transfer_options' => $hotelData['transfer_options'] ?? null,
+            'child_with_bed' => $hotelData['child_with_bed'] ?? null,
+            'child_without_bed' => $hotelData['child_without_bed'] ?? null,
+            'extra_bed' => $hotelData['extra_bed'] ?? null,
+            'guide_options' => $hotelData['guide_options'] ?? null,
+            'tour_id' => (string) $tour->tour_id,
+            'remarks' => $hotelData['remarks'] ?? null,
+            'supplement' => filter_var($hotelData['supplement'] ?? $hotelData['is_supplement'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rooms
+     * @return list<array<string, mixed>>
+     */
+    protected function syncHotelRoomsFromDatabase(array $rooms, int $dmcId, int $createdBy): array
+    {
+        foreach ($rooms as $roomIndex => $room) {
+            $roomId = $room['room_id'] ?? null;
+            $roomRecord = null;
+
+            if ($roomId !== null && $roomId !== '' && is_numeric($roomId)) {
+                $roomRecord = Room::where('room_id', (int) $roomId)->first();
+            }
+
+            if ($roomRecord) {
+                $rooms[$roomIndex]['room_id'] = (int) $roomRecord->room_id;
+                $rooms[$roomIndex]['room_type'] = (string) $roomRecord->room_type;
+            }
+
+            $roomType = (string) ($rooms[$roomIndex]['room_type'] ?? '');
+            $beds = is_array($room['beds'] ?? null) ? $room['beds'] : [];
+
+            foreach ($beds as $bedIndex => $bed) {
+                if (! is_array($bed)) {
+                    continue;
+                }
+
+                $bedId = $bed['bed_id'] ?? null;
+                if (is_string($bedId) && is_numeric($bedId)) {
+                    $bedId = (int) $bedId;
+                }
+
+                $bedRecord = null;
+                if ($bedId !== null && $bedId !== '' && is_numeric($bedId)) {
+                    $bedRecord = Bed::where('bed_id', (int) $bedId)->first();
+                }
+
+                if (! $bedRecord && $roomRecord) {
+                    $bedType = trim((string) ($bed['bed_type'] ?? ''));
+                    $bedQuery = Bed::query()
+                        ->where('room_id', $roomRecord->room_id)
+                        ->where(function ($q) {
+                            $q->where('is_active', 1)->orWhereNull('is_active');
+                        });
+
+                    if ($bedType !== '') {
+                        $bedRecord = (clone $bedQuery)
+                            ->where('room_type', $bedType)
+                            ->orderBy('bed_id')
+                            ->first();
+                    }
+
+                    if (! $bedRecord) {
+                        $bedRecord = $bedQuery->orderBy('bed_id')->first();
+                    }
+                }
+
+                if ($bedRecord) {
+                    $bedType = (string) ($bedRecord->room_type ?: ($bed['bed_type'] ?? ''));
+                    $headCount = max(1, (int) ($bed['head_count'] ?? $bedRecord->adult_count ?? $bedRecord->max_occupancy ?? 2));
+
+                    $rooms[$roomIndex]['beds'][$bedIndex]['bed_id'] = (string) $bedRecord->bed_id;
+                    $rooms[$roomIndex]['beds'][$bedIndex]['bed_type'] = $bedType;
+                    $rooms[$roomIndex]['beds'][$bedIndex]['room_type'] = $roomType;
+                    $rooms[$roomIndex]['beds'][$bedIndex]['head_count'] = $headCount;
+                    $rooms[$roomIndex]['beds'][$bedIndex]['max_occupancy'] = max(
+                        1,
+                        (int) ($bed['max_occupancy'] ?? $bedRecord->max_occupancy ?? $headCount)
+                    );
+                    $rooms[$roomIndex]['beds'][$bedIndex]['baby_cot'] = (int) ($bed['baby_cot'] ?? $bedRecord->baby_cot ?? 0);
+                }
+            }
+        }
+
+        return $rooms;
     }
 
     /**
@@ -1247,7 +1410,7 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * @return list<array{type: string, name: string, day: ?string, date: ?string}>
+     * @return list<array{type: string, name: string, day: ?string, date: ?string, details: ?string}>
      */
     protected function buildBookedServicesForEmail(Collection $orders): array
     {
@@ -1257,19 +1420,160 @@ class ExternalApiReceiveController extends Controller
             $data = $this->orderDataRow($order);
             $typeKey = strtolower((string) ($order->type ?? 'service'));
             $dayNum = $data['external_day'] ?? $data['day'] ?? null;
-            $bookingDate = $data['bookingDate'] ?? null;
 
             $services[] = [
                 'type' => $this->formatOrderTypeLabel($typeKey),
                 'name' => $this->resolveOrderServiceName($typeKey, $data),
                 'day' => $dayNum !== null && $dayNum !== '' ? 'Day ' . (int) $dayNum : null,
-                'date' => $bookingDate
-                    ? $this->parseDate($bookingDate, Carbon::today())->format('M d, Y')
-                    : null,
+                'date' => $this->formatServiceBookingDateForEmail($typeKey, $data),
+                'details' => $this->buildServiceDetailsForEmail($typeKey, $data),
+                '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
+                '_sort_date' => $this->resolveServiceSortDate($typeKey, $data),
             ];
         }
 
-        return $services;
+        usort($services, static function (array $a, array $b): int {
+            $dayCmp = ($a['_sort_day'] ?? 999) <=> ($b['_sort_day'] ?? 999);
+            if ($dayCmp !== 0) {
+                return $dayCmp;
+            }
+
+            return strcmp((string) ($a['_sort_date'] ?? ''), (string) ($b['_sort_date'] ?? ''));
+        });
+
+        return array_map(static function (array $service): array {
+            unset($service['_sort_day'], $service['_sort_date']);
+
+            return $service;
+        }, $services);
+    }
+
+    protected function formatServiceBookingDateForEmail(string $type, array $data): ?string
+    {
+        $bookingDate = $data['bookingDate'] ?? null;
+
+        if (is_array($bookingDate)) {
+            $dates = array_values(array_filter($bookingDate, static fn ($d) => $d !== null && $d !== ''));
+            if ($dates === []) {
+                return null;
+            }
+
+            $checkIn = $this->parseDate($dates[0], Carbon::today());
+            if (count($dates) >= 2 && $type === 'hotel') {
+                $checkOut = $this->parseDate($dates[1], $checkIn->copy()->addDay());
+
+                return $checkIn->format('M d, Y') . ' – ' . $checkOut->format('M d, Y');
+            }
+
+            return $checkIn->format('M d, Y');
+        }
+
+        if (is_string($bookingDate) && trim($bookingDate) !== '') {
+            return $this->parseDate($bookingDate, Carbon::today())->format('M d, Y');
+        }
+
+        return null;
+    }
+
+    protected function resolveServiceSortDate(string $type, array $data): string
+    {
+        $bookingDate = $data['bookingDate'] ?? null;
+
+        if (is_array($bookingDate)) {
+            $dates = array_values(array_filter($bookingDate, static fn ($d) => $d !== null && $d !== ''));
+            if ($dates !== []) {
+                return $this->parseDate($dates[0], Carbon::today())->toDateString();
+            }
+        }
+
+        if (is_string($bookingDate) && trim($bookingDate) !== '') {
+            return $this->parseDate($bookingDate, Carbon::today())->toDateString();
+        }
+
+        return '';
+    }
+
+    protected function buildServiceDetailsForEmail(string $type, array $data): ?string
+    {
+        $parts = [];
+
+        switch ($type) {
+            case 'hotel':
+                $hotelDetails = is_array($data['hotelDetails'] ?? null) ? $data['hotelDetails'] : [];
+                $room = is_array($data['rooms'][0] ?? null) ? $data['rooms'][0] : [];
+                $bed = is_array($room['beds'][0] ?? null) ? $room['beds'][0] : [];
+
+                if (! empty($room['room_type'])) {
+                    $parts[] = (string) $room['room_type'];
+                }
+                if (! empty($bed['bed_type'])) {
+                    $parts[] = (string) $bed['bed_type'];
+                }
+
+                $meal = $bed['selectedMeals']['meal_1']['type']
+                    ?? ($bed['mealTypes'][0] ?? null);
+                if (is_string($meal) && trim($meal) !== '') {
+                    $parts[] = ucwords(str_replace('_', ' ', trim($meal)));
+                }
+
+                if (! empty($room['number_of_rooms'])) {
+                    $roomCount = (int) $room['number_of_rooms'];
+                    $parts[] = $roomCount . ' room' . ($roomCount > 1 ? 's' : '');
+                }
+
+                if (is_array($data['bookingDate'] ?? null) && count($data['bookingDate']) >= 2) {
+                    $checkIn = $this->parseDate($data['bookingDate'][0], Carbon::today());
+                    $checkOut = $this->parseDate($data['bookingDate'][1], $checkIn->copy()->addDay());
+                    $nights = max(1, $checkIn->diffInDays($checkOut));
+                    $parts[] = $nights . ' night' . ($nights > 1 ? 's' : '');
+                }
+
+                if (! empty($hotelDetails['location'])) {
+                    $parts[] = (string) $hotelDetails['location'];
+                }
+                break;
+
+            case 'attraction':
+                if (! empty($data['ticketName'])) {
+                    $parts[] = (string) $data['ticketName'];
+                }
+                if (! empty($data['visitTime'])) {
+                    $parts[] = (string) $data['visitTime'];
+                }
+                break;
+
+            case 'restaurant':
+                if (! empty($data['mealType'])) {
+                    $parts[] = (string) $data['mealType'];
+                }
+                if (! empty($data['mealSpecificType'])) {
+                    $parts[] = (string) $data['mealSpecificType'];
+                }
+                if (! empty($data['visitTime'])) {
+                    $parts[] = (string) $data['visitTime'];
+                }
+                break;
+
+            case 'vehicle':
+            case 'transfer':
+                if (! empty($data['pickup_location_name'])) {
+                    $parts[] = 'From: ' . $data['pickup_location_name'];
+                }
+                if (! empty($data['drop_location_name'])) {
+                    $parts[] = 'To: ' . $data['drop_location_name'];
+                }
+                if (! empty($data['vehicle_name'])) {
+                    $parts[] = (string) $data['vehicle_name'];
+                }
+                break;
+        }
+
+        $parts = array_values(array_filter(array_map(
+            static fn ($part) => trim((string) $part),
+            $parts
+        )));
+
+        return $parts !== [] ? implode(' · ', $parts) : null;
     }
 
     /**
@@ -1302,8 +1606,13 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveOrderServiceName(string $type, array $data): string
     {
+        $hotelDetails = is_array($data['hotelDetails'] ?? null) ? $data['hotelDetails'] : [];
+
         $name = match ($type) {
-            'hotel' => $data['hotel_name'] ?? $data['hotelName'] ?? null,
+            'hotel' => $hotelDetails['hotel_name']
+                ?? $data['hotel_name']
+                ?? $data['hotelName']
+                ?? null,
             'attraction' => $data['AttractionName'] ?? $data['attraction_name'] ?? $data['name'] ?? null,
             'restaurant' => $data['restaurantName'] ?? $data['restaurant_name'] ?? $data['name'] ?? null,
             'guide' => $data['guide_name'] ?? $data['GuideName'] ?? $data['name'] ?? null,

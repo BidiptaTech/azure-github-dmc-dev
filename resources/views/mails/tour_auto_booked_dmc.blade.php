@@ -118,10 +118,17 @@
                     </h3>
                     <ul style="margin: 0; padding-left: 20px; font-size: 15px; color: #1e293b; line-height: 1.8;">
                         @foreach($booked_services as $service)
-                        <li>
-                            {{ $service['type'] ?? 'Service' }}: {{ $service['name'] ?? '—' }}
+                        <li style="margin-bottom: 10px;">
+                            <strong>{{ $service['type'] ?? 'Service' }}:</strong>
+                            {{ $service['name'] ?? '—' }}
                             @if(!empty($service['date']))
-                            , {{ $service['date'] }}
+                            <span style="color: #475569;"> — {{ $service['date'] }}</span>
+                            @endif
+                            @if(!empty($service['day']))
+                            <span style="color: #7c3aed; font-size: 13px;"> ({{ $service['day'] }})</span>
+                            @endif
+                            @if(!empty($service['details']))
+                            <br><span style="font-size: 13px; color: #64748b;">{{ $service['details'] }}</span>
                             @endif
                         </li>
                         @endforeach
