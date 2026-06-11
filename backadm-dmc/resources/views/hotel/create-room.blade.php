@@ -338,6 +338,71 @@
         cursor: not-allowed;
     }
 
+    .base-room-switch-wrap.is-base-room-locked {
+        position: relative;
+        cursor: not-allowed;
+        padding: 0.2rem 0.55rem 0.2rem 0;
+        border-radius: 999px;
+        background: rgba(105, 108, 255, 0.08);
+        border: 1px solid rgba(105, 108, 255, 0.22);
+        display: inline-flex;
+        align-items: center;
+        pointer-events: auto;
+    }
+    .base-room-switch-wrap.is-base-room-locked[data-tooltip]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%);
+        min-width: 200px;
+        max-width: 260px;
+        padding: 0.45rem 0.65rem;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        text-align: left;
+        color: #fff;
+        background-color: #3c405a;
+        border-radius: 0.35rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease, visibility 0.15s ease;
+        z-index: 1080;
+        pointer-events: none;
+        white-space: normal;
+    }
+    .base-room-switch-wrap.is-base-room-locked[data-tooltip]:hover::after {
+        opacity: 1;
+        visibility: visible;
+    }
+    .card-datatable.table-responsive {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+    table.datatables-basic td {
+        overflow: visible;
+    }
+    .base-room-switch-wrap.is-base-room-locked .form-check-label {
+        color: #696cff;
+        font-weight: 600;
+        cursor: not-allowed;
+        user-select: none;
+    }
+    .base-room-switch-wrap.is-base-room-locked .form-check-input,
+    .base-room-switch-wrap.is-base-room-locked .form-check-label {
+        pointer-events: none;
+    }
+    .toggle-base-room.is-base-room-active:disabled {
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+    }
+    .base-room-switch-wrap.is-base-room-locked .base-room-lock-icon {
+        color: #696cff;
+        font-size: 0.75rem;
+        margin-left: 0.35rem;
+        pointer-events: none;
+    }
     /* Delete button styles */
     .delete-room-btn:disabled {
         opacity: 0.5 !important;
@@ -905,7 +970,7 @@
                     </thead>
                     <tbody>
                             @foreach ($rooms as $key => $room)
-                            <tr data-dmc-id="{{ $room->dmc_id ?? 'admin' }}">
+                            <tr data-dmc-id="{{ $room->dmc_id ?? 'admin' }}" data-hotel-id="{{ $room->hotel_id }}" data-created-by="{{ $room->created_by }}">
                                 <td>{{ ++$key }}</td>
                                 <td>
                                     <a href="{{ route('hotel_details', ['hotel' => $room->hotel->hotel_unique_id]) }}"
@@ -932,21 +997,34 @@
                                 <td>{{ $room->room_type }}</td>
                                 <td>{{ $room->no_of_room }}</td>
                                 <td>
-                                    <div class="form-check form-switch d-flex align-items-center">
-                                        <input class="form-check-input toggle-base-room" 
-                                               type="checkbox" 
-                                               id="baseRoomToggle{{ $room->room_id }}" 
-                                               data-room-id="{{ $room->room_id }}" 
-                                               style="width: 2.00em !important;"
-                                               {{ $room->base_room ? 'checked' : '' }}
-                                               {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'disabled' }}
-                                               {{ $room->created_by == ($effective_room_owner_id ?? $auth_user->userId) ? '' : 'style=opacity:0.5;cursor:not-allowed;' }}>
+                                    @php
+                                        $canEditBaseRoom = (string) $room->created_by === (string) ($effective_room_owner_id ?? $auth_user->userId);
+                                        $baseRoomOn = filter_var($room->base_room, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                                        $baseRoomOn = $baseRoomOn === null ? (!empty($room->base_room) && (string) $room->base_room !== '0') : $baseRoomOn;
+                                        $isActiveBaseRoom = $canEditBaseRoom && $baseRoomOn;
+                                    @endphp
+                                    <div class="form-check form-switch d-flex align-items-center base-room-switch-wrap{{ $isActiveBaseRoom ? ' is-base-room-locked' : '' }}"
+                                         @if($isActiveBaseRoom)
+                                         data-tooltip="This is the base room. It cannot be turned off — select another room as base to switch."
+                                         @endif>
+                                        <input class="form-check-input toggle-base-room{{ $isActiveBaseRoom ? ' is-base-room-active' : '' }}"
+                                               type="checkbox"
+                                               id="baseRoomToggle{{ $room->room_id }}"
+                                               data-room-id="{{ $room->room_id }}"
+                                               data-foreign-room="{{ $canEditBaseRoom ? '0' : '1' }}"
+                                               data-room-base="{{ $baseRoomOn ? '1' : '0' }}"
+                                               style="width: 2.00em !important;{{ !$canEditBaseRoom ? 'opacity:0.5;cursor:not-allowed;' : '' }}"
+                                               @checked($baseRoomOn)
+                                               @disabled(!$canEditBaseRoom || $isActiveBaseRoom)>
                                         <label class="form-check-label ms-2" for="baseRoomToggle{{ $room->room_id }}">
-                                            {{ $room->base_room ? 'Yes' : 'No' }}
-                                            @if($room->created_by != ($effective_room_owner_id ?? $auth_user->userId))
+                                            {{ $baseRoomOn ? 'Yes' : 'No' }}
+                                            @if(!$canEditBaseRoom)
                                                 <small class="text-muted ms-2">(Created by another user)</small>
                                             @endif
                                         </label>
+                                        @if($isActiveBaseRoom)
+                                            <i class="ri-lock-2-line base-room-lock-icon" aria-hidden="true"></i>
+                                        @endif
                                     </div>
                                 </td>
                                 <td>
@@ -1083,6 +1161,16 @@
                 searchPlaceholder: "Search...",
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            initComplete: function() {
+                if (typeof window.applyBaseRoomLockState === 'function') {
+                    window.applyBaseRoomLockState();
+                }
+            },
+            drawCallback: function() {
+                if (typeof window.applyBaseRoomLockState === 'function') {
+                    window.applyBaseRoomLockState();
+                }
+            },
         });
 
         // Initialize Select2 for DMC Filter with search functionality
@@ -2028,80 +2116,128 @@ $(document).ready(function() {
 
 <script>
     $(document).ready(function() {
-    // Base Room Type Toggle Handler
-    $('.toggle-base-room').on('change', function() {
-        // Check if the toggle is disabled
-        if ($(this).prop('disabled')) {
-            // Prevent the change and show a tooltip
-            $(this).prop('checked', !$(this).prop('checked')); // Revert the change
-            
-            // Create and show tooltip if it doesn't exist
-            if (!$(this).next('.tooltip').length) {
-                $('<div class="tooltip fade show" role="tooltip">' +
-                  '<div class="tooltip-inner bg-danger">' +
-                  'You can only modify rooms you created' +
-                  '</div></div>').insertAfter($(this))
-                  .delay(2000).fadeOut(function() { $(this).remove(); });
+    function isForeignBaseRoomToggle($toggle) {
+        return String($toggle.data('foreign-room') || '0') === '1';
+    }
+
+    function isBaseRoomOn($toggle) {
+        return String($toggle.data('room-base') || '0') === '1' || $toggle.prop('checked');
+    }
+
+    const BASE_ROOM_LOCKED_MSG = 'This is the base room. It cannot be turned off — select another room as base to switch.';
+
+    function setBaseRoomLabel($toggle, isOn) {
+        const $label = $toggle.siblings('label');
+        const extra = $label.find('small').length ? $label.find('small').prop('outerHTML') : '';
+        $label.html((isOn ? 'Yes' : 'No') + (extra ? ' ' + extra : ''));
+    }
+
+    function applyBaseRoomLockState() {
+        const groups = {};
+
+        $('.toggle-base-room').each(function() {
+            const $toggle = $(this);
+            if (isForeignBaseRoomToggle($toggle)) {
+                return;
             }
+            const ownerKey = String($toggle.closest('tr').data('created-by') || 'self');
+            if (!groups[ownerKey]) {
+                groups[ownerKey] = [];
+            }
+            groups[ownerKey].push($toggle);
+        });
+
+        Object.values(groups).forEach(function(toggles) {
+            let $active = null;
+            toggles.forEach(function($toggle) {
+                if (isBaseRoomOn($toggle)) {
+                    $active = $toggle;
+                }
+            });
+
+            toggles.forEach(function($toggle) {
+                const $wrap = $toggle.closest('.base-room-switch-wrap');
+                const isActive = $active && $active[0] === $toggle[0];
+
+                $toggle.prop('checked', isActive);
+                $toggle.attr('data-room-base', isActive ? '1' : '0');
+                setBaseRoomLabel($toggle, isActive);
+
+                if (isActive) {
+                    $toggle.prop('disabled', true).addClass('is-base-room-active');
+                    $wrap.addClass('is-base-room-locked');
+                    $wrap.attr('data-tooltip', BASE_ROOM_LOCKED_MSG);
+                    if (!$wrap.find('.base-room-lock-icon').length) {
+                        $wrap.append('<i class="ri-lock-2-line base-room-lock-icon" aria-hidden="true"></i>');
+                    }
+                } else {
+                    $toggle.prop('disabled', false).removeClass('is-base-room-active');
+                    $wrap.removeClass('is-base-room-locked');
+                    $wrap.find('.base-room-lock-icon').remove();
+                    $wrap.removeAttr('data-tooltip');
+                }
+            });
+        });
+    }
+
+    window.applyBaseRoomLockState = applyBaseRoomLockState;
+    applyBaseRoomLockState();
+
+    $(document).on('click', '.base-room-switch-wrap.is-base-room-locked .form-check-input, .base-room-switch-wrap.is-base-room-locked .form-check-label', function(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return false;
+    });
+
+    $(document).on('change', '.toggle-base-room', function() {
+        const $toggle = $(this);
+
+        if ($toggle.prop('disabled') || isForeignBaseRoomToggle($toggle)) {
             return false;
         }
 
-        const roomId = $(this).data('room-id');
-        const isBaseRoom = $(this).prop('checked');
-        const label = $(this).siblings('label');
-        
-        // Update label text
-        label.text(isBaseRoom ? 'Yes' : 'No');
-        
-        // Show loading indicator
-        const originalHtml = label.html();
-        label.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-        
-        // Send AJAX request
+        if (!$toggle.prop('checked')) {
+            $toggle.prop('checked', true);
+            return false;
+        }
+
+        const roomId = $toggle.data('room-id');
+        const $label = $toggle.siblings('label');
+        const extraHtml = $label.find('small').length ? $label.find('small').prop('outerHTML') : '';
+
+        $label.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+
         $.ajax({
             url: '{{ route("rooms.update-base-room") }}',
             type: 'POST',
             data: {
                 room_id: roomId,
-                base_room: isBaseRoom ? 1 : 0,
+                base_room: 1,
                 _token: '{{ csrf_token() }}'
             },
             success: function(response) {
                 if (response.success) {
-                    // Show success indicator
-                    label.html('<i class="fas fa-check-circle text-success"></i> ' + (isBaseRoom ? 'Yes' : 'No'));
-                    
-                    // Reload the page after a short delay
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
-                } else {
-                    // Show error and revert the toggle
-                    label.html('<i class="fas fa-times-circle text-danger"></i> Error');
-                    $(this).prop('checked', !isBaseRoom);
-                    
-                    // Revert to normal label after 2 seconds
-                    setTimeout(function() {
-                        label.text(!isBaseRoom ? 'Yes' : 'No');
-                    }, 2000);
-                    
-                    console.error('Failed to update base room status:', response.message);
+                    window.location.reload();
+                    return;
                 }
+
+                applyBaseRoomLockState();
+                $label.html('<i class="fas fa-times-circle text-danger"></i> Error' + (extraHtml ? ' ' + extraHtml : ''));
+                setTimeout(function() {
+                    setBaseRoomLabel($toggle, $toggle.prop('checked'));
+                }, 2000);
+                console.error('Failed to update base room status:', response.message);
             },
             error: function(xhr) {
-                // Show error and revert the toggle
-                label.html('<i class="fas fa-times-circle text-danger"></i> Error');
-                $(this).prop('checked', !isBaseRoom);
-                
-                // Revert to normal label after 2 seconds
+                applyBaseRoomLockState();
+                $label.html('<i class="fas fa-times-circle text-danger"></i> Error' + (extraHtml ? ' ' + extraHtml : ''));
                 setTimeout(function() {
-                    label.text(!isBaseRoom ? 'Yes' : 'No');
+                    setBaseRoomLabel($toggle, $toggle.prop('checked'));
                 }, 2000);
-                
-                console.error('Failed to update base room status:', xhr.responseText);
+                console.error('Failed to update base room status:', xhr.responseJSON?.message || xhr.responseText);
             }
         });
-        });
+    });
     
     // Rooms Only Toggle Handler
     $('.toggle-rooms-only').on('change', function() {
