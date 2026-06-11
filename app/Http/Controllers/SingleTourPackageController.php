@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
+use App\Helpers\HotelPriceHelper;
 use Carbon\Carbon;
 use App\Models\EnquiryForm;
 use Illuminate\Support\Facades\Crypt;
@@ -2315,6 +2316,50 @@ class SingleTourPackageController extends Controller
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile()
                 ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate hotel room + meal price via HotelPriceHelper.
+     */
+    public function getHotelPrice(Request $request)
+    {
+        try {
+            $hotelUniqueId = $request->input('hotel_unique_id');
+            $roomId        = $request->input('room_id');
+            $bedId         = $request->input('bed_id');
+            $mealPlan      = $request->input('meal_plan');
+            $pax           = (int) $request->input('pax', 1);
+            $dates         = $request->input('dates', []);
+
+            if (is_string($dates)) {
+                $decoded = json_decode($dates, true);
+                $dates = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $dates)));
+            }
+            $dates = array_values(array_filter((array) $dates));
+
+            if (empty($hotelUniqueId) || empty($roomId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'hotel_unique_id and room_id are required.',
+                ], 422);
+            }
+
+            if (empty($dates)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'At least one date (night) is required.',
+                ], 422);
+            }
+
+            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating hotel price: ' . $e->getMessage(),
             ], 500);
         }
     }
