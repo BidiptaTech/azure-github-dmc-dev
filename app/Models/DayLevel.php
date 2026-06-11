@@ -2543,27 +2543,50 @@ class DayLevel extends Model
     }
 
     /**
+     * Deep-cast JSON object graphs (stdClass) into plain arrays.
+     *
+     * @return array<string, mixed>
+     */
+    public static function castMixedToArray($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_object($value)) {
+            $decoded = json_decode(json_encode($value), true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
      * @param  mixed  $daysRaw
      * @return list<array<string, mixed>>
      */
     public static function flattenPackageDayNodes($daysRaw): array
     {
-        if ($daysRaw instanceof \stdClass) {
-            $daysRaw = (array) $daysRaw;
-        }
-        if (! is_array($daysRaw)) {
+        $daysRaw = self::castMixedToArray($daysRaw);
+        if ($daysRaw === []) {
             return [];
         }
 
         $nodes = [];
         if (array_is_list($daysRaw)) {
-            $nodes = $daysRaw;
+            foreach ($daysRaw as $dayNode) {
+                $dayNode = self::castMixedToArray($dayNode);
+                if ($dayNode !== []) {
+                    $nodes[] = $dayNode;
+                }
+            }
         } else {
             $keys = array_keys($daysRaw);
             usort($keys, fn ($a, $b) => (int) $a <=> (int) $b);
             foreach ($keys as $key) {
-                if (is_array($daysRaw[$key] ?? null)) {
-                    $nodes[] = $daysRaw[$key];
+                $dayNode = self::castMixedToArray($daysRaw[$key] ?? null);
+                if ($dayNode !== []) {
+                    $nodes[] = $dayNode;
                 }
             }
         }
@@ -2580,8 +2603,9 @@ class DayLevel extends Model
      */
     public static function formatDayForRawPackageExport(array $dayNode, array $citySummaries): array
     {
+        $dayNode = self::castMixedToArray($dayNode);
         $day = (int) ($dayNode['day'] ?? 0);
-        $hotels = self::formatRawHotelsMap(is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : []);
+        $hotels = self::formatRawHotelsMap(self::castMixedToArray($dayNode['hotels'] ?? []), true);
         $attractions = is_array($dayNode['attractions'] ?? null)
             ? self::normalizeAttractionsMap($dayNode['attractions'])
             : [];
@@ -2705,11 +2729,27 @@ class DayLevel extends Model
         return $entry;
     }
 
-    private static function formatRawHotelsMap(array $hotels): array
+    private static function formatRawHotelsMap(array $hotels, bool $preserveFullRow = false): array
     {
         $out = [];
         foreach ($hotels as $label => $row) {
-            if (! is_array($row)) {
+            if (! is_array($row) && ! is_object($row)) {
+                $out[$label] = $row;
+                continue;
+            }
+            $row = self::castMixedToArray($row);
+            if ($row === []) {
+                continue;
+            }
+            if ($preserveFullRow) {
+                if (isset($row['hotel_id'])) {
+                    $row['hotel_id'] = self::resolveHotelUniqueId((string) $row['hotel_id']);
+                }
+                foreach (['transfer_pickup', 'transfer_drop'] as $field) {
+                    if (array_key_exists($field, $row)) {
+                        $row[$field] = self::normalizeTransferLocationToken((string) ($row[$field] ?? ''));
+                    }
+                }
                 $out[$label] = $row;
                 continue;
             }

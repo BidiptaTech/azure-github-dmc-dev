@@ -482,6 +482,92 @@ class CommonHelper
         }
     }
 
+    /**
+     * Replace generated room/bed ids with numeric database ids (editform / storeServiceOrders format).
+     *
+     * @param  list<array<string, mixed>>  $rooms
+     * @return list<array<string, mixed>>
+     */
+    public static function fixHotelOrderRoomIds(array $rooms, $hotelId): array
+    {
+        if ($rooms === [] || empty($hotelId)) {
+            return $rooms;
+        }
+
+        $fixedRooms = [];
+
+        foreach ($rooms as $room) {
+            $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
+            $roomType = $room['room_type'] ?? $room['roomType'] ?? null;
+
+            if ($roomId && ((is_string($roomId) && str_starts_with($roomId, 'room_')) || ! is_numeric($roomId))) {
+                $foundRoomId = null;
+
+                if (isset($room['beds']) && is_array($room['beds']) && $room['beds'] !== []) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+
+                        if ($bedId && is_string($bedId) && (str_starts_with($bedId, 'bed_') || ! is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $bedId = (int) $numericBedId;
+                                $room['beds'][$index]['bed_id'] = (string) $bedId;
+                            }
+                        }
+
+                        if ($bedId && is_numeric($bedId)) {
+                            $bedRecord = \App\Models\Bed::where('bed_id', (int) $bedId)
+                                ->where(function ($q) {
+                                    $q->where('is_active', 1)->orWhereNull('is_active');
+                                })
+                                ->first();
+
+                            if ($bedRecord && $bedRecord->room_id) {
+                                $foundRoomId = $bedRecord->room_id;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($foundRoomId) {
+                    $room['room_id'] = (int) $foundRoomId;
+                } elseif ($roomType) {
+                    $roomRecord = \App\Models\Room::where('hotel_id', $hotelId)
+                        ->where('room_type', $roomType)
+                        ->where(function ($q) {
+                            $q->where('status', 1)->orWhereNull('status');
+                        })
+                        ->first();
+
+                    if ($roomRecord && $roomRecord->room_id) {
+                        $room['room_id'] = (int) $roomRecord->room_id;
+                    }
+                }
+            } elseif ($roomId && is_numeric($roomId)) {
+                $room['room_id'] = (int) $roomId;
+
+                if (isset($room['beds']) && is_array($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        if ($bedId && is_string($bedId) && (str_starts_with($bedId, 'bed_') || ! is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $room['beds'][$index]['bed_id'] = (string) (int) $numericBedId;
+                            }
+                        } elseif ($bedId !== null && $bedId !== '' && is_numeric($bedId)) {
+                            $room['beds'][$index]['bed_id'] = (string) (int) $bedId;
+                        }
+                    }
+                }
+            }
+
+            $fixedRooms[] = $room;
+        }
+
+        return $fixedRooms;
+    }
+
     /*
     *Date Format Maintain for Api
     *Date 14-01-2025
@@ -1711,8 +1797,12 @@ class CommonHelper
                 'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
                 'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
                 'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
+                'currency_code' => strtoupper(trim((string) ($tourData['currency_code'] ?? 'SGD'))) ?: 'SGD',
+                'total_estimation' => round((float) ($tourData['total_estimation'] ?? 0), 2),
             ];
             $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
+            $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
+                . number_format($emailData['total_estimation'], 2);
 
             $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 

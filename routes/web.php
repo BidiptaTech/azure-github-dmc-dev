@@ -558,6 +558,7 @@ Route::get('/clear', function () {
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
+            Route::post('/get-hotel-price', [SingleTourPackageController::class, 'getHotelPrice'])->name('get-hotel-price');
             Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuidesByDmc'])->name('fetch-guides-by-dmc');
             Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurantsByDmc'])->name('fetch-restaurants-by-dmc');
             Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
