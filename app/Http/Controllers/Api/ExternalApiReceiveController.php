@@ -1124,7 +1124,7 @@ class ExternalApiReceiveController extends Controller
         $required = filter_var($requiredRaw, FILTER_VALIDATE_BOOLEAN)
             || (is_string($requiredRaw) && strtolower($requiredRaw) === 'yes');
 
-        if (!$required && empty($transfer) && empty($fallback['required'])) {
+        if (! $required && empty($fallback['required'])) {
             return null;
         }
 
@@ -1424,18 +1424,12 @@ class ExternalApiReceiveController extends Controller
         $services = [];
 
         foreach ($orders as $order) {
-            $data = $this->orderDataRow($order);
-            $typeKey = strtolower((string) ($order->type ?? 'service'));
-            $dayNum = $data['external_day'] ?? $data['day'] ?? null;
-
-            if (! in_array($typeKey, ['entry_port', 'exit_port'], true)) {
-                $transferCard = $this->buildTransferItineraryFromOptions($typeKey, $data, $dayNum);
-                if ($transferCard !== null) {
-                    $services[] = $transferCard;
-                }
+            $typeKey = strtolower(trim((string) ($order->type ?? '')));
+            if ($typeKey === '' || $typeKey === 'enquiry') {
+                continue;
             }
 
-            $services[] = $this->buildItineraryCardForOrder($typeKey, $data, $dayNum);
+            $services[] = $this->buildItineraryCardForOrder($order);
         }
 
         usort($services, static function (array $a, array $b): int {
@@ -1488,10 +1482,16 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
+     * Build one itinerary card from a persisted orders row (type + data JSON).
+     *
      * @return array<string, mixed>
      */
-    protected function buildItineraryCardForOrder(string $typeKey, array $data, $dayNum): array
+    protected function buildItineraryCardForOrder(Order $order): array
     {
+        $data = $this->orderDataRow($order);
+        $typeKey = strtolower(trim((string) ($order->type ?? 'service')));
+        $dayNum = $data['external_day'] ?? $data['day'] ?? null;
+
         $badge = $this->formatItineraryBadge($typeKey);
         $name = $this->resolveOrderServiceName($typeKey, $data);
         $date = $this->formatServiceBookingDateForEmail($typeKey, $data);
@@ -1501,6 +1501,8 @@ class ExternalApiReceiveController extends Controller
         $lines = $this->buildItineraryLinesForOrder($typeKey, $data);
 
         return [
+            'order_id' => $order->booking_id ?? $order->getKey(),
+            'order_type' => $typeKey,
             'badge' => $badge,
             'accent' => $this->itineraryAccentColor($typeKey),
             'type' => $this->formatOrderTypeLabel($typeKey),
@@ -1517,71 +1519,7 @@ class ExternalApiReceiveController extends Controller
             'price' => $priceValue > 0 ? number_format($priceValue, 2) : null,
             '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
             '_sort_date' => $this->resolveServiceSortDate($typeKey, $data),
-            '_sort_order' => 2,
-        ];
-    }
-
-    /**
-     * @return ?array<string, mixed>
-     */
-    protected function buildTransferItineraryFromOptions(string $parentType, array $data, $dayNum): ?array
-    {
-        $transfer = $data['transfer_options'] ?? null;
-        if (! is_array($transfer) || empty($transfer['transfer_required'])) {
-            return null;
-        }
-
-        $pickup = trim((string) (
-            $transfer['pickup_location_name']
-            ?? $transfer['pickup_location']
-            ?? $transfer['pickup']
-            ?? ''
-        ));
-        $dropoff = trim((string) (
-            $transfer['destination']
-            ?? $transfer['drop_location_name']
-            ?? $transfer['dropoff']
-            ?? ''
-        ));
-
-        if ($pickup === '' && $dropoff === '') {
-            return null;
-        }
-
-        $transferType = trim((string) ($transfer['type'] ?? 'Private'));
-        $vehicle = trim((string) ($transfer['vehicle_name'] ?? ''));
-        $priceValue = (float) ($transfer['price'] ?? $transfer['cost'] ?? 0);
-        $time = trim((string) ($transfer['pickup_time'] ?? ''));
-        $passengers = $transfer['passengers'] ?? null;
-
-        $lines = array_values(array_filter([
-            $pickup !== '' ? ['label' => 'From', 'value' => $pickup] : null,
-            $dropoff !== '' ? ['label' => 'To', 'value' => $dropoff] : null,
-            $transferType !== '' ? ['label' => 'Transfer type', 'value' => $transferType . ' Transfer'] : null,
-            $vehicle !== '' ? ['label' => 'Vehicle', 'value' => $vehicle] : null,
-            ! empty($transfer['way']) ? ['label' => 'Way', 'value' => (string) $transfer['way']] : null,
-            $passengers ? ['label' => 'Passengers', 'value' => (string) $passengers] : null,
-            $parentType === 'hotel' ? ['label' => 'Linked to', 'value' => 'Hotel arrival / departure'] : null,
-        ]));
-
-        return [
-            'badge' => 'ARRIVAL',
-            'accent' => '#3b82f6',
-            'type' => 'Transfer',
-            'title' => 'Transfer Service',
-            'subtitle' => 'Shared / private transfer for your package',
-            'name' => 'Transfer Service',
-            'day' => $dayNum !== null && $dayNum !== '' ? 'Day ' . (int) $dayNum : null,
-            'date' => $this->formatServiceBookingDateForEmail($parentType, $data),
-            'time' => $time !== '' ? $time : null,
-            'pax' => $this->formatPaxLabel($passengers, $data),
-            'details' => null,
-            'lines' => $lines,
-            'price_value' => $priceValue,
-            'price' => $priceValue > 0 ? number_format($priceValue, 2) : null,
-            '_sort_day' => is_numeric($dayNum) ? (int) $dayNum : 999,
-            '_sort_date' => $this->resolveServiceSortDate($parentType, $data),
-            '_sort_order' => 1,
+            '_sort_order' => (int) ($order->booking_id ?? $order->getKey() ?? 0),
         ];
     }
 
@@ -1778,6 +1716,7 @@ class ExternalApiReceiveController extends Controller
                 if (is_string($meal) && trim($meal) !== '') {
                     $lines[] = ['label' => 'Meal plan', 'value' => ucwords(str_replace('_', ' ', trim($meal)))];
                 }
+                $lines = $this->appendEmbeddedTransferLines($lines, $data);
                 break;
 
             case 'attraction':
@@ -1788,8 +1727,10 @@ class ExternalApiReceiveController extends Controller
                     $lines[] = ['label' => 'Visit time', 'value' => (string) $data['visitTime']];
                 }
                 if (! empty($data['Selection'])) {
-                    $lines[] = ['label' => 'Transport', 'value' => (string) $data['Selection']];
+                    $selection = (string) $data['Selection'];
+                    $lines[] = ['label' => 'Transport', 'value' => ucwords(preg_replace('/([a-z])([A-Z])/', '$1 $2', $selection) ?? $selection)];
                 }
+                $lines = $this->appendEmbeddedTransferLines($lines, $data);
                 break;
 
             case 'restaurant':
@@ -1802,6 +1743,7 @@ class ExternalApiReceiveController extends Controller
                 if (! empty($data['visitTime'])) {
                     $lines[] = ['label' => 'Time', 'value' => (string) $data['visitTime']];
                 }
+                $lines = $this->appendEmbeddedTransferLines($lines, $data);
                 break;
 
             case 'guide':
@@ -1860,6 +1802,50 @@ class ExternalApiReceiveController extends Controller
 
         if (! empty($data['remarks'])) {
             $lines[] = ['label' => 'Remarks', 'value' => (string) $data['remarks']];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Show transfer details stored on the same order row (not a separate itinerary card).
+     *
+     * @param  list<array{label: string, value: string}>  $lines
+     * @return list<array{label: string, value: string}>
+     */
+    protected function appendEmbeddedTransferLines(array $lines, array $data): array
+    {
+        $transfer = $data['transfer_options'] ?? null;
+        if (! is_array($transfer) || empty($transfer['transfer_required'])) {
+            return $lines;
+        }
+
+        $pickup = trim((string) (
+            $transfer['pickup_location_name']
+            ?? $transfer['pickup_location']
+            ?? ''
+        ));
+        $dropoff = trim((string) (
+            $transfer['destination']
+            ?? $transfer['drop_location_name']
+            ?? ''
+        ));
+
+        if ($pickup === '' && $dropoff === '') {
+            return $lines;
+        }
+
+        if ($pickup !== '') {
+            $lines[] = ['label' => 'Transfer from', 'value' => $pickup];
+        }
+        if ($dropoff !== '') {
+            $lines[] = ['label' => 'Transfer to', 'value' => $dropoff];
+        }
+        if (! empty($transfer['type'])) {
+            $lines[] = ['label' => 'Transfer type', 'value' => (string) $transfer['type'] . ' Transfer'];
+        }
+        if (! empty($transfer['way'])) {
+            $lines[] = ['label' => 'Transfer way', 'value' => (string) $transfer['way']];
         }
 
         return $lines;
