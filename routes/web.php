@@ -1369,6 +1369,9 @@ Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPla
 Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
     ->name('day-level.transfer-options');
 
+Route::get('day-level/transfer-zone-price', [DayLevelController::class, 'transferZonePrice'])
+    ->name('day-level.transfer-zone-price');
+
 Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
     ->name('day-level.tickets-by-attraction');
 

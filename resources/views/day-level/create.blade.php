@@ -1131,15 +1131,7 @@
                                             <option value="">Select meal plan</option>
                                         </select>
                                     </div>
-                                    <div class="col-lg-3 col-md-6" id="hotel_meal_type_wrap">
-                                        <label class="form-label" for="hotel_meal_type">Select Dish</label>
-                                        <select id="hotel_meal_type" class="form-select searchable-select">
-                                            <option value="">Select dish</option>
-                                            <option value="Buffet">Buffet</option>
-                                            <option value="Set Menu">Set Menu</option>
-                                            <option value="A La Carte">A La Carte</option>
-                                        </select>
-                                    </div>
+                                    
                                     </div>
                                 </div>
 
@@ -1295,6 +1287,7 @@
             mealPlansByHotel: @json(route('day-level.meal-plans-by-hotel')),
             mealsByRestaurant: @json(route('day-level.meals-by-restaurant')),
             transferOptions: @json(route('day-level.transfer-options')),
+            transferZonePrice: @json(route('day-level.transfer-zone-price')),
             ticketsByAttraction: @json(route('day-level.tickets-by-attraction')),
             citiesByCountry: @json(route('day-level.cities-by-country')),
         };
@@ -3065,10 +3058,10 @@
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="arrival_price_${d}">Transfer Price</label>
+                                            <label class="form-label" for="arrival_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">SGD</span>
-                                                <input type="number" class="form-control" id="arrival_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                                <input type="number" class="form-control transfer-leg-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
                                         <div class="col-md-2 d-flex">
@@ -3098,10 +3091,10 @@
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label" for="departure_price_${d}">Transfer Price</label>
+                                            <label class="form-label" for="departure_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">SGD</span>
-                                                <input type="number" class="form-control" id="departure_price_${d}" min="0" step="0.01" placeholder="0.00">
+                                                <input type="number" class="form-control transfer-leg-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
                                         <div class="col-md-2 d-flex">
@@ -4232,6 +4225,9 @@
                     }
                 }
             }
+            if (!isPrefillingActivityForm) {
+                fetchTransferZonePricesForVisibleLegs();
+            }
         }
 
         function getLegTransferPickupForDay(dayVal) {
@@ -4337,6 +4333,64 @@
             const el = document.getElementById(`${prefix}_price_${d}`);
             if (el) {
                 el.value = parseFloat(amount ?? 0).toFixed(2);
+            }
+        }
+
+        function clearTransferLegPriceManualFlag(prefix, dayVal) {
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const el = document.getElementById(`${prefix}_price_${d}`);
+            if (el) {
+                delete el.dataset.manualPrice;
+            }
+        }
+
+        async function fetchTransferZonePrice(prefix, dayVal) {
+            if (isPrefillingActivityForm) return;
+            const legPrefix = String(prefix || '').trim().toLowerCase();
+            if (legPrefix !== 'arrival' && legPrefix !== 'departure') return;
+
+            const d = parseInt(String(dayVal || 1), 10) || 1;
+            const pickup = String(document.getElementById(`${legPrefix}_pickup_select_${d}`)?.value || '').trim();
+            const drop = String(document.getElementById(`${legPrefix}_drop_select_${d}`)?.value || '').trim();
+            if (!pickup || !drop) return;
+
+            const priceEl = document.getElementById(`${legPrefix}_price_${d}`);
+            if (!priceEl || priceEl.dataset.manualPrice === '1') return;
+
+            const dmcId = document.getElementById('dmc_id')?.value || '';
+            const params = new URLSearchParams({
+                pickup_value: pickup,
+                drop_value: drop,
+                transfer_type: 'private',
+                dmc_id: String(dmcId),
+            });
+
+            try {
+                const res = await fetch(`${DAY_LEVEL_ROUTES.transferZonePrice}?${params.toString()}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (priceEl.dataset.manualPrice === '1') return;
+
+                if (data?.zone_mapped && parseFloat(data.price) > 0) {
+                    setDayTransferPriceInput(legPrefix, d, data.price);
+                    priceEl.dataset.zoneAuto = '1';
+                } else if (priceEl.dataset.zoneAuto === '1') {
+                    setDayTransferPriceInput(legPrefix, d, 0);
+                    delete priceEl.dataset.zoneAuto;
+                }
+            } catch (e) {
+                // Zone lookup failed — user can enter price manually.
+            }
+        }
+
+        function fetchTransferZonePricesForVisibleLegs() {
+            for (let d = 1; d <= daysCount; d++) {
+                if (shouldShowArrivalForDay(d)) {
+                    fetchTransferZonePrice('arrival', d);
+                }
+                if (shouldShowDepartureForDay(d)) {
+                    fetchTransferZonePrice('departure', d);
+                }
             }
         }
 
@@ -4506,11 +4560,14 @@
                 }
             }
 
-            setDayTransferPriceInput(
-                resolveTransferPriceFieldPrefix(transferType, itemType),
-                rowDay,
-                transferCost
-            );
+            const pricePrefix = resolveTransferPriceFieldPrefix(transferType, itemType);
+            setDayTransferPriceInput(pricePrefix, rowDay, transferCost);
+            if (transferCost > 0 && (pricePrefix === 'arrival' || pricePrefix === 'departure')) {
+                const savedPriceEl = document.getElementById(`${pricePrefix}_price_${rowDay}`);
+                if (savedPriceEl) {
+                    savedPriceEl.dataset.manualPrice = '1';
+                }
+            }
             renderExtraTransferRows(rowDay);
         }
 
@@ -4872,10 +4929,6 @@
                 } catch (e) {
                     // fallback below
                 }
-            }
-
-            if (!list.length && hotelsFlat.length && cityName) {
-                list = hotelsFlat.filter(x => String(x.hotel_star_rating ?? '').trim() === String(category).trim());
             }
 
             setSelectOptions('hotel_select', list.map(x => {
@@ -7137,9 +7190,21 @@
             });
             $(document).on('change select2:select select2:clear', '[id^="arrival_pickup_select_"], [id^="departure_pickup_select_"]', function () {
                 hotelTransferState.pickup = this.value || '';
+                const dayVal = getDayFromElementId(this.id);
+                const prefix = String(this.id || '').startsWith('arrival_') ? 'arrival' : 'departure';
+                clearTransferLegPriceManualFlag(prefix, dayVal);
+                fetchTransferZonePrice(prefix, dayVal);
             });
             $(document).on('change select2:select select2:clear', '[id^="arrival_drop_select_"], [id^="departure_drop_select_"]', function () {
                 hotelTransferState.drop = this.value || '';
+                const dayVal = getDayFromElementId(this.id);
+                const prefix = String(this.id || '').startsWith('arrival_') ? 'arrival' : 'departure';
+                clearTransferLegPriceManualFlag(prefix, dayVal);
+                fetchTransferZonePrice(prefix, dayVal);
+            });
+            $(document).on('input', '.transfer-leg-price-input', function () {
+                this.dataset.manualPrice = '1';
+                delete this.dataset.zoneAuto;
             });
 
             $('#city_id').on('change', function () {
