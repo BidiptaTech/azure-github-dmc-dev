@@ -3499,10 +3499,12 @@
                             const perNight = perNightStored > 0
                                 ? perNightStored
                                 : (totalPrice > 0 && nights > 0 ? totalPrice / nights : 0);
+                            const hydratedStarRating = String(h.hotel_star_rating ?? h.cat ?? '').trim();
                             hotels.push({
                                 day: checkinDay,
-                                cat: '',
-                                cat_label: '',
+                                cat: hydratedStarRating,
+                                cat_label: hydratedStarRating ? `${hydratedStarRating} Stars` : '',
+                                hotel_star_rating: hydratedStarRating,
                                 hotel_id: String(h.hotel_id || ''),
                                 hotel_name: String(h.hotel_name || ''),
                                 city_name: String(h.city || cityName || ''),
@@ -5356,6 +5358,7 @@
             const payload = {
                 cat: categoryOp.value,
                 cat_label: categoryOp.textContent,
+                hotel_star_rating: categoryOp.value,
                 hotel_id: hotelOp.value,
                 hotel_name: hotelOp.textContent,
                 city_name: cityName,
@@ -5446,9 +5449,11 @@
             // Nights dropdown depends on hotel city + Multi City span.
             syncHotelDayDropdownWithMultiCity();
             safeSetSelectValue('hotel_day', String(x.night || 1));
-            const resolvedCategory = (x.cat && String(x.cat).trim() !== '')
-                ? String(x.cat)
-                : await resolveHotelCategoryForEdit(x.hotel_id, x.city_name || getCityNameFromSelect('hotel_city_select'));
+            const resolvedCategory = (x.hotel_star_rating && String(x.hotel_star_rating).trim() !== '')
+                ? String(x.hotel_star_rating)
+                : ((x.cat && String(x.cat).trim() !== '')
+                    ? String(x.cat)
+                    : await resolveHotelCategoryForEdit(x.hotel_id, x.city_name || getCityNameFromSelect('hotel_city_select')));
             safeSetSelectValue('hotel_category', resolvedCategory);
             await filterHotelOptions();
             safeSetSelectValue('hotel_select', resolveHotelUniqueIdForPayload(x.hotel_id) || '');
@@ -6471,6 +6476,7 @@
                         booked_day: d,
                         hotel_id: resolveHotelUniqueIdForPayload(x.hotel_id),
                         hotel_name: x.hotel_name,
+                        hotel_star_rating: String(x.hotel_star_rating ?? x.cat ?? '').trim(),
                         city: x.city_name || '',
                         room_id: String(x.room_id || ''),
                         room_type: String(x.room_type || ''),
