@@ -89,6 +89,11 @@ Auth::routes();
 Route::get('/api/v1/external/receive', [ExternalApiReceiveController::class, 'index']);
 Route::get('/api/v1/external/received', [ExternalApiReceiveController::class, 'index']);
 
+// Signed public itinerary PDF download (used in tour notification emails; no login required).
+Route::get('/tour/{tourId}/itinerary/download', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
+    ->middleware('signed')
+    ->name('tour.itinerary.public-download');
+
 Route::get('/clear', function () {
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
