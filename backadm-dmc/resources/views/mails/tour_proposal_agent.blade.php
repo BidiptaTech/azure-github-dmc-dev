@@ -131,6 +131,9 @@
                     <p style="margin: 0 0 15px 0; font-size: 17px; color: #92400e; font-weight: 600;">
                         <span style="font-size: 24px; margin-right: 8px;">👉</span> Ready to Review Your Proposal?
                     </p>
+                    @if(!empty($itinerary_download_url))
+                    <a href="{{ $itinerary_download_url }}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white !important; text-decoration: none; padding: 16px 36px; border-radius: 10px; font-weight: 700; font-size: 17px; margin: 15px 10px 10px 0; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); letter-spacing: 0.5px;">Download Itinerary (PDF)</a>
+                    @endif
                     <a href="{{ $dashboard_link ?? url('/agent/dashboard') }}" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white !important; text-decoration: none; padding: 16px 36px; border-radius: 10px; font-weight: 700; font-size: 17px; margin: 15px 0 10px 0; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); letter-spacing: 0.5px;">Access Your Dashboard</a>
                 </div>
                 

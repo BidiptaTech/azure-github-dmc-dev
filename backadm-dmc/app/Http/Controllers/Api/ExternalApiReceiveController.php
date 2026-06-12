@@ -1296,6 +1296,7 @@ class ExternalApiReceiveController extends Controller
             $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
                 'dmc_name' => $senderName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                'tour_id' => $tour->tour_id,
                 'tour_display_id' => $tour->display_id,
                 'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
                 'diff' => $availability['diff'],
