@@ -184,12 +184,7 @@
                 @endif
 
                 <p style="margin: 0 0 20px 0; text-align: center;">
-                    @if(!empty($itinerary_download_url))
-                    <a href="{{ $itinerary_download_url }}" style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 600; font-size: 15px; margin: 0 8px 10px 8px;">
-                        Download Itinerary (PDF)
-                    </a>
-                    @endif
-                    <a href="{{ $dashboard_link ?? route('dashboard') }}" style="display: inline-block; background: #ffffff; color: #7c3aed !important; border: 2px solid #8b5cf6; text-decoration: none; padding: 12px 26px; border-radius: 10px; font-weight: 600; font-size: 15px; margin: 0 8px 10px 8px;">
+                    <a href="{{ $dashboard_link ?? route('dashboard') }}" style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 600; font-size: 15px;">
                         Dashboard
                     </a>
                 </p>

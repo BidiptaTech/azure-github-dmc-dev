@@ -1085,11 +1085,7 @@
             </div>
             
             <!-- Enhanced CTA Button -->
-            @php
-                $itineraryDownloadUrl = $itinerary_download_url
-                    ?? (isset($tour->tour_id) ? \App\Helpers\CommonHelper::itineraryPublicDownloadUrl((int) $tour->tour_id) : url('/'));
-            @endphp
-            <a href="{{ $itineraryDownloadUrl }}" class="cta-button">
+            <a href="{{ url('/') }}" class="cta-button">
                 <i class="fas fa-download"></i> Download Full Itinerary (PDF)
             </a>
             
