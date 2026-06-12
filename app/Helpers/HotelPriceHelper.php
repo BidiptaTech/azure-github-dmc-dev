@@ -38,7 +38,7 @@ class HotelPriceHelper
      * @param int          $pax            number of guests
      * @return array
      */
-    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates, $mealPlan, $pax): array
+    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates=[], $mealPlan, $pax): array
     {
         try {
             $pax = max(1, (int) $pax);

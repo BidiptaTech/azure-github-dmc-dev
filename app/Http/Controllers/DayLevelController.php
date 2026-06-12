@@ -16,6 +16,7 @@ use App\Models\Bed;
 use App\Models\User;
 use App\Models\Ticket;
 use App\Models\Port;
+use App\Models\Zone;
 use App\Models\DefaultValue;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
@@ -90,7 +91,11 @@ class DayLevelController extends Controller
             ];
         }
 
-        $dmcUser = $this->findDmcAccount($user);
+        $dmcId = (int) (CommonHelper::getDmcId($user) ?: 0);
+        $dmcUser = $dmcId > 0
+            ? User::query()->where('userId', $dmcId)->whereNull('deleted_at')->first()
+            : $this->findDmcAccount($user);
+
         if (!$dmcUser) {
             $dmcId = (int) ($user->created_by ?: $user->userId);
             $name  = (string) ($user->company_name ?: $user->name ?: 'DMC');
@@ -125,6 +130,26 @@ class DayLevelController extends Controller
         }
 
         return (string) ($user->company_name ?: $user->name ?: $fallback);
+    }
+
+    /**
+     * Operational DMC for hotels, attractions, etc.
+     * Sales Head → created_by is DMC; Sales Mgr → head → created_by is DMC.
+     */
+    private function resolveHotelDmcId(Request $request): int
+    {
+        $user = Auth::user();
+        if ($user) {
+            if (in_array((int) $user->role_id, [11, 20], true)) {
+                return (int) $user->userId;
+            }
+            $mapped = (int) (CommonHelper::getDmcId($user) ?: 0);
+            if ($mapped > 0) {
+                return $mapped;
+            }
+        }
+
+        return (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
     }
 
     private function findDmcAccount(User $user): ?User
@@ -337,7 +362,7 @@ class DayLevelController extends Controller
     {
         $cityName = trim($request->input('city_name', ''));
         $type     = $request->input('type', 'all');
-        $dmcId    = (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
+        $dmcId    = $this->resolveHotelDmcId($request);
 
         if (blank($cityName)) {
             return response()->json([
@@ -473,7 +498,7 @@ class DayLevelController extends Controller
     {
         $rating   = (string) $request->input('rating', '');
         $cityName = trim($request->input('city_name', ''));
-        $dmcId    = (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
+        $dmcId    = $this->resolveHotelDmcId($request);
 
         abort_unless(array_key_exists($rating, self::HOTEL_STAR_RATINGS), 422, 'Invalid rating.');
 
@@ -499,7 +524,7 @@ class DayLevelController extends Controller
     // =========================================================================
     public function roomsByHotel(Request $request)
     {
-        $dmcId = (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
+        $dmcId = $this->resolveHotelDmcId($request);
         $hotelUniqueId = $this->resolveHotelUniqueIdFromRequest($request);
 
         if ($hotelUniqueId === null) {
@@ -725,7 +750,7 @@ class DayLevelController extends Controller
     public function transferOptions(Request $request)
     {
         $ids = $this->resolveDmcIds();
-        $dmcId = (int) ($request->input('dmc_id') ?: $ids['dmc_id']);
+        $dmcId = $this->resolveHotelDmcId($request);
         $masterDmcId = (int) ($request->input('master_dmc_id') ?: $ids['master_dmc_id']);
         $cityName = trim((string) $request->input('city_name', ''));
         $country = $this->resolveTransferCountry($request, $masterDmcId, $dmcId);
@@ -822,17 +847,6 @@ class DayLevelController extends Controller
         }
         $this->applyHotelDmcFilter($hotelQuery, $dmcId);
         $hotelsForLocations = $hotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']);
-
-        if ($hotelsForLocations->isEmpty()) {
-            $fallbackHotelQuery = Hotel::query()
-                ->whereNull('deleted_at')
-                ->where('is_active', 1)
-                ->orderBy('name');
-            if ($cityName !== '') {
-                $fallbackHotelQuery->where('city', $likeOperator, "%{$cityName}%");
-            }
-            $hotelsForLocations = $fallbackHotelQuery->get(['id', 'hotel_unique_id', 'name', 'city']);
-        }
 
         $defaultHotelRow = DefaultValue::query()
             ->where('dmc_id', $dmcId)
@@ -963,6 +977,198 @@ class DayLevelController extends Controller
         ]);
     }
 
+    /**
+     * Zone-respected transfer price for arrival/departure (and other leg transfers).
+     * Uses DMC default vehicle + vehicle_zone_mappings via EnquiryFormPro::getZonePrices.
+     */
+    public function transferZonePrice(Request $request)
+    {
+        $dmcId = $this->resolveHotelDmcId($request);
+        $pickupValue = trim((string) $request->input('pickup_value', ''));
+        $dropValue = trim((string) $request->input('drop_value', ''));
+        $transferType = strtolower(trim((string) $request->input('transfer_type', 'private')));
+
+        if ($pickupValue === '' || $dropValue === '') {
+            return response()->json([
+                'success' => false,
+                'zone_mapped' => false,
+                'price' => 0,
+                'private_price' => 0,
+                'shared_price' => 0,
+            ]);
+        }
+
+        $pickup = $this->parseTransferLocationValue($pickupValue);
+        $drop = $this->parseTransferLocationValue($dropValue);
+
+        $pickupType = $pickup['type'] === 'zone'
+            ? $this->resolveZoneLocationApiType($pickup['id'], $dmcId)
+            : $pickup['type'];
+        $dropType = $drop['type'] === 'zone'
+            ? $this->resolveZoneLocationApiType($drop['id'], $dmcId)
+            : $drop['type'];
+
+        $pickupId = $this->resolveServiceIdForZoneLookup($pickup['type'], $pickup['id'], $dmcId);
+        $dropId = $this->resolveServiceIdForZoneLookup($drop['type'], $drop['id'], $dmcId);
+
+        if ($pickupId === null || $dropId === null || $pickupType === '' || $dropType === '') {
+            return response()->json([
+                'success' => true,
+                'zone_mapped' => false,
+                'price' => 0,
+                'private_price' => 0,
+                'shared_price' => 0,
+            ]);
+        }
+
+        $vehicleId = $this->resolveDefaultTransferVehicleId($dmcId);
+        if ($vehicleId === null) {
+            return response()->json([
+                'success' => true,
+                'zone_mapped' => false,
+                'price' => 0,
+                'private_price' => 0,
+                'shared_price' => 0,
+                'message' => 'No default transfer vehicle configured for this DMC',
+            ]);
+        }
+
+        $zoneRequest = Request::create('/', 'GET', [
+            'vehicle_id' => $vehicleId,
+            'pickup_id' => $pickupId,
+            'drop_id' => $dropId,
+            'pickup_type' => $pickupType,
+            'drop_type' => $dropType,
+            'dmc_id' => $dmcId,
+        ]);
+
+        $zoneResponse = app(EnquiryFormPro::class)->getZonePrices($zoneRequest);
+        $payload = json_decode($zoneResponse->getContent(), true) ?: [];
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+
+        $private = (float) ($data['private_price'] ?? 0);
+        $shared = (float) ($data['shared_price'] ?? 0);
+        $hasMapping = !empty($data['mapping_id']) || !empty($data['mapping_row_id']);
+        $zoneMapped = $hasMapping || $private > 0 || $shared > 0;
+
+        if ($transferType === 'shared') {
+            $price = $shared > 0 ? $shared : $private;
+        } else {
+            $price = $private > 0 ? $private : $shared;
+        }
+
+        return response()->json([
+            'success' => true,
+            'zone_mapped' => $zoneMapped && $price > 0,
+            'price' => $price,
+            'private_price' => $private,
+            'shared_price' => $shared,
+            'vehicle_id' => $vehicleId,
+            'message' => $payload['message'] ?? null,
+        ]);
+    }
+
+    /** @return array{type: string, id: string} */
+    private function parseTransferLocationValue(string $value): array
+    {
+        $value = trim($value);
+        if ($value === '' || !str_contains($value, ':')) {
+            return ['type' => '', 'id' => ''];
+        }
+
+        [$type, $id] = explode(':', $value, 2);
+
+        return [
+            'type' => strtolower(trim($type)),
+            'id' => trim($id),
+        ];
+    }
+
+    private function resolveServiceIdForZoneLookup(string $type, string $id, int $dmcId): ?string
+    {
+        $id = trim($id);
+        if ($id === '' || $type === '') {
+            return null;
+        }
+
+        if ($type === 'hotel') {
+            return $this->resolveHotelUniqueIdForZone($id);
+        }
+
+        if ($type === 'zone') {
+            return $id;
+        }
+
+        return $id;
+    }
+
+    private function resolveHotelUniqueIdForZone(string $tokenId): ?string
+    {
+        $hotel = Hotel::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($tokenId) {
+                $q->where('hotel_unique_id', $tokenId);
+                if (ctype_digit($tokenId)) {
+                    $q->orWhere('id', (int) $tokenId);
+                }
+            })
+            ->first(['id', 'hotel_unique_id']);
+
+        if ($hotel === null) {
+            return null;
+        }
+
+        $uniqueId = trim((string) ($hotel->hotel_unique_id ?? ''));
+
+        return $uniqueId !== '' ? $uniqueId : (string) $hotel->id;
+    }
+
+    private function resolveZoneLocationApiType(string $zoneId, int $dmcId): string
+    {
+        $zone = Zone::query()
+            ->where('zone_id', $zoneId)
+            ->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', (string) $dmcId)
+                    ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+            })
+            ->first(['zone_type']);
+
+        $zoneType = strtolower(trim((string) ($zone->zone_type ?? '')));
+
+        return match ($zoneType) {
+            'port' => 'port',
+            'attraction' => 'attraction',
+            'restaurant' => 'restaurant',
+            default => 'hotel',
+        };
+    }
+
+    private function resolveDefaultTransferVehicleId(int $dmcId, string $prefer = 'private'): ?string
+    {
+        if ($dmcId <= 0) {
+            return null;
+        }
+
+        $name = $prefer === 'shared' ? 'car_shared' : 'car_private';
+        $row = DefaultValue::query()
+            ->where('dmc_id', $dmcId)
+            ->where('name', $name)
+            ->where('status', 1)
+            ->latest('id')
+            ->first();
+
+        $vehicleId = trim((string) ($row->service_id ?? ''));
+        if ($vehicleId !== '') {
+            return $vehicleId;
+        }
+
+        if ($prefer !== 'shared') {
+            return $this->resolveDefaultTransferVehicleId($dmcId, 'shared');
+        }
+
+        return null;
+    }
+
     private function resolveTransferCountry(Request $request, int $masterDmcId, int $dmcId): string
     {
         $country = trim((string) $request->input('country', ''));
@@ -1075,7 +1281,7 @@ class DayLevelController extends Controller
     public function ticketsByAttraction(Request $request)
     {
         $attractionId = (string) $request->input('attraction_id', '');
-        $dmcId = (int) ($request->input('dmc_id') ?: $this->resolveDmcIds()['dmc_id']);
+        $dmcId = $this->resolveHotelDmcId($request);
 
         if ($attractionId === '') {
             return response()->json(['tickets' => []]);
@@ -1132,23 +1338,15 @@ class DayLevelController extends Controller
 
     private function applyHotelDmcFilter($query, int $dmcId): void
     {
-        $dmcIdText = (string) $dmcId;
-        $query->where(function ($q) use ($dmcIdText) {
-            // hotels.dmc_id is json with mixed formats; text match is safer.
-            $q->whereRaw(
-                "COALESCE(dmc_id::text, '') LIKE ?",
-                ['%' . $dmcIdText . '%']
-            )
-            // Some hotels are mapped through zone_assignments only.
-            ->orWhereRaw(
-                "COALESCE(zone_assignments::text, '') LIKE ? OR COALESCE(zone_assignments::text, '') LIKE ?",
-                ['%"dmc_id":' . $dmcIdText . '%', '%"dmc_id":"' . $dmcIdText . '"%']
-            );
-        });
+        if ($dmcId <= 0) {
+            return;
+        }
+
+        $query->whereJsonContains('dmc_id', $dmcId);
     }
 
     /**
-     * Attractions / restaurants: only rows mapped to the selected DMC (dmc_id JSON array).
+     * Attractions / restaurants: only rows mapped to this DMC (exact dmc_id JSON match).
      */
     private function applyServiceDmcFilter($query, int $dmcId): void
     {
@@ -1156,14 +1354,7 @@ class DayLevelController extends Controller
             return;
         }
 
-        $dmcIdText = (string) $dmcId;
-        $query->where(function ($q) use ($dmcId, $dmcIdText) {
-            $q->whereJsonContains('dmc_id', $dmcId)
-                ->orWhereRaw(
-                    "COALESCE(dmc_id::text, '') LIKE ?",
-                    ['%' . $dmcIdText . '%']
-                );
-        });
+        $query->whereJsonContains('dmc_id', $dmcId);
     }
 
     private function buildMealPlanOptionsFromRooms(array $rooms): array
