@@ -3469,7 +3469,7 @@ class DayLevelController extends Controller
                 }
                 $hotel['stay_days'] = $stayDays;
             }
-            $out[$label] = $hotel;
+            $out[$label] = DayLevel::enrichHotelRowStarRating($hotel);
         }
         return $out;
     }

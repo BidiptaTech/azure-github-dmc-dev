@@ -398,10 +398,9 @@ class ExternalApiReceiveController extends Controller
         $checkIn = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
         $nights = max(1, (int) ($item['night'] ?? $item['nights'] ?? 1));
         $checkOut = Carbon::parse($checkIn)->addDays($nights)->toDateString();
-        $mealPlan = $this->resolveHotelMealPlan($item, $resolvedRoom);
-        $mealPlanLabel = strtolower($this->mealPlanToLabel(
-            trim((string) ($item['meal_plan'] ?? $item['meal_type'] ?? '')) ?: $mealPlan
-        ));
+        $mealPlanFields = $this->resolveMealPlanFieldsForOrder($item, $resolvedRoom);
+        $mealPlan = $mealPlanFields['key'];
+        $mealPlanLabel = $mealPlanFields['label'];
         $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
         $adults = max(1, (int) $tour->adult);
         $occupancy = $adults <= 1 ? 'single' : 'double';
@@ -483,7 +482,8 @@ class ExternalApiReceiveController extends Controller
                     'head_count' => $headCount,
                     'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
                     'price' => $bedPrice > 0 ? ($bedPrice * $nights * $numberOfRooms) : $price,
-                    'mealTypes' => [$mealPlanLabel],
+                    'meal_plan' => $mealPlan,
+                    'mealTypes' => [$mealPlan],
                     'selectedMeals' => [
                         'meal_1' => [
                             'type' => $mealPlanLabel,
@@ -492,6 +492,9 @@ class ExternalApiReceiveController extends Controller
                     ],
                 ]],
             ]],
+            'meal_plan' => $mealPlan,
+            'mealPlan' => $mealPlanLabel,
+            'meal_type' => $mealPlanFields['meal_type'],
             'totalPrice' => $price,
             'price' => $price,
             'transfer_options' => $transfer,
@@ -525,6 +528,12 @@ class ExternalApiReceiveController extends Controller
             $rooms = $this->syncHotelRoomsFromDatabase($rooms, $dmcId, $createdBy);
         }
 
+        $resolvedTopMealPlan = '';
+        $topMealRaw = trim((string) ($hotelData['meal_plan'] ?? $hotelData['mealPlan'] ?? ''));
+        if ($topMealRaw !== '') {
+            $resolvedTopMealPlan = $this->normalizeMealPlanValue($topMealRaw);
+        }
+
         foreach ($rooms as $roomIndex => $room) {
             if (! is_array($room['beds'] ?? null)) {
                 continue;
@@ -536,16 +545,41 @@ class ExternalApiReceiveController extends Controller
                     continue;
                 }
 
-                $mealLabel = $bed['selectedMeals']['meal_1']['type'] ?? ($bed['mealTypes'][0] ?? 'room only');
-                $mealLower = strtolower(str_replace('_', ' ', trim((string) $mealLabel)));
+                $rawMealPlan = trim((string) ($bed['meal_plan'] ?? ''));
+                if ($rawMealPlan === '') {
+                    $rawMealPlan = trim((string) ($bed['selectedMeals']['meal_1']['type'] ?? ''));
+                }
+                if ($rawMealPlan === '') {
+                    $rawMealPlan = trim((string) ($bed['mealTypes'][0] ?? ''));
+                }
+                if ($rawMealPlan === '') {
+                    $rawMealPlan = $resolvedTopMealPlan !== '' ? $resolvedTopMealPlan : 'room_only';
+                }
 
-                $rooms[$roomIndex]['beds'][$bedIndex]['mealTypes'] = [$mealLower];
+                $mealPlanKey = $this->normalizeMealPlanValue($rawMealPlan);
+                $mealPlanLabel = strtolower($this->mealPlanToLabel($mealPlanKey));
+                $mealPrice = (float) ($bed['selectedMeals']['meal_1']['price'] ?? 0);
+
+                $rooms[$roomIndex]['beds'][$bedIndex]['meal_plan'] = $mealPlanKey;
+                $rooms[$roomIndex]['beds'][$bedIndex]['mealTypes'] = [$mealPlanKey];
                 $rooms[$roomIndex]['beds'][$bedIndex]['room_type'] = $roomType;
-                if (isset($rooms[$roomIndex]['beds'][$bedIndex]['selectedMeals']['meal_1'])) {
-                    $rooms[$roomIndex]['beds'][$bedIndex]['selectedMeals']['meal_1']['type'] = $mealLower;
+                $rooms[$roomIndex]['beds'][$bedIndex]['selectedMeals'] = [
+                    'meal_1' => [
+                        'type' => $mealPlanLabel,
+                        'price' => $mealPrice,
+                    ],
+                ];
+
+                if ($resolvedTopMealPlan === '') {
+                    $resolvedTopMealPlan = $mealPlanKey;
                 }
             }
         }
+
+        if ($resolvedTopMealPlan === '') {
+            $resolvedTopMealPlan = 'room_only';
+        }
+        $resolvedTopMealLabel = strtolower($this->mealPlanToLabel($resolvedTopMealPlan));
 
         return [
             'fullName' => $hotelData['fullName'] ?? 'Guest User',
@@ -571,6 +605,9 @@ class ExternalApiReceiveController extends Controller
             ],
             'priceMode' => $hotelData['priceMode'] ?? 'dmc',
             'priceModeId' => (int) ($hotelData['priceModeId'] ?? ($dmcId ?: $createdBy)),
+            'meal_plan' => $resolvedTopMealPlan,
+            'mealPlan' => $resolvedTopMealLabel,
+            'meal_type' => (string) ($hotelData['meal_type'] ?? ''),
             'rooms' => $rooms,
             'totalPrice' => (float) ($hotelData['totalPrice'] ?? 0),
             'price' => (float) ($hotelData['totalPrice'] ?? $hotelData['price'] ?? 0),
@@ -907,6 +944,25 @@ class ExternalApiReceiveController extends Controller
             })
             ->orderBy('bed_id')
             ->first();
+    }
+
+    /**
+     * Canonical meal plan key + display label for hotel order JSON.
+     *
+     * @return array{key: string, label: string, meal_type: string}
+     */
+    protected function resolveMealPlanFieldsForOrder(array $item, ?Room $room): array
+    {
+        $rawMealPlan = trim((string) ($item['meal_plan'] ?? ''));
+        $mealPlanKey = $rawMealPlan !== ''
+            ? $this->normalizeMealPlanValue($rawMealPlan)
+            : $this->resolveHotelMealPlan($item, $room);
+
+        return [
+            'key' => $mealPlanKey,
+            'label' => strtolower($this->mealPlanToLabel($mealPlanKey)),
+            'meal_type' => trim((string) ($item['meal_type'] ?? '')),
+        ];
     }
 
     /**

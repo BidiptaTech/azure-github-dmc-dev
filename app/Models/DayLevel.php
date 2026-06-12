@@ -2684,6 +2684,7 @@ class DayLevel extends Model
 
         $bookedDay = (int) ($row['booked_day'] ?? $row['checkin_day'] ?? 0);
 
+        $starRating = trim((string) ($row['hotel_star_rating'] ?? $row['cat'] ?? ''));
         $entry = [
             'hotel_id'   => $hotelId,
             'hotel_name' => (string) ($row['hotel_name'] ?? ''),
@@ -2694,6 +2695,11 @@ class DayLevel extends Model
             'bed_type'   => (string) ($row['bed_type'] ?? ''),
             'meal_plan'  => (string) ($row['meal_plan'] ?? ''),
         ];
+        if ($starRating !== '') {
+            $entry['hotel_star_rating'] = $starRating;
+        } else {
+            $entry = self::enrichHotelRowStarRating($entry);
+        }
         if ($includePrice) {
             $entry['price'] = (float) ($row['price'] ?? 0);
         }
@@ -2729,6 +2735,49 @@ class DayLevel extends Model
         return $entry;
     }
 
+    /**
+     * Ensure hotel_star_rating is present on a hotel row (payload / Azure JSON export).
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public static function enrichHotelRowStarRating(array $row): array
+    {
+        $existing = trim((string) ($row['hotel_star_rating'] ?? $row['cat'] ?? ''));
+        if ($existing !== '') {
+            $row['hotel_star_rating'] = $existing;
+
+            return $row;
+        }
+
+        $hotelId = self::resolveHotelUniqueId((string) ($row['hotel_id'] ?? ''));
+        if ($hotelId === '') {
+            return $row;
+        }
+
+        static $ratingByHotelId = null;
+        if ($ratingByHotelId === null) {
+            $ratingByHotelId = [];
+            foreach (Hotel::query()->whereNull('deleted_at')->get(['id', 'hotel_unique_id', 'hotel_star_rating']) as $hotel) {
+                $rating = trim((string) ($hotel->hotel_star_rating ?? ''));
+                if ($rating === '') {
+                    continue;
+                }
+                $uniqueId = trim((string) ($hotel->hotel_unique_id ?? ''));
+                if ($uniqueId !== '') {
+                    $ratingByHotelId[$uniqueId] = $rating;
+                }
+                $ratingByHotelId[(string) ((int) ($hotel->id ?? 0))] = $rating;
+            }
+        }
+
+        if (isset($ratingByHotelId[$hotelId]) && $ratingByHotelId[$hotelId] !== '') {
+            $row['hotel_star_rating'] = $ratingByHotelId[$hotelId];
+        }
+
+        return $row;
+    }
+
     private static function formatRawHotelsMap(array $hotels, bool $preserveFullRow = false): array
     {
         $out = [];
@@ -2750,7 +2799,7 @@ class DayLevel extends Model
                         $row[$field] = self::normalizeTransferLocationToken((string) ($row[$field] ?? ''));
                     }
                 }
-                $out[$label] = $row;
+                $out[$label] = self::enrichHotelRowStarRating($row);
                 continue;
             }
             $out[$label] = self::normalizeRawHotelRow($row);
