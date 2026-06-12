@@ -310,12 +310,12 @@ class ExternalApiReceiveController extends Controller
             $data = $this->normalizeHotelOrderPayload($data, $tour);
         }
 
-        $bookingId = CommonHelper::nextOrderBookingId();
+        // $bookingId = CommonHelper::nextOrderBookingId();
 
         return Order::create([
             'agent_id' => $tour->agent_id,
             'tour_id' => $tour->tour_id,
-            'booking_id' => $bookingId,
+            // 'booking_id' => $bookingId,
             'data' => [$data],
             'type' => $normalizedType,
             'status' => 1,
@@ -1296,7 +1296,6 @@ class ExternalApiReceiveController extends Controller
             $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
                 'dmc_name' => $senderName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
-                'tour_id' => $tour->tour_id,
                 'tour_display_id' => $tour->display_id,
                 'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
                 'diff' => $availability['diff'],
