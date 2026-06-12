@@ -2673,6 +2673,13 @@
                                                     // Function to update hotel price breakdown grid (syncInput=true updates Total Price field from calculation)
                                                     function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(syncInput) {
                                                         syncInput = syncInput === true;
+                                                        // If the booking was changed and not re-priced via "Get Price", keep it at 0.
+                                                        if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
+                                                            if (typeof window.zeroOutHotelBookingPrice === 'function') {
+                                                                window.zeroOutHotelBookingPrice({{ $hotelOrder->booking_id }});
+                                                            }
+                                                            return;
+                                                        }
                                                         const gridBody = document.getElementById('hotel_price_grid_body_{{ $hotelOrder->booking_id }}');
                                                         const grandTotalEl = document.getElementById('hotel_grand_total_{{ $hotelOrder->booking_id }}');
                                                         
@@ -2960,6 +2967,13 @@
                                                     
                                                     // Function to update hotel price based on room type and number of rooms
                                                     function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
+                                                        // If the booking was changed and not re-priced via "Get Price", keep it at 0.
+                                                        if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
+                                                            if (typeof window.zeroOutHotelBookingPrice === 'function') {
+                                                                window.zeroOutHotelBookingPrice({{ $hotelOrder->booking_id }});
+                                                            }
+                                                            return;
+                                                        }
                                                         const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
                                                         const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
                                                         const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
@@ -3097,6 +3111,43 @@
                                                         setTimeout(() => {
                                                             try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
                                                         }, 600);
+                                                        // After the static grid hydrates, fetch the rate-aware price
+                                                        // (HotelPriceHelper) and populate the pricing details + totals.
+                                                        setTimeout(() => {
+                                                            try {
+                                                                if (typeof window.autoGetHotelHelperPriceForBooking === 'function') {
+                                                                    window.autoGetHotelHelperPriceForBooking({{ $hotelOrder->booking_id }});
+                                                                }
+                                                            } catch (e) {}
+                                                        }, 900);
+
+                                                        // Any user change to this booking must be re-priced via "Get Price".
+                                                        // Capture phase runs before the inline onchange handlers so the
+                                                        // dirty flag is set and the old price logic stays at zero.
+                                                        // Attach after hydration/select2 init settles to avoid false positives.
+                                                        setTimeout(() => {
+                                                            const dirtyContainer = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
+                                                            if (!dirtyContainer) return;
+                                                            const markDirty = function(el) {
+                                                                // Editing the total price field itself shouldn't force a re-price.
+                                                                if (el && el.id === 'total_price_{{ $hotelOrder->booking_id }}') return;
+                                                                if (typeof window.markHotelBookingNeedsGetPrice === 'function') {
+                                                                    window.markHotelBookingNeedsGetPrice({{ $hotelOrder->booking_id }});
+                                                                }
+                                                            };
+                                                            const onBookingChanged = function(e) {
+                                                                if (e && e.target) markDirty(e.target);
+                                                            };
+                                                            dirtyContainer.addEventListener('change', onBookingChanged, true);
+                                                            dirtyContainer.addEventListener('input', onBookingChanged, true);
+                                                            // select2 dropdowns (e.g. meal plan / room / bed) fire change via
+                                                            // jQuery, which native capture listeners do not catch.
+                                                            if (window.jQuery) {
+                                                                window.jQuery(dirtyContainer).on('change.hotelDirty input.hotelDirty', 'select, input, textarea', function() {
+                                                                    markDirty(this);
+                                                                });
+                                                            }
+                                                        }, 1800);
                                                     });
                                                 </script>
                                             </div>
@@ -3191,8 +3242,11 @@
                                                 <div class="input-group">
                                                     <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
                                                     <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
+                                                    <button type="button" class="btn d-flex align-items-center" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" title="Get rate-aware price">
+                                                        <i class="ri-money-dollar-circle-line me-1"></i> Get Price
+                                                    </button>
                                                 </div>
-                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room & rooms</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room &amp; rooms</small>
                                             </div>
                                         </div>
                                         
@@ -3247,11 +3301,13 @@
                                         
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                             <div class="text-muted small" id="hotel_feedback_{{ $hotelOrder->booking_id }}"></div>
-                                            <button type="button" class="btn btn-primary d-flex align-items-center gap-2" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
-                                                <span class="spinner-border spinner-border-sm d-none" id="hotel_spinner_{{ $hotelOrder->booking_id }}"></span>
-                                                <span>Save Changes</span>
-                                            </button>
-                                        </div>
+                                            <span class="d-inline-block" tabindex="0" id="hotel_save_wrap_{{ $hotelOrder->booking_id }}">
+                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="hotel_save_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="hotel_spinner_{{ $hotelOrder->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </span>
+                                         </div>
                                     </div>
                                 </div>
                                 @endforeach
@@ -6494,6 +6550,9 @@
                                         <div class="d-flex align-items-center text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.75rem; height: 38px;">
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
                                             <span class="fw-bold flex-grow-1" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
+                                            <button type="button" class="btn d-flex align-items-center" style="height: 26px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.65rem; font-weight: 500; padding: 0 8px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
+                                                <i class="ri-refresh-line me-1"></i> Get Price
+                                            </button>
                                         </div>
                                         <input type="hidden" id="total_price_modal" name="total_price" value="0.00">
                                     </div>
@@ -19033,7 +19092,397 @@
         // Update child pricing visibility
         updateModalChildPricingVisibility(selectedRoom);
     }
-    
+
+    // ---------------------------------------------------------------------
+    // HotelPriceHelper integration (rate-aware "Get Price")
+    // Shared by the pre-booked hotel rows and the new-hotel modal so the
+    // pricing stays in sync with App\Helpers\HotelPriceHelper.
+    // ---------------------------------------------------------------------
+
+    // POST the parameters to the HotelPriceHelper endpoint and return a promise.
+    window.fetchHotelHelperPrice = function(payload) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')
+            ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            : '{{ csrf_token() }}';
+        return fetch('{{ route("get-hotel-price") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        }).then(response => response.json());
+    };
+
+    // Build an array of night date strings (YYYY-MM-DD) from check-in (inclusive)
+    // to check-out (exclusive). One entry per night.
+    window.buildNightDatesRange = function(checkInStr, checkOutStr) {
+        const dates = [];
+        if (!checkInStr || !checkOutStr) return dates;
+        const start = new Date(checkInStr + 'T00:00:00');
+        const end = new Date(checkOutStr + 'T00:00:00');
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return dates;
+        const cur = new Date(start);
+        while (cur < end) {
+            const y = cur.getFullYear();
+            const m = String(cur.getMonth() + 1).padStart(2, '0');
+            const d = String(cur.getDate()).padStart(2, '0');
+            dates.push(`${y}-${m}-${d}`);
+            cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+    };
+
+    // Tracks pre-booked hotel rows that were edited and need a fresh "Get Price".
+    window.hotelNeedsGetPrice = window.hotelNeedsGetPrice || {};
+
+    // Enable/disable a booking's "Save Changes" button (with a tooltip when blocked).
+    window.setHotelSaveBlocked = function(bookingId, blocked) {
+        const btn = document.getElementById('hotel_save_btn_' + bookingId);
+        const wrap = document.getElementById('hotel_save_wrap_' + bookingId);
+        if (btn) btn.disabled = !!blocked;
+        if (wrap) {
+            if (blocked) {
+                wrap.setAttribute('title', 'Please click on Get Price');
+            } else {
+                wrap.removeAttribute('title');
+            }
+        }
+    };
+
+    // Reset a booking's price (input, pricing-details grid, totals) to zero.
+    window.zeroOutHotelBookingPrice = function(bookingId) {
+        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        if (totalInput) {
+            totalInput.value = '0.00';
+            totalInput.dataset.manualEdit = 'false';
+        }
+        const gridBody = document.getElementById('hotel_price_grid_body_' + bookingId);
+        if (gridBody) {
+            gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click "Get Price" to calculate the price.</div>';
+        }
+        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
+        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' 0.00';
+        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
+        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' 0.00';
+    };
+
+    // Mark a booking dirty: zero its price and block saving until "Get Price".
+    window.markHotelBookingNeedsGetPrice = function(bookingId) {
+        window.hotelNeedsGetPrice[bookingId] = true;
+        window.zeroOutHotelBookingPrice(bookingId);
+        window.setHotelSaveBlocked(bookingId, true);
+        const feedback = document.getElementById('hotel_feedback_' + bookingId);
+        if (feedback) feedback.textContent = 'Details changed — click "Get Price" to recalculate.';
+    };
+
+    // Render the HotelPriceHelper breakdown into a pre-booked row's
+    // "Hotel Pricing Details" grid + grand total.
+    window.renderBookingHelperGrid = function(bookingId, data, numberOfRooms, currencyLabel) {
+        const gridBody = document.getElementById('hotel_price_grid_body_' + bookingId);
+        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
+        if (!gridBody) return;
+
+        const rooms = parseInt(numberOfRooms, 10) || 1;
+        const roomTotal = Number(data.room_total) * rooms;
+        const mealTotal = Number(data.meal_total) * rooms;
+        const grand = Number(data.grand_total) * rooms;
+        const rowStyle = 'font-size: 0.75rem;';
+        let html = '';
+
+        if (Array.isArray(data.breakdown)) {
+            data.breakdown.forEach(function(n) {
+                const evt = n.event_type
+                    ? ` <span style="color:#b45309; font-weight:600;">(${n.event_type})</span>`
+                    : '';
+                html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                    <div class="d-flex align-items-center">
+                        <i class="ri-calendar-line me-2" style="font-size: 0.9rem; color: #2563eb;"></i>
+                        <span style="color:#475569;">${n.date} (${n.day})${evt}</span>
+                    </div>
+                    <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${Number(n.night_total).toFixed(2)}</span>
+                </div>`;
+            });
+        }
+
+        html += `<div class="d-flex justify-content-between align-items-center mb-1 border-top pt-2 mt-1" style="${rowStyle}">
+            <span style="color:#475569;"><strong>Room${rooms > 1 ? ' (× ' + rooms + ' rooms)' : ''}:</strong></span>
+            <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${roomTotal.toFixed(2)}</span>
+        </div>`;
+        if (mealTotal > 0) {
+            html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                <span style="color:#475569;"><strong>Meals:</strong></span>
+                <span style="color:#1e293b; font-weight:500;">${currencyLabel} ${mealTotal.toFixed(2)}</span>
+            </div>`;
+        }
+        if (data.extra_bed && Number(data.extra_bed) > 0) {
+            html += `<div class="d-flex justify-content-between align-items-center mb-1" style="${rowStyle}">
+                <span style="color:#475569;"><strong>Extra bed(s):</strong> <small class="text-muted">(incl. in room)</small></span>
+                <span style="color:#1e293b; font-weight:500;">${data.extra_bed} @ ${currencyLabel} ${Number(data.extra_bed_price).toFixed(2)}</span>
+            </div>`;
+        }
+
+        gridBody.innerHTML = html;
+        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' ' + grand.toFixed(2);
+    };
+
+    // Get the rate-aware price for an existing (pre-booked) hotel row and write
+    // it into that row's Total Price field + pricing-details grid.
+    window.getHotelHelperPriceForBooking = function(bookingId, btn, silent) {
+        const hotelId = (document.getElementById('hotel_id_' + bookingId) || {}).value || '';
+        const roomSelect = document.getElementById('room_type_' + bookingId);
+        const bedSelect = document.getElementById('bed_type_' + bookingId);
+        const mealSelect = document.getElementById('meal_plan_' + bookingId);
+        const personsInput = document.getElementById('number_of_persons_' + bookingId);
+        const roomsInput = document.getElementById('number_of_rooms_' + bookingId);
+        const checkIn = (document.getElementById('check_in_date_' + bookingId) || {}).value || '';
+        const checkOut = (document.getElementById('check_out_date_' + bookingId) || {}).value || '';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        const feedback = document.getElementById('hotel_feedback_' + bookingId);
+
+        let roomId = '';
+        if (roomSelect && roomSelect.selectedIndex >= 0) {
+            const o = roomSelect.options[roomSelect.selectedIndex];
+            if (o && o.dataset && o.dataset.roomId) roomId = o.dataset.roomId;
+        }
+
+        let bedId = '';
+        if (bedSelect && bedSelect.selectedIndex >= 0) {
+            const o = bedSelect.options[bedSelect.selectedIndex];
+            if (o) {
+                bedId = o.getAttribute('data-bed-id') || '';
+                if (!bedId) {
+                    const bd = o.getAttribute('data-bed');
+                    if (bd) { try { bedId = (JSON.parse(bd) || {}).bed_id || ''; } catch (e) {} }
+                }
+            }
+        }
+
+        const mealPlan = (mealSelect && mealSelect.selectedIndex >= 0)
+            ? (mealSelect.options[mealSelect.selectedIndex].text || mealSelect.value)
+            : '';
+        const pax = parseInt(personsInput ? personsInput.value : '1', 10) || 1;
+        const numberOfRooms = parseInt(roomsInput ? roomsInput.value : '1', 10) || 1;
+        const dates = window.buildNightDatesRange(checkIn, checkOut);
+
+        if (!hotelId || !roomId) {
+            if (!silent) showNotification('Please select a hotel and room type first.', 'warning');
+            return;
+        }
+        if (!dates.length) {
+            if (!silent) showNotification('Please set valid check-in and check-out dates.', 'warning');
+            return;
+        }
+
+        let extraBed = 0;
+        const ebFn = window['calculateEditHotelExtraBedCost_' + bookingId];
+        if (typeof ebFn === 'function') {
+            try {
+                const eb = ebFn(pax, 1, 1);
+                extraBed = parseInt(eb.extraPersons, 10) || 0;
+            } catch (e) { extraBed = 0; }
+        }
+
+        if (btn) btn.disabled = true;
+        if (feedback) feedback.textContent = 'Calculating price...';
+
+        window.fetchHotelHelperPrice({
+            hotel_unique_id: hotelId,
+            room_id: roomId,
+            bed_id: bedId,
+            meal_plan: mealPlan,
+            pax: pax,
+            extra_bed: extraBed,
+            dates: dates
+        })
+        .then(data => {
+            const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+            if (data && data.success) {
+                // Helper grand_total is per single room (room + meals + extra bed).
+                const finalTotal = Number(data.grand_total) * numberOfRooms;
+                if (totalInput) {
+                    totalInput.value = finalTotal.toFixed(2);
+                    // Mark as manual so the auto grid calc won't overwrite it.
+                    totalInput.dataset.manualEdit = 'true';
+                    totalInput.dataset.dbTotal = finalTotal.toFixed(2);
+                }
+                const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
+                if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + finalTotal.toFixed(2);
+
+                // Populate the "Hotel Pricing Details" breakdown grid.
+                window.renderBookingHelperGrid(bookingId, data, numberOfRooms, currencyLabel);
+
+                // Re-priced via the rate engine: clear the dirty flag and re-enable saving.
+                window.hotelNeedsGetPrice[bookingId] = false;
+                window.setHotelSaveBlocked(bookingId, false);
+
+                if (feedback) feedback.textContent = 'Price updated from rate engine.';
+                if (!silent) {
+                    showNotification(
+                        'Price calculated: ' + currencyLabel + ' ' + finalTotal.toFixed(2) +
+                        ' (Room: ' + Number(data.room_total).toFixed(2) + ', Meals: ' + Number(data.meal_total).toFixed(2) +
+                        ', ' + data.nights + ' night(s), ' + numberOfRooms + ' room(s))',
+                        'success'
+                    );
+                }
+            } else {
+                if (feedback) feedback.textContent = '';
+                if (!silent) showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching hotel price:', error);
+            if (feedback) feedback.textContent = '';
+            if (!silent) showNotification('Error calculating hotel price.', 'error');
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+        });
+    };
+
+    // Auto-fetch the rate-aware price on page load for a pre-booked hotel.
+    // Waits (polls) until the room/bed dropdowns have hydrated, then calls the
+    // helper silently so the saved booking shows the calculated price.
+    window.autoGetHotelHelperPriceForBooking = function(bookingId, attempt) {
+        attempt = attempt || 0;
+        const maxAttempts = 30; // ~9s safety cap
+
+        const roomSelect = document.getElementById('room_type_' + bookingId);
+        const bedSelect = document.getElementById('bed_type_' + bookingId);
+        const checkIn = (document.getElementById('check_in_date_' + bookingId) || {}).value || '';
+        const checkOut = (document.getElementById('check_out_date_' + bookingId) || {}).value || '';
+
+        let roomId = '';
+        if (roomSelect && roomSelect.selectedIndex >= 0) {
+            const o = roomSelect.options[roomSelect.selectedIndex];
+            if (o && o.dataset && o.dataset.roomId) roomId = o.dataset.roomId;
+        }
+
+        // Bed is "ready" once a bed option with an id is selected. Give it a few
+        // seconds; if it never resolves, proceed anyway with whatever exists.
+        let bedReady = false;
+        if (bedSelect && bedSelect.value) {
+            const bo = bedSelect.options[bedSelect.selectedIndex];
+            if (bo && (bo.getAttribute('data-bed-id') || bo.getAttribute('data-bed'))) bedReady = true;
+        }
+
+        const ready = roomId && checkIn && checkOut && (bedReady || attempt >= 12);
+        if (ready) {
+            window.getHotelHelperPriceForBooking(bookingId, null, true);
+            return;
+        }
+        if (attempt < maxAttempts) {
+            setTimeout(function() {
+                window.autoGetHotelHelperPriceForBooking(bookingId, attempt + 1);
+            }, 300);
+        }
+    };
+
+    // Get the rate-aware price for the new-hotel modal and write it into the
+    // modal's Total Price field/display.
+    window.getHotelHelperPriceForModal = function(btn) {
+        const hotelId = (document.getElementById('hotel_select') || {}).value || '';
+        const roomSelect = document.getElementById('room_type');
+        const bedSelect = document.getElementById('bed_type');
+        const mealSelect = document.getElementById('meal_plan');
+        const personsSelect = document.getElementById('person_count_select');
+        const roomsInput = document.getElementById('number_of_rooms_modal');
+        const checkIn = (document.getElementById('check_in_date') || {}).value || '';
+        const checkOut = (document.getElementById('check_out_date') || {}).value || '';
+        const priceInput = document.getElementById('total_price_modal');
+        const priceDisplay = document.getElementById('total_price_modal_display');
+
+        let roomId = '';
+        if (roomSelect && roomSelect.selectedIndex >= 0) {
+            const o = roomSelect.options[roomSelect.selectedIndex];
+            if (o && o.dataset && o.dataset.roomId) roomId = o.dataset.roomId;
+        }
+
+        let bedId = '';
+        let maxOccupancy = 0;
+        let extraBedAvailable = false;
+        if (bedSelect && bedSelect.selectedIndex >= 0) {
+            const o = bedSelect.options[bedSelect.selectedIndex];
+            if (o) {
+                bedId = o.getAttribute('data-bed-id') || o.value || '';
+                const bd = o.getAttribute('data-bed');
+                if (bd) {
+                    try {
+                        const obj = JSON.parse(bd) || {};
+                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData
+                            ? window.getEditBaseMaxOccupancyFromBedData(obj)
+                            : (parseInt(obj.max_occupancy, 10) || 0);
+                        extraBedAvailable = !!obj.extra_bed;
+                    } catch (e) {}
+                }
+            }
+        }
+
+        const mealPlan = (mealSelect && mealSelect.selectedIndex >= 0)
+            ? (mealSelect.options[mealSelect.selectedIndex].text || mealSelect.value)
+            : '';
+        const pax = parseInt(personsSelect ? personsSelect.value : '1', 10) || 1;
+        const numberOfRooms = parseInt(roomsInput ? roomsInput.value : '1', 10) || 1;
+        const dates = window.buildNightDatesRange(checkIn, checkOut);
+
+        if (!hotelId || !roomId) {
+            showNotification('Please select a hotel and room type first.', 'warning');
+            return;
+        }
+        if (!dates.length) {
+            showNotification('Please set valid check-in and check-out dates.', 'warning');
+            return;
+        }
+
+        let extraBed = 0;
+        if (extraBedAvailable && maxOccupancy > 0 && pax > maxOccupancy) {
+            extraBed = pax - maxOccupancy;
+        }
+
+        if (btn) btn.disabled = true;
+
+        window.fetchHotelHelperPrice({
+            hotel_unique_id: hotelId,
+            room_id: roomId,
+            bed_id: bedId,
+            meal_plan: mealPlan,
+            pax: pax,
+            extra_bed: extraBed,
+            dates: dates
+        })
+        .then(data => {
+            if (data && data.success) {
+                const finalTotal = Number(data.grand_total) * numberOfRooms;
+                const modalEl = document.getElementById('hotelBookingModal');
+                const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+                if (priceInput) priceInput.value = finalTotal.toFixed(2);
+                if (priceDisplay) priceDisplay.textContent = currencySymbol + finalTotal.toFixed(2);
+
+                const gridTotal = document.getElementById('hotel_modal_price_grid_total');
+                if (gridTotal) gridTotal.textContent = currencySymbol + finalTotal.toFixed(2);
+
+                showNotification(
+                    'Price calculated: ' + currencySymbol + finalTotal.toFixed(2) +
+                    ' (Room: ' + Number(data.room_total).toFixed(2) + ', Meals: ' + Number(data.meal_total).toFixed(2) +
+                    ', ' + data.nights + ' night(s), ' + numberOfRooms + ' room(s))',
+                    'success'
+                );
+            } else {
+                showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching modal hotel price:', error);
+            showNotification('Error calculating hotel price.', 'error');
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+        });
+    };
+
     // Function to show/hide child pricing checkboxes based on room data
     function updateModalChildPricingVisibility(room) {
         const childWithBedWrap = document.getElementById('child_with_bed_wrap_modal');
@@ -23321,6 +23770,11 @@
 
     async function updateExistingHotel(event, bookingId) {
         event.preventDefault();
+        // Block saving while the booking is waiting for a fresh "Get Price".
+        if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[bookingId]) {
+            showNotification('Please click on Get Price before saving.', 'warning');
+            return;
+        }
         const button = event.target.closest('button');
         const formDiv = button.closest('.hotel-edit-form');
         const url = formDiv.dataset.updateUrl;
