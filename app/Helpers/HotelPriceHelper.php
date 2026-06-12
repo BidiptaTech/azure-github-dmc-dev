@@ -39,7 +39,7 @@ class HotelPriceHelper
      * @param int          $extraBed       number of extra beds selected (extra-bed price is charged per this count, not per pax)
      * @return array
      */
-    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates, $mealPlan, $pax, $extraBed = 0): array
+    public static function calculatePrice($hotelUniqueId, $roomId, $bedId, array $dates = [], $mealPlan = '', $pax = 1, $extraBed = 0): array
     {
         try {
             $pax = max(1, (int) $pax);
