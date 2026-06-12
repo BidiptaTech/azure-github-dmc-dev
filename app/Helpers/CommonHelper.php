@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1681,6 +1682,12 @@ class CommonHelper
                 'total_guests' => ($tourData['adult'] ?? 0) + ($tourData['child'] ?? 0) + ($tourData['infant'] ?? 0),
                 'query_date' => now()->format('M d, Y'),
                 'dashboard_link' => self::url(),
+                'itinerary_download_url' => $tourId
+                    ? self::itineraryPublicDownloadUrl(
+                        (int) $tourId,
+                        isset($tourData['currency_code']) ? (string) $tourData['currency_code'] : null
+                    )
+                    : null,
             ];
 
             // Email subject
@@ -1803,6 +1810,11 @@ class CommonHelper
             $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
             $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
                 . number_format($emailData['total_estimation'], 2);
+
+            $tourId = (int) ($tourData['tour_id'] ?? 0);
+            $emailData['itinerary_download_url'] = $tourId > 0
+                ? self::itineraryPublicDownloadUrl($tourId, $emailData['currency_code'])
+                : null;
 
             $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
@@ -1996,6 +2008,24 @@ class CommonHelper
         $root = preg_replace('#/backadm-dmc/?$#', '', $base);
 
         return rtrim($root, '/') . '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Time-limited signed URL for downloading a tour itinerary PDF from email (no login).
+     */
+    public static function itineraryPublicDownloadUrl(int $tourId, ?string $currency = null, int $expiresDays = 30): string
+    {
+        $params = ['tourId' => $tourId];
+        $currency = strtoupper(trim((string) $currency));
+        if ($currency !== '') {
+            $params['currency'] = $currency;
+        }
+
+        return URL::temporarySignedRoute(
+            'tour.itinerary.public-download',
+            now()->addDays(max(1, $expiresDays)),
+            $params
+        );
     }
 
     /**
