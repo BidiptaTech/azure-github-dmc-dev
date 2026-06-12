@@ -15625,6 +15625,13 @@
             const mealPlan = mealPlanSelect ? mealPlanSelect.value : '';
             const pax = parseInt(selectedPersonsInput ? selectedPersonsInput.value : '1') || 1;
 
+            // Number of extra beds selected (persons beyond the room's max occupancy).
+            let extraBed = 0;
+            if (typeof calculateHotelExtraBedCost === 'function') {
+                const extraBedCalc = calculateHotelExtraBedCost({ numPersons: pax, numRooms: 1, numNights: 1 });
+                extraBed = parseInt(extraBedCalc.extraPersons, 10) || 0;
+            }
+
             // Build the list of date strings from the selected nights.
             const selectedNights = document.querySelectorAll('.night-btn.active');
             if (selectedNights.length === 0) {
@@ -15664,17 +15671,25 @@
                     bed_id: bedId,
                     meal_plan: mealPlan,
                     pax: pax,
+                    extra_bed: extraBed,
                     dates: dates
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data && data.success) {
-                    // Show the calculated grand total in the price field.
+                    // The price field represents room + extra bed for ALL rooms (meals are
+                    // added separately by the save/display logic). The helper computes the
+                    // room total for a single room, so multiply by the number of rooms.
+                    const numberOfRooms = parseInt(document.getElementById('numberOfRooms')?.value, 10) || 1;
+                    const roomOnlyTotal = Number(data.room_total) * numberOfRooms;
+
                     const roomPriceDisplay = document.getElementById('roomPriceDisplay');
                     if (roomPriceDisplay) {
-                        roomPriceDisplay.value = Number(data.grand_total).toFixed(2);
-                        roomPriceDisplay.dataset.manuallyEdited = 'false';
+                        roomPriceDisplay.value = roomOnlyTotal.toFixed(2);
+                        // Mark as manually edited so addHotel()/save treat this helper-derived
+                        // price as authoritative instead of recalculating and overwriting it.
+                        roomPriceDisplay.dataset.manuallyEdited = 'true';
                     }
                     window.lastHotelPriceResult = data;
                     console.log('Hotel price result:', data);
