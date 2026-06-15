@@ -30,7 +30,6 @@ class ExternalApiReceiveController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $payload = $this->normalizeToArray($request->input('payload', $request->all()));
-        dd($payload);
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
         }
