@@ -823,9 +823,18 @@
         min-height: 0px !important;
     }
 
-    /* Per-service FOC toggles only when GROUP + FOC size + "Treat FOC pax as discount (free)" is on */
-    .enquiry-pro-container:not(.enquiry-pro-group-foc-discount-active) .group-foc-service-discount-ui {
+    /* Modal FOC options: only when GROUP + FOC size + "Treat FOC pax as discount (free)" is on */
+    .enquiry-pro-container:not(.enquiry-pro-group-foc-discount-active) .modal .group-foc-service-discount-ui {
         display: none !important;
+    }
+    /* Outside table FOC column: visible for GROUP + FOC size; disabled when treat-FOC is off */
+    .enquiry-pro-container:not(.enquiry-pro-group-foc-context) .group-foc-outside-discount-ui {
+        display: none !important;
+    }
+    .enquiry-pro-container:not(.enquiry-pro-group-foc-discount-active) .group-foc-outside-discount-ui input[type="checkbox"] {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 
     /* Destination tags styling */
@@ -1370,6 +1379,7 @@
                             <th title="Child with Bed Price">CWB</th>
                             <th title="Child without Bed Price">CNB</th>
                             <th title="Infant/Babycot Price">Infant</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1432,6 +1442,7 @@
                             <th>Child Qty</th>
                             <th>Cost/Pax</th>
                             <th>Sell/Pax</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1464,6 +1475,7 @@
                             <th>Child Qty</th>
                             <th>Cost/Pax</th>
                             <th>Sell/Pax</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1498,6 +1510,7 @@
                             <th>Child</th>
                             <th>Cost</th>
                             <th>Sell</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1530,6 +1543,7 @@
                             <th>Child Qty</th>
                             <th>Cost</th>
                             <th>Sell</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1562,6 +1576,7 @@
                             <th>Transfer</th>
                             <th>Vehicle Name</th>
                             <th>Vehicle Type</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
                     </thead>
@@ -1598,7 +1613,7 @@
                             <th>INFANT QTY</th>
                             <th>COST/PAX</th>
                             <th>SELL/PAX</th>
-                            <th class="group-foc-service-discount-ui">FOC</th>
+                            <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>SUPPLEMENT</th>
                         </tr>
                     </thead>
@@ -12675,10 +12690,12 @@
                 <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayInfantPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(hotel, true), `updateAccommodationField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
             </tr>
         `;
         }).join('');
+        refreshOutsideFocCheckboxState();
         
         // Expand header dates based on accommodation check-in/check-out dates
         if (accommodationList && accommodationList.length > 0) {
@@ -13432,8 +13449,7 @@
             accommodation[field] = value;
             
             // If supplement is changed, do NOT sync with linked services
-            if (field === 'supplement') {
-                // Recalculate totals after supplement change
+            if (field === 'supplement' || field === 'focServiceDiscount') {
                 recalculateTotals();
             }
             
@@ -14145,10 +14161,12 @@
                 <td style="text-align: center; vertical-align: middle;">${transferDisplay}</td>
                 <td style="text-align: center; vertical-align: middle;">${vehicleNameDisplay}</td>
                 <td style="text-align: center; vertical-align: middle;">${vehicleTypeDisplay}</td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(item, false), `updateArrivalDepartureField(${item.originalIndex}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateArrivalDepartureSupplement(${item.originalIndex}, this.checked)"></td>
             </tr>
             `;
         }).join('');
+        refreshOutsideFocCheckboxState();
         
         // Expand header dates based on ALL arrival/departure dates (not just standalone)
         if (arrivalDepartureList && arrivalDepartureList.length > 0) {
@@ -14614,10 +14632,14 @@
                         transferList[transferIndex].way = value;
                     } else if (field === 'transferType') {
                         transferList[transferIndex].type = value;
+                    } else if (field === 'focServiceDiscount') {
+                        transferList[transferIndex].focServiceDiscount = value;
                     }
-                    // Update transfer table to reflect changes
                     updateTransferTable();
                 }
+            }
+            if (field === 'focServiceDiscount') {
+                recalculateTotals();
             }
         }
     }
@@ -16557,10 +16579,12 @@
                 <td><input type="number" value="${tour.childQty}" onchange="updateTourField(${index}, 'childQty', this.value)"></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(tour, false), `updateTourField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${tour.supplement ? 'checked' : ''} onchange="updateTourField(${index}, 'supplement', this.checked)"></td>
             </tr>
         `;
         }).join('');
+        refreshOutsideFocCheckboxState();
     }
     
     // Edit tour
@@ -16720,9 +16744,7 @@
             const tour = tourList[index];
             tour[field] = value;
             
-            // If supplement is changed, do NOT sync with linked services
-            if (field === 'supplement') {
-                // Recalculate totals after supplement change
+            if (field === 'supplement' || field === 'focServiceDiscount') {
                 recalculateTotals();
             }
             
@@ -17256,10 +17278,12 @@
                 <td><input type="number" value="${guide.childQty || 0}" onchange="updateGuideField(${index}, 'childQty', this.value)" step="1" min="0" max="99" style="width: 70px; text-align: center;"></td>
                 <td><input type="text" value="${guide.cost}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${guide.sell}" onchange="updateGuideField(${index}, 'sell', this.value)" step="1"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(guide, false), `updateGuideField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;">${supplementCheckboxHtml}</td>
             </tr>
         `;
         }).join('');
+        refreshOutsideFocCheckboxState();
     }
     
     // Edit guide - opens guide modal for standalone, or tour modal for linked guides
@@ -17509,8 +17533,7 @@
                 updateGuideTable();
             }
             
-            // If cost or sell is changed, recalculate totals to update bottom section
-            if (field === 'cost' || field === 'sell') {
+            if (field === 'cost' || field === 'sell' || field === 'focServiceDiscount') {
                 recalculateTotals();
             }
         }
@@ -17868,10 +17891,11 @@
                 <td><input type="number" value="${item.infantQty}" onchange="updateMiscField(${index}, 'infantQty', this.value)"></td>
                 <td><input type="text" value="${parseFloat(String(item.infantCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(item.infantSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'infantSell', this.value)" step="1"></td>
-                <td style="text-align: center;" class="group-foc-service-discount-ui"><input type="checkbox" ${item.focServiceDiscount || item.foc_service_discount ? 'checked' : ''} onchange="updateMiscField(${index}, 'focServiceDiscount', this.checked)"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(item, false), `updateMiscField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateMiscSupplement(${index}, this.checked)"></td>
             </tr>
         `).join('');
+        refreshOutsideFocCheckboxState();
     }
     
     // Edit miscellaneous item
@@ -20129,10 +20153,12 @@
                 <td><input type="number" value="${meal.childQty}" onchange="updateMealField(${index}, 'childQty', this.value)"></td>
                 <td><input type="text" value="${parseFloat(String(meal.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(meal, false), `updateMealField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${meal.supplement ? 'checked' : ''} onchange="updateMealSupplement(${index}, this.checked)"></td>
             </tr>
         `;
         }).join('');
+        refreshOutsideFocCheckboxState();
     }
     
     // Ensure a meal row exists in the popup table for editing (for dynamically loaded meals)
@@ -20626,6 +20652,9 @@
                 // Expand header dates
                 expandHeaderDatesIfNeeded(value, false);
             }
+            if (field === 'focServiceDiscount') {
+                recalculateTotals();
+            }
         }
     }
     
@@ -20867,10 +20896,12 @@
                 <td><input type="number" value="${child}" onchange="updateTransferField(${index}, 'child', this.value)" style="width: 50px;"></td>
                 <td><input type="text" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${displaySell}" onchange="updateTransferField(${index}, 'sell', this.value)" step="1" style="width: 70px;"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(transfer, false), `updateTransferField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;">${supplementCheckboxHtml}</td>
             </tr>
         `;
         }).join('');
+        refreshOutsideFocCheckboxState();
 
         // Ensure footer totals refresh whenever transfer table renders
         recalculateTotals();
@@ -20964,10 +20995,24 @@
                 updateTransferTable();
             }
             
-            // If sell price, adults, child, type, or way changes for local transfers, recalculate totals
-            // This ensures Package Total is updated with new transfer contributions
             if ((field === 'sell' || field === 'adults' || field === 'child' || field === 'type' || field === 'way') && 
                 transfer.transportMode === 'local') {
+                recalculateTotals();
+            }
+
+            if (field === 'focServiceDiscount') {
+                const srcType = (transfer.sourceType || '').toLowerCase();
+                if (srcType === 'arrival' || srcType === 'departure') {
+                    const arrDepIndex = arrivalDepartureList.findIndex(item =>
+                        (item.transferId === transfer.id || item.id === transfer.sourceId) &&
+                        ((srcType === 'arrival' && (item.type === 'Arrival' || item.type === 'arrival')) ||
+                         (srcType === 'departure' && (item.type === 'Departure' || item.type === 'departure')))
+                    );
+                    if (arrDepIndex !== -1) {
+                        arrivalDepartureList[arrDepIndex].focServiceDiscount = value;
+                        if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+                    }
+                }
                 recalculateTotals();
             }
         }
@@ -22659,20 +22704,60 @@
         }
     }
 
+    function isGroupFocDiscountActive() {
+        if (typeof getEnquiryProGroupFocFactors === 'function') {
+            const f = getEnquiryProGroupFocFactors();
+            return !!(f.isGroup && f.focSize > 0 && f.discountOn);
+        }
+        const wrap = document.querySelector('.enquiry-pro-container');
+        return wrap ? wrap.classList.contains('enquiry-pro-group-foc-discount-active') : false;
+    }
+
+    function isGroupFocContextActive() {
+        if (typeof getEnquiryProGroupFocFactors === 'function') {
+            const f = getEnquiryProGroupFocFactors();
+            return !!(f.isGroup && f.focSize > 0);
+        }
+        const wrap = document.querySelector('.enquiry-pro-container');
+        return wrap ? wrap.classList.contains('enquiry-pro-group-foc-context') : false;
+    }
+
+    function isServiceFocChecked(entity, defaultWhenUnset) {
+        if (entity.focServiceDiscount === false || entity.foc_service_discount === false) return false;
+        if (entity.focServiceDiscount === true || entity.foc_service_discount === true) return true;
+        return !!defaultWhenUnset;
+    }
+
+    function buildOutsideFocCellHtml(checked, onchangeHandler) {
+        const disabledAttr = isGroupFocDiscountActive() ? '' : ' disabled';
+        const checkedAttr = checked ? ' checked' : '';
+        return `<td style="text-align: center;" class="group-foc-outside-discount-ui"><input type="checkbox" class="service-outside-foc-checkbox"${checkedAttr}${disabledAttr} onchange="${onchangeHandler}" title="FOC discount"></td>`;
+    }
+
+    function refreshOutsideFocCheckboxState() {
+        const active = isGroupFocDiscountActive();
+        document.querySelectorAll('.group-foc-outside-discount-ui input[type="checkbox"]').forEach(cb => {
+            cb.disabled = !active;
+        });
+    }
+
     /**
-     * Show per-service FOC discount UI + footer "FOC" discount type only when GROUP has FOC pax
-     * and "Treat FOC pax as discount (free)" (#enquiryProGroupDiscount) is on.
+     * Modal FOC: only when treat-FOC is on. Outside table FOC: visible for GROUP+FOC size, disabled when treat is off.
      */
     function refreshGroupFocDiscountUiVisibility() {
         const wrap = document.querySelector('.enquiry-pro-container');
+        let hasContext = false;
         let active = false;
         if (typeof getEnquiryProGroupFocFactors === 'function') {
             const f = getEnquiryProGroupFocFactors();
-            active = !!(f.isGroup && f.focSize > 0 && f.discountOn);
+            hasContext = !!(f.isGroup && f.focSize > 0);
+            active = hasContext && f.discountOn;
         }
         if (wrap) {
+            wrap.classList.toggle('enquiry-pro-group-foc-context', hasContext);
             wrap.classList.toggle('enquiry-pro-group-foc-discount-active', active);
         }
+        refreshOutsideFocCheckboxState();
         const focOpt = document.querySelector('#discountType option[value="foc"]');
         const dt = document.getElementById('discountType');
         // Clear invalid "FOC" selection BEFORE hiding the option — some browsers keep the old
