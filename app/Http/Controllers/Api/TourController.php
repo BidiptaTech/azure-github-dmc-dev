@@ -1123,7 +1123,7 @@ class TourController extends Controller
                 ];
                 
                 // Use the newly created tour_id
-                $tour_id = $tourId;
+                $tour_id = $tour->tour_id;
                 
             } catch (\Exception $e) {
                 return response()->json([

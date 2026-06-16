@@ -250,6 +250,7 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
             Route::get('/enquiry-form-pro/get-miscellaneous', [EnquiryFormPro::class, 'getMiscellaneousItems'])->name('enquiry-form-pro.get-miscellaneous');
             Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
+            Route::post('/enquiry-form-pro/get-hotel-price', [EnquiryFormPro::class, 'getHotelPrice'])->name('enquiry-form-pro.get-hotel-price');
             Route::post('/create-chat', [ChatController::class, 'createChat'])->name('create-chat');
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
@@ -1368,6 +1369,9 @@ Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPla
 
 Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
     ->name('day-level.transfer-options');
+
+Route::get('day-level/transfer-zone-price', [DayLevelController::class, 'transferZonePrice'])
+    ->name('day-level.transfer-zone-price');
 
 Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
     ->name('day-level.tickets-by-attraction');

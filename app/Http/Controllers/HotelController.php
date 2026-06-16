@@ -1108,7 +1108,6 @@ class HotelController extends Controller
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         $auth_user = Auth::user();
         
-        // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::whereIn('role_id', [11,20])
@@ -1118,39 +1117,10 @@ class HotelController extends Controller
                            ->get();
         }
         
-        // Fetch rates data based on user role
-        if ($auth_user->role_id == 1) {
-            // Admin: Show all rates for this hotel (excluding seasons)
-            $rates = Rate::with(['user'])
-                        ->where('event_type', '!=', 'Season')
-                        ->where('hotel_id', $hotelId)
-                        ->get();
-            
-            // Add DMC information to each rate
-            $rates = $rates->map(function ($rate) {
-                if ($rate->dmc_id) {
-                    $dmcUser = User::where('userId', $rate->dmc_id)->first();
-                    if ($dmcUser) {
-                        $rate->dmc_name = $dmcUser->name;
-                        $rate->dmc_company = $dmcUser->company_name;
-                        $rate->dmc_user_id = $dmcUser->userId;
-                    }
-                } else {
-                    $rate->dmc_name = 'Unknown';
-                    $rate->dmc_company = 'Unknown DMC';
-                    $rate->dmc_user_id = 'unknown';
-                }
-                return $rate;
-            });
-        } else {
-            // DMC/Other users: Show only their own rates
-            $rates = Rate::where('event_type', '!=', 'Season')
-                        ->where('hotel_id', $hotelId)
-                        ->where('dmc_id', $auth_user->userId)
-                        ->get();
-        }
+        $rates = $this->fetchHotelRatesForUser($auth_user, $hotelId, 'non_season');
+        $canManageHotelRates = $this->userCanManageHotelRates($auth_user);
         
-        return view('hotel.rates', compact('hotel','rates','auth_user','dmcUsers'));
+        return view('hotel.rates', compact('hotel','rates','auth_user','dmcUsers', 'canManageHotelRates'));
     }
 
     public function hotelseason($hotelId){
@@ -1158,7 +1128,6 @@ class HotelController extends Controller
         $room = Room::where('hotel_id', $hotelId)->get()->first();
         $auth_user = Auth::user();
         
-        // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::whereIn('role_id', [11,20])
@@ -1168,39 +1137,10 @@ class HotelController extends Controller
                            ->get();
         }
         
-        // Fetch seasons data based on user role
-        if ($auth_user->role_id == 1) {
-            // Admin: Show all seasons for this hotel
-            $rates = Rate::with(['user'])
-                        ->where('event_type', "Season")
-                        ->where('hotel_id', $hotelId)
-                        ->get();
-            
-            // Add DMC information to each rate
-            $rates = $rates->map(function ($rate) {
-                if ($rate->dmc_id) {
-                    $dmcUser = User::where('userId', $rate->dmc_id)->first();
-                    if ($dmcUser) {
-                        $rate->dmc_name = $dmcUser->name;
-                        $rate->dmc_company = $dmcUser->company_name;
-                        $rate->dmc_user_id = $dmcUser->userId;
-                    }
-                } else {
-                    $rate->dmc_name = 'Unknown';
-                    $rate->dmc_company = 'Unknown DMC';
-                    $rate->dmc_user_id = 'unknown';
-                }
-                return $rate;
-            });
-        } else {
-            // DMC/Other users: Show only their own seasons
-            $rates = Rate::where('event_type', "Season")
-                        ->where('hotel_id', $hotelId)
-                        ->where('dmc_id', $auth_user->userId)
-                        ->get();
-        }
+        $rates = $this->fetchHotelRatesForUser($auth_user, $hotelId, 'Season');
+        $canManageHotelRates = $this->userCanManageHotelRates($auth_user);
         
-        return view('hotel.season', compact('hotel','room','rates','auth_user','dmcUsers'));
+        return view('hotel.season', compact('hotel','room','rates','auth_user','dmcUsers', 'canManageHotelRates'));
     }
 
     /*
@@ -1384,14 +1324,10 @@ class HotelController extends Controller
         //     $rateId = CommonHelper::createId($rateId);
         // }
 
-        // Set DMC ID based on user role
-        $dmcId = null;
-        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
-            // Admin/Manager users: use the selected DMC ID
-            $dmcId = $request->input('dmc_id');
-        } else {
-            // Regular DMC users: use their own user ID
-            $dmcId = $auth_user->userId;
+        // Set DMC ID based on user role (DMC, product head, multi-role staff use parent DMC via created_by)
+        $dmcId = $this->resolveHotelRateDmcIdForStore($auth_user, $request);
+        if (!$dmcId) {
+            return redirect()->back()->with('error', 'Unable to determine DMC for this rate.');
         }
 
         $rate = Rate::create([
@@ -1479,14 +1415,10 @@ class HotelController extends Controller
                 ->with('error', 'The date range overlaps with an existing season.');
         }
 
-        // Set DMC ID based on user role
-        $dmcId = null;
-        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
-            // Admin/Manager users: use the selected DMC ID
-            $dmcId = $request->input('dmc_id');
-        } else {
-            // Regular DMC users: use their own user ID
-            $dmcId = $auth_user->userId;
+        // Set DMC ID based on user role (DMC, product head, multi-role staff use parent DMC via created_by)
+        $dmcId = $this->resolveHotelRateDmcIdForStore($auth_user, $request);
+        if (!$dmcId) {
+            return redirect()->back()->with('error', 'Unable to determine DMC for this season.');
         }
 
         $rate = Rate::create([
@@ -1526,7 +1458,8 @@ class HotelController extends Controller
     * Date 15-12-2024
     */
     public function editrate($id, $hotelId){
-        $rate = Rate::where('rate_id', $id)->first();
+        $rate = Rate::where('rate_id', $id)->where('hotel_id', $hotelId)->first();
+        $this->authorizeHotelRateForUser($rate, Auth::user());
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         return view('hotel.edit-rate', compact('rate','hotel'));
     }
@@ -1536,7 +1469,8 @@ class HotelController extends Controller
     * Date 15-12-2024
     */
     public function editseason($id, $hotelId){
-        $rate = Rate::where('rate_id', $id)->first();
+        $rate = Rate::where('rate_id', $id)->where('hotel_id', $hotelId)->first();
+        $this->authorizeHotelRateForUser($rate, Auth::user());
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         return view('hotel.edit-season', compact('rate','hotel'));
     }
@@ -1559,6 +1493,10 @@ class HotelController extends Controller
         $rate_id = $request->rate_id;
         $hotel = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
         $rate = Rate::where('rate_id', $rate_id)->where('hotel_id', $request->hotel_id)->first();
+        if (!$rate) {
+            return redirect()->back()->with('error', 'Rate not found for the specified hotel.');
+        }
+        $this->authorizeHotelRateForUser($rate, $auth_user);
         
         // Parse date range
         list($firstDate, $lastDate) = explode(' - ', $request->date_range);
@@ -1578,8 +1516,9 @@ class HotelController extends Controller
         $rate->is_active = $request->rate_status == 1 ? 1 : 0;
 
         if ($rate->save()) {
-            $rates = Rate::where('event_type', '!=', 'Season')->where('hotel_id', $request->hotel_id)->get();
-            return view('hotel.rates', compact('hotel', 'rates', 'dmcUsers', 'auth_user'))
+            $rates = $this->fetchHotelRatesForUser($auth_user, $request->hotel_id, 'non_season');
+            $canManageHotelRates = $this->userCanManageHotelRates($auth_user);
+            return view('hotel.rates', compact('hotel', 'rates', 'dmcUsers', 'auth_user', 'canManageHotelRates'))
                 ->with('success', 'Rates details saved successfully!');
         } else {
             return redirect()->back()
@@ -1593,6 +1532,7 @@ class HotelController extends Controller
     */
     public function updateseason(Request $request)
     {
+        $auth_user = Auth::user();
         // Validate the request data
         $request->validate([
             'rate_id' => 'required|exists:rates,rate_id',
@@ -1620,6 +1560,7 @@ class HotelController extends Controller
         if (!$rate) {
             return redirect()->back()->with('error', 'Rate not found for the specified hotel.');
         }
+        $this->authorizeHotelRateForUser($rate, $auth_user);
         $rate->event = $request->event;
         $rate->event_type = $request->event_type;
         $rate->price = 0; // Why is this always 0? Confirm if intentional.
@@ -1643,7 +1584,9 @@ class HotelController extends Controller
     }
 
     public function deleteSeason($hotelId, $id){
-        $delete = Rate::where('rate_id', $id)->delete();
+        $rate = Rate::where('rate_id', $id)->where('hotel_id', $hotelId)->first();
+        $this->authorizeHotelRateForUser($rate, Auth::user());
+        $delete = $rate ? $rate->delete() : false;
         if ($delete){
             return redirect()->route('hotels.season', ['hotel' => $hotelId])
                 ->with('error', 'Season details deleted successfully!');
@@ -3532,6 +3475,7 @@ class HotelController extends Controller
     {
         try {
             $rate = \App\Models\Rate::where('rate_id', $id)->first();
+            $this->authorizeHotelRateForUser($rate, Auth::user());
             $rate->delete();
             
             return redirect()->back()->with('success', 'Rate deleted successfully');
@@ -3541,11 +3485,124 @@ class HotelController extends Controller
     }
 
     /**
+     * Product-head / multi-role staff who manage hotel rates for their parent DMC (users.created_by).
+     */
+    private function hotelRateDelegateRoleIds(): array
+    {
+        return [35, 130, 132, 133, 135, 136, 137, 138];
+    }
+
+    /**
+     * Parent DMC userId used to scope hotel season / blackout / fair rates for the current user.
+     */
+    private function resolveHotelRateDmcUserId(User $user): ?int
+    {
+        if ((int) $user->role_id === 11 || (int) $user->role_id === 20) {
+            return (int) $user->userId;
+        }
+        if (in_array((int) $user->role_id, $this->hotelRateDelegateRoleIds(), true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if ((int) $user->user_type === 2) {
+            return (int) $user->userId;
+        }
+
+        return null;
+    }
+
+    private function resolveHotelRateDmcIdForStore(User $authUser, Request $request): ?int
+    {
+        if ((int) $authUser->role_id === 1 || (int) $authUser->role_id === 20) {
+            $selected = $request->input('dmc_id');
+
+            return $selected ? (int) $selected : null;
+        }
+
+        return $this->resolveHotelRateDmcUserId($authUser);
+    }
+
+    private function userCanManageHotelRates(User $user): bool
+    {
+        if ((int) $user->role_id === 1 || (int) $user->role_id === 20) {
+            return true;
+        }
+        if ((int) $user->role_id === 11) {
+            return true;
+        }
+        if (in_array((int) $user->role_id, $this->hotelRateDelegateRoleIds(), true)) {
+            return $this->resolveHotelRateDmcUserId($user) !== null;
+        }
+
+        return (int) $user->user_type === 2;
+    }
+
+    private function authorizeHotelRateForUser(?Rate $rate, User $authUser): void
+    {
+        if (!$rate) {
+            abort(404, 'Rate not found.');
+        }
+        if ((int) $authUser->role_id === 1) {
+            return;
+        }
+        $dmcUserId = $this->resolveHotelRateDmcUserId($authUser);
+        if (!$dmcUserId || (int) $rate->dmc_id !== (int) $dmcUserId) {
+            abort(403, 'You do not have permission to manage this rate.');
+        }
+    }
+
+    private function appendDmcLabelsToRates($rates)
+    {
+        return $rates->map(function ($rate) {
+            if ($rate->dmc_id) {
+                $dmcUser = User::where('userId', $rate->dmc_id)->first();
+                if ($dmcUser) {
+                    $rate->dmc_name = $dmcUser->name;
+                    $rate->dmc_company = $dmcUser->company_name;
+                    $rate->dmc_user_id = $dmcUser->userId;
+                }
+            } else {
+                $rate->dmc_name = 'Unknown';
+                $rate->dmc_company = 'Unknown DMC';
+                $rate->dmc_user_id = 'unknown';
+            }
+
+            return $rate;
+        });
+    }
+
+    /**
+     * @param  string|null  $eventType  'Season', 'non_season', or null for all
+     */
+    private function fetchHotelRatesForUser(User $authUser, string $hotelId, ?string $eventType = null)
+    {
+        $query = Rate::query()->where('hotel_id', $hotelId);
+        if ($eventType === 'Season') {
+            $query->where('event_type', 'Season');
+        } elseif ($eventType === 'non_season') {
+            $query->where('event_type', '!=', 'Season');
+        }
+
+        if ((int) $authUser->role_id === 1) {
+            return $this->appendDmcLabelsToRates($query->with(['user'])->get());
+        }
+
+        $dmcUserId = $this->resolveHotelRateDmcUserId($authUser);
+        if (!$dmcUserId) {
+            return collect();
+        }
+
+        return $query->where('dmc_id', $dmcUserId)->get();
+    }
+
+    /**
      * Product-head / product-manager roles that manage room pricing for a parent DMC.
      */
     private function roomPricingDelegateRoleIds(): array
     {
-        return [35, 130, 132, 133, 136, 137, 138, 77, 84, 139, 140];
+        return array_values(array_unique(array_merge(
+            $this->hotelRateDelegateRoleIds(),
+            [77, 84, 139, 140]
+        )));
     }
 
     /**
@@ -3571,7 +3628,7 @@ class HotelController extends Controller
         if ((int) $user->role_id === 11) {
             return (int) $user->userId;
         }
-        if ((int) $user->role_id === 35 || in_array((int) $user->role_id, [130, 132, 133, 136, 137, 138], true)) {
+        if (in_array((int) $user->role_id, $this->hotelRateDelegateRoleIds(), true)) {
             return $user->created_by ? (int) $user->created_by : null;
         }
         if ((int) $user->role_id === 77 || (int) $user->role_id === 139) {

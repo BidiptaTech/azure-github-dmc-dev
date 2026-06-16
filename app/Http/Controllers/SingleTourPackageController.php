@@ -2331,6 +2331,7 @@ class SingleTourPackageController extends Controller
             $bedId         = $request->input('bed_id');
             $mealPlan      = $request->input('meal_plan');
             $pax           = (int) $request->input('pax', 1);
+            $extraBed      = (int) $request->input('extra_bed', 0);
             $dates         = $request->input('dates', []);
 
             if (is_string($dates)) {
@@ -2353,7 +2354,7 @@ class SingleTourPackageController extends Controller
                 ], 422);
             }
 
-            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax);
+            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
 
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Exception $e) {
