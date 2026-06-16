@@ -24,6 +24,7 @@ use App\Models\VehicleZoneMapping;
 use App\Models\Zone;
 use App\Models\MiscellaneousItem;
 use App\Helpers\CommonHelper;
+use App\Helpers\HotelPriceHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -969,16 +970,11 @@ class EnquiryFormPro extends Controller
             // Fetch rates for this hotel with DMC access control
             // Use hotel_unique_id if available, otherwise use id
             $hotelIdForRates = $hotel->hotel_unique_id ?? $hotel->id;
-            $ratesQuery = Rate::where('hotel_id', $hotelIdForRates)->where('is_active', 1);
-            
-            // Apply DMC filtering for rates for non-admin users
-            if ($user->role_id != 1) {
-                if ($dmc_id) {
-                    $ratesQuery->where('dmc_id', $dmc_id);
-                }
-            }
-            
-            $rates = $ratesQuery->orderByRaw("
+            // Match HotelPriceHelper: load all active rates for this hotel (no DMC filter)
+            // so client-side season meal prices align with server-side room pricing.
+            $rates = Rate::where('hotel_id', $hotelIdForRates)
+                ->where('is_active', 1)
+                ->orderByRaw("
                 CASE 
                     WHEN event_type = 'Blackout Date' THEN 1
                     WHEN event_type = 'Fair Date' THEN 2
@@ -996,6 +992,11 @@ class EnquiryFormPro extends Controller
                     'price' => $rate->price ?? 0,
                     'weekday_price' => $rate->weekday_price ?? 0,
                     'weekend_price' => $rate->weekend_price ?? 0,
+                    'double_weekday_price' => $rate->double_weekday_price ?? 0,
+                    'double_weekend_price' => $rate->double_weekend_price ?? 0,
+                    'breakfast_price' => $rate->breakfast_price ?? 0,
+                    'lunch_price' => $rate->lunch_price ?? 0,
+                    'dinner_price' => $rate->dinner_price ?? 0,
                     'start_date' => $rate->start_date,
                     'end_date' => $rate->end_date,
                 ];
@@ -4463,6 +4464,52 @@ class EnquiryFormPro extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching meals: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate hotel room + meal price (season / fair / blackout aware) via HotelPriceHelper.
+     */
+    public function getHotelPrice(Request $request)
+    {
+        try {
+            $hotelUniqueId = $request->input('hotel_unique_id');
+            $roomId = $request->input('room_id');
+            $bedId = $request->input('bed_id');
+            $mealPlan = $request->input('meal_plan');
+            $pax = (int) $request->input('pax', 1);
+            $extraBed = (int) $request->input('extra_bed', 0);
+            $dates = $request->input('dates', []);
+
+            if (is_string($dates)) {
+                $decoded = json_decode($dates, true);
+                $dates = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $dates)));
+            }
+            $dates = array_values(array_filter((array) $dates));
+
+            if (empty($hotelUniqueId) || empty($roomId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'hotel_unique_id and room_id are required.',
+                ], 422);
+            }
+
+            if (empty($dates)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'At least one date (night) is required.',
+                ], 422);
+            }
+
+            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
+
+            // Always 200 so the browser does not log failed HTTP requests for expected pricing misses.
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating hotel price: ' . $e->getMessage(),
             ], 500);
         }
     }
