@@ -112,6 +112,9 @@ class HotelPriceHelper
 
             $roomTotal = 0.0;
             $mealTotal = 0.0;
+            $breakfastTotal = 0.0;
+            $lunchTotal = 0.0;
+            $dinnerTotal = 0.0;
             $breakdown = [];
 
             foreach ($dates as $rawDate) {
@@ -181,21 +184,17 @@ class HotelPriceHelper
                     $roomPrice = $basePrice + $extraBedTotal;
                 }
 
-                // Meal price for this night (per person * pax).
-                $mealPerPerson = 0.0;
-                if ($meals['breakfast']) {
-                    $mealPerPerson += $breakfastPrice;
-                }
-                if ($meals['lunch']) {
-                    $mealPerPerson += $lunchPrice;
-                }
-                if ($meals['dinner']) {
-                    $mealPerPerson += $dinnerPrice;
-                }
-                $mealPrice = $mealPerPerson * $pax;
+                // Meal price for this night (per person * pax), tracked per meal type.
+                $nightBreakfast = $meals['breakfast'] ? $breakfastPrice * $pax : 0.0;
+                $nightLunch     = $meals['lunch'] ? $lunchPrice * $pax : 0.0;
+                $nightDinner    = $meals['dinner'] ? $dinnerPrice * $pax : 0.0;
+                $mealPrice = $nightBreakfast + $nightLunch + $nightDinner;
 
                 $roomTotal += $roomPrice;
                 $mealTotal += $mealPrice;
+                $breakfastTotal += $nightBreakfast;
+                $lunchTotal     += $nightLunch;
+                $dinnerTotal    += $nightDinner;
 
                 // Variant only applies for Season and Blackout Date.
                 $appliedVariant = ($eventType === 'Season' || $eventType === 'Blackout Date') ? $variantPrice : 0.0;
@@ -228,6 +227,9 @@ class HotelPriceHelper
                 'extra_bed_price' => round($extraBedPrice, 2),
                 'room_total'      => round($roomTotal, 2),
                 'meal_total'      => round($mealTotal, 2),
+                'breakfast_total' => round($breakfastTotal, 2),
+                'lunch_total'     => round($lunchTotal, 2),
+                'dinner_total'    => round($dinnerTotal, 2),
                 'grand_total'     => round($roomTotal + $mealTotal, 2),
                 'breakdown'       => $breakdown,
             ];

@@ -1384,15 +1384,30 @@ Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'com
 
 // Resource route AFTER
 Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
+
+// Temporary preview route for the booking-confirmation email template.
+// Loads real tour + order data (prices from order JSON, not hardcoded).
+// Usage: /preview-booking-email?tour_id=123  or  ?display_id=ORD3662
+// Without params, uses the most recent tour that has orders.
+Route::get('preview-booking-email', function (\Illuminate\Http\Request $request) {
+    $tourKey = $request->query('tour_id') ?? $request->query('display_id');
+    $tour = \App\Helpers\CommonHelper::findTourForEmailPreview($tourKey);
+
+    if (!$tour) {
+        abort(404, 'No tour found. Pass ?tour_id= or ?display_id= for a tour that has orders.');
+    }
+
+    $emailData = \App\Helpers\CommonHelper::buildBookingConfirmationEmailDataFromTour($tour);
+
+    if (!$emailData) {
+        abort(404, 'Tour #' . ($tour->display_id ?? $tour->tour_id) . ' has no orders to preview.');
+    }
+
+    return view('email.booking-confirmation', $emailData);
+});
+
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
     ->where('routeName', '^(?!api$).+');
 });
-
-
-
-
-
-
-
 
 
