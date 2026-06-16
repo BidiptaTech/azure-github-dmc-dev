@@ -1477,6 +1477,23 @@ class ExternalApiReceiveController extends Controller
      */
     protected function buildBookedServicesForEmail(Collection $orders): array
     {
+        return $this->buildBookedServicesForEmailInternal($orders);
+    }
+
+    /**
+     * Public entry point for building itinerary cards from persisted orders
+     * (used by email preview and other callers outside this controller).
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Order>  $orders
+     * @return array<int, array<string, mixed>>
+     */
+    public function buildBookedServicesForEmailPublic(Collection $orders): array
+    {
+        return $this->buildBookedServicesForEmailInternal($orders);
+    }
+
+    protected function buildBookedServicesForEmailInternal(Collection $orders): array
+    {
         $services = [];
 
         foreach ($orders as $order) {
