@@ -4,18 +4,102 @@ namespace App\Services;
 
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Database;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification;
 
 class FirebaseService
 {
     protected Database $database;
 
+    protected Factory $factory;
+
     public function __construct()
     {
-        $factory = (new Factory)
+        $this->factory = (new Factory)
             ->withServiceAccount(config('firebase.credentials'))
             ->withDatabaseUri(config('firebase.database_url'));
 
-        $this->database = $factory->createDatabase();
+        $this->database = $this->factory->createDatabase();
+    }
+
+    /**
+     * Resolve FCM device tokens from user_tokens/{base64(email)}/{device_id}/token.
+     *
+     * @param  list<string>  $emails
+     * @return list<string>
+     */
+    public function getDeviceTokensByEmails(array $emails): array
+    {
+        $tokens = [];
+
+        foreach ($this->filterValidEmails($emails) as $email) {
+            $emailKey = base64_encode($email);
+            $devices = $this->database->getReference('user_tokens/' . $emailKey)->getValue();
+
+            if (!is_array($devices)) {
+                continue;
+            }
+
+            foreach ($devices as $device) {
+                if (!is_array($device)) {
+                    continue;
+                }
+
+                $token = isset($device['token']) ? trim((string) $device['token']) : '';
+                if ($token !== '') {
+                    $tokens[] = $token;
+                }
+            }
+        }
+
+        return array_values(array_unique($tokens));
+    }
+
+    /**
+     * @param  list<string>  $tokens
+     */
+    public function sendPushNotifications(array $tokens, string $title, string $body, array $data = []): array
+    {
+        $tokens = array_values(array_unique(array_filter(array_map(
+            static fn ($token) => trim((string) $token),
+            $tokens
+        ))));
+
+        if (empty($tokens)) {
+            return [
+                'success' => false,
+                'message' => 'No device tokens found for the selected recipients.',
+                'data' => [
+                    'success_count' => 0,
+                    'failure_count' => 0,
+                    'total_tokens' => 0,
+                ],
+            ];
+        }
+
+        $messaging = $this->factory->createMessaging();
+        $notification = Notification::create($title, $body);
+        $message = CloudMessage::new()->withNotification($notification);
+
+        if (!empty($data)) {
+            $message = $message->withData($data);
+        }
+
+        $report = $messaging->sendMulticast($message, $tokens);
+        $successCount = $report->successes()->count();
+        $failureCount = $report->failures()->count();
+
+        return [
+            'success' => $successCount > 0,
+            'message' => $successCount > 0
+                ? sprintf('Notification sent to %d of %d device(s).', $successCount, count($tokens))
+                : 'Failed to send notification to any device.',
+            'data' => [
+                'success_count' => $successCount,
+                'failure_count' => $failureCount,
+                'total_tokens' => count($tokens),
+            ],
+        ];
     }
 
     public function createChatRoom($tourId, $dmcId, array $tourDetails = [])
