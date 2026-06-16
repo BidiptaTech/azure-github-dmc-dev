@@ -71,6 +71,7 @@ use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Api\DayLevelController;
 use App\Http\Controllers\Api\ExternalApiReceiveController;
+use App\Http\Controllers\SmartNotificationController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -993,6 +994,8 @@ Route::get('/clear', function () {
             Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
             Route::get('/lost-found', [\App\Http\Controllers\LostFoundController::class, 'index'])->name('lost-found.index');
             Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
+            Route::get('/smart-notification', [SmartNotificationController::class, 'index'])->name('smart-notification.index');
+            Route::get('/smart-notification/recipients', [SmartNotificationController::class, 'recipients'])->name('smart-notification.recipients');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             

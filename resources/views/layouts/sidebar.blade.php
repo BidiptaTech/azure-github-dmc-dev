@@ -1446,6 +1446,21 @@
                 </li>
                 @endif
                 @endif
+
+                @php
+                    $smartNotificationRoles = [1, 21, 11, 34, 128, 131, 132, 134, 135, 137, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $smartNotificationRoles))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Smart Notification">Smart Notification</span>
+                </li>
+                <li class="menu-item @if(Request::is('smart-notification*')) active @endif">
+                    <a href="{{ route('smart-notification.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-notification-3-line"></i>
+                        <div data-i18n="Send Notification">Send Notification</div>
+                    </a>
+                </li>
+                @endif
                 <!-- End User Role Management -->   
 
                 {{-- <!-- Settings -->
