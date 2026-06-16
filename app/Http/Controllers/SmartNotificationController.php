@@ -113,6 +113,24 @@ class SmartNotificationController extends Controller
 
             $result['data']['emails'] = $emails;
 
+            if (
+                !$result['success']
+                && !empty($result['data']['unknown_tokens'])
+            ) {
+                $removedCount = $firebaseService->removeStaleTokensForEmails(
+                    $emails,
+                    $result['data']['unknown_tokens']
+                );
+                $result['data']['removed_stale_tokens'] = $removedCount;
+
+                if ($removedCount > 0) {
+                    $result['message'] .= ' ' . sprintf(
+                        '%d stale device token(s) were removed from Firebase. Please ask the user to open the app again and retry.',
+                        $removedCount
+                    );
+                }
+            }
+
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Throwable $e) {
             Log::error('Smart notification send failed', [
