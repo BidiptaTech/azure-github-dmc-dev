@@ -219,7 +219,7 @@ class EnquiryFormPro extends Controller
     public function create(Request $request)
     {
         $user = Auth::user();
-        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -2714,6 +2714,14 @@ class EnquiryFormPro extends Controller
      */
     public function edit($tour_id)
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+        
         // Try to decrypt tour_id if it's encrypted
         try {
             $decryptedTourId = \Crypt::decrypt($tour_id);

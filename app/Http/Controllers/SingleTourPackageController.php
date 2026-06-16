@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
+use App\Helpers\HotelPriceHelper;
 use Carbon\Carbon;
 use App\Models\EnquiryForm;
 use Illuminate\Support\Facades\Crypt;
@@ -57,7 +58,7 @@ class SingleTourPackageController extends Controller
     public function create(Request $request, $enquiry_id = null)
     {
         $user = Auth::user();
-        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 64, 65, 66, 67, 68, 38, 81, 90, 108, 117, 124, 125, 126, 127];
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -93,14 +94,6 @@ class SingleTourPackageController extends Controller
             }
         }
         $countries = $countriesQuery->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($request->has('country') && $request->country) {
-            $country = Country::find($request->country);
-            if ($country) {
-                $portsQuery->where('country', $country->name);
-            }
-        }
-        $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
         $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
         
@@ -246,6 +239,15 @@ class SingleTourPackageController extends Controller
         
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
+
+        $portsCountryName = null;
+        if ($enquiry && !empty($enquiry->country)) {
+            $portsCountryName = $enquiry->country;
+        } elseif ($request->filled('country')) {
+            $countryForPorts = Country::find($request->country) ?? Country::where('name', $request->country)->first();
+            $portsCountryName = $countryForPorts?->name;
+        }
+        $ports = $this->getPortsForDmc($portsCountryName);
         
         return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'multiRestaurants', 'entryDropoffLocation', 'exitPickupLocation'));
     }
@@ -452,15 +454,8 @@ class SingleTourPackageController extends Controller
         $dmc_id = CommonHelper::getDmcId(Auth::user());
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($tour->destination) {
-            $country = Country::where('name', $tour->destination)->first();
-            if ($country) {
-                $portsQuery->where('country', $country->name);
-            }
-        }
         $cities = City::where('country', $tour->destination)->get();
-        $ports = $portsQuery->orderBy('port_name')->get();
+        $ports = $this->getPortsForDmc($tour->destination ?: null);
         
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::WhereIn('agency_id', $agencies->pluck('agency_id'))
@@ -519,6 +514,9 @@ class SingleTourPackageController extends Controller
             
             // Separate hotel orders
             if ($type === 'hotel') {
+                if (empty($order->booking_id)) {
+                    continue;
+                }
                 $hotelOrders[] = $order;
             } else {
                 // Group by type for compatibility
@@ -928,8 +926,12 @@ class SingleTourPackageController extends Controller
                         'guest_name' => $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? 'Guest',
                         'email' => $mainGuestData['email'] ?? null,
                         'country_code' => $mainGuestData['country_code'] ?? null,
-                        'contact' => $mainGuestData['phone'] ?? null,
-                        'whatsapp_no' => $mainGuestData['phone'] ?? null,
+                        'contact' => filled($mainGuestData['phone'] ?? null)
+                            ? $mainGuestData['phone']
+                        : null,
+                        'whatsapp_no' => filled($mainGuestData['phone'] ?? null)
+                            ? $mainGuestData['phone']
+                            : null,
                         'passport' => $mainGuestData['passport'] ?? null,
                         'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
                         'salutation' => $salutation,
@@ -1080,6 +1082,14 @@ class SingleTourPackageController extends Controller
      */
     public function edit(Request $request, $id)
     {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        // Check if user has permission to access this page
+        if (!in_array($user->role_id, $allowedRoleIds)) {
+            return redirect()->route('dashboard')->with('error', 'You have not permission for access this page');
+        }
+
         if (!$id) {
             \Log::error('No tour_id provided for edit view');
             return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');
@@ -1145,15 +1155,11 @@ class SingleTourPackageController extends Controller
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $portsQuery = Port::query();
-        if ($tour->destination) {
-            $portsQuery->where('country', $tour->destination);
-        }
         $cities = City::where('country', $tour->destination)->get();
         if ($cities->isEmpty()) {
             $cities = City::orderBy('name')->get();
         }
-        $ports = $portsQuery->orderBy('port_name')->get();
+        $ports = $this->getPortsForDmc($tour->destination ?: null);
 
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
@@ -1240,6 +1246,9 @@ class SingleTourPackageController extends Controller
             $order->processed_data = $orderData;
 
             if ($type === 'hotel') {
+                if (empty($order->booking_id)) {
+                    continue;
+                }
                 $hotelOrders[] = $order;
                 continue;
             }
@@ -1463,15 +1472,19 @@ class SingleTourPackageController extends Controller
             return response()->json(['ports' => []]);
         }
         
-        $country = Country::where('name', $countryId)->first();
+        $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
         if (!$country) {
             return response()->json(['ports' => []]);
         }
-        
-        $ports = Port::where('country', $country->name)
-                ->select('id', 'port_id', 'port_name', 'country')
-                ->orderBy('port_name')
-                ->get();
+
+        $ports = $this->getPortsForDmc($country->name)
+            ->map(fn ($port) => [
+                'id' => $port->id,
+                'port_id' => $port->port_id,
+                'port_name' => $port->port_name,
+                'country' => $port->country,
+            ])
+            ->values();
                  
         return response()->json(['ports' => $ports]);
     }
@@ -1650,6 +1663,57 @@ class SingleTourPackageController extends Controller
                 ]
             ], 500);
         }
+    }
+
+    /**
+     * Country names assigned to the master DMC (comma-separated on user record).
+     */
+    private function getDmcCountryNames(): array
+    {
+        $dmcId = CommonHelper::getDmcId(Auth::user());
+        if (!$dmcId) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || !$dmcUser->created_by) {
+            return [];
+        }
+
+        $mdmcUser = User::where('userId', $dmcUser->created_by)->first();
+        if (!$mdmcUser || empty($mdmcUser->country)) {
+            return [];
+        }
+
+        $names = array_map('trim', explode(',', (string) $mdmcUser->country));
+
+        return array_values(array_filter($names));
+    }
+
+    /**
+     * Ports limited to DMC-accessible countries; optionally narrowed to one country.
+     */
+    private function getPortsForDmc(?string $countryName = null)
+    {
+        $query = Port::query();
+
+        if (Schema::hasColumn('ports', 'status')) {
+            $query->where('status', 1);
+        }
+
+        $dmcCountries = $this->getDmcCountryNames();
+        if (!empty($dmcCountries)) {
+            $query->whereIn('country', $dmcCountries);
+        }
+
+        if ($countryName) {
+            if (!empty($dmcCountries) && !in_array($countryName, $dmcCountries, true)) {
+                return collect();
+            }
+            $query->where('country', $countryName);
+        }
+
+        return $query->orderBy('port_name')->get();
     }
 
     /**
@@ -2252,6 +2316,51 @@ class SingleTourPackageController extends Controller
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile()
                 ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate hotel room + meal price via HotelPriceHelper.
+     */
+    public function getHotelPrice(Request $request)
+    {
+        try {
+            $hotelUniqueId = $request->input('hotel_unique_id');
+            $roomId        = $request->input('room_id');
+            $bedId         = $request->input('bed_id');
+            $mealPlan      = $request->input('meal_plan');
+            $pax           = (int) $request->input('pax', 1);
+            $extraBed      = (int) $request->input('extra_bed', 0);
+            $dates         = $request->input('dates', []);
+
+            if (is_string($dates)) {
+                $decoded = json_decode($dates, true);
+                $dates = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $dates)));
+            }
+            $dates = array_values(array_filter((array) $dates));
+
+            if (empty($hotelUniqueId) || empty($roomId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'hotel_unique_id and room_id are required.',
+                ], 422);
+            }
+
+            if (empty($dates)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'At least one date (night) is required.',
+                ], 422);
+            }
+
+            $result = HotelPriceHelper::calculatePrice($hotelUniqueId, $roomId, $bedId, $dates, $mealPlan, $pax, $extraBed);
+
+            return response()->json($result, $result['success'] ? 200 : 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating hotel price: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -4180,14 +4289,13 @@ class SingleTourPackageController extends Controller
         }
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => [$bookingData],
@@ -4198,7 +4306,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-        
+        $order->refresh();
+        $bookingId = $order->booking_id;
         // Update tour destination with hotel location if location is provided
         if (!empty($bookingData['hotelDetails']['location'])) {
             $tour->destination = $bookingData['hotelDetails']['location'];
@@ -4257,14 +4366,13 @@ class SingleTourPackageController extends Controller
         // If adding service when tour is Actual, mark order as additional
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
 
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
         
         $order =  Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4275,7 +4383,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4331,14 +4440,13 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
        
         // Generate unique booking ID
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
 
         $order = Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4349,7 +4457,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4395,15 +4504,14 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         // Create order
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
@@ -4414,7 +4522,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -4462,19 +4571,19 @@ class SingleTourPackageController extends Controller
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
         
         // Generate a unique booking ID
-        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
-        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
-        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        // $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        // }
         
         // Detailed logging for transport order - check image field
-        \Log::info("Processing transport order", [
-            'transport_data' => $transportData,
-            'booking_id' => $bookingId,
-            'agent_id' => $agentId,
-            'tour_id' => $tourId
-        ]);
+        // \Log::info("Processing transport order", [
+        //     'transport_data' => $transportData,
+        //     // 'booking_id' => $bookingId,
+        //     'agent_id' => $agentId,
+        //     'tour_id' => $tourId
+        // ]);
         
         // Specifically log the image field from first transport item
         if (is_array($transportData) && count($transportData) > 0) {
@@ -4491,7 +4600,6 @@ class SingleTourPackageController extends Controller
         
         // Create order
         $order = \App\Models\Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $transportData,
@@ -4502,7 +4610,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
-
+        $order->refresh();
+        $bookingId = $order->booking_id;
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
             $firstItem = $transportData[0];
@@ -4551,11 +4660,11 @@ class SingleTourPackageController extends Controller
         // If adding service when tour is Actual, mark order as additional
         $additionalFlag = ($tour->tour_status === 'Actual') ? 1 : 0;
 
-        $max_book_id = Order::max('booking_id') ?? 0;
-        $bookingId = CommonHelper::createId($max_book_id);
-        while (Order::where('booking_id', $bookingId)->exists()) {
-            $bookingId = CommonHelper::createId($bookingId);
-        }
+        // $max_book_id = Order::max('booking_id') ?? 0;
+        // $bookingId = CommonHelper::createId($max_book_id);
+        // while (Order::where('booking_id', $bookingId)->exists()) {
+        //     $bookingId = CommonHelper::createId($bookingId);
+        // }
 
         // Map service type to appropriate order type
         $orderType = match($serviceType) {
@@ -4566,7 +4675,6 @@ class SingleTourPackageController extends Controller
         };
 
         $order = Order::create([
-            'booking_id' => $bookingId,
             'agent_id' => $agent_id,
             'tour_id' => $tourId,
             'data' => $transportData,
@@ -4577,6 +4685,8 @@ class SingleTourPackageController extends Controller
             'status' => 1,
             'additional' => $additionalFlag,
         ]);
+        $order->refresh();
+        $bookingId = $order->booking_id;
 
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {

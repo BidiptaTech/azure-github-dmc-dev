@@ -17,6 +17,7 @@ use App\Models\Country;
 use App\Models\Transaction;
 use App\Helpers\CommonHelper;
 use App\Models\City;
+use App\Models\Agency;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -1572,6 +1573,23 @@ class UserController extends Controller
             $user->assignRole($role->name);
         } else {
             return redirect()->back()->withErrors(['role' => 'The selected role does not exist.']);
+        }
+        if ($user->role_id == 11) {
+            $agency = Agency::where('agency_id', 2192)->first();
+        
+            if ($agency) {
+                // 1. Get the existing array, default to empty array if null
+                $dmcIds = $agency->dmc_id ?? [];
+        
+                // 2. Add the new user ID if it doesn't already exist in the array
+                if (!in_array($user->userId, $dmcIds)) {
+                    $dmcIds[] = (int) $user->userId;
+                }
+        
+                // 3. Assign the updated array back and save
+                $agency->dmc_id = $dmcIds;
+                $agency->save();
+            }
         }
         $users = User::all();
         return redirect()->route('users.index',compact('users'))

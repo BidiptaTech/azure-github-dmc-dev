@@ -69,8 +69,8 @@ use App\Http\Controllers\PackagedAttractionController;
 use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Api\DayLevelController;
-use App\Http\Controllers\Api\ExternalApiReceiveController;
+use App\Http\Controllers\DayLevelController;
+use App\Http\Controllers\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 
 
@@ -80,7 +80,6 @@ use App\Http\Controllers\SmartNotificationController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
 | Here is where you can register web routes for your application. These
 | routes are loaded by the RouteServiceProvider and all of them will
 | be assigned to the "web" middleware group. Make something great!
@@ -560,6 +559,7 @@ Route::get('/clear', function () {
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
+            Route::post('/get-hotel-price', [SingleTourPackageController::class, 'getHotelPrice'])->name('get-hotel-price');
             Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuidesByDmc'])->name('fetch-guides-by-dmc');
             Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurantsByDmc'])->name('fetch-restaurants-by-dmc');
             Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
@@ -996,6 +996,7 @@ Route::get('/clear', function () {
             Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
             Route::get('/smart-notification', [SmartNotificationController::class, 'index'])->name('smart-notification.index');
             Route::get('/smart-notification/recipients', [SmartNotificationController::class, 'recipients'])->name('smart-notification.recipients');
+            Route::post('/smart-notification/send', [SmartNotificationController::class, 'send'])->name('smart-notification.send');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             
@@ -1357,11 +1358,23 @@ Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
 Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
     ->name('day-level.hotels-by-rating');
 
+Route::get('day-level/rooms-by-hotel', [DayLevelController::class, 'roomsByHotel'])
+    ->name('day-level.rooms-by-hotel');
+
+Route::get('day-level/beds-by-room', [DayLevelController::class, 'bedsByRoom'])
+    ->name('day-level.beds-by-room');
+
+Route::get('day-level/meals-by-restaurant', [DayLevelController::class, 'mealsByRestaurant'])
+    ->name('day-level.meals-by-restaurant');
+
 Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
     ->name('day-level.meal-plans-by-hotel');
 
 Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
     ->name('day-level.transfer-options');
+
+Route::get('day-level/transfer-zone-price', [DayLevelController::class, 'transferZonePrice'])
+    ->name('day-level.transfer-zone-price');
 
 Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
     ->name('day-level.tickets-by-attraction');

@@ -114,6 +114,13 @@
                     <div data-i18n="Prebuilt Packages">Prebuilt Packages</div>
                 </a>
             </li>
+
+            <li class="menu-item @if(Request::is('day-level*')) active @endif">
+                <a href="{{ route('day-level.index') }}" class="menu-link">
+                    <i class="menu-icon tf-icons ri-calendar-2-line"></i>
+                    <div data-i18n="Day Level Packages">Day Level Packages</div>
+                </a>
+            </li>
         @endif
 
         <!-- End Tour -->
@@ -1476,6 +1483,7 @@
                     </a>
                 </li>
                 @endif --}}
+
 
                     <!-- Settings -->
                     @php

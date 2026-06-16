@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -256,6 +257,42 @@ class CommonHelper
     }
 
     /**
+     * Azure disk config by disk name (azure = app uploads, azure_ai = AI/JSON).
+     */
+    protected static function azureDiskConfig(string $disk = 'azure'): array
+    {
+        $config = config("filesystems.disks.{$disk}");
+
+        return is_array($config) ? $config : [];
+    }
+
+    /**
+     * AI JSON uploads: use azure_ai account when AZURE_AI_* is set; else main azure disk.
+     */
+    protected static function azureAiDiskConfig(): array
+    {
+        $ai = self::azureDiskConfig('azure_ai');
+        if (!empty($ai['name']) && !empty($ai['key'])) {
+            return $ai;
+        }
+
+        return self::azureDiskConfig('azure');
+    }
+
+    /**
+     * Resolve blob container for AI uploads (env container wins when caller uses default).
+     */
+    protected static function azureAiContainer(string $container = 'aiuploads'): string
+    {
+        $config = self::azureAiDiskConfig();
+        if ($container === 'aiuploads' && !empty($config['container'])) {
+            return (string) $config['container'];
+        }
+
+        return $container;
+    }
+
+    /**
      * Azure blob URL for a JSON file in the given container.
      */
     public static function json_azure_url(string $fileName, string $container = 'aiuploads'): ?string
@@ -265,15 +302,17 @@ class CommonHelper
             return null;
         }
 
-        $config = config('filesystems.disks.azure');
+        $config = self::azureAiDiskConfig();
         if (empty($config['name'])) {
             return null;
         }
 
+        $blobContainer = self::azureAiContainer($container);
+
         return sprintf(
             'https://%s.blob.core.windows.net/%s/%s',
             $config['name'],
-            $container,
+            $blobContainer,
             $fileName
         );
     }
@@ -283,7 +322,8 @@ class CommonHelper
      */
     public static function uploadJsonToAzure(string $jsonContent, string $fileName, string $container = 'aiuploads'): array
     {
-        $config = config('filesystems.disks.azure');
+        $config = self::azureAiDiskConfig();
+        $blobContainer = self::azureAiContainer($container);
         $connectionString = sprintf(
             'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
             $config['name'],
@@ -291,25 +331,26 @@ class CommonHelper
         );
 
         $blobClient = BlobRestProxy::createBlobService($connectionString);
-        self::ensureAzureContainerExists($blobClient, $container);
+        self::ensureAzureContainerExists($blobClient, $blobContainer);
 
         Log::info('Attempting Azure JSON upload', [
             'file_name' => $fileName,
-            'container' => $container,
+            'container' => $blobContainer,
+            'account' => $config['name'],
         ]);
 
-        $blobClient->createBlockBlob($container, $fileName, $jsonContent);
+        $blobClient->createBlockBlob($blobContainer, $fileName, $jsonContent);
 
         $url = sprintf(
             'https://%s.blob.core.windows.net/%s/%s',
             $config['name'],
-            $container,
+            $blobContainer,
             $fileName
         );
 
         Log::info('Azure JSON upload successful', [
             'url' => $url,
-            'container' => $container,
+            'container' => $blobContainer,
         ]);
 
         return ['master_value' => $url];
@@ -412,6 +453,120 @@ class CommonHelper
     public static function createId($previousId)
     {
         return $previousId ? $previousId + 1 : 1;
+    }
+
+    /**
+     * Generate the next unique orders.booking_id (used by edit-tour service routes).
+     */
+    public static function nextOrderBookingId(): int
+    {
+        $bookingId = (int) self::createId((int) (Order::max('booking_id') ?? 0));
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = (int) self::createId($bookingId);
+        }
+
+        return $bookingId;
+    }
+
+    /**
+     * Backfill missing booking_id values so edit-tour update routes resolve correctly.
+     */
+    public static function ensureOrdersHaveBookingIds($orders): void
+    {
+        foreach ($orders as $order) {
+            if (!empty($order->booking_id)) {
+                continue;
+            }
+
+            $order->booking_id = self::nextOrderBookingId();
+            $order->save();
+        }
+    }
+
+    /**
+     * Replace generated room/bed ids with numeric database ids (editform / storeServiceOrders format).
+     *
+     * @param  list<array<string, mixed>>  $rooms
+     * @return list<array<string, mixed>>
+     */
+    public static function fixHotelOrderRoomIds(array $rooms, $hotelId): array
+    {
+        if ($rooms === [] || empty($hotelId)) {
+            return $rooms;
+        }
+
+        $fixedRooms = [];
+
+        foreach ($rooms as $room) {
+            $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
+            $roomType = $room['room_type'] ?? $room['roomType'] ?? null;
+
+            if ($roomId && ((is_string($roomId) && str_starts_with($roomId, 'room_')) || ! is_numeric($roomId))) {
+                $foundRoomId = null;
+
+                if (isset($room['beds']) && is_array($room['beds']) && $room['beds'] !== []) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+
+                        if ($bedId && is_string($bedId) && (str_starts_with($bedId, 'bed_') || ! is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $bedId = (int) $numericBedId;
+                                $room['beds'][$index]['bed_id'] = (string) $bedId;
+                            }
+                        }
+
+                        if ($bedId && is_numeric($bedId)) {
+                            $bedRecord = \App\Models\Bed::where('bed_id', (int) $bedId)
+                                ->where(function ($q) {
+                                    $q->where('is_active', 1)->orWhereNull('is_active');
+                                })
+                                ->first();
+
+                            if ($bedRecord && $bedRecord->room_id) {
+                                $foundRoomId = $bedRecord->room_id;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($foundRoomId) {
+                    $room['room_id'] = (int) $foundRoomId;
+                } elseif ($roomType) {
+                    $roomRecord = \App\Models\Room::where('hotel_id', $hotelId)
+                        ->where('room_type', $roomType)
+                        ->where(function ($q) {
+                            $q->where('status', 1)->orWhereNull('status');
+                        })
+                        ->first();
+
+                    if ($roomRecord && $roomRecord->room_id) {
+                        $room['room_id'] = (int) $roomRecord->room_id;
+                    }
+                }
+            } elseif ($roomId && is_numeric($roomId)) {
+                $room['room_id'] = (int) $roomId;
+
+                if (isset($room['beds']) && is_array($room['beds'])) {
+                    foreach ($room['beds'] as $index => $bed) {
+                        $bedId = $bed['bed_id'] ?? null;
+                        if ($bedId && is_string($bedId) && (str_starts_with($bedId, 'bed_') || ! is_numeric($bedId))) {
+                            $numericBedId = filter_var($bedId, FILTER_SANITIZE_NUMBER_INT);
+                            if ($numericBedId && is_numeric($numericBedId)) {
+                                $room['beds'][$index]['bed_id'] = (string) (int) $numericBedId;
+                            }
+                        } elseif ($bedId !== null && $bedId !== '' && is_numeric($bedId)) {
+                            $room['beds'][$index]['bed_id'] = (string) (int) $bedId;
+                        }
+                    }
+                }
+            }
+
+            $fixedRooms[] = $room;
+        }
+
+        return $fixedRooms;
     }
 
     /*
@@ -1578,6 +1733,100 @@ class CommonHelper
     }
 
     /**
+     * Notify DMC when an external/day-level auto-booking creates a tour (uses DMC_email from package JSON).
+     *
+     * @param  string  $dmcEmail
+     * @param  array<string, mixed>  $tourData
+     * @return bool|string
+     */
+    public static function resolveEmailLogoUrl(?string $logo): ?string
+    {
+        $logo = trim((string) $logo);
+        if ($logo === '') {
+            return null;
+        }
+
+        if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://') || str_starts_with($logo, 'data:image')) {
+            return $logo;
+        }
+
+        return url(ltrim($logo, '/'));
+    }
+
+    public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [])
+    {
+        $dmcEmail = trim($dmcEmail);
+        if ($dmcEmail === '' || ! filter_var($dmcEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid DMC email address';
+        }
+
+        try {
+            $cities = $tourData['cities'] ?? [];
+            if (is_string($cities)) {
+                $cities = array_filter(array_map('trim', explode(',', $cities)));
+            }
+            if (! is_array($cities)) {
+                $cities = [];
+            }
+            $citiesLabel = implode(', ', array_values(array_filter(array_map('strval', $cities))));
+
+            $emailData = [
+                'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
+                'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
+                'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
+                'dmc_contact_email' => (string) ($tourData['dmc_contact_email'] ?? ''),
+                'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
+                'diff' => (int) ($tourData['diff'] ?? 0),
+                'requested_days' => (int) ($tourData['requested_days'] ?? 0),
+                'available_days' => (int) ($tourData['available_days'] ?? 0),
+                'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
+                'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
+                'country' => (string) ($tourData['country'] ?? ''),
+                'destination' => (string) ($tourData['destination'] ?? 'N/A'),
+                'cities_label' => $citiesLabel !== '' ? $citiesLabel : (string) ($tourData['city'] ?? ''),
+                'check_in_date' => isset($tourData['check_in_time'])
+                    ? Carbon::parse($tourData['check_in_time'])->format('M d, Y')
+                    : ($tourData['check_in_date'] ?? 'N/A'),
+                'check_out_date' => isset($tourData['check_out_time'])
+                    ? Carbon::parse($tourData['check_out_time'])->format('M d, Y')
+                    : ($tourData['check_out_date'] ?? 'N/A'),
+                'adults' => (int) ($tourData['adults'] ?? $tourData['adult'] ?? 0),
+                'children' => (int) ($tourData['children'] ?? $tourData['child'] ?? 0),
+                'infants' => (int) ($tourData['infants'] ?? $tourData['infant'] ?? 0),
+                'agent_name' => (string) ($tourData['agent_name'] ?? ''),
+                'agency_name' => (string) ($tourData['agency_name'] ?? ''),
+                'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
+                'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
+                'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
+                'currency_code' => strtoupper(trim((string) ($tourData['currency_code'] ?? 'SGD'))) ?: 'SGD',
+                'total_estimation' => round((float) ($tourData['total_estimation'] ?? 0), 2),
+            ];
+            $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
+            $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
+                . number_format($emailData['total_estimation'], 2);
+
+            $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
+
+            $html = view('mails.tour_auto_booked_dmc', $emailData)->render();
+            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
+
+            Log::info('Tour auto-booked sender email sent', [
+                'email' => $dmcEmail,
+                'tour_display_id' => $emailData['tour_display_id'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Tour auto-booked DMC email failed', [
+                'dmc_email' => $dmcEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /**
      * Send welcome email to agency when first DMC selects them
      * Date: Current
      * 
@@ -1739,16 +1988,15 @@ class CommonHelper
         }
     }
 
-    public static function url() {
-        if (!function_exists('root_url')) {
-            function root_url($path = '')
-            {
-                $base = config('app.url');
-                $root = preg_replace('#/backadm-dmc/?$#', '', $base);
-                return rtrim($root, '/') . '/' . ltrim($path, '/');
-            }
-        }
-        return root_url('login');
+    /**
+     * App root URL (strips /backadm-dmc from APP_URL). Defaults to login path.
+     */
+    public static function url(string $path = 'login'): string
+    {
+        $base = (string) config('app.url');
+        $root = preg_replace('#/backadm-dmc/?$#', '', $base);
+
+        return rtrim($root, '/') . '/' . ltrim($path, '/');
     }
 
     /**

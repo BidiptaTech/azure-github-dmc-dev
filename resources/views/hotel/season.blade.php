@@ -350,6 +350,66 @@
                               @enderror
                         </div>
 
+                        <!-- Breakfast Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for breakfast."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price">
+                           @error('breakfast_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Lunch Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="lunch_price" class="form-label"><strong>Lunch Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for lunch."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price">
+                           @error('lunch_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <!-- Dinner Price -->
+                        <div class="mb-3 col-md-3">
+                           <label for="dinner_price" class="form-label"><strong>Dinner Price</strong>
+                              <sup>
+                                 <button type="button" 
+                                    class="info-button" 
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Price for dinner."
+                                    style="border: none;">
+                                    <i class="bi bi-info-circle"></i>
+                                 </button>
+                              </sup>
+                           </label>
+                           <input type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price">
+                           @error('dinner_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
                         <!-- Start Date, End date DateRange -->
                            <div class="mb-3 col-md-3">
                               <label for="date_range" class="form-label"><strong>Season Date Range</strong><span class="text-danger">*</span></label>

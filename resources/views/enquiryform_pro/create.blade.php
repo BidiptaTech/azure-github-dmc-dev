@@ -1737,7 +1737,7 @@
                 <h5 class="mb-2" id="successTourId" style="color: #333;"></h5>
                 <p class="text-muted mb-4" id="successOrderCount"></p>
                 <button type="button" class="btn btn-success btn-lg px-5" onclick="redirectToDashboard()" style="border-radius: 50px;">
-                    <i class="ri-dashboard-line me-2"></i>Go to Dashboard
+                    <i class="ri-dashboard-line me-2"></i>Go to Enquiries
                 </button>
             </div>
         </div>
@@ -3875,6 +3875,14 @@
     #accommodationTable input[type="number"] {
         width: 45px;
         text-align: center;
+    }
+
+    #accommodationTable input.accommodation-price-field {
+        width: 72px !important;
+        min-width: 72px;
+        max-width: 72px;
+        text-align: center;
+        box-sizing: border-box;
     }
     
     #accommodationTable select {
@@ -12661,8 +12669,8 @@
                 <td><input type="datetime-local" value="${checkOutValue}" onchange="updateAccommodationField(${index}, 'checkOut', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
                 <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)"></td>
-                <td><input type="text" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" step="1" min="0" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)"></td>
+                <td><input type="text" class="accommodation-price-field" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="text" class="accommodation-price-field" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
                 <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
@@ -25919,7 +25927,7 @@
     
     // Redirect to dashboard
     function redirectToDashboard() {
-        window.location.href = '{{ route("dashboard") }}';
+        window.location.href = '{{ route("bookings.new-enquiries") }}';
     }
     
     async function generateEntryPortData() {

@@ -1359,6 +1359,9 @@ class HotelController extends Controller
             'event_type' => 'required|string',
             'price' => 'nullable|numeric',
             'surcharge' => 'nullable|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'date_range' => 'required|string',
             'rate_status' => 'nullable|integer',
         ];
@@ -1399,6 +1402,9 @@ class HotelController extends Controller
             'price' => $request->price ? $request->price : $request->surcharge,
             'weekday_price' => 0.00,
             'weekend_price' => 0.00,
+            'breakfast_price' => $request->breakfast_price ?? 0.00,
+            'lunch_price' => $request->lunch_price ?? 0.00,
+            'dinner_price' => $request->dinner_price ?? 0.00,
             'start_date' => $firstDate,
             'end_date' => $lastDate,
             'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1428,6 +1434,9 @@ class HotelController extends Controller
             'weekend_price' => 'required|numeric',
             'double_weekday_price' => 'required|numeric',
             'double_weekend_price' => 'required|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'season_status' => 'nullable|integer',
         ];
         
@@ -1490,6 +1499,9 @@ class HotelController extends Controller
             'weekend_price' => $request->weekend_price,
             'double_weekday_price' => $request->double_weekday_price,
             'double_weekend_price' => $request->double_weekend_price,
+            'breakfast_price' => $request->breakfast_price ?? 0.00,
+            'lunch_price' => $request->lunch_price ?? 0.00,
+            'dinner_price' => $request->dinner_price ?? 0.00,
             'start_date' => $firstDate,
             'end_date' => $lastDate,
             'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1558,6 +1570,9 @@ class HotelController extends Controller
         $rate->price = $request->price;
         $rate->weekday_price = $request->weekday_price ? $request->weekday_price : 0.00;
         $rate->weekend_price = $request->weekend_price ? $request->weekend_price : 0.00;
+        $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+        $rate->lunch_price = $request->lunch_price ?? 0.00;
+        $rate->dinner_price = $request->dinner_price ?? 0.00;
         $rate->start_date = $firstDate;
         $rate->end_date = $lastDate;
         $rate->is_active = $request->rate_status == 1 ? 1 : 0;
@@ -1588,6 +1603,9 @@ class HotelController extends Controller
             'weekend_price' => 'required|numeric|min:0',
             'double_weekday_price' => 'required|numeric',
             'double_weekend_price' => 'required|numeric',
+            'breakfast_price' => 'nullable|numeric',
+            'lunch_price' => 'nullable|numeric',
+            'dinner_price' => 'nullable|numeric',
             'start_date' => 'required|date|before_or_equal:end_date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'season_status' => 'nullable|integer',
@@ -1609,6 +1627,9 @@ class HotelController extends Controller
         $rate->weekend_price = $request->weekend_price;
         $rate->double_weekday_price = $request->double_weekday_price;
         $rate->double_weekend_price = $request->double_weekend_price;
+        $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+        $rate->lunch_price = $request->lunch_price ?? 0.00;
+        $rate->dinner_price = $request->dinner_price ?? 0.00;
         $rate->start_date = $request->start_date;
         $rate->end_date = $request->end_date;
         $rate->is_active = $request->season_status == 1 ? 1 : 0;
@@ -2109,9 +2130,12 @@ class HotelController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $auth_user = Auth::user();
+        
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
-        $rooms = Room::where('hotel_id', $id)->where('created_by', $auth_user->userId)
+        $dmcId = CommonHelper::getDmcId($auth_user);
+        $rooms = Room::where('hotel_id', $id)->where('created_by', $dmcId)
         ->get();
+
         
         // Get DMC users for admin dropdown (only for admin users)
         $dmcUsers = collect();
@@ -2150,7 +2174,7 @@ class HotelController extends Controller
             });
         } else {
             // DMC/Other users: Show only their own beds
-            $bedsData = Bed::with('room')->where('dmc_id', $auth_user->userId)
+            $bedsData = Bed::with('room')->where('dmc_id', $dmcId)
                           ->whereHas('room', function ($query) use ($id) {
                               $query->where('hotel_id', $id);
                           })
@@ -2258,14 +2282,14 @@ class HotelController extends Controller
         $bed->baby_cot = $request->input('baby_cot') ?? null;
         $bed->baby_cot_price = $request->input('baby_cot_price') ?? 0;
         // $bed->bed_id = $bedId;
-        
+        $dmcId = CommonHelper::getDmcId($auth_user);
         // Set DMC ID based on user role
         if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
             // Admin/Manager users: use the selected DMC ID
             $bed->dmc_id = $request->input('dmc_id');
         } else {
             // Regular DMC users: use their own user ID
-            $bed->dmc_id = $auth_user->userId;
+            $bed->dmc_id = $dmcId;
         }
         
         $bed->room_id = $request->input('room_id');
@@ -2291,11 +2315,14 @@ class HotelController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $auth_user = Auth::user();
+        $bedId = Crypt::decrypt($id);
         $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
         $beds = BedMaster::where('hotel_id', $hotelId)->get();
-        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $auth_user->userId)->get();
-        $hotelBed = Bed::with('room')->where('bed_id', $id)->first();
+        $dmcId = CommonHelper::getDmcId($auth_user);
+        $rooms = Room::where('hotel_id',$hotelId)->where('created_by', $dmcId)->get();
+        $hotelBed = Bed::with('room')->where('bed_id', $bedId)->first();
         $room = Room::where('room_id', $hotelBed->room_id)->first();
+        // dd($rooms->toArray());
         return view('hotel.edit-beds', compact('hotel','rooms','beds','hotelBed','room'));
     }
 
@@ -2327,6 +2354,7 @@ class HotelController extends Controller
             ]);
         }
 
+        // $bedId = Crypt::decrypt($request->bed_id);
         $bed = Bed::where('bed_id', $request->bed_id)->first();
         $room_data = Room::where('room_id', $request->room_type)->first();
         $no_of_room = $room_data->no_of_room;
@@ -2372,6 +2400,7 @@ class HotelController extends Controller
         // if (!hasPermission('delete bed')) {
         //     abort(403, 'You do not have permission to access this page.');
         // }
+        $bedId = Crypt::decrypt($bedId);
         $bed = Bed::where('bed_id', $bedId)->first();
         $delete = Bed::where('bed_id', $bedId)->delete();
         if ($delete){
