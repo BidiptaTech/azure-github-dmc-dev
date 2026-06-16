@@ -1753,6 +1753,62 @@ class CommonHelper
         return url(ltrim($logo, '/'));
     }
 
+    /**
+     * Normalize tour auto-book email payload for Blade templates.
+     * Shared by email/booking-confirmation (live auto-book emails).
+     *
+     * @param  array<string, mixed>  $tourData
+     * @return array<string, mixed>
+     */
+    public static function normalizeTourAutoBookedEmailData(array $tourData = []): array
+    {
+        $cities = $tourData['cities'] ?? [];
+        if (is_string($cities)) {
+            $cities = array_filter(array_map('trim', explode(',', $cities)));
+        }
+        if (! is_array($cities)) {
+            $cities = [];
+        }
+        $citiesLabel = implode(', ', array_values(array_filter(array_map('strval', $cities))));
+
+        $emailData = [
+            'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
+            'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
+            'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
+            'dmc_contact_email' => (string) ($tourData['dmc_contact_email'] ?? ''),
+            'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
+            'diff' => (int) ($tourData['diff'] ?? 0),
+            'requested_days' => (int) ($tourData['requested_days'] ?? 0),
+            'available_days' => (int) ($tourData['available_days'] ?? 0),
+            'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
+            'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
+            'country' => (string) ($tourData['country'] ?? ''),
+            'destination' => (string) ($tourData['destination'] ?? 'N/A'),
+            'cities_label' => $citiesLabel !== '' ? $citiesLabel : (string) ($tourData['city'] ?? ''),
+            'check_in_date' => isset($tourData['check_in_time'])
+                ? Carbon::parse($tourData['check_in_time'])->format('M d, Y')
+                : ($tourData['check_in_date'] ?? 'N/A'),
+            'check_out_date' => isset($tourData['check_out_time'])
+                ? Carbon::parse($tourData['check_out_time'])->format('M d, Y')
+                : ($tourData['check_out_date'] ?? 'N/A'),
+            'adults' => (int) ($tourData['adults'] ?? $tourData['adult'] ?? 0),
+            'children' => (int) ($tourData['children'] ?? $tourData['child'] ?? 0),
+            'infants' => (int) ($tourData['infants'] ?? $tourData['infant'] ?? 0),
+            'agent_name' => (string) ($tourData['agent_name'] ?? ''),
+            'agency_name' => (string) ($tourData['agency_name'] ?? ''),
+            'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
+            'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
+            'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
+            'currency_code' => strtoupper(trim((string) ($tourData['currency_code'] ?? 'SGD'))) ?: 'SGD',
+            'total_estimation' => round((float) ($tourData['total_estimation'] ?? 0), 2),
+        ];
+        $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
+        $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
+            . number_format($emailData['total_estimation'], 2);
+
+        return $emailData;
+    }
+
     public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [])
     {
         $dmcEmail = trim($dmcEmail);
@@ -1761,56 +1817,14 @@ class CommonHelper
         }
 
         try {
-            $cities = $tourData['cities'] ?? [];
-            if (is_string($cities)) {
-                $cities = array_filter(array_map('trim', explode(',', $cities)));
-            }
-            if (! is_array($cities)) {
-                $cities = [];
-            }
-            $citiesLabel = implode(', ', array_values(array_filter(array_map('strval', $cities))));
+            $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $emailData = [
-                'dmc_name' => (string) ($tourData['dmc_name'] ?? 'DMC Partner'),
-                'dmc_logo' => self::resolveEmailLogoUrl($tourData['dmc_logo'] ?? null),
-                'dmc_label' => (string) ($tourData['dmc_label'] ?? ''),
-                'dmc_contact_email' => (string) ($tourData['dmc_contact_email'] ?? ''),
-                'tour_display_id' => (string) ($tourData['tour_display_id'] ?? 'N/A'),
-                'diff' => (int) ($tourData['diff'] ?? 0),
-                'requested_days' => (int) ($tourData['requested_days'] ?? 0),
-                'available_days' => (int) ($tourData['available_days'] ?? 0),
-                'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
-                'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
-                'country' => (string) ($tourData['country'] ?? ''),
-                'destination' => (string) ($tourData['destination'] ?? 'N/A'),
-                'cities_label' => $citiesLabel !== '' ? $citiesLabel : (string) ($tourData['city'] ?? ''),
-                'check_in_date' => isset($tourData['check_in_time'])
-                    ? Carbon::parse($tourData['check_in_time'])->format('M d, Y')
-                    : ($tourData['check_in_date'] ?? 'N/A'),
-                'check_out_date' => isset($tourData['check_out_time'])
-                    ? Carbon::parse($tourData['check_out_time'])->format('M d, Y')
-                    : ($tourData['check_out_date'] ?? 'N/A'),
-                'adults' => (int) ($tourData['adults'] ?? $tourData['adult'] ?? 0),
-                'children' => (int) ($tourData['children'] ?? $tourData['child'] ?? 0),
-                'infants' => (int) ($tourData['infants'] ?? $tourData['infant'] ?? 0),
-                'agent_name' => (string) ($tourData['agent_name'] ?? ''),
-                'agency_name' => (string) ($tourData['agency_name'] ?? ''),
-                'booked_at' => (string) ($tourData['booked_at'] ?? now()->format('M d, Y H:i')),
-                'dashboard_link' => (string) ($tourData['dashboard_link'] ?? self::url()),
-                'booked_services' => is_array($tourData['booked_services'] ?? null) ? $tourData['booked_services'] : [],
-                'currency_code' => strtoupper(trim((string) ($tourData['currency_code'] ?? 'SGD'))) ?: 'SGD',
-                'total_estimation' => round((float) ($tourData['total_estimation'] ?? 0), 2),
-            ];
-            $emailData['total_guests'] = $emailData['adults'] + $emailData['children'] + $emailData['infants'];
-            $emailData['total_estimation_formatted'] = $emailData['currency_code'] . ' '
-                . number_format($emailData['total_estimation'], 2);
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
-            $subject = 'New auto-booked tour ' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
-
-            $html = view('mails.tour_auto_booked_dmc', $emailData)->render();
+            $html = view('email.booking-confirmation', $emailData)->render();
             Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
 
-            Log::info('Tour auto-booked sender email sent', [
+            Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
@@ -1824,6 +1838,118 @@ class CommonHelper
 
             return 'Failed to send email: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Build booking-confirmation email view data from a persisted tour + its orders.
+     * Prices and itinerary lines come from order JSON (same source as live emails).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function buildBookingConfirmationEmailDataFromTour(Tour $tour): ?array
+    {
+        $orders = Order::where('tour_id', $tour->tour_id)->get();
+        if ($orders->isEmpty()) {
+            return null;
+        }
+
+        /** @var \App\Http\Controllers\Api\ExternalApiReceiveController $controller */
+        $controller = app(\App\Http\Controllers\Api\ExternalApiReceiveController::class);
+        $bookedServices = $controller->buildBookedServicesForEmailPublic($orders);
+
+        $totalEstimation = round(array_sum(array_map(
+            static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+            $bookedServices
+        )), 2);
+
+        $agent = $tour->agent;
+        if (!$agent && $tour->agent_id) {
+            $agent = Agent::where('agent_id', $tour->agent_id)->first();
+        }
+
+        $agency = $agent && $agent->agency_id
+            ? Agency::where('agency_id', $agent->agency_id)->first()
+            : null;
+
+        $dmcUser = $tour->dmc;
+        if (!$dmcUser && $tour->dmc_id) {
+            $dmcUser = User::where('userId', $tour->dmc_id)->first();
+        }
+
+        $dmcName = $dmcUser
+            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+            : 'DMC';
+
+        $currencyCode = self::resolveTourEmailCurrency($tour, $dmcUser);
+
+        return self::normalizeTourAutoBookedEmailData([
+            'dmc_name' => $dmcName,
+            'dmc_logo' => $dmcUser->logo ?? null,
+            'dmc_label' => $dmcName,
+            'dmc_contact_email' => (string) ($dmcUser->email ?? ''),
+            'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
+            'country' => (string) ($tour->country ?? ''),
+            'destination' => (string) ($tour->destination ?? 'N/A'),
+            'city' => (string) ($tour->city ?? ''),
+            'check_in_time' => $tour->check_in_time,
+            'check_out_time' => $tour->check_out_time,
+            'adult' => (int) ($tour->adult ?? 0),
+            'child' => (int) ($tour->child ?? 0),
+            'infant' => (int) ($tour->infant ?? 0),
+            'agent_name' => (string) ($agent->name ?? ''),
+            'agency_name' => (string) ($agency->agency_name ?? ''),
+            'booked_at' => $tour->created_at
+                ? Carbon::parse($tour->created_at)->format('M d, Y H:i')
+                : now()->format('M d, Y H:i'),
+            'booked_services' => $bookedServices,
+            'total_estimation' => $totalEstimation,
+            'currency_code' => $currencyCode,
+            'dashboard_link' => self::url(),
+            'is_partial_package' => false,
+            'partial_package_message' => '',
+            'requested_days' => 0,
+            'available_days' => 0,
+        ]);
+    }
+
+    /**
+     * Resolve a tour for email preview: by tour_id / display_id, or the latest tour with orders.
+     */
+    public static function findTourForEmailPreview(?string $tourKey = null): ?Tour
+    {
+        $query = Tour::with(['agent', 'dmc']);
+
+        if ($tourKey !== null && $tourKey !== '') {
+            return $query->where(function ($q) use ($tourKey) {
+                $q->where('tour_id', $tourKey)->orWhere('display_id', $tourKey);
+            })->first();
+        }
+
+        return $query->whereHas('booking', function ($q) {
+            $q->where('type', '!=', 'enquiry');
+        })->latest()->first();
+    }
+
+    protected static function resolveTourEmailCurrency(Tour $tour, ?User $dmcUser = null): string
+    {
+        foreach ([$dmcUser->currency ?? null, $tour->currency ?? null] as $code) {
+            $code = strtoupper(trim((string) $code));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        $country = strtolower(trim((string) ($tour->country ?? $tour->destination ?? '')));
+
+        return match (true) {
+            str_contains($country, 'singapore') => 'SGD',
+            str_contains($country, 'india') => 'INR',
+            str_contains($country, 'thailand') => 'THB',
+            str_contains($country, 'malaysia') => 'MYR',
+            str_contains($country, 'indonesia') => 'IDR',
+            str_contains($country, 'united arab') || str_contains($country, 'dubai') => 'AED',
+            default => 'SGD',
+        };
     }
 
     /**
