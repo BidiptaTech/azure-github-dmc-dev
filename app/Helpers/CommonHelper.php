@@ -1822,7 +1822,7 @@ class CommonHelper
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            Mail::to($dmcEmail)->send(new AutomatedMail($html, trim($subject)));
+            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
