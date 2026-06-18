@@ -1841,6 +1841,48 @@ class CommonHelper
     }
 
     /**
+     * Notify sender when external payload matching is 0 (incomplete travel details).
+     *
+     * @param  string  $recipientEmail
+     * @param  array<string, mixed>  $emailData
+     * @return bool|string
+     */
+    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
+    {
+        $recipientEmail = trim($recipientEmail);
+        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid recipient email address';
+        }
+
+        try {
+            $viewData = [
+                'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
+                'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
+                'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
+                'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
+                'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+            ];
+
+            $subject = 'Additional Information Required for Your Travel Inquiry — Travclicks';
+            $html = view('email.incomplete-travel-details', $viewData)->render();
+            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+
+            Log::info('Incomplete travel details email sent', [
+                'email' => $recipientEmail,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Incomplete travel details email failed', [
+                'email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /**
      * Build booking-confirmation email view data from a persisted tour + its orders.
      * Prices and itinerary lines come from order JSON (same source as live emails).
      *
