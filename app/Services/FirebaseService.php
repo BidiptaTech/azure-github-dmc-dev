@@ -27,11 +27,12 @@ class FirebaseService
      * Resolve FCM device tokens from user_tokens/{base64(email)}/{device_id}/token.
      *
      * @param  list<string>  $emails
-     * @return list<string>
+     * @return array{tokens: list<string>, token_to_email: array<string, string>}
      */
     public function getDeviceTokensByEmails(array $emails): array
     {
         $tokens = [];
+        $tokenToEmail = [];
 
         foreach ($this->filterValidEmails($emails) as $email) {
             $emailKey = base64_encode($email);
@@ -49,11 +50,15 @@ class FirebaseService
                 $token = isset($device['token']) ? trim((string) $device['token']) : '';
                 if ($token !== '') {
                     $tokens[] = $token;
+                    $tokenToEmail[$token] = $email;
                 }
             }
         }
 
-        return array_values(array_unique($tokens));
+        return [
+            'tokens' => array_values(array_unique($tokens)),
+            'token_to_email' => $tokenToEmail,
+        ];
     }
 
     /**
@@ -104,6 +109,7 @@ class FirebaseService
         )));
 
         $unknownTokens = $report->unknownTokens();
+        $successfulTokens = $report->validTokens();
 
         $message = $successCount > 0
             ? sprintf('Notification sent to %d of %d device(s).', $successCount, count($tokens))
@@ -120,6 +126,7 @@ class FirebaseService
                 'unknown_token_count' => $unknownTokenCount,
                 'failure_reasons' => array_slice($failureReasons, 0, 10),
                 'unknown_tokens' => $unknownTokens,
+                'successful_tokens' => $successfulTokens,
             ],
         ];
     }
