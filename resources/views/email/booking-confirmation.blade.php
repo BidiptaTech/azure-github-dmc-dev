@@ -261,7 +261,7 @@
                                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
                                                 <td style="font-size:14px; font-weight:700; color:{{ $textDark }};">📋 Trip summary</td>
-                                                <td style="text-align:right;"><a href="{{ $detailsUrl }}" style="font-size:12px; color:{{ $brandBlue }}; text-decoration:none; font-weight:600;">View details ›</a></td>
+                                                {{-- <td style="text-align:right;"><a href="{{ $detailsUrl }}" style="font-size:12px; color:{{ $brandBlue }}; text-decoration:none; font-weight:600;">View details ›</a></td> --}}
                                             </tr>
                                         </table>
                                     </td>
@@ -314,9 +314,9 @@
                                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                     <tr>
                                         <td style="font-size:15px; font-weight:700; color:{{ $textDark }};">📖 Your itinerary</td>
-                                        <td style="text-align:right;">
+                                        {{-- <td style="text-align:right;">
                                             <a href="{{ $downloadUrl }}" style="display:inline-block; font-size:12px; color:{{ $brandBlue }}; text-decoration:none; font-weight:600; border:1px solid {{ $border }}; border-radius:8px; padding:8px 14px;">⬇ Download itinerary</a>
-                                        </td>
+                                        </td> --}}
                                     </tr>
                                 </table>
                             </td>
@@ -442,7 +442,7 @@
                         </td>
                     </tr>
 
-                    <!-- CTA BUTTONS -->
+                    {{-- CTA BUTTONS (disabled — not needed in email)
                     <tr>
                         <td style="padding:16px 28px 4px 28px;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -457,6 +457,7 @@
                             </table>
                         </td>
                     </tr>
+                    --}}
 
                     <!-- FEATURES -->
                     <tr>
