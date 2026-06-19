@@ -1459,12 +1459,18 @@
                 @endphp
                 @if(in_array(auth()->user()->role_id, $smartNotificationRoles))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Smart Notification">Smart Notification</span>
+                    <span class="menu-header-text" data-i18n="Smart App Notification">Smart Notification</span>
                 </li>
-                <li class="menu-item @if(Request::is('smart-notification*')) active @endif">
+                <li class="menu-item @if(Request::is('smart-notification') && !Request::is('smart-notification/history*')) active @endif">
                     <a href="{{ route('smart-notification.index') }}" class="menu-link">
                         <i class="menu-icon tf-icons ri-notification-3-line"></i>
                         <div data-i18n="Send Notification">Send Notification</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('smart-notification/history*')) active @endif">
+                    <a href="{{ route('smart-notification.history') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-history-line"></i>
+                        <div data-i18n="Notification History">Notification History</div>
                     </a>
                 </li>
                 @endif
