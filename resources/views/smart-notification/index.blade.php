@@ -4,9 +4,7 @@
 
 @push('css')
 <style>
-    .smart-multiselect {
-        position: relative;
-    }
+    .smart-multiselect { position: relative; }
     .smart-multiselect-trigger {
         min-height: 38px;
         border: 1px solid #d9dee3;
@@ -46,9 +44,7 @@
         z-index: 1090;
         display: none;
     }
-    .smart-multiselect-dropdown.open {
-        display: block;
-    }
+    .smart-multiselect-dropdown.open { display: block; }
     .smart-multiselect-option {
         display: flex;
         align-items: center;
@@ -58,25 +54,16 @@
         margin: 0;
         width: 100%;
     }
-    .smart-multiselect-option:hover {
-        background: #f5f5f9;
-    }
-    .smart-multiselect-option input {
-        margin: 0;
-    }
+    .smart-multiselect-option:hover { background: #f5f5f9; }
+    .smart-multiselect-option input { margin: 0; }
     .smart-multiselect-empty {
         padding: 10px 12px;
         color: #a1acb8;
         font-size: 0.875rem;
         margin: 0;
     }
-    .smart-multiselect-toggle-icon {
-        transition: transform 0.2s ease;
-    }
-    .smart-multiselect-dropdown.open + .smart-multiselect-trigger .smart-multiselect-toggle-icon,
-    .smart-multiselect-trigger.open .smart-multiselect-toggle-icon {
-        transform: rotate(180deg);
-    }
+    .smart-multiselect-toggle-icon { transition: transform 0.2s ease; }
+    .smart-multiselect-trigger.open .smart-multiselect-toggle-icon { transform: rotate(180deg); }
     .smart-option-tooltip {
         position: fixed;
         z-index: 2000;
@@ -92,16 +79,9 @@
         font-size: 0.8125rem;
         line-height: 1.45;
     }
-    .smart-option-tooltip.show {
-        display: block;
-    }
-    .smart-option-tooltip-row + .smart-option-tooltip-row {
-        margin-top: 4px;
-    }
-    .smart-option-tooltip-label {
-        color: #c8d2dc;
-        margin-right: 4px;
-    }
+    .smart-option-tooltip.show { display: block; }
+    .smart-option-tooltip-row + .smart-option-tooltip-row { margin-top: 4px; }
+    .smart-option-tooltip-label { color: #c8d2dc; margin-right: 4px; }
 </style>
 @endpush
 
@@ -196,6 +176,7 @@
 (function () {
     const recipientsUrl = @json(route('smart-notification.recipients'));
     const sendUrl = @json(route('smart-notification.send'));
+    const historyUrl = @json(route('smart-notification.history'));
     const $type = $('#type');
     const $form = $('#smartNotificationForm');
     const $alert = $('#smartNotificationAlert');
@@ -478,6 +459,9 @@
         })
             .done(function (response) {
                 showAlert('success', response.message || 'Notification sent successfully.');
+                setTimeout(function () {
+                    window.location.href = historyUrl;
+                }, 1200);
             })
             .fail(function (xhr) {
                 const response = xhr.responseJSON || {};

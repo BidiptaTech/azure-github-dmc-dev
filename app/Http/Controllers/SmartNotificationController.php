@@ -8,6 +8,7 @@ use App\Models\Driver;
 use App\Models\Guest;
 use App\Models\Guide;
 use App\Models\Tour;
+use App\Models\SmartAppNtf;
 use App\Models\User;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
@@ -37,6 +38,30 @@ class SmartNotificationController extends Controller
         $isAdminOrAgentRole = in_array($roleId, [1, 21], true);
 
         return view('smart-notification.index', compact('isAdminOrAgentRole', 'roleId'));
+    }
+
+    public function history()
+    {
+        $this->authorizeUser();
+
+        $notificationHistory = $this->getNotificationHistoryForCurrentUser();
+
+        return view('smart-notification.history', compact('notificationHistory'));
+    }
+
+    private function getNotificationHistoryForCurrentUser()
+    {
+        $dmcId = $this->resolveDmcId();
+
+        if (!$dmcId) {
+            return collect();
+        }
+
+        return SmartAppNtf::query()
+            ->where('dmc_id', $dmcId)
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
     }
 
     public function recipients(Request $request)
@@ -89,7 +114,9 @@ class SmartNotificationController extends Controller
         }
 
         try {
-            $tokens = $firebaseService->getDeviceTokensByEmails($emails);
+            $tokenPayload = $firebaseService->getDeviceTokensByEmails($emails);
+            $tokens = $tokenPayload['tokens'] ?? [];
+            $tokenToEmail = $tokenPayload['token_to_email'] ?? [];
 
             if (empty($tokens)) {
                 return response()->json([
@@ -131,6 +158,24 @@ class SmartNotificationController extends Controller
                 }
             }
 
+            if ($result['success']) {
+                $successfulReceivers = $this->resolveSuccessfulReceivers(
+                    $targetRecipients,
+                    $result['data']['successful_tokens'] ?? [],
+                    $tokenToEmail
+                );
+
+                if (!empty($successfulReceivers)) {
+                    SmartAppNtf::create([
+                        'dmc_id' => $this->resolveDmcId(),
+                        'sender_type' => $type,
+                        'receiver' => $successfulReceivers,
+                        'title' => $validated['notification_title'],
+                        'message' => $validated['message'],
+                    ]);
+                }
+            }
+
             return response()->json($result, $result['success'] ? 200 : 422);
         } catch (\Throwable $e) {
             Log::error('Smart notification send failed', [
@@ -144,6 +189,38 @@ class SmartNotificationController extends Controller
                 'message' => 'Failed to send notification. Please try again.',
             ], 500);
         }
+    }
+
+    private function resolveSuccessfulReceivers(array $targetRecipients, array $successfulTokens, array $tokenToEmail): array
+    {
+        $successfulEmails = [];
+
+        foreach ($successfulTokens as $token) {
+            $email = $tokenToEmail[$token] ?? null;
+            if ($email) {
+                $successfulEmails[$email] = true;
+            }
+        }
+
+        if (empty($successfulEmails)) {
+            return [];
+        }
+
+        $receivers = [];
+
+        foreach ($targetRecipients as $recipient) {
+            $email = $this->normalizeEmail($recipient['email'] ?? null);
+            if (!$email || !isset($successfulEmails[$email])) {
+                continue;
+            }
+
+            $receivers[] = [
+                'name' => $recipient['name'] ?? 'Unknown',
+                'email' => $email,
+            ];
+        }
+
+        return $receivers;
     }
 
     private function getRecipientsForType(string $type): array
