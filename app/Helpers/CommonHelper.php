@@ -1690,6 +1690,61 @@ class CommonHelper
     }
 
     /**
+     * Resolve QTN (quotation) or ITN (itinerary) email type from DMC user settings.
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponse(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtoupper(trim((string) ($dmcUser->ai_response ?? '')));
+        if (in_array($type, ['QTN', 'ITN'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtoupper(trim((string) ($master->ai_response ?? '')));
+                if (in_array($masterType, ['QTN', 'ITN'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Send itinerary-style email using the DMC's ai_response setting (QTN or ITN).
+     *
+     * @param  array<string, mixed>  $tourData
+     * @return bool|string
+     */
+    public static function sendTourItineraryEmailByAiResponse(string $recipientEmail, array $tourData = [], ?User $dmcUser = null)
+    {
+        $aiResponse = self::resolveDmcAiResponse($dmcUser);
+
+        if ($aiResponse === null) {
+            Log::info('Skipping itinerary email: DMC ai_response is not QTN or ITN', [
+                'dmc_id' => $dmcUser?->userId,
+                'email' => $recipientEmail,
+            ]);
+
+            return 'AI response type not configured (select QTN or ITN in user settings)';
+        }
+
+        if ($aiResponse === 'QTN') {
+            return self::sendTourQuotationEmail($recipientEmail, $tourData);
+        }
+
+        return self::sendTourAutoBookedDmcEmail($recipientEmail, $tourData);
+    }
+
+    /**
      * Send tour proposal email to agent
      * Date: Current
      * 
@@ -1699,7 +1754,7 @@ class CommonHelper
      * @param array $tourData - Tour details (destination, dates, guests, etc.)
      * @return bool|string - true on success, error message on failure
      */
-    public static function sendTourProposalEmail($agentId, $tourId, $tourDisplayId, $tourData = [])
+    public static function sendTourProposalEmail($agentId, $tourId, $tourDisplayId, $tourData = [], ?User $dmcUser = null)
     {
         try {
             // Get agent details
@@ -1714,23 +1769,42 @@ class CommonHelper
             $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
 
             $tour = Tour::where('tour_id', $tourId)->first();
-            $emailData = $tour ? self::buildQuotationConfirmationEmailDataFromTour($tour) : null;
 
-            if (!$emailData) {
-                // Get DMC details (fallback when tour has no orders yet)
+            if ($dmcUser === null && $tour && !empty($tour->dmc_id)) {
+                $dmcUser = User::where('userId', $tour->dmc_id)->first();
+            }
+            if ($dmcUser === null) {
                 $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
                 if (!$dmcId) {
                     $dmcId = $agent->sales_manager_dmc;
                 }
+                if ($dmcId) {
+                    $dmcUser = User::where('userId', $dmcId)->first();
+                }
+            }
 
-                $dmc = User::where('userId', $dmcId)->first();
-                $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $aiResponse = self::resolveDmcAiResponse($dmcUser);
+            if ($aiResponse === null) {
+                return 'AI response type not configured (select QTN or ITN in user settings)';
+            }
 
-                $emailData = self::normalizeQuotationEmailData([
+            $emailData = null;
+            if ($tour) {
+                $emailData = $aiResponse === 'QTN'
+                    ? self::buildQuotationConfirmationEmailDataFromTour($tour)
+                    : self::buildBookingConfirmationEmailDataFromTour($tour);
+            }
+
+            if (!$emailData) {
+                $dmcName = $dmcUser
+                    ? trim((string) ($dmcUser->company_name ?? $dmcUser->name ?? 'DMC'))
+                    : 'DMC';
+
+                $fallbackPayload = [
                     'dmc_name' => $dmcName,
-                    'dmc_logo' => $dmc ? ($dmc->logo ?? null) : null,
+                    'dmc_logo' => $dmcUser?->logo ?? null,
                     'dmc_label' => $dmcName,
-                    'dmc_contact_email' => $dmc ? ($dmc->email ?? '') : '',
+                    'dmc_contact_email' => (string) ($dmcUser?->email ?? ''),
                     'tour_display_id' => $tourDisplayId,
                     'destination' => $tourData['destination'] ?? 'N/A',
                     'city' => $tourData['city'] ?? null,
@@ -1742,51 +1816,20 @@ class CommonHelper
                     'agent_name' => $agent->name ?? 'Valued Partner',
                     'agency_name' => $agencyName,
                     'dashboard_link' => self::url(),
-                ]);
+                    'booked_at' => now()->format('M d, Y H:i'),
+                    'quoted_at' => now()->format('M d, Y H:i'),
+                ];
+
+                $emailData = $aiResponse === 'QTN'
+                    ? self::normalizeQuotationEmailData($fallbackPayload)
+                    : self::normalizeTourAutoBookedEmailData($fallbackPayload);
             }
 
             $emailData['agent_name'] = $agent->name ?? 'Valued Partner';
             $emailData['agency_name'] = $agencyName;
             $emailData['query_date'] = now()->format('M d, Y');
 
-            $dmcName = (string) ($emailData['dmc_name'] ?? $emailData['dmc_label'] ?? 'DMC');
-
-            // Email subject
-            $subject = 'Quotation #' . ($tourDisplayId !== '' ? $tourDisplayId : '') . ' from ' . $dmcName . ' — Travclicks';
-
-            // Render the quotation email template (itinerary-style, same as booking confirmation)
-            try {
-                $html = view('email.quotation-confirmation', $emailData)->render();
-            } catch (\Exception $e) {
-                Log::error("Error rendering tour proposal email template", [
-                    'error' => $e->getMessage(),
-                    'tour_id' => $tourId
-                ]);
-                return "Error rendering email template: " . $e->getMessage();
-            }
-
-            // Send the email
-            try {
-                Mail::to($agent->email)->send(new DmcMail($html, $subject));
-                
-                // Log successful email sending
-                Log::info("Tour proposal email sent successfully", [
-                    'agent_id' => $agentId,
-                    'agent_email' => $agent->email,
-                    'tour_id' => $tourId,
-                    'tour_display_id' => $tourDisplayId
-                ]);
-                
-                return true;
-            } catch (\Exception $e) {
-                Log::error("Failed to send tour proposal email", [
-                    'error' => $e->getMessage(),
-                    'agent_id' => $agentId,
-                    'agent_email' => $agent->email,
-                    'tour_id' => $tourId
-                ]);
-                return "Failed to send email: " . $e->getMessage();
-            }
+            return self::sendTourItineraryEmailByAiResponse($agent->email, $emailData, $dmcUser);
 
         } catch (\Exception $e) {
             Log::error('Tour proposal email sending failed', [
@@ -2070,7 +2113,13 @@ class CommonHelper
      */
     public static function normalizeQuotationEmailData(array $tourData = []): array
     {
-        $emailData = self::normalizeTourAutoBookedEmailData($tourData);
+        // Full quotation layout (same data as single-tour-package/quotation.blade.php)
+        if (isset($tourData['tour']) && is_object($tourData['tour'])) {
+            $emailData = $tourData;
+        } else {
+            $emailData = self::normalizeTourAutoBookedEmailData($tourData);
+        }
+
         $emailData['statusLabel'] = (string) ($tourData['statusLabel'] ?? 'TRAVEL QUOTATION');
         $emailData['heroText'] = (string) ($tourData['heroText']
             ?? "We've prepared a personalized travel quotation based on your request.");
@@ -2081,24 +2130,16 @@ class CommonHelper
 
     /**
      * Build quotation-confirmation email view data from a persisted tour + its orders.
+     * Uses the same pricing / inclusions source as the PDF quotation blade.
      *
      * @return array<string, mixed>|null
      */
     public static function buildQuotationConfirmationEmailDataFromTour(Tour $tour): ?array
     {
-        $orders = Order::where('tour_id', $tour->tour_id)->get();
-        if ($orders->isEmpty()) {
+        $pdfData = self::prepareEmailTemplateData($tour->tour_id);
+        if (!$pdfData || empty($pdfData['tour'])) {
             return null;
         }
-
-        /** @var \App\Http\Controllers\Api\ExternalApiReceiveController $controller */
-        $controller = app(\App\Http\Controllers\Api\ExternalApiReceiveController::class);
-        $bookedServices = $controller->buildBookedServicesForEmailPublic($orders);
-
-        $totalEstimation = round(array_sum(array_map(
-            static fn (array $service): float => (float) ($service['price_value'] ?? 0),
-            $bookedServices
-        )), 2);
 
         $agent = $tour->agent;
         if (!$agent && $tour->agent_id) {
@@ -2118,8 +2159,6 @@ class CommonHelper
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
             : 'DMC';
 
-        $currencyCode = self::resolveTourEmailCurrency($tour, $dmcUser);
-
         try {
             $encryptedTourId = Crypt::encrypt($tour->tour_id);
             $quotationPreviewUrl = route('tour.itinerary.preview', ['encryptedTourId' => $encryptedTourId]);
@@ -2132,33 +2171,29 @@ class CommonHelper
             $quotationDownloadUrl = self::url();
         }
 
-        return self::normalizeQuotationEmailData([
+        $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
+
+        return self::normalizeQuotationEmailData(array_merge($pdfData, [
             'dmc_name' => $dmcName,
-            'dmc_logo' => $dmcUser?->logo ?? null,
+            'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
             'dmc_label' => $dmcName,
             'dmc_contact_email' => (string) ($dmcUser?->email ?? ''),
             'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
-            'country' => (string) ($tour->country ?? ''),
-            'destination' => (string) ($tour->destination ?? 'N/A'),
-            'city' => (string) ($tour->city ?? ''),
-            'check_in_time' => $tour->check_in_time,
-            'check_out_time' => $tour->check_out_time,
-            'adult' => (int) ($tour->adult ?? 0),
-            'child' => (int) ($tour->child ?? 0),
-            'infant' => (int) ($tour->infant ?? 0),
             'agent_name' => (string) ($agent->name ?? ''),
             'agency_name' => (string) ($agency->agency_name ?? ''),
             'quoted_at' => $tour->created_at
                 ? Carbon::parse($tour->created_at)->format('M d, Y H:i')
                 : now()->format('M d, Y H:i'),
-            'booked_services' => $bookedServices,
-            'total_estimation' => $totalEstimation,
-            'currency_code' => $currencyCode,
             'dashboard_link' => $quotationPreviewUrl,
             'itineraryUrl' => $quotationPreviewUrl,
             'downloadUrl' => $quotationDownloadUrl,
             'detailsUrl' => $quotationPreviewUrl,
-        ]);
+            'baseCurrency' => $baseCurrency,
+            'selectedCurrency' => $baseCurrency,
+            'exchangeRate' => 1.0,
+            'logoType' => 'dmc',
+            'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
+        ]));
     }
 
     /**

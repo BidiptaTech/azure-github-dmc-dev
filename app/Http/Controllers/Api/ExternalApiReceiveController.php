@@ -1275,8 +1275,8 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Email the sender (sender_email) with the quotation itinerary email.
-     * Uses email/quotation-confirmation.blade.php — non-fatal by design.
+     * Email the sender (sender_email) using the DMC ai_response setting (QTN / ITN).
+     * Non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
@@ -1285,7 +1285,7 @@ class ExternalApiReceiveController extends Controller
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
-            Log::info('External API: skipping sender quotation email, no valid sender_email', [
+            Log::info('External API: skipping sender itinerary email, no valid sender_email', [
                 'tour_id' => $tour->tour_id,
             ]);
 
@@ -1294,56 +1294,83 @@ class ExternalApiReceiveController extends Controller
 
         $primaryDmc = $this->resolvePrimaryDmc($payload);
         $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+
+        if (CommonHelper::resolveDmcAiResponse($dmcUser) === null) {
+            Log::info('External API: skipping sender email, DMC ai_response not set to QTN or ITN', [
+                'tour_id' => $tour->tour_id,
+                'dmc_id' => $dmcUser?->userId,
+            ]);
+
+            return ['sent' => false, 'email' => $senderEmail];
+        }
+
         $agent = $tour->agent_id ? Agent::where('agent_id', $tour->agent_id)->first() : null;
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
-        $senderName = ucfirst(explode('@', $senderEmail)[0]);
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
             : 'DMC';
 
         try {
             $availability = $this->resolvePackageAvailability($payload);
-            $bookedServices = $this->buildBookedServicesForEmail($orders);
-            $totalEstimation = round(array_sum(array_map(
-                static fn (array $service): float => (float) ($service['price_value'] ?? 0),
-                $bookedServices
-            )), 2);
+            $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
 
-            $sent = CommonHelper::sendTourQuotationEmail($senderEmail, [
-                'dmc_name' => $dmcName,
-                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
-                'tour_display_id' => $tour->display_id,
-                'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
-                'diff' => $availability['diff'],
-                'requested_days' => $availability['requested_days'],
-                'available_days' => $availability['available_days'],
-                'is_partial_package' => $availability['is_partial'],
-                'partial_package_message' => $availability['partial_message'],
-                'cities' => $this->resolveDayLevelCities($payload),
-                'destination' => $tour->destination,
-                'city' => $tour->city,
-                'check_in_time' => $tour->check_in_time,
-                'check_out_time' => $tour->check_out_time,
-                'adult' => $tour->adult,
-                'child' => $tour->child,
-                'infant' => $tour->infant,
-                'agent_name' => $agent->name ?? '',
-                'agency_name' => $agency->agency_name ?? '',
-                'dmc_label' => $dmcName,
-                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-                'quoted_at' => now()->format('M d, Y H:i'),
-                'booked_services' => $bookedServices,
-                'total_estimation' => $totalEstimation,
-                'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
-            ]);
+            if ($aiResponse === 'QTN') {
+                $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+                if (!$emailData) {
+                    Log::warning('External API: quotation email data unavailable', [
+                        'tour_id' => $tour->tour_id,
+                    ]);
+
+                    return ['sent' => false, 'email' => $senderEmail];
+                }
+
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
+            } else {
+                $bookedServices = $this->buildBookedServicesForEmail($orders);
+                $totalEstimation = round(array_sum(array_map(
+                    static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+                    $bookedServices
+                )), 2);
+
+                $timestamp = now()->format('M d, Y H:i');
+                $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
+                    'dmc_name' => $dmcName,
+                    'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                    'tour_display_id' => $tour->display_id,
+                    'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
+                    'diff' => $availability['diff'],
+                    'requested_days' => $availability['requested_days'],
+                    'available_days' => $availability['available_days'],
+                    'is_partial_package' => $availability['is_partial'],
+                    'partial_package_message' => $availability['partial_message'],
+                    'cities' => $this->resolveDayLevelCities($payload),
+                    'destination' => $tour->destination,
+                    'city' => $tour->city,
+                    'check_in_time' => $tour->check_in_time,
+                    'check_out_time' => $tour->check_out_time,
+                    'adult' => $tour->adult,
+                    'child' => $tour->child,
+                    'infant' => $tour->infant,
+                    'agent_name' => $agent->name ?? '',
+                    'agency_name' => $agency->agency_name ?? '',
+                    'dmc_label' => $dmcName,
+                    'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                    'booked_at' => $timestamp,
+                    'quoted_at' => $timestamp,
+                    'booked_services' => $bookedServices,
+                    'total_estimation' => $totalEstimation,
+                    'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                ], $dmcUser);
+            }
 
             if ($sent !== true) {
-                Log::warning('External API sender quotation email not sent', [
+                Log::warning('External API sender itinerary email not sent', [
                     'tour_id' => $tour->tour_id,
                     'sender_email' => $senderEmail,
+                    'ai_response' => CommonHelper::resolveDmcAiResponse($dmcUser),
                     'reason' => $sent,
                 ]);
 
@@ -1352,7 +1379,7 @@ class ExternalApiReceiveController extends Controller
 
             return ['sent' => true, 'email' => $senderEmail];
         } catch (Throwable $e) {
-            Log::error('External API sender quotation email failed', [
+            Log::error('External API sender itinerary email failed', [
                 'tour_id' => $tour->tour_id,
                 'sender_email' => $senderEmail,
                 'error' => $e->getMessage(),
@@ -2288,9 +2315,8 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * Send tour proposal / quotation email to the agent.
-     * Temporarily authenticates the agent so CommonHelper::getDmcId() works.
-     * Uses email/quotation-confirmation.blade.php — non-fatal by design.
+     * Send tour proposal email to the agent using DMC ai_response (QTN / ITN).
+     * Non-fatal by design.
      */
     protected function notifyAgent(Tour $tour): bool
     {
@@ -2304,6 +2330,19 @@ class ExternalApiReceiveController extends Controller
         try {
             $agent = Agent::where('agent_id', $tour->agent_id)->first();
             if (!$agent) {
+                return false;
+            }
+
+            $dmcUser = !empty($tour->dmc_id)
+                ? User::where('userId', $tour->dmc_id)->first()
+                : null;
+
+            if (CommonHelper::resolveDmcAiResponse($dmcUser) === null) {
+                Log::info('External API: skipping agent email, DMC ai_response not set to QTN or ITN', [
+                    'tour_id' => $tour->tour_id,
+                    'dmc_id' => $dmcUser?->userId,
+                ]);
+
                 return false;
             }
 
@@ -2323,19 +2362,20 @@ class ExternalApiReceiveController extends Controller
                         'adult' => $tour->adult,
                         'child' => $tour->child,
                         'infant' => $tour->infant,
-                    ]
+                    ],
+                    $dmcUser
                 );
             } finally {
-                // Restore prior auth state (request ends right after, but stay clean).
                 if ($previousUser) {
                     Auth::setUser($previousUser);
                 }
             }
 
             if ($emailResult !== true) {
-                Log::warning('External API tour proposal email not sent', [
+                Log::warning('External API tour itinerary email not sent to agent', [
                     'tour_id' => $tour->tour_id,
                     'agent_id' => $tour->agent_id,
+                    'ai_response' => CommonHelper::resolveDmcAiResponse($dmcUser),
                     'reason' => $emailResult,
                 ]);
                 return false;
