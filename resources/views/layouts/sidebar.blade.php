@@ -91,14 +91,21 @@
         
 
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+            @php
+                $dmcCanLiteForm = \App\Helpers\CommonHelper::dmcCanAccessLiteForm(auth()->user());
+                $dmcCanProForm = \App\Helpers\CommonHelper::dmcCanAccessProForm(auth()->user());
+            @endphp
+            @if($dmcCanProForm)
             <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
                 <a href="#" class="menu-link" id="createSingleTourProBtn" data-enquiry-pro-create-url="{{ route('enquiry-form-pro.create') }}">
                     <i class="menu-icon tf-icons ri-file-list-3-line"></i>
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-pro">Pro</span>
                 </a>
-            </li> 
+            </li>
+            @endif
 
+            @if($dmcCanLiteForm)
             <!-- Single Tour Package for DMCs -->
             <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif" style="position: relative;">
                 <a href="{{ route('single-tour-package.create') }}" class="menu-link">
@@ -106,7 +113,8 @@
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-lite">Lite</span>
                 </a>
-            </li> 
+            </li>
+            @endif
 
             <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
                 <a href="{{ route('packages.booking.create') }}" class="menu-link">

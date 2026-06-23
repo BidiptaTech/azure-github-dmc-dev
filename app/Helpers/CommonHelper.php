@@ -28,6 +28,7 @@ use App\Models\Country;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Crypt;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1627,6 +1628,68 @@ class CommonHelper
     }
 
     /**
+     * DMC booking form type from users.is_pro (set on users listing).
+     * 1 = Lite only, 2 = Pro only, 3 = Both.
+     */
+    public static function getDmcBookingType($user = null): int
+    {
+        $user = $user ?? Auth::user();
+        if (!$user) {
+            return 1;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+
+        if (!$dmcId) {
+            $own = (int) ($user->is_pro ?? 1);
+            return in_array($own, [1, 2, 3], true) ? $own : 1;
+        }
+
+        $dmc = User::where('userId', $dmcId)->first();
+        $bookingType = (int) ($dmc->is_pro ?? 1);
+
+        return in_array($bookingType, [1, 2, 3], true) ? $bookingType : 1;
+    }
+
+    public static function dmcCanAccessLiteForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [1, 3], true);
+    }
+
+    public static function dmcCanAccessProForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [2, 3], true);
+    }
+
+    /**
+     * Redirect/JSON denial when the current user's DMC cannot access a booking form.
+     * Returns null when access is allowed.
+     */
+    public static function bookingFormAccessDeniedResponse(string $formType, $user = null)
+    {
+        $formType = strtolower($formType);
+        $allowed = $formType === 'pro'
+            ? self::dmcCanAccessProForm($user)
+            : self::dmcCanAccessLiteForm($user);
+
+        if ($allowed) {
+            return null;
+        }
+
+        $label = $formType === 'pro' ? 'Pro' : 'Lite';
+        $message = "Your DMC account does not have access to the {$label} booking form.";
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['success' => false, 'message' => $message], 403);
+        }
+
+        return redirect()->route('dashboard')->with('error', $message);
+    }
+
+    /**
      * Send tour proposal email to agent
      * Date: Current
      * 
@@ -1650,46 +1713,50 @@ class CommonHelper
             $agency = \App\Models\Agency::where('agency_id', $agent->agency_id)->first();
             $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
 
-            // Get DMC details
-            $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
-            if (!$dmcId) {
-                // Try to get DMC from agent's sales_manager_dmc
-                $dmcId = $agent->sales_manager_dmc;
-            }
-            
-            $dmc = User::where('userId', $dmcId)->first();
-            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
-            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
-            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
-            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $emailData = $tour ? self::buildQuotationConfirmationEmailDataFromTour($tour) : null;
 
-            // Prepare email data
-            $emailData = [
-                'agent_name' => $agent->name ?? 'Valued Partner',
-                'agency_name' => $agencyName,
-                'dmc_name' => $dmcName,
-                'dmc_logo' => $dmcLogo,
-                'dmc_email' => $dmcEmail,
-                'dmc_phone' => $dmcPhone,
-                'tour_display_id' => $tourDisplayId,
-                'destination' => $tourData['destination'] ?? 'N/A',
-                'city' => $tourData['city'] ?? null,
-                'check_in_date' => isset($tourData['check_in_time']) ? Carbon::parse($tourData['check_in_time'])->format('M d, Y') : 'N/A',
-                'check_out_date' => isset($tourData['check_out_time']) ? Carbon::parse($tourData['check_out_time'])->format('M d, Y') : 'N/A',
-                'adults' => $tourData['adult'] ?? 0,
-                'children' => $tourData['child'] ?? 0,
-                'infants' => $tourData['infant'] ?? 0,
-                'total_guests' => ($tourData['adult'] ?? 0) + ($tourData['child'] ?? 0) + ($tourData['infant'] ?? 0),
-                'query_date' => now()->format('M d, Y'),
-                'dashboard_link' => self::url(),
-            ];
+            if (!$emailData) {
+                // Get DMC details (fallback when tour has no orders yet)
+                $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
+                if (!$dmcId) {
+                    $dmcId = $agent->sales_manager_dmc;
+                }
+
+                $dmc = User::where('userId', $dmcId)->first();
+                $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+
+                $emailData = self::normalizeQuotationEmailData([
+                    'dmc_name' => $dmcName,
+                    'dmc_logo' => $dmc ? ($dmc->logo ?? null) : null,
+                    'dmc_label' => $dmcName,
+                    'dmc_contact_email' => $dmc ? ($dmc->email ?? '') : '',
+                    'tour_display_id' => $tourDisplayId,
+                    'destination' => $tourData['destination'] ?? 'N/A',
+                    'city' => $tourData['city'] ?? null,
+                    'check_in_time' => $tourData['check_in_time'] ?? null,
+                    'check_out_time' => $tourData['check_out_time'] ?? null,
+                    'adult' => $tourData['adult'] ?? 0,
+                    'child' => $tourData['child'] ?? 0,
+                    'infant' => $tourData['infant'] ?? 0,
+                    'agent_name' => $agent->name ?? 'Valued Partner',
+                    'agency_name' => $agencyName,
+                    'dashboard_link' => self::url(),
+                ]);
+            }
+
+            $emailData['agent_name'] = $agent->name ?? 'Valued Partner';
+            $emailData['agency_name'] = $agencyName;
+            $emailData['query_date'] = now()->format('M d, Y');
+
+            $dmcName = (string) ($emailData['dmc_name'] ?? $emailData['dmc_label'] ?? 'DMC');
 
             // Email subject
-            $subject = "✈️ New Travel Proposal from {$dmcName} via Travclicks";
+            $subject = 'Quotation #' . ($tourDisplayId !== '' ? $tourDisplayId : '') . ' from ' . $dmcName . ' — Travclicks';
 
-            // Render the email template
+            // Render the quotation email template (itinerary-style, same as booking confirmation)
             try {
-                $html = view('mails.tour_proposal_agent', $emailData)->render();
+                $html = view('email.quotation-confirmation', $emailData)->render();
             } catch (\Exception $e) {
                 Log::error("Error rendering tour proposal email template", [
                     'error' => $e->getMessage(),
@@ -1841,6 +1908,46 @@ class CommonHelper
     }
 
     /**
+     * Send quotation email with full itinerary (email/quotation-confirmation.blade.php).
+     *
+     * @param  string  $recipientEmail
+     * @param  array<string, mixed>  $tourData
+     * @return bool|string
+     */
+    public static function sendTourQuotationEmail(string $recipientEmail, array $tourData = [])
+    {
+        $recipientEmail = trim($recipientEmail);
+        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid recipient email address';
+        }
+
+        try {
+            $emailData = self::normalizeQuotationEmailData($tourData);
+
+            $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
+            $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
+
+            $html = view('email.quotation-confirmation', $emailData)->render();
+            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+
+            Log::info('Quotation email sent', [
+                'email' => $recipientEmail,
+                'tour_display_id' => $emailData['tour_display_id'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Tour quotation email failed', [
+                'email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /**
      * Notify sender when external payload matching is 0 (incomplete travel details).
      *
      * @param  string  $recipientEmail
@@ -1952,6 +2059,105 @@ class CommonHelper
             'partial_package_message' => '',
             'requested_days' => 0,
             'available_days' => 0,
+        ]);
+    }
+
+    /**
+     * Normalize quotation email payload for email/quotation-confirmation.blade.php.
+     *
+     * @param  array<string, mixed>  $tourData
+     * @return array<string, mixed>
+     */
+    public static function normalizeQuotationEmailData(array $tourData = []): array
+    {
+        $emailData = self::normalizeTourAutoBookedEmailData($tourData);
+        $emailData['statusLabel'] = (string) ($tourData['statusLabel'] ?? 'TRAVEL QUOTATION');
+        $emailData['heroText'] = (string) ($tourData['heroText']
+            ?? "We've prepared a personalized travel quotation based on your request.");
+        $emailData['quoted_at'] = (string) ($tourData['quoted_at'] ?? $emailData['booked_at'] ?? now()->format('M d, Y H:i'));
+
+        return $emailData;
+    }
+
+    /**
+     * Build quotation-confirmation email view data from a persisted tour + its orders.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function buildQuotationConfirmationEmailDataFromTour(Tour $tour): ?array
+    {
+        $orders = Order::where('tour_id', $tour->tour_id)->get();
+        if ($orders->isEmpty()) {
+            return null;
+        }
+
+        /** @var \App\Http\Controllers\Api\ExternalApiReceiveController $controller */
+        $controller = app(\App\Http\Controllers\Api\ExternalApiReceiveController::class);
+        $bookedServices = $controller->buildBookedServicesForEmailPublic($orders);
+
+        $totalEstimation = round(array_sum(array_map(
+            static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+            $bookedServices
+        )), 2);
+
+        $agent = $tour->agent;
+        if (!$agent && $tour->agent_id) {
+            $agent = Agent::where('agent_id', $tour->agent_id)->first();
+        }
+
+        $agency = $agent && $agent->agency_id
+            ? Agency::where('agency_id', $agent->agency_id)->first()
+            : null;
+
+        $dmcUser = $tour->dmc;
+        if (!$dmcUser && $tour->dmc_id) {
+            $dmcUser = User::where('userId', $tour->dmc_id)->first();
+        }
+
+        $dmcName = $dmcUser
+            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+            : 'DMC';
+
+        $currencyCode = self::resolveTourEmailCurrency($tour, $dmcUser);
+
+        try {
+            $encryptedTourId = Crypt::encrypt($tour->tour_id);
+            $quotationPreviewUrl = route('tour.itinerary.preview', ['encryptedTourId' => $encryptedTourId]);
+            $quotationDownloadUrl = route('tour.itinerary.pdf', [
+                'tourId' => $tour->tour_id,
+                'preview' => 0,
+            ]);
+        } catch (\Throwable $e) {
+            $quotationPreviewUrl = self::url();
+            $quotationDownloadUrl = self::url();
+        }
+
+        return self::normalizeQuotationEmailData([
+            'dmc_name' => $dmcName,
+            'dmc_logo' => $dmcUser?->logo ?? null,
+            'dmc_label' => $dmcName,
+            'dmc_contact_email' => (string) ($dmcUser?->email ?? ''),
+            'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
+            'country' => (string) ($tour->country ?? ''),
+            'destination' => (string) ($tour->destination ?? 'N/A'),
+            'city' => (string) ($tour->city ?? ''),
+            'check_in_time' => $tour->check_in_time,
+            'check_out_time' => $tour->check_out_time,
+            'adult' => (int) ($tour->adult ?? 0),
+            'child' => (int) ($tour->child ?? 0),
+            'infant' => (int) ($tour->infant ?? 0),
+            'agent_name' => (string) ($agent->name ?? ''),
+            'agency_name' => (string) ($agency->agency_name ?? ''),
+            'quoted_at' => $tour->created_at
+                ? Carbon::parse($tour->created_at)->format('M d, Y H:i')
+                : now()->format('M d, Y H:i'),
+            'booked_services' => $bookedServices,
+            'total_estimation' => $totalEstimation,
+            'currency_code' => $currencyCode,
+            'dashboard_link' => $quotationPreviewUrl,
+            'itineraryUrl' => $quotationPreviewUrl,
+            'downloadUrl' => $quotationDownloadUrl,
+            'detailsUrl' => $quotationPreviewUrl,
         ]);
     }
 
