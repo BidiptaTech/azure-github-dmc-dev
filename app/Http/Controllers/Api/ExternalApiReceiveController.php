@@ -42,6 +42,29 @@ class ExternalApiReceiveController extends Controller
             }
         }
 
+        if ($this->payloadMatchingIsZero($payload)) {
+            $record = ExternalApiReceive::create([
+                'source_ip' => $request->ip(),
+                'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
+                'headers' => $request->headers->all(),
+                'payload' => $payload,
+                'status' => false,
+            ]);
+
+            $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Incomplete travel details. A notification email has been sent to the sender.',
+                'received_id' => $record->id,
+                'result' => [
+                    'matching' => 0,
+                    'sender_email_sent' => $senderNotify['sent'],
+                    'sender_email' => $senderNotify['email'],
+                ],
+            ], 422);
+        }
+
         if (empty($payload['destinations'])) {
             $record = ExternalApiReceive::create([
                 'source_ip' => $request->ip(),
@@ -1354,6 +1377,68 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
+    protected function payloadMatchingIsZero(array $payload): bool
+    {
+        if (! array_key_exists('matching', $payload)) {
+            return false;
+        }
+
+        return (int) $payload['matching'] === 0;
+    }
+
+    /**
+     * Email sender when payload matching is 0 (incomplete travel details).
+     *
+     * @return array{sent: bool, email: ?string}
+     */
+    protected function notifyIncompleteTravelDetails(array $payload): array
+    {
+        $senderEmail = $this->resolveSenderNotificationEmail($payload);
+
+        if ($senderEmail === null) {
+            Log::info('External API: skipping incomplete travel details email, no valid sender_email', [
+                'matching' => 0,
+            ]);
+
+            return ['sent' => false, 'email' => null];
+        }
+
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+        $dmcName = $dmcUser
+            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+            : 'DMC';
+        $senderName = ucfirst(explode('@', $senderEmail)[0]);
+
+        try {
+            $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
+                'recipient_name' => $senderName,
+                'dmc_name' => $dmcName,
+                'dmc_label' => $dmcName,
+                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+            ]);
+
+            if ($sent !== true) {
+                Log::warning('External API incomplete travel details email not sent', [
+                    'sender_email' => $senderEmail,
+                    'reason' => $sent,
+                ]);
+
+                return ['sent' => false, 'email' => $senderEmail];
+            }
+
+            return ['sent' => true, 'email' => $senderEmail];
+        } catch (Throwable $e) {
+            Log::error('External API incomplete travel details email failed', [
+                'sender_email' => $senderEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['sent' => false, 'email' => $senderEmail];
+        }
+    }
+
     protected function resolveDmcContactEmail(array $payload, array $primaryDmc, ?User $dmcUser): ?string
     {
         $candidates = [
@@ -1476,6 +1561,23 @@ class ExternalApiReceiveController extends Controller
      * @return list<array<string, mixed>>
      */
     protected function buildBookedServicesForEmail(Collection $orders): array
+    {
+        return $this->buildBookedServicesForEmailInternal($orders);
+    }
+
+    /**
+     * Public entry point for building itinerary cards from persisted orders
+     * (used by email preview and other callers outside this controller).
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Order>  $orders
+     * @return array<int, array<string, mixed>>
+     */
+    public function buildBookedServicesForEmailPublic(Collection $orders): array
+    {
+        return $this->buildBookedServicesForEmailInternal($orders);
+    }
+
+    protected function buildBookedServicesForEmailInternal(Collection $orders): array
     {
         $services = [];
 

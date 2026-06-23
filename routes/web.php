@@ -71,6 +71,7 @@ use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DayLevelController;
 use App\Http\Controllers\ExternalApiReceiveController;
+use App\Http\Controllers\SmartNotificationController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -109,6 +110,18 @@ Route::get('/clear', function () {
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
             Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
+            Route::get('/user/account-status', function () {
+                $user = Auth::user();
+                if (!$user) {
+                    return response()->json(['active' => false], 401);
+                }
+
+                $freshUser = \App\Models\User::where('userId', $user->userId)->first();
+
+                return response()->json([
+                    'active' => $freshUser && $freshUser->isAccountActive(),
+                ]);
+            })->name('user.account.status');
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
             Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
@@ -716,8 +729,10 @@ Route::get('/clear', function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
+        Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
@@ -994,6 +1009,10 @@ Route::get('/clear', function () {
             Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
             Route::get('/lost-found', [\App\Http\Controllers\LostFoundController::class, 'index'])->name('lost-found.index');
             Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
+            Route::get('/smart-notification', [SmartNotificationController::class, 'index'])->name('smart-notification.index');
+            Route::get('/smart-notification/history', [SmartNotificationController::class, 'history'])->name('smart-notification.history');
+            Route::get('/smart-notification/recipients', [SmartNotificationController::class, 'recipients'])->name('smart-notification.recipients');
+            Route::post('/smart-notification/send', [SmartNotificationController::class, 'send'])->name('smart-notification.send');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
             
@@ -1385,15 +1404,30 @@ Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'com
 
 // Resource route AFTER
 Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
+
+// Temporary preview route for the booking-confirmation email template.
+// Loads real tour + order data (prices from order JSON, not hardcoded).
+// Usage: /preview-booking-email?tour_id=123  or  ?display_id=ORD3662
+// Without params, uses the most recent tour that has orders.
+Route::get('preview-booking-email', function (\Illuminate\Http\Request $request) {
+    $tourKey = $request->query('tour_id') ?? $request->query('display_id');
+    $tour = \App\Helpers\CommonHelper::findTourForEmailPreview($tourKey);
+
+    if (!$tour) {
+        abort(404, 'No tour found. Pass ?tour_id= or ?display_id= for a tour that has orders.');
+    }
+
+    $emailData = \App\Helpers\CommonHelper::buildBookingConfirmationEmailDataFromTour($tour);
+
+    if (!$emailData) {
+        abort(404, 'Tour #' . ($tour->display_id ?? $tour->tour_id) . ' has no orders to preview.');
+    }
+
+    return view('email.booking-confirmation', $emailData);
+});
+
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
     ->where('routeName', '^(?!api$).+');
 });
-
-
-
-
-
-
-
 
 

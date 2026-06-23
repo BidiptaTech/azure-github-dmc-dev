@@ -53,7 +53,16 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_active' => 'boolean',
     ];
+
+    /**
+     * Whether the account may sign in (null treated as active for legacy rows).
+     */
+    public function isAccountActive(): bool
+    {
+        return (int) ($this->is_active ?? 1) === 1;
+    }
 
     /*
     * Specify User Types.
