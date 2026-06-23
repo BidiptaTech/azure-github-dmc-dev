@@ -21,6 +21,17 @@ use App\Services\FirebaseService;
 
 class EditTourController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('lite')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
     /**
      * Update only city plans (city_type + city string) for a tour.
      * Used by multi-city "+" buttons to persist immediately.

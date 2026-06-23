@@ -1627,6 +1627,68 @@ class CommonHelper
     }
 
     /**
+     * DMC booking form type from users.is_pro (set on users listing).
+     * 1 = Lite only, 2 = Pro only, 3 = Both.
+     */
+    public static function getDmcBookingType($user = null): int
+    {
+        $user = $user ?? Auth::user();
+        if (!$user) {
+            return 1;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+
+        if (!$dmcId) {
+            $own = (int) ($user->is_pro ?? 1);
+            return in_array($own, [1, 2, 3], true) ? $own : 1;
+        }
+
+        $dmc = User::where('userId', $dmcId)->first();
+        $bookingType = (int) ($dmc->is_pro ?? 1);
+
+        return in_array($bookingType, [1, 2, 3], true) ? $bookingType : 1;
+    }
+
+    public static function dmcCanAccessLiteForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [1, 3], true);
+    }
+
+    public static function dmcCanAccessProForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [2, 3], true);
+    }
+
+    /**
+     * Redirect/JSON denial when the current user's DMC cannot access a booking form.
+     * Returns null when access is allowed.
+     */
+    public static function bookingFormAccessDeniedResponse(string $formType, $user = null)
+    {
+        $formType = strtolower($formType);
+        $allowed = $formType === 'pro'
+            ? self::dmcCanAccessProForm($user)
+            : self::dmcCanAccessLiteForm($user);
+
+        if ($allowed) {
+            return null;
+        }
+
+        $label = $formType === 'pro' ? 'Pro' : 'Lite';
+        $message = "Your DMC account does not have access to the {$label} booking form.";
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['success' => false, 'message' => $message], 403);
+        }
+
+        return redirect()->route('dashboard')->with('error', $message);
+    }
+
+    /**
      * Send tour proposal email to agent
      * Date: Current
      * 
