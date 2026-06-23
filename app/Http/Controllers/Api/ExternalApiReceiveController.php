@@ -1275,12 +1275,8 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Send the tour proposal email to the agent. Non-fatal by design.
-     * Temporarily authenticates the agent so CommonHelper::getDmcId() (which
-     * reads Auth::user() internally) works on this unauthenticated endpoint.
-     */
-    /**
-     * Email the sender using sender_email from the external payload.
+     * Email the sender (sender_email) with the quotation itinerary email.
+     * Uses email/quotation-confirmation.blade.php — non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
@@ -1289,7 +1285,7 @@ class ExternalApiReceiveController extends Controller
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
-            Log::info('External API: skipping sender auto-book email, no valid sender_email', [
+            Log::info('External API: skipping sender quotation email, no valid sender_email', [
                 'tour_id' => $tour->tour_id,
             ]);
 
@@ -1316,8 +1312,8 @@ class ExternalApiReceiveController extends Controller
                 $bookedServices
             )), 2);
 
-            $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
-                'dmc_name' => $senderName,
+            $sent = CommonHelper::sendTourQuotationEmail($senderEmail, [
+                'dmc_name' => $dmcName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'tour_display_id' => $tour->display_id,
                 'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
@@ -1338,14 +1334,14 @@ class ExternalApiReceiveController extends Controller
                 'agency_name' => $agency->agency_name ?? '',
                 'dmc_label' => $dmcName,
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-                'booked_at' => now()->format('M d, Y H:i'),
+                'quoted_at' => now()->format('M d, Y H:i'),
                 'booked_services' => $bookedServices,
                 'total_estimation' => $totalEstimation,
                 'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
             ]);
 
             if ($sent !== true) {
-                Log::warning('External API sender auto-book email not sent', [
+                Log::warning('External API sender quotation email not sent', [
                     'tour_id' => $tour->tour_id,
                     'sender_email' => $senderEmail,
                     'reason' => $sent,
@@ -1356,7 +1352,7 @@ class ExternalApiReceiveController extends Controller
 
             return ['sent' => true, 'email' => $senderEmail];
         } catch (Throwable $e) {
-            Log::error('External API sender auto-book email failed', [
+            Log::error('External API sender quotation email failed', [
                 'tour_id' => $tour->tour_id,
                 'sender_email' => $senderEmail,
                 'error' => $e->getMessage(),
@@ -2291,6 +2287,11 @@ class ExternalApiReceiveController extends Controller
         return '';
     }
 
+    /**
+     * Send tour proposal / quotation email to the agent.
+     * Temporarily authenticates the agent so CommonHelper::getDmcId() works.
+     * Uses email/quotation-confirmation.blade.php — non-fatal by design.
+     */
     protected function notifyAgent(Tour $tour): bool
     {
         if (empty($tour->agent_id)) {
