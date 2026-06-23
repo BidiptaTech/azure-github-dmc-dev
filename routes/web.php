@@ -110,6 +110,18 @@ Route::get('/clear', function () {
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
             Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
+            Route::get('/user/account-status', function () {
+                $user = Auth::user();
+                if (!$user) {
+                    return response()->json(['active' => false], 401);
+                }
+
+                $freshUser = \App\Models\User::where('userId', $user->userId)->first();
+
+                return response()->json([
+                    'active' => $freshUser && $freshUser->isAccountActive(),
+                ]);
+            })->name('user.account.status');
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
             Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
@@ -717,8 +729,10 @@ Route::get('/clear', function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
+        Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
