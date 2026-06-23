@@ -1508,7 +1508,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1571,6 +1571,14 @@
                                     <div data-i18n="Guide Languages">Guide Languages</div>
                                 </a>
                             </li>
+
+                            @if(hasPermission('settings') || hasPermission('edit settings'))
+                            <li class="menu-item @if(Request::is('suppliers*')) active @endif">
+                                <a href="{{ route('suppliers.index') }}" class="menu-link">
+                                    <div data-i18n="Online Api Master">Online Api Master</div>
+                                </a>
+                            </li>
+                            @endif
                         @endif
                         @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
                             <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">

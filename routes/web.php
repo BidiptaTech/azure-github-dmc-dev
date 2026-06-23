@@ -62,6 +62,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
 use App\Http\Controllers\GuideLanguagesController;
+use App\Http\Controllers\SupplierMasterController;
 use Illuminate\Support\Facades\Artisan;
 // use App\Services\AzureKeyVaultService;
 // use Illuminate\Support\Facades\Mail;
@@ -105,6 +106,12 @@ Route::get('/clear', function () {
             Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
             Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
             Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
+
+            Route::get('/suppliers', [SupplierMasterController::class, 'index'])->name('suppliers.index');
+            Route::post('/suppliers', [SupplierMasterController::class, 'store'])->name('suppliers.store');
+            Route::put('/suppliers/{supplier}', [SupplierMasterController::class, 'update'])->name('suppliers.update');
+            Route::post('/suppliers/credentials/{code}', [SupplierMasterController::class, 'updateCredentials'])->name('suppliers.credentials.update');
+            Route::delete('/suppliers/{supplier}', [SupplierMasterController::class, 'destroy'])->name('suppliers.destroy');
 
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
