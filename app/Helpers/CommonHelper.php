@@ -1998,7 +1998,7 @@ class CommonHelper
      * @return bool|string
      */
 
-    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
+    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [], ?User $dmcUser = null)
     {
         $recipientEmail = trim($recipientEmail);
         if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -2012,14 +2012,32 @@ class CommonHelper
                 'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
                 'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
                 'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+                'missing_items' => is_array($emailData['missing_items'] ?? null) ? $emailData['missing_items'] : [],
             ];
 
-            $subject = 'Additional Information Required for Your Travel Inquiry — Travclicks';
+            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
+            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
-            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+
+            $dmcEmail = trim($viewData['dmc_contact_email']);
+            if ($dmcEmail === '' && $dmcUser) {
+                $dmcEmail = trim((string) ($dmcUser->email ?? ''));
+            }
+
+            $fromEmail = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : (string) config('mail.from.address');
+            $fromName = $dmcName;
+            $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : $fromEmail;
+
+            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject), $fromEmail, $fromName, $replyTo));
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
+                'from' => $fromEmail,
+                'reply_to' => $replyTo,
             ]);
 
             return true;
@@ -2029,7 +2047,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: ' . $e->getMessage();
+            return 'Failed to send email: '.$e->getMessage();
         }
     }
 
