@@ -1738,96 +1738,10 @@ class CommonHelper
         }
 
         if ($aiResponse === 'QTN') {
-            return self::sendTourQuotationEmail($recipientEmail, $tourData, $dmcUser);
+            return self::sendTourQuotationEmail($recipientEmail, $tourData);
         }
 
-        return self::sendTourAutoBookedDmcEmail($recipientEmail, $tourData, $dmcUser);
-    }
-
-    /**
-     * Resolve From / Reply-To for DMC-branded emails (replies go to DMC, not Travclicks support).
-     *
-     * @param  array<string, mixed>  $context
-     * @return array{from: string, from_name: string, reply_to: string}
-     */
-    public static function resolveDmcMailSender(?User $dmcUser = null, array $context = []): array
-    {
-        $candidates = [
-            $context['dmc_contact_email'] ?? null,
-            $dmcUser?->email,
-        ];
-
-        $dmcEmail = null;
-        foreach ($candidates as $candidate) {
-            $candidate = trim((string) $candidate);
-            if ($candidate !== '' && filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
-                $dmcEmail = $candidate;
-                break;
-            }
-        }
-
-        $dmcName = trim((string) ($context['dmc_label'] ?? $context['dmc_name'] ?? ''));
-        if ($dmcName === '' && $dmcUser) {
-            $dmcName = trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'));
-        }
-        if ($dmcName === '') {
-            $dmcName = 'DMC';
-        }
-
-        if ($dmcEmail) {
-            return [
-                'from' => $dmcEmail,
-                'from_name' => $dmcName,
-                'reply_to' => $dmcEmail,
-            ];
-        }
-
-        $fallbackFrom = (string) config('mail.from.address');
-        $fallbackName = (string) config('mail.from.name');
-
-        return [
-            'from' => $fallbackFrom,
-            'from_name' => $fallbackName,
-            'reply_to' => $fallbackFrom,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @return bool|string
-     */
-    public static function sendDmcHtmlMail(
-        string $recipientEmail,
-        string $html,
-        string $subject,
-        ?User $dmcUser = null,
-        array $context = []
-    ) {
-        $recipientEmail = trim($recipientEmail);
-        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
-            return 'Invalid recipient email address';
-        }
-
-        try {
-            $sender = self::resolveDmcMailSender($dmcUser, $context);
-
-            Mail::to($recipientEmail)->send(new DmcMail(
-                $html,
-                trim($subject),
-                $sender['from'],
-                $sender['from_name'],
-                $sender['reply_to']
-            ));
-
-            return true;
-        } catch (\Throwable $e) {
-            Log::error('DMC HTML email failed', [
-                'email' => $recipientEmail,
-                'error' => $e->getMessage(),
-            ]);
-
-            return 'Failed to send email: '.$e->getMessage();
-        }
+        return self::sendTourAutoBookedDmcEmail($recipientEmail, $tourData);
     }
 
     /**
@@ -2005,7 +1919,7 @@ class CommonHelper
         return $emailData;
     }
 
-    public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [], ?User $dmcUser = null)
+    public static function sendTourAutoBookedDmcEmail(string $dmcEmail, array $tourData = [])
     {
         $dmcEmail = trim($dmcEmail);
         if ($dmcEmail === '' || ! filter_var($dmcEmail, FILTER_VALIDATE_EMAIL)) {
@@ -2015,14 +1929,10 @@ class CommonHelper
         try {
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #'.($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '').' — '.($emailData['dmc_label'] ?: $emailData['dmc_name'] ?: 'DMC');
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            $sent = self::sendDmcHtmlMail($dmcEmail, $html, trim($subject), $dmcUser, $emailData);
-
-            if ($sent !== true) {
-                return $sent;
-            }
+            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
@@ -2036,7 +1946,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: '.$e->getMessage();
+            return 'Failed to send email: ' . $e->getMessage();
         }
     }
 
@@ -2047,7 +1957,7 @@ class CommonHelper
      * @param  array<string, mixed>  $tourData
      * @return bool|string
      */
-    public static function sendTourQuotationEmail(string $recipientEmail, array $tourData = [], ?User $dmcUser = null)
+    public static function sendTourQuotationEmail(string $recipientEmail, array $tourData = [])
     {
         $recipientEmail = trim($recipientEmail);
         if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -2059,14 +1969,10 @@ class CommonHelper
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #'.$displayId.' from '.$dmcName;
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
-            $sent = self::sendDmcHtmlMail($recipientEmail, $html, trim($subject), $dmcUser, $emailData);
-
-            if ($sent !== true) {
-                return $sent;
-            }
+            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
 
             Log::info('Quotation email sent', [
                 'email' => $recipientEmail,
@@ -2080,7 +1986,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: '.$e->getMessage();
+            return 'Failed to send email: ' . $e->getMessage();
         }
     }
 
@@ -2092,7 +1998,7 @@ class CommonHelper
      * @return bool|string
      */
 
-    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [], ?User $dmcUser = null)
+    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
     {
         $recipientEmail = trim($recipientEmail);
         if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -2108,14 +2014,9 @@ class CommonHelper
                 'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
             ];
 
-            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
-            $subject = 'Additional Information Required for Your Travel Inquiry — '.$dmcName;
+            $subject = 'Additional Information Required for Your Travel Inquiry — Travclicks';
             $html = view('email.incomplete-travel-details', $viewData)->render();
-            $sent = self::sendDmcHtmlMail($recipientEmail, $html, trim($subject), $dmcUser, $viewData);
-
-            if ($sent !== true) {
-                return $sent;
-            }
+            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
@@ -2128,7 +2029,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: '.$e->getMessage();
+            return 'Failed to send email: ' . $e->getMessage();
         }
     }
 
