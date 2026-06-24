@@ -1997,7 +1997,7 @@ class CommonHelper
      * @param  array<string, mixed>  $emailData
      * @return bool|string
      */
-    
+
     public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
     {
         $recipientEmail = trim($recipientEmail);
