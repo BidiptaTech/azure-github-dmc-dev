@@ -59,3 +59,55 @@
 
 <!-- Page JS -->
 <script src="{{ env('APP_URL') . '/assets/js/dashboards-crm.js' }}"></script>
+
+@auth
+<script>
+(function () {
+    var loginUrl = @json(route('login'));
+    var statusUrl = @json(route('user.account.status'));
+
+    function redirectIfDeactivated(response) {
+        if (response.status === 401) {
+            window.location.href = loginUrl;
+            return true;
+        }
+        if (response.ok) {
+            return response.json().then(function (data) {
+                if (data && data.active === false) {
+                    window.location.href = loginUrl;
+                    return true;
+                }
+            }).catch(function () {});
+        }
+        return false;
+    }
+
+    function pollAccountStatus() {
+        fetch(statusUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        }).then(redirectIfDeactivated).catch(function () {});
+    }
+
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).ajaxComplete(function (_event, xhr) {
+            redirectIfDeactivated(xhr);
+        });
+    }
+
+    setInterval(pollAccountStatus, 15000);
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            pollAccountStatus();
+        }
+    });
+
+    window.addEventListener('focus', pollAccountStatus);
+})();
+</script>
+@endauth

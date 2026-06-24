@@ -6,6 +6,7 @@ use Kreait\Firebase\Factory;
 use Kreait\Firebase\Database;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Messaging\SendReport;
 
 class FirebaseService
 {
@@ -26,11 +27,12 @@ class FirebaseService
      * Resolve FCM device tokens from user_tokens/{base64(email)}/{device_id}/token.
      *
      * @param  list<string>  $emails
-     * @return list<string>
+     * @return array{tokens: list<string>, token_to_email: array<string, string>}
      */
     public function getDeviceTokensByEmails(array $emails): array
     {
         $tokens = [];
+        $tokenToEmail = [];
 
         foreach ($this->filterValidEmails($emails) as $email) {
             $emailKey = base64_encode($email);
@@ -48,11 +50,15 @@ class FirebaseService
                 $token = isset($device['token']) ? trim((string) $device['token']) : '';
                 if ($token !== '') {
                     $tokens[] = $token;
+                    $tokenToEmail[$token] = $email;
                 }
             }
         }
 
-        return array_values(array_unique($tokens));
+        return [
+            'tokens' => array_values(array_unique($tokens)),
+            'token_to_email' => $tokenToEmail,
+        ];
     }
 
     /**
@@ -89,17 +95,102 @@ class FirebaseService
         $successCount = $report->successes()->count();
         $failureCount = $report->failures()->count();
 
+        // Provide detailed failure reasons for debugging.
+        // Kreait reports per-token errors; we return a small set of unique messages.
+        $invalidTokenCount = count($report->invalidTokens());
+        $unknownTokenCount = count($report->unknownTokens());
+
+        $failureReasons = array_values(array_unique(array_filter(
+            $report->failures()->map(static function (SendReport $item) {
+                $error = $item->error();
+                return $error ? $error->getMessage() : null;
+            }),
+            static fn ($msg) => !empty($msg)
+        )));
+
+        $unknownTokens = $report->unknownTokens();
+        $successfulTokens = $report->validTokens();
+
+        $message = $successCount > 0
+            ? sprintf('Notification sent to %d of %d device(s).', $successCount, count($tokens))
+            : $this->buildFailureMessage($invalidTokenCount, $unknownTokenCount, count($tokens));
+
         return [
             'success' => $successCount > 0,
-            'message' => $successCount > 0
-                ? sprintf('Notification sent to %d of %d device(s).', $successCount, count($tokens))
-                : 'Failed to send notification to any device.',
+            'message' => $message,
             'data' => [
                 'success_count' => $successCount,
                 'failure_count' => $failureCount,
                 'total_tokens' => count($tokens),
+                'invalid_token_count' => $invalidTokenCount,
+                'unknown_token_count' => $unknownTokenCount,
+                'failure_reasons' => array_slice($failureReasons, 0, 10),
+                'unknown_tokens' => $unknownTokens,
+                'successful_tokens' => $successfulTokens,
             ],
         ];
+    }
+
+    /**
+     * Remove device entries whose FCM tokens are no longer registered.
+     *
+     * @param  list<string>  $emails
+     * @param  list<string>  $unknownTokens
+     */
+    public function removeStaleTokensForEmails(array $emails, array $unknownTokens): int
+    {
+        if (empty($unknownTokens)) {
+            return 0;
+        }
+
+        $unknownLookup = array_fill_keys($unknownTokens, true);
+        $removed = 0;
+
+        foreach ($this->filterValidEmails($emails) as $email) {
+            $emailKey = base64_encode($email);
+            $reference = $this->database->getReference('user_tokens/' . $emailKey);
+            $devices = $reference->getValue();
+
+            if (!is_array($devices)) {
+                continue;
+            }
+
+            foreach ($devices as $deviceKey => $device) {
+                if (!is_array($device)) {
+                    continue;
+                }
+
+                $token = isset($device['token']) ? trim((string) $device['token']) : '';
+                if ($token !== '' && isset($unknownLookup[$token])) {
+                    $reference->getChild((string) $deviceKey)->remove();
+                    $removed++;
+                }
+            }
+        }
+
+        return $removed;
+    }
+
+    private function buildFailureMessage(int $invalidTokenCount, int $unknownTokenCount, int $totalTokens): string
+    {
+        if ($unknownTokenCount > 0 && $unknownTokenCount === $totalTokens) {
+            return 'All device token(s) are unregistered in Firebase Cloud Messaging. '
+                . 'Ask the recipient to open the mobile app and log in again to register a fresh device token.';
+        }
+
+        if ($invalidTokenCount > 0 && $invalidTokenCount === $totalTokens) {
+            return 'All device token(s) are invalid. Ask the recipient to open the mobile app and log in again.';
+        }
+
+        if ($unknownTokenCount > 0 || $invalidTokenCount > 0) {
+            return sprintf(
+                'Failed to send notification. %d unregistered and %d invalid device token(s) were found.',
+                $unknownTokenCount,
+                $invalidTokenCount
+            );
+        }
+
+        return 'Failed to send notification to any device.';
     }
 
     public function createChatRoom($tourId, $dmcId, array $tourDetails = [])

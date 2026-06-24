@@ -38,6 +38,17 @@ use App\Models\MultiRestaurant;
 
 class SingleTourPackageController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('lite')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
     /**
      * Display a listing of single tour packages.
      */

@@ -1465,6 +1465,7 @@ class UserController extends Controller
                     'phone' => $request->phone,
                     'role_id' => $request->role,
                     'password' => bcrypt($request->password),
+                    'is_active' => 1,
                 ]);
                 return redirect()->route('users.index')->with('success', 'User restored successfully.');
             }
@@ -1566,6 +1567,7 @@ class UserController extends Controller
             'company_reg_no' => $request->input('company_reg_no') ?: null,
             'licence_no' => $request->input('licence_no') ?: null,
             'timezone' => $request->timezone ?? 'UTC',
+            'is_active' => 1,
         ]);
         
         $role = Role::where('role_id', $request->input('role'))->first();
@@ -2373,6 +2375,14 @@ class UserController extends Controller
         $currentUser = Auth::user();
         $targetUser = User::where('userId', $userId)->first();
 
+        if (!$targetUser) {
+            return redirect()->route('users.index')->with('error', 'User not found.');
+        }
+
+        if (!$targetUser->isAccountActive()) {
+            return redirect()->route('users.index')->with('error', 'This user account is not active. Auto login is not allowed.');
+        }
+
         // Role hierarchy: lower value = higher privilege
         $roleHierarchy = [
             1 => 1,  // Admin
@@ -2569,6 +2579,46 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
     }
 
+    /**
+     * Toggle user account active / inactive (is_active).
+     */
+    public function updateActive(Request $request)
+    {
+        if (!hasPermission('edit users')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update user status.'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'is_active' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->userId === (int) $this->auth_user->userId && (int) $request->is_active === 0) {
+            return response()->json(['success' => false, 'message' => 'You cannot deactivate your own account.'], 422);
+        }
+
+        $user->is_active = (int) $request->is_active;
+        $user->save();
+
+        if ((int) $request->is_active === 0 && method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
+
+        $label = $user->is_active ? 'activated' : 'deactivated';
+
+        return response()->json([
+            'success' => true,
+            'message' => "User account {$label} successfully.",
+            'user_id' => $user->userId,
+            'is_active' => (int) $user->is_active,
+        ]);
+    }
+
     public function updateAutoCancel(Request $request){
         $user = User::where('userId', $request->user_id)->first();
         
@@ -2618,6 +2668,48 @@ class UserController extends Controller
             'message' => 'Guide pax updated successfully',
             'user_id' => $request->user_id,
             'guide_pax' => $guidePax,
+            'previous_value' => $previousValue,
+        ]);
+    }
+
+    /**
+     * Update AI response type (QTN / ITN) for a DMC user. Master DMC only.
+     */
+    public function updateAiResponse(Request $request)
+    {
+        if ((int) $this->auth_user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Master DMC can update AI Response settings.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'ai_response' => 'nullable|in:QTN,ITN',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        $previousValue = $user->ai_response;
+        $aiResponse = $request->filled('ai_response') ? strtoupper((string) $request->ai_response) : null;
+
+        $user->ai_response = $aiResponse;
+        $user->save();
+
+        $message = $aiResponse
+            ? "AI Response updated to {$aiResponse} successfully"
+            : 'AI Response cleared successfully';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
+            'ai_response' => $aiResponse,
             'previous_value' => $previousValue,
         ]);
     }

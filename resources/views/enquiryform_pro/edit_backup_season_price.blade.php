@@ -2132,52 +2132,25 @@
                 .ep-room-combinations-section { position: relative; }
                 .ep-room-combinations-section.ep-is-loading #roomCombinationsTableWrap { opacity: 0; pointer-events: none; }
                 .enquiry-pro-season-date-legend { background: transparent; border: 0; border-radius: 0; padding: 0; }
-                .enquiry-pro-season-date-legend .ep-legend-title { font-weight: 600; color: #343a40; margin-bottom: 5px; font-size: 11px; line-height: 1.35; }
-                .enquiry-pro-season-date-legend .ep-stay-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; padding: 4px 7px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; }
-                .enquiry-pro-season-date-legend .ep-stay-summary-label { font-size: 10px; font-weight: 600; color: #495057; white-space: nowrap; }
-                .enquiry-pro-season-date-legend .ep-stay-range { font-size: 10px; font-weight: 600; color: #0d6efd; white-space: nowrap; }
-                .enquiry-pro-season-date-legend .ep-stay-chips-scroll { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
-                .enquiry-pro-season-date-legend .ep-stay-chips-scroll.ep-scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
-                .enquiry-pro-season-date-legend .ep-stay-chips-scroll.ep-scroll::-webkit-scrollbar { height: 4px; }
-                .enquiry-pro-season-date-legend .ep-stay-chips-scroll.ep-scroll::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 2px; }
-                .enquiry-pro-season-date-legend .ep-stay-chip { display: inline-flex; align-items: center; background: #fff; border: 1px solid #ced4da; border-radius: 4px; padding: 2px 7px; font-size: 9px; font-weight: 600; color: #495057; white-space: nowrap; flex-shrink: 0; }
-                .enquiry-pro-season-date-legend .ep-stay-chip.ep-stay-active { background: #cfe2ff; border-color: #0d6efd; color: #084298; box-shadow: inset 0 0 0 1px #0d6efd; }
-                .enquiry-pro-season-date-legend .ep-stay-chip.ep-blackout { background: #f8d7da; border-color: #dc3545; color: #842029; }
-                .enquiry-pro-season-date-legend .ep-stay-chip.ep-fair { background: #e8daef; border-color: #9b59b6; color: #4a235a; }
-                .enquiry-pro-season-date-legend .ep-stay-chip.ep-season { background: #fff3cd; border-color: #ffc107; color: #664d03; }
-                .enquiry-pro-season-date-legend .ep-cal-compact-wrap { background: #fff; border: 1px solid #e9ecef; border-radius: 6px; padding: 6px 8px 7px; max-width: 100%; overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-                .enquiry-pro-season-date-legend .ep-cal-compact-inner { width: 280px; max-width: 100%; }
-                .enquiry-pro-season-date-legend .ep-cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
-                .enquiry-pro-season-date-legend .ep-cal-weekday { text-align: center; font-size: 9px; font-weight: 700; color: #6c757d; padding: 2px 0; text-transform: uppercase; letter-spacing: .02em; }
-                .enquiry-pro-season-date-legend .ep-cal-weekday.ep-wknd-hdr { color: #c0392b; }
-                .enquiry-pro-season-date-legend .ep-cal-weeks { display: flex; flex-direction: column; gap: 2px; }
-                .enquiry-pro-season-date-legend .ep-cal-week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-                .enquiry-pro-season-date-legend .ep-cal-day-empty { min-height: 36px; }
-                .enquiry-pro-season-date-legend .ep-cal-day {
-                    position: relative; min-height: 36px; padding: 2px 2px 1px;
-                    border-radius: 3px; border: 1px solid #e9ecef; background: #fff;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    font-size: 9px; line-height: 1.15; color: #495057; cursor: default;
+                .enquiry-pro-season-date-legend .ep-legend-title { font-weight: 600; color: #495057; margin-bottom: 4px; font-size: 11px; }
+                .enquiry-pro-season-date-legend .ep-legend-months { display: flex; flex-wrap: nowrap; gap: 10px; overflow-x: auto; max-width: 100%; }
+                .enquiry-pro-season-date-legend .ep-legend-month-block { flex: 0 0 auto; }
+                .enquiry-pro-season-date-legend .ep-legend-month { font-weight: 600; color: #6c757d; margin-bottom: 2px; font-size: 10px; }
+                .enquiry-pro-season-date-legend .ep-legend-grid { display: flex; flex-wrap: wrap; gap: 2px; max-width: 340px; }
+                .enquiry-pro-season-date-legend .ep-day {
+                    width: 22px; height: 20px; line-height: 20px; text-align: center; font-size: 9px;
+                    border-radius: 3px; background: #fff; border: 1px solid #e9ecef; color: #6c757d;
                 }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-outside { opacity: .45; background: #fafbfc; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-weekend { background: #f1f3f6; border-color: #d5dbe3; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-weekend .ep-cal-day-name { color: #c0392b; font-weight: 700; }
-                .enquiry-pro-season-date-legend .ep-cal-day-num { font-size: 11px; font-weight: 700; line-height: 1.1; }
-                .enquiry-pro-season-date-legend .ep-cal-day-name { font-size: 8px; color: #868e96; text-transform: uppercase; margin-top: 1px; letter-spacing: .02em; }
-                .enquiry-pro-season-date-legend .ep-cal-month-tag { position: absolute; top: 1px; left: 2px; font-size: 6px; font-weight: 700; color: #6c757d; line-height: 1; text-transform: uppercase; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-season { background: #fff3cd; border-color: #ffc107; color: #664d03; opacity: 1; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-fair { background: #e8daef; border-color: #9b59b6; color: #4a235a; opacity: 1; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-blackout { background: #f8d7da; border-color: #dc3545; color: #842029; opacity: 1; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-stay { box-shadow: inset 0 0 0 2px #0d6efd; z-index: 1; opacity: 1; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-season.ep-stay { background: #ffe69c; border-color: #e0a800; color: #000; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-fair.ep-stay { background: #d7bde2; border-color: #7d3c98; color: #000; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-blackout.ep-stay { background: #f1aeb5; border-color: #b02a37; color: #000; }
-                .enquiry-pro-season-date-legend .ep-cal-day.ep-stay:not(.ep-blackout):not(.ep-fair):not(.ep-season) { background: #cfe2ff; border-color: #0d6efd; color: #084298; }
-                .enquiry-pro-season-date-legend .ep-cal-night-badge { position: absolute; top: 1px; right: 1px; background: #0d6efd; color: #fff; font-size: 7px; font-weight: 700; padding: 0 3px; border-radius: 2px; line-height: 1.5; }
-                .enquiry-pro-season-date-legend .ep-legend-key { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 6px; padding-top: 5px; border-top: 1px solid #e9ecef; color: #6c757d; font-size: 9px; line-height: 1.3; }
-                .enquiry-pro-season-date-legend .ep-key-item { display: inline-flex; align-items: center; gap: 4px; }
-                .enquiry-pro-season-date-legend .ep-key-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid #dee2e6; flex-shrink: 0; }
-                .enquiry-pro-season-date-legend .ep-key-swatch.ep-key-stay-ring { background: #fff; box-shadow: inset 0 0 0 2px #0d6efd; }
+                .enquiry-pro-season-date-legend .ep-day.ep-season { background: #fff3cd; border-color: #ffc107; color: #664d03; font-weight: 600; }
+                .enquiry-pro-season-date-legend .ep-day.ep-fair { background: #e8daef; border-color: #9b59b6; color: #4a235a; font-weight: 600; }
+                .enquiry-pro-season-date-legend .ep-day.ep-blackout { background: #f8d7da; border-color: #dc3545; color: #842029; font-weight: 600; }
+                .enquiry-pro-season-date-legend .ep-day.ep-stay { background: #cfe2ff; border-color: #0d6efd; color: #084298; font-weight: 600; }
+                .enquiry-pro-season-date-legend .ep-day.ep-season.ep-stay { background: #ffc107; border-color: #e0a800; color: #000; }
+                .enquiry-pro-season-date-legend .ep-day.ep-fair.ep-stay { background: #d7bde2; border-color: #7d3c98; color: #000; }
+                .enquiry-pro-season-date-legend .ep-day.ep-blackout.ep-stay { background: #f1aeb5; border-color: #b02a37; color: #000; }
+                .enquiry-pro-season-date-legend .ep-legend-key { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; color: #6c757d; font-size: 10px; }
+                .enquiry-pro-season-date-legend .ep-key-item { display: inline-flex; align-items: center; gap: 3px; }
+                .enquiry-pro-season-date-legend .ep-key-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid #dee2e6; }
                 #accommodationSeasonNotice { font-size: 11px; line-height: 1.35; margin-top: 6px !important; }
                 </style>
 
@@ -6643,115 +6616,45 @@
         if (panel) panel.classList.remove('d-none');
 
         const staySet = new Set(stayDates);
-        const stayNightMap = new Map();
-        stayDates.forEach((d, i) => stayNightMap.set(d, i + 1));
+        const monthsToRender = new Map();
+        const addMonth = (y, m) => {
+            const key = `${y}-${String(m).padStart(2, '0')}`;
+            if (!monthsToRender.has(key)) monthsToRender.set(key, { year: y, month: m });
+        };
 
-        const weekendDays = (() => {
-            if (typeof enquiryProWeekendDaysFromHotel === 'function') {
-                const w = enquiryProWeekendDaysFromHotel();
-                if (w.length) return w;
-            }
-            const h = enquiryProGetHotelData();
-            const w = parseWeekendDays(h?.weekend_days || h?.weekend || h?.weekendDays || []);
-            return w.length ? w : ['Saturday', 'Sunday'];
-        })();
+        stayDates.forEach(d => {
+            const p = d.split('-');
+            if (p.length === 3) addMonth(parseInt(p[0], 10), parseInt(p[1], 10) - 1);
+        });
 
         const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const weekdayHdr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const isLongStay = stayDates.length > 7;
-        const firstStayFmt = enquiryProFormatNoticeDate(stayDates[0]);
-        const lastStayFmt = enquiryProFormatNoticeDate(stayDates[stayDates.length - 1]);
+        let html = '<div class="ep-legend-title">Stay rate calendar <span class="text-muted fw-normal">(blackout → fair → season)</span></div>';
+        html += '<div class="ep-legend-months">';
 
-        let html = `<div class="ep-legend-title">Stay rate calendar <span class="text-muted fw-normal">(blackout → fair → season)</span></div>`;
-        html += `<div class="ep-legend-title text-muted fw-normal" style="font-size:10px;margin-top:-3px;margin-bottom:5px;">${firstStayFmt} → ${lastStayFmt} · ${stayDates.length} night${stayDates.length > 1 ? 's' : ''}</div>`;
-
-        html += '<div class="ep-stay-summary">';
-        html += `<span class="ep-stay-summary-label">${stayDates.length} stay night${stayDates.length > 1 ? 's' : ''}:</span>`;
-        html += `<div class="ep-stay-chips-scroll${isLongStay ? ' ep-scroll' : ''}">`;
-        stayDates.forEach(dateStr => {
-            const dt = new Date(dateStr + 'T12:00:00');
-            const wk = dt.toLocaleString('en-US', { weekday: 'short' });
-            const night = stayNightMap.get(dateStr);
-            const applicable = enquiryProGetApplicableRateForDate(dateStr, hotelRates);
-            let chipCls = 'ep-stay-chip ep-stay-active';
-            if (applicable?.event_type) chipCls += ' ' + enquiryProGetRateCssClass(applicable.event_type);
-            const chipLabel = `N${night} · ${wk} ${enquiryProFormatNoticeDate(dateStr)}`;
-            const tip = applicable
-                ? `Night ${night} — ${wk} ${enquiryProFormatNoticeDate(dateStr)} — ${applicable.event_type}${applicable.event ? ': ' + applicable.event : ''}`
-                : `Night ${night} — ${wk} ${enquiryProFormatNoticeDate(dateStr)}`;
-            html += `<span class="${chipCls}" title="${enquiryProEscapeHtml(tip)}">${chipLabel}</span>`;
-        });
-        html += '</div></div>';
-
-        const firstStay = new Date(stayDates[0] + 'T12:00:00');
-        const lastStay = new Date(stayDates[stayDates.length - 1] + 'T12:00:00');
-        const rangeStart = new Date(firstStay);
-        rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
-        const rangeEnd = new Date(lastStay);
-        rangeEnd.setDate(rangeEnd.getDate() + (6 - rangeEnd.getDay()));
-
-        html += '<div class="ep-cal-compact-wrap"><div class="ep-cal-compact-inner">';
-        html += '<div class="ep-cal-weekdays">';
-        weekdayHdr.forEach((name, i) => {
-            const colDate = new Date(2024, 0, 7 + i);
-            const isWkndCol = isWeekendDate(colDate, weekendDays);
-            html += `<div class="ep-cal-weekday${isWkndCol ? ' ep-wknd-hdr' : ''}">${name}</div>`;
-        });
-        html += '</div><div class="ep-cal-weeks">';
-
-        const weekRows = [];
-        let currentWeek = [];
-        const cursor = new Date(rangeStart);
-        while (cursor <= rangeEnd) {
-            const y = cursor.getFullYear();
-            const m = cursor.getMonth();
-            const day = cursor.getDate();
-            const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dt = new Date(dateStr + 'T12:00:00');
-            const dayName = dt.toLocaleString('en-US', { weekday: 'short' });
-            const isWeekend = isWeekendDate(dt, weekendDays);
-            const applicable = enquiryProGetApplicableRateForDate(dateStr, hotelRates);
-            const isStay = staySet.has(dateStr);
-            const nightNum = stayNightMap.get(dateStr);
-            const isOutside = !isStay && !applicable;
-
-            let cls = 'ep-cal-day' + (isWeekend ? ' ep-weekend' : '') + (isOutside ? ' ep-outside' : '');
-            if (applicable?.event_type) cls += ' ' + enquiryProGetRateCssClass(applicable.event_type);
-            if (isStay) cls += ' ep-stay';
-
-            let tip = `${dayName}, ${enquiryProFormatNoticeDate(dateStr)}`;
-            if (isStay) tip += ` — Stay night ${nightNum}`;
-            tip += isWeekend ? ' (Weekend)' : ' (Weekday)';
-            if (applicable) tip += ` — ${applicable.event_type}${applicable.event ? ': ' + applicable.event : ''}`;
-
-            let inner = '';
-            if (day === 1) inner += `<span class="ep-cal-month-tag">${monthNamesShort[m]}</span>`;
-            if (isStay) inner += `<span class="ep-cal-night-badge">N${nightNum}</span>`;
-            inner += `<span class="ep-cal-day-num">${day}</span><span class="ep-cal-day-name">${dayName}</span>`;
-
-            currentWeek.push(`<div class="${cls}" title="${enquiryProEscapeHtml(tip)}">${inner}</div>`);
-            if (currentWeek.length === 7) {
-                weekRows.push(currentWeek);
-                currentWeek = [];
+        [...monthsToRender.values()].sort((a, b) => (a.year - b.year) || (a.month - b.month)).forEach(({ year, month }) => {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            html += `<div class="ep-legend-month-block"><div class="ep-legend-month">${monthNamesShort[month]} ${year}</div><div class="ep-legend-grid">`;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const applicable = enquiryProGetApplicableRateForDate(dateStr, hotelRates);
+                const isStay = staySet.has(dateStr);
+                let cls = 'ep-day';
+                if (applicable?.event_type) cls += ' ' + enquiryProGetRateCssClass(applicable.event_type);
+                if (isStay) cls += ' ep-stay';
+                const tip = applicable
+                    ? `${dateStr} — ${applicable.event_type}${applicable.event ? ': ' + applicable.event : ''}`
+                    : dateStr;
+                html += `<span class="${cls}" title="${enquiryProEscapeHtml(tip)}">${day}</span>`;
             }
-            cursor.setDate(cursor.getDate() + 1);
-        }
-        if (currentWeek.length) {
-            while (currentWeek.length < 7) currentWeek.push('<div class="ep-cal-day-empty"></div>');
-            weekRows.push(currentWeek);
-        }
-        weekRows.forEach(cells => {
-            html += `<div class="ep-cal-week-row">${cells.join('')}</div>`;
+            html += '</div></div>';
         });
-        html += '</div></div></div>';
+        html += '</div>';
 
         html += `<div class="ep-legend-key">
-            <span class="ep-key-item"><span class="ep-key-swatch" style="background:#fff;border-color:#e9ecef;"></span> Weekday</span>
-            <span class="ep-key-item"><span class="ep-key-swatch" style="background:#f1f3f6;border-color:#d5dbe3;"></span> Weekend</span>
-            <span class="ep-key-item"><span class="ep-key-swatch ep-key-stay-ring"></span> Stay night</span>
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#f8d7da;border-color:#dc3545;"></span> Blackout</span>
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#e8daef;border-color:#9b59b6;"></span> Fair</span>
             <span class="ep-key-item"><span class="ep-key-swatch" style="background:#fff3cd;border-color:#ffc107;"></span> Season</span>
+            <span class="ep-key-item"><span class="ep-key-swatch" style="background:#cfe2ff;border-color:#0d6efd;"></span> Stay</span>
         </div>`;
 
         el.innerHTML = html;
@@ -12599,8 +12502,6 @@
         if (existing.focServiceDiscount !== undefined) {
             newHotel.focServiceDiscount = existing.focServiceDiscount;
         }
-        delete newHotel.savedSelectedMeals;
-        delete newHotel.savedTotalPrice;
         return newHotel;
     }
 
@@ -27955,59 +27856,6 @@
         return pricing.totals.lodging + pricing.totals.meals + extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
     }
 
-    /** True when hotel has live catalog pricing (modal/API), not just saved order room blob. */
-    function enquiryProHotelHasCatalogPricingSource(hotel) {
-        const room = hotel?.roomData || {};
-        if (room.weekday_price != null || room.weekdayPrice != null) return true;
-        if (room.breakfast_price != null || room.breakfastPrice != null) return true;
-        if (Array.isArray(hotel?.hotelRates) && hotel.hotelRates.length) return true;
-        return false;
-    }
-
-    /** Keep original JSON meal/lodging breakdown for orders loaded on edit until user re-picks room in modal. */
-    function enquiryProShouldPreserveSavedHotelPricing(hotel) {
-        const saved = hotel?.savedSelectedMeals;
-        if (!saved || typeof saved !== 'object') return false;
-        if (enquiryProHotelHasCatalogPricingSource(hotel)) return false;
-        return true;
-    }
-
-    function enquiryProHotelAddonCostsForPayload(hotel, nights) {
-        enquiryProSyncHotelAddonQuantities(hotel);
-        const n = Math.max(1, parseInt(nights, 10) || 1);
-        const cwbChildren = enquiryProHotelAddonQuantity(hotel, 'cwb');
-        const cnbChildren = enquiryProHotelAddonQuantity(hotel, 'cnb');
-        const extraBedQuantity = enquiryProHotelAddonQuantity(hotel, 'extra_bed');
-        const cwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0) : 0;
-        const cnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0) : 0;
-        const extraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0) : 0;
-        const childWithBedTotalCost = (hotel.hasCwb && cwbChildren > 0) ? (cwbPrice * cwbChildren * n) : 0;
-        const childWithoutBedTotalCost = (hotel.hasCnb && cnbChildren > 0) ? (cnbPrice * cnbChildren * n) : 0;
-        const extraBedTotalCost = (hotel.hasExtraBed && extraBedQuantity > 0) ? (extraBedPrice * extraBedQuantity * n) : 0;
-        return extraBedTotalCost + childWithBedTotalCost + childWithoutBedTotalCost;
-    }
-
-    /** Use saved order JSON pricing for unchanged existing rooms; recalculate for new/edited modal picks. */
-    function enquiryProResolveHotelPricingPayload(hotel, numberOfRooms, nights) {
-        const nr = Math.max(1, parseInt(numberOfRooms, 10) || 1);
-        const n = Math.max(1, parseInt(nights, 10) || 1);
-        if (enquiryProShouldPreserveSavedHotelPricing(hotel)) {
-            const selectedMealsPayload = JSON.parse(JSON.stringify(hotel.savedSelectedMeals));
-            const addonCosts = enquiryProHotelAddonCostsForPayload(hotel, n);
-            let totalPrice = parseFloat(hotel.savedTotalPrice);
-            if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
-                const lodging = parseFloat(selectedMealsPayload?.totals?.lodging) || 0;
-                const meals = parseFloat(selectedMealsPayload?.totals?.meals) || 0;
-                totalPrice = lodging + meals + addonCosts;
-            }
-            return { selectedMealsPayload, totalPrice };
-        }
-        return {
-            selectedMealsPayload: enquiryProBuildSelectedMealsPayload(hotel, nr, n),
-            totalPrice: enquiryProHotelPayloadTotalPrice(hotel, nr, n),
-        };
-    }
-
     // Transform accommodation data to required hotel format
     function transformAccommodationData() {
         const customerInfo = getCustomerInfo();
@@ -28085,7 +27933,8 @@
             // Get the actual database room_id
             const databaseRoomId = hotel.databaseRoomId || hotel.roomData?.room_id || hotel.roomData?.id || actualBedId || '';
             
-            const { selectedMealsPayload, totalPrice } = enquiryProResolveHotelPricingPayload(hotel, numberOfRooms, nights);
+            const selectedMealsPayload = enquiryProBuildSelectedMealsPayload(hotel, numberOfRooms, nights);
+            const totalPrice = enquiryProHotelPayloadTotalPrice(hotel, numberOfRooms, nights);
 
             // Create bed object with clean structure
             const bedObject = {
@@ -31706,10 +31555,6 @@
             hasInfant: data.hasInfant === true || data.has_infant === true || data.has_infant === 1,
             bedData: firstBed,
             roomData: firstRoom, // Store full room data for transformation
-            savedSelectedMeals: firstBed.selectedMeals?.meal_1
-                ? JSON.parse(JSON.stringify(firstBed.selectedMeals.meal_1))
-                : null,
-            savedTotalPrice: parseFloat(data.totalPrice ?? data.price ?? 0) || null,
             hotelDetails: hotelDetails,
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',

@@ -91,14 +91,21 @@
         
 
         @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+            @php
+                $dmcCanLiteForm = \App\Helpers\CommonHelper::dmcCanAccessLiteForm(auth()->user());
+                $dmcCanProForm = \App\Helpers\CommonHelper::dmcCanAccessProForm(auth()->user());
+            @endphp
+            @if($dmcCanProForm)
             <li class="menu-item @if(Request::is('enquiry-form-pro/create')) active @endif" style="position: relative;">
                 <a href="#" class="menu-link" id="createSingleTourProBtn" data-enquiry-pro-create-url="{{ route('enquiry-form-pro.create') }}">
                     <i class="menu-icon tf-icons ri-file-list-3-line"></i>
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-pro">Pro</span>
                 </a>
-            </li> 
+            </li>
+            @endif
 
+            @if($dmcCanLiteForm)
             <!-- Single Tour Package for DMCs -->
             <li class="menu-item @if(Request::is('single-tour-package/create')) active @endif" style="position: relative;">
                 <a href="{{ route('single-tour-package.create') }}" class="menu-link">
@@ -106,7 +113,8 @@
                     <div data-i18n="Create Tour">Create Tour</div>
                     <span class="badge-lite">Lite</span>
                 </a>
-            </li> 
+            </li>
+            @endif
 
             <li class="menu-item @if(Request::is('packages/booking/create')) active @endif" style="position: relative;">
                 <a href="{{ route('packages.booking.create') }}" class="menu-link">
@@ -1459,12 +1467,18 @@
                 @endphp
                 @if(in_array(auth()->user()->role_id, $smartNotificationRoles))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="Smart Notification">Smart Notification</span>
+                    <span class="menu-header-text" data-i18n="Smart App Notification">Smart Notification</span>
                 </li>
-                <li class="menu-item @if(Request::is('smart-notification*')) active @endif">
+                <li class="menu-item @if(Request::is('smart-notification') && !Request::is('smart-notification/history*')) active @endif">
                     <a href="{{ route('smart-notification.index') }}" class="menu-link">
                         <i class="menu-icon tf-icons ri-notification-3-line"></i>
                         <div data-i18n="Send Notification">Send Notification</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('smart-notification/history*')) active @endif">
+                    <a href="{{ route('smart-notification.history') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-history-line"></i>
+                        <div data-i18n="Notification History">Notification History</div>
                     </a>
                 </li>
                 @endif
@@ -1502,7 +1516,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1565,6 +1579,14 @@
                                     <div data-i18n="Guide Languages">Guide Languages</div>
                                 </a>
                             </li>
+
+                            @if(hasPermission('settings') || hasPermission('edit settings'))
+                            <li class="menu-item @if(Request::is('suppliers*')) active @endif">
+                                <a href="{{ route('suppliers.index') }}" class="menu-link">
+                                    <div data-i18n="Online Api Master">Online Api Master</div>
+                                </a>
+                            </li>
+                            @endif
                         @endif
                         @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
                             <li class="menu-item @if(Request::is('itinerary_settings.pdf')) active @endif">

@@ -1,4 +1,4 @@
-@extends('layouts.layout')
+                                                                                                                          @extends('layouts.layout')
 @section('title', 'Users')
 @extends('layouts.datatablecss')
 
@@ -55,14 +55,14 @@
     margin-top: 0;
   }
 
-  /* Settings column: 6 aligned slots (Auto Cancel Status = toggle, Auto Cancel = D-n dropdown) */
+  /* Settings column: 7 aligned slots (incl. AI Response) */
   .settings-header-grid,
   .settings-controls-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0.35rem;
     width: 100%;
-    min-width: 320px;
+    min-width: 380px;
   }
 
   .settings-header-grid {
@@ -104,6 +104,7 @@
 
   .datatables-basic .booking-type-select,
   .datatables-basic .auto-cancel-dropdown,
+  .datatables-basic .ai-response-dropdown,
   .datatables-basic .guide-pax-input {
     height: 26px !important;
     font-size: 11px !important;
@@ -116,6 +117,24 @@
     min-width: 26px !important;
     min-height: 26px !important;
     padding: 0 !important;
+  }
+
+  .user-status-badge {
+    font-size: 10px;
+    padding: 0.2rem 0.45rem;
+  }
+
+  .datatables-basic tr.user-inactive-row {
+    background-color: #fff8f8;
+  }
+
+  .datatables-basic tr.user-inactive-row td {
+    opacity: 0.92;
+  }
+
+  .auto-login-disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   .dataTables_wrapper .dataTables_filter input,
@@ -170,7 +189,7 @@
               <th>Country & City</th>
 
               @if($showSettingsColumn)
-                <th class="settings-controls-col" style="min-width: 320px;">
+                <th class="settings-controls-col" style="min-width: 380px;">
                   <div class="settings-header-grid fw-bold text-uppercase">
                     <span>Zone On</span>
                     <span>Price Hide</span>
@@ -178,6 +197,7 @@
                     <span>Auto Cancel Status</span>
                     <span>Auto Cancel</span>
                     <span>Guide Pax</span>
+                    <span>AI Response</span>
                   </div>
                 </th>
               @endif
@@ -185,6 +205,7 @@
                 <th class="booking-type-col" style="min-width: 150px;">Booking Type</th>
               @endif
 
+              <th style="min-width: 90px;">Active</th>
               <th>User Type</th>
 
               @if(hasPermission('edit users') || hasPermission('delete users'))
@@ -232,8 +253,9 @@
                 } elseif (!in_array($selectedBookingTypeForRow, [1, 2, 3], true)) {
                     $selectedBookingTypeForRow = 1;
                 }
+                $userIsActive = (int) ($user->is_active ?? 1) === 1;
               @endphp
-              <tr class="{{ $showSettingsForThisRow ? '' : 'no-settings-row' }}">
+              <tr class="{{ ($showSettingsForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
                 <td>{{ ++$key }}</td>
                 <td>{{ $user->company_name ?? 'N/A' }}</td>
                 <td>
@@ -350,6 +372,20 @@
                                     oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
                             </div>
                         </div>
+                        <div class="settings-col">
+                            <div class="form-group mb-0">
+                                <select class="form-select ai-response-dropdown"
+                                    data-user-id="{{ $user->userId }}"
+                                    data-previous-value="{{ strtoupper((string) ($user->ai_response ?? '')) }}"
+                                    id="ai_response_{{ $user->userId }}"
+                                    title="QTN = Quotation, ITN = Itinerary"
+                                    style="width: 62px; height: 25px; font-size: 11px; padding: 1px;">
+                                    <option value="" {{ empty($user->ai_response) ? 'selected' : '' }}>--</option>
+                                    <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
+                                    <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
+                                </select>
+                            </div>
+                        </div>
                       @else
                         <div class="settings-col">
                             <div class="form-check form-switch mb-0">
@@ -411,6 +447,16 @@
                         <div class="settings-col">
                             <span class="text-muted small">—</span>
                         </div>
+                        <div class="settings-col">
+                            <div class="form-group mb-0">
+                                <select class="form-select ai-response-dropdown"
+                                    style="width: 62px; height: 25px; font-size: 11px; padding: 1px;" disabled>
+                                    <option value="" {{ empty($user->ai_response) ? 'selected' : '' }}>--</option>
+                                    <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
+                                    <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
+                                </select>
+                            </div>
+                        </div>
                       @endif
                     </div>
                   @else
@@ -437,6 +483,31 @@
                   @endif
                 </td>
                 @endif
+
+                <td class="text-center">
+                  @if(hasPermission('edit users'))
+                    <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
+                      <input type="checkbox"
+                        class="form-check-input user-active-toggle"
+                        data-user-id="{{ $user->userId }}"
+                        id="user_active_{{ $user->userId }}"
+                        {{ $userIsActive ? 'checked' : '' }}
+                        {{ (int) $user->userId === (int) auth()->user()->userId ? 'data-self="1"' : '' }}
+                        style="width: 34px; height: 18px; cursor: pointer;"
+                        title="{{ $userIsActive ? 'Active — click to deactivate' : 'Inactive — click to activate' }}">
+                    </div>
+                    <div class="mt-1">
+                      <span class="badge user-status-badge {{ $userIsActive ? 'bg-success' : 'bg-secondary' }}">
+                        {{ $userIsActive ? 'Active' : 'Inactive' }}
+                      </span>
+                    </div>
+                  @else
+                    <span class="badge user-status-badge {{ $userIsActive ? 'bg-success' : 'bg-secondary' }}">
+                      {{ $userIsActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  @endif
+                </td>
+
                 <td>{{ $user->getUserTypeName() }}</td>
                 
                 
@@ -482,14 +553,30 @@
                 </td>
                 @endif
                 
+                @if(auth::user()->user_type == 1 || auth::user()->user_type == 2 || auth::user()->user_type == 3)
                 <td>
-                    <a href="{{ route('admin.loginAsUser', $user->userId) }}" class="btn btn-primary" >
+                    @if($userIsActive)
+                    <a href="{{ route('admin.loginAsUser', $user->userId) }}"
+                       class="btn btn-primary btn-sm"
+                       title="Auto login as {{ $user->name }}">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
                         <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
                         <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
                       </svg>
                     </a>
+                    @else
+                    <button type="button"
+                            class="btn btn-secondary btn-sm auto-login-disabled"
+                            disabled
+                            title="Auto login unavailable — user is inactive">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+                      </svg>
+                    </button>
+                    @endif
                 </td>
+                @endif
               </tr>
             @endforeach
           </tbody>
@@ -974,6 +1061,98 @@ $(document).ready(function() {
                 if (xhr.responseJSON && xhr.responseJSON.previous_value !== undefined) {
                     $input.val(xhr.responseJSON.previous_value);
                 }
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('change', '.ai-response-dropdown:not(:disabled)', function() {
+        const $dropdown = $(this);
+        const userId = $dropdown.data('user-id');
+        const selectedValue = $dropdown.val();
+        const previousValue = $dropdown.data('previous-value') ?? '';
+
+        $dropdown.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('update.airesponse') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                ai_response: selectedValue,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $dropdown.prop('disabled', false);
+                if (response.success) {
+                    $dropdown.data('previous-value', selectedValue);
+                    toastr.success(response.message || 'AI Response updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating AI Response');
+                    $dropdown.val(response.previous_value || previousValue || '');
+                }
+            },
+            error: function(xhr) {
+                $dropdown.prop('disabled', false);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating AI Response';
+                toastr.error(msg);
+                $dropdown.val(previousValue || '');
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('focus', '.ai-response-dropdown:not(:disabled)', function() {
+        $(this).data('previous-value', $(this).val());
+    });
+});
+</script>
+
+<script>
+$(document).ready(function() {
+    $(document).on('change', '.user-active-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isSelf = $toggle.data('self') === 1 || $toggle.data('self') === '1';
+        const isChecked = $toggle.is(':checked') ? 1 : 0;
+
+        if (isSelf && !isChecked) {
+            toastr.warning('You cannot deactivate your own account.');
+            $toggle.prop('checked', true);
+            return;
+        }
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.active') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                is_active: isChecked,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                if (response.success) {
+                    toastr.success(response.message || 'User status updated successfully');
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    $toggle.prop('disabled', false);
+                    toastr.error(response.message || 'Error updating user status');
+                    $toggle.prop('checked', !isChecked);
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating user status';
+                toastr.error(msg);
+                $toggle.prop('checked', !isChecked);
                 console.error(xhr.responseText);
             }
         });

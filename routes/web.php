@@ -62,6 +62,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
 use App\Http\Controllers\GuideLanguagesController;
+use App\Http\Controllers\SupplierMasterController;
 use Illuminate\Support\Facades\Artisan;
 // use App\Services\AzureKeyVaultService;
 // use Illuminate\Support\Facades\Mail;
@@ -106,10 +107,28 @@ Route::get('/clear', function () {
             Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
             Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
 
+            Route::get('/suppliers', [SupplierMasterController::class, 'index'])->name('suppliers.index');
+            Route::post('/suppliers', [SupplierMasterController::class, 'store'])->name('suppliers.store');
+            Route::put('/suppliers/{supplier}', [SupplierMasterController::class, 'update'])->name('suppliers.update');
+            Route::post('/suppliers/credentials/{code}', [SupplierMasterController::class, 'updateCredentials'])->name('suppliers.credentials.update');
+            Route::delete('/suppliers/{supplier}', [SupplierMasterController::class, 'destroy'])->name('suppliers.destroy');
+
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
             Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
+            Route::get('/user/account-status', function () {
+                $user = Auth::user();
+                if (!$user) {
+                    return response()->json(['active' => false], 401);
+                }
+
+                $freshUser = \App\Models\User::where('userId', $user->userId)->first();
+
+                return response()->json([
+                    'active' => $freshUser && $freshUser->isAccountActive(),
+                ]);
+            })->name('user.account.status');
             Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
             Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
@@ -346,206 +365,59 @@ Route::get('/clear', function () {
 
             Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
                 try {
-                    // Decrypt the tour ID
                     $tourId = decrypt($encryptedTourId);
-                    
-                    // Try to get the tour first to verify it exists
-                    $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+                    $tour = \App\Models\Tour::with(['agent', 'dmc'])->where('tour_id', $tourId)->first();
+
                     if (!$tour) {
-                        \Log::error('Email preview: Tour not found', ['tour_id' => $tourId]);
                         return redirect()->back()->with('error', 'Tour not found.');
                     }
-                    
-                    // Try to prepare email data, but handle exceptions gracefully
-                    try {
-                        $emailData = CommonHelper::prepareEmailTemplateData($tourId);
-                        
-                        // If passenger details are still empty after prepareEmailTemplateData, try to get from tour's mainguest column
-                        if ($emailData && isset($emailData['bookingDetails']) && 
-                            ($emailData['bookingDetails']['lead_guest_name'] === 'N/A' || empty($emailData['bookingDetails']['lead_guest_name'])) && 
-                            !empty($tour->mainguest)) {
-                            try {
-                                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
-                                if (is_array($mainguestData) && !empty($mainguestData)) {
-                                    // Map mainguest fields to bookingDetails
-                                    if (!empty($mainguestData['full_name'])) {
-                                        $emailData['bookingDetails']['lead_guest_name'] = $mainguestData['full_name'];
-                                    }
-                                    if (!empty($mainguestData['email'])) {
-                                        $emailData['bookingDetails']['email'] = $mainguestData['email'];
-                                    }
-                                    if (!empty($mainguestData['phone'])) {
-                                        $phone = $mainguestData['phone'];
-                                        // Add country code if available
-                                        if (!empty($mainguestData['country_code'])) {
-                                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
-                                        }
-                                        $emailData['bookingDetails']['phone'] = $phone;
-                                    }
-                                    // Combine address1 and address2
-                                    $address1 = $mainguestData['address1'] ?? '';
-                                    $address2 = $mainguestData['address2'] ?? '';
-                                    if (!empty($address1) || !empty($address2)) {
-                                        $emailData['bookingDetails']['address'] = trim($address1 . ' ' . $address2);
-                                    }
-                                    if (!empty($mainguestData['state'])) {
-                                        $emailData['bookingDetails']['city'] = $mainguestData['state'];
-                                    }
-                                    if (!empty($mainguestData['zip'])) {
-                                        $emailData['bookingDetails']['postal_code'] = $mainguestData['zip'];
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                // If parsing fails, keep existing values
-                                \Log::warning('Failed to parse mainguest data from tour in email preview', [
-                                    'tour_id' => $tourId,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        \Log::error('Email preview data preparation error: ' . $e->getMessage(), [
-                            'tour_id' => $tourId,
-                            'trace' => $e->getTraceAsString()
-                        ]);
-                        
-                        // If data preparation fails, create minimal data structure
-                        $emailData = [
-                            'tour' => $tour,
-                            'servicesByDate' => [],
-                            'servicesByType' => [],
-                            'generatedAt' => now(),
-                            'dmcLogo' => null,
-                            'dmcCompanyName' => null,
-                            'dmcDetails' => [
-                                'name' => 'N/A',
-                                'address' => 'N/A',
-                                'city' => 'N/A',
-                                'country' => 'N/A',
-                                'email' => 'N/A',
-                                'email2' => 'N/A',
-                                'phone' => 'N/A',
-                                'postal_pin' => 'N/A',
-                                'company_name' => 'N/A',
-                            ],
-                            'agentDetails' => [
-                                'name' => 'N/A',
-                                'address' => 'N/A',
-                                'contact_person' => 'N/A',
-                                'phone' => 'N/A',
-                                'email' => 'N/A',
-                            ],
-                            'proposalDetails' => [
-                                'proposal_date' => now()->format('d M Y'),
-                                'proposal_validity' => 'N/A',
-                                'proposal_sent_by' => 'N/A',
-                            ],
-                            'bookingDetails' => [
-                                'booking_id' => $tour->display_id ?? ('Tour #' . ($tour->tour_id ?? 'N/A')),
-                                'lead_guest_name' => 'N/A',
-                                'email' => 'N/A',
-                                'phone' => 'N/A',
-                                'address' => 'N/A',
-                                'city' => 'N/A',
-                                'postal_code' => 'N/A',
-                                'no_of_adults' => (int)($tour->adult ?? 0),
-                                'no_of_children' => (int)($tour->child ?? 0),
-                                'no_of_infants' => (int)($tour->infant ?? 0),
-                            ],
-                            'travelDetails' => [
-                                'destination' => $tour->destination ?? $tour->tour_destination ?? 'N/A',
-                                'travel_date_from' => $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('l- d/m/Y') : 'N/A',
-                                'travel_date_to' => $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('l- d/m/Y') : 'N/A',
-                                'duration' => 'N/A',
-                            ],
-                            'tourPrices' => [
-                                'segregated' => [
-                                    'hotel' => ['baby_cot' => 0],
-                                ],
-                            ],
-                            'hotelOptions' => [],
-                            'bankDetails' => [],
-                            'termsAndConditions' => '',
-                            'exclusions' => '',
-                            'paymentTerms' => [],
-                        ];
-                        
-                        // If passenger details are still empty, try to get from tour's mainguest column
-                        if (($emailData['bookingDetails']['lead_guest_name'] === 'N/A' || empty($emailData['bookingDetails']['lead_guest_name'])) && !empty($tour->mainguest)) {
-                            try {
-                                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
-                                if (is_array($mainguestData) && !empty($mainguestData)) {
-                                    // Map mainguest fields to bookingDetails
-                                    if (!empty($mainguestData['full_name'])) {
-                                        $emailData['bookingDetails']['lead_guest_name'] = $mainguestData['full_name'];
-                                    }
-                                    if (!empty($mainguestData['email'])) {
-                                        $emailData['bookingDetails']['email'] = $mainguestData['email'];
-                                    }
-                                    if (!empty($mainguestData['phone'])) {
-                                        $phone = $mainguestData['phone'];
-                                        // Add country code if available
-                                        if (!empty($mainguestData['country_code'])) {
-                                            $phone = '+' . $mainguestData['country_code'] . ' ' . $phone;
-                                        }
-                                        $emailData['bookingDetails']['phone'] = $phone;
-                                    }
-                                    // Combine address1 and address2
-                                    $address1 = $mainguestData['address1'] ?? '';
-                                    $address2 = $mainguestData['address2'] ?? '';
-                                    if (!empty($address1) || !empty($address2)) {
-                                        $emailData['bookingDetails']['address'] = trim($address1 . ' ' . $address2);
-                                    }
-                                    if (!empty($mainguestData['state'])) {
-                                        $emailData['bookingDetails']['city'] = $mainguestData['state'];
-                                    }
-                                    if (!empty($mainguestData['zip'])) {
-                                        $emailData['bookingDetails']['postal_code'] = $mainguestData['zip'];
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                // If parsing fails, keep existing values
-                                \Log::warning('Failed to parse mainguest data from tour in email preview', [
-                                    'tour_id' => $tourId,
-                                    'error' => $e->getMessage()
-                                ]);
-                            }
-                        }
-                    }
-                    
+
+                    $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+
                     if (!$emailData) {
-                        \Log::error('Email preview: prepareEmailTemplateData returned null', ['tour_id' => $tourId]);
-                        return redirect()->back()->with('error', 'Tour not found.');
+                        $agent = $tour->agent;
+                        $agency = $agent && $agent->agency_id
+                            ? \App\Models\Agency::where('agency_id', $agent->agency_id)->first()
+                            : null;
+                        $dmcUser = $tour->dmc;
+                        if (!$dmcUser && $tour->dmc_id) {
+                            $dmcUser = \App\Models\User::where('userId', $tour->dmc_id)->first();
+                        }
+                        $dmcName = $dmcUser
+                            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+                            : 'DMC';
+
+                        $emailData = CommonHelper::normalizeQuotationEmailData([
+                            'dmc_name' => $dmcName,
+                            'dmc_logo' => $dmcUser->logo ?? null,
+                            'dmc_label' => $dmcName,
+                            'dmc_contact_email' => (string) ($dmcUser->email ?? ''),
+                            'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
+                            'destination' => (string) ($tour->destination ?? 'N/A'),
+                            'city' => (string) ($tour->city ?? ''),
+                            'check_in_time' => $tour->check_in_time,
+                            'check_out_time' => $tour->check_out_time,
+                            'adult' => (int) ($tour->adult ?? 0),
+                            'child' => (int) ($tour->child ?? 0),
+                            'infant' => (int) ($tour->infant ?? 0),
+                            'agent_name' => (string) ($agent->name ?? ''),
+                            'agency_name' => (string) ($agency->agency_name ?? ''),
+                            'quoted_at' => $tour->created_at
+                                ? \Carbon\Carbon::parse($tour->created_at)->format('M d, Y H:i')
+                                : now()->format('M d, Y H:i'),
+                            'dashboard_link' => CommonHelper::url(),
+                        ]);
                     }
-                    
-                    // Ensure servicesByType is always an array, even if empty
-                    if (!isset($emailData['servicesByType']) || !is_array($emailData['servicesByType'])) {
-                        $emailData['servicesByType'] = [];
-                    }
-                    
-                    // Ensure hotelOptions is always an array, even if empty
-                    if (!isset($emailData['hotelOptions']) || !is_array($emailData['hotelOptions'])) {
-                        $emailData['hotelOptions'] = [];
-                    }
-                    
-                    // Ensure tourPrices has the expected structure
-                    if (!isset($emailData['tourPrices']) || !is_array($emailData['tourPrices'])) {
-                        $emailData['tourPrices'] = [
-                            'segregated' => [
-                                'hotel' => ['baby_cot' => 0],
-                            ],
-                        ];
-                    }
-                    
-                    return view('single-tour-package.email-details', $emailData);
+
+                    return view('email.quotation-confirmation', $emailData);
                 } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                    \Log::error('Email preview decryption error: ' . $e->getMessage());
                     return redirect()->back()->with('error', 'Invalid tour ID.');
                 } catch (\Exception $e) {
-                    \Log::error('Email preview error: ' . $e->getMessage(), [
-                        'trace' => $e->getTraceAsString()
+                    \Log::error('Quotation email preview error: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
                     ]);
-                    return redirect()->back()->with('error', 'Unable to load email preview.');
+
+                    return redirect()->back()->with('error', 'Unable to load quotation email preview.');
                 }
             })->name('tour.email.preview');
 
@@ -719,8 +591,10 @@ Route::get('/clear', function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
+        Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
@@ -998,6 +872,7 @@ Route::get('/clear', function () {
             Route::get('/lost-found', [\App\Http\Controllers\LostFoundController::class, 'index'])->name('lost-found.index');
             Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
             Route::get('/smart-notification', [SmartNotificationController::class, 'index'])->name('smart-notification.index');
+            Route::get('/smart-notification/history', [SmartNotificationController::class, 'history'])->name('smart-notification.history');
             Route::get('/smart-notification/recipients', [SmartNotificationController::class, 'recipients'])->name('smart-notification.recipients');
             Route::post('/smart-notification/send', [SmartNotificationController::class, 'send'])->name('smart-notification.send');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
@@ -1411,6 +1286,25 @@ Route::get('preview-booking-email', function (\Illuminate\Http\Request $request)
     }
 
     return view('email.booking-confirmation', $emailData);
+});
+
+// Temporary preview route for the quotation-confirmation email template.
+// Usage: /preview-quotation-email?tour_id=123  or  ?display_id=ORD3662
+Route::get('preview-quotation-email', function (\Illuminate\Http\Request $request) {
+    $tourKey = $request->query('tour_id') ?? $request->query('display_id');
+    $tour = \App\Helpers\CommonHelper::findTourForEmailPreview($tourKey);
+
+    if (!$tour) {
+        abort(404, 'No tour found. Pass ?tour_id= or ?display_id= for a tour that has orders.');
+    }
+
+    $emailData = \App\Helpers\CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+
+    if (!$emailData) {
+        abort(404, 'Tour #' . ($tour->display_id ?? $tour->tour_id) . ' has no orders to preview.');
+    }
+
+    return view('email.quotation-confirmation', $emailData);
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])

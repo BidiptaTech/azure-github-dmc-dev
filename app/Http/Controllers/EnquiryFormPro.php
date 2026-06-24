@@ -31,6 +31,17 @@ use Illuminate\Support\Facades\Auth;
 
 class EnquiryFormPro extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('pro')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
     /**
      * Resolve operating DMC user id from logged-in user role chain.
      */
