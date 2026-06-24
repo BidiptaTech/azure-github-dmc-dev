@@ -2169,6 +2169,8 @@ class SingleTourPackageController extends Controller
             'paxInfo' => 'required|string|max:50',
         ]);
 
+        
+
         $baseUrl = rtrim((string) config('services.tiniva.base_url', ''), '/');
         if ($baseUrl === '') {
             // Safety fallback for environments where TINIVA_API_BASE_URL is not being loaded.
