@@ -1359,7 +1359,7 @@ class ExternalApiReceiveController extends Controller
                     ]);
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData, $dmcUser);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1472,7 +1472,7 @@ class ExternalApiReceiveController extends Controller
                 'dmc_label' => $dmcName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-            ]);
+            ], $dmcUser);
 
             if ($sent !== true) {
                 Log::warning('External API incomplete travel details email not sent', [
