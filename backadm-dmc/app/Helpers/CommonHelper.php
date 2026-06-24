@@ -2055,19 +2055,17 @@ class CommonHelper
             $bookedServices
         )), 2);
 
-        $agent = $tour->agent;
-        if (!$agent && $tour->agent_id) {
-            $agent = Agent::where('agent_id', $tour->agent_id)->first();
-        }
+        $agent = $tour->agent_id
+            ? Agent::where('agent_id', $tour->agent_id)->first()
+            : null;
 
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
-        $dmcUser = $tour->dmc;
-        if (!$dmcUser && $tour->dmc_id) {
-            $dmcUser = User::where('userId', $tour->dmc_id)->first();
-        }
+        $dmcUser = $tour->dmc_id
+            ? User::where('userId', $tour->dmc_id)->first()
+            : null;
 
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
@@ -2141,19 +2139,17 @@ class CommonHelper
             return null;
         }
 
-        $agent = $tour->agent;
-        if (!$agent && $tour->agent_id) {
-            $agent = Agent::where('agent_id', $tour->agent_id)->first();
-        }
+        $agent = $tour->agent_id
+            ? Agent::where('agent_id', $tour->agent_id)->first()
+            : null;
 
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
-        $dmcUser = $tour->dmc;
-        if (!$dmcUser && $tour->dmc_id) {
-            $dmcUser = User::where('userId', $tour->dmc_id)->first();
-        }
+        $dmcUser = $tour->dmc_id
+            ? User::where('userId', $tour->dmc_id)->first()
+            : null;
 
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))

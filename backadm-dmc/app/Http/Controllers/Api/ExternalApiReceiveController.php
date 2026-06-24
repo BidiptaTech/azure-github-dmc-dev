@@ -1318,13 +1318,45 @@ class ExternalApiReceiveController extends Controller
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
 
             if ($aiResponse === 'QTN') {
-                $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
-                if (!$emailData) {
-                    Log::warning('External API: quotation email data unavailable', [
+                $emailData = null;
+                try {
+                    $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+                } catch (Throwable $buildEx) {
+                    Log::warning('External API: quotation email data build failed, using fallback', [
                         'tour_id' => $tour->tour_id,
+                        'error' => $buildEx->getMessage(),
                     ]);
+                }
 
-                    return ['sent' => false, 'email' => $senderEmail];
+                if (!$emailData) {
+                    $bookedServices = $this->buildBookedServicesForEmail($orders);
+                    $totalEstimation = round(array_sum(array_map(
+                        static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+                        $bookedServices
+                    )), 2);
+                    $timestamp = now()->format('M d, Y H:i');
+                    $emailData = CommonHelper::normalizeQuotationEmailData([
+                        'dmc_name' => $dmcName,
+                        'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                        'tour_display_id' => $tour->display_id,
+                        'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
+                        'destination' => $tour->destination,
+                        'city' => $tour->city,
+                        'check_in_time' => $tour->check_in_time,
+                        'check_out_time' => $tour->check_out_time,
+                        'adult' => $tour->adult,
+                        'child' => $tour->child,
+                        'infant' => $tour->infant,
+                        'agent_name' => $agent->name ?? '',
+                        'agency_name' => $agency->agency_name ?? '',
+                        'dmc_label' => $dmcName,
+                        'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                        'booked_at' => $timestamp,
+                        'quoted_at' => $timestamp,
+                        'booked_services' => $bookedServices,
+                        'total_estimation' => $totalEstimation,
+                        'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                    ]);
                 }
 
                 $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
