@@ -583,11 +583,11 @@
                                                     <td colspan="5" style="padding-top:10px;">
                                                         @if(!empty($requested_days))
                                                             <span style="font-size:11px; color:{{ $textMuted }};">Requested: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $requested_days }} day{{ $requested_days > 1 ? 's' : '' }}</span>
+                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $requested_nights ?? max(0, (int) $requested_days - 1) }} night{{ (($requested_nights ?? max(0, (int) $requested_days - 1)) !== 1) ? 's' : '' }}</span>
                                                         @endif
                                                         @if(!empty($available_days))
                                                             <span style="font-size:11px; color:{{ $textMuted }}; margin-left:12px;">Package available: </span>
-                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $available_days }} day{{ $available_days > 1 ? 's' : '' }}</span>
+                                                            <span style="font-size:12px; font-weight:600; color:{{ $textDark }};">{{ $available_nights ?? max(0, (int) $available_days - 1) }} night{{ (($available_nights ?? max(0, (int) $available_days - 1)) !== 1) ? 's' : '' }}</span>
                                                         @endif
                                                     </td>
                                                 </tr>
