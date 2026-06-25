@@ -12,7 +12,7 @@
             <div class="modal-body" style="background: #f8f9fa;">
                 <div class="alert alert-info py-2 mb-3" style="font-size: 0.85rem;">
                     <i class="ri-information-line me-1"></i>
-                    Attractions are fetched live from SG Attractions. Select visit date and pax, then click <strong>Fetch Attractions</strong>.
+                    Attractions are fetched live from SG Attractions. Select visit date and guests, then click <strong>Fetch Attractions</strong>.
                 </div>
 
                 <div class="card border-0 shadow-sm mb-3">
@@ -27,9 +27,20 @@
                                 <input type="date" class="form-control form-control-sm" id="onlineAttractionVisitDate">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-group-line me-1"></i>Pax Info</label>
-                                <input type="text" class="form-control form-control-sm" id="onlineAttractionPaxInfo" readonly style="background: #fff;">
-                                <small class="text-muted" style="font-size: 0.7rem;">Format: adults|children</small>
+                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-group-line me-1"></i>Guests</label>
+                                <div class="guest-selector">
+                                    <div class="guest-display border rounded d-flex align-items-start justify-content-between" style="min-height: 34px; padding: 0.3rem 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6 !important; border-radius: 8px;">
+                                        <div class="guest-info d-flex flex-column gap-1" style="flex: 1;">
+                                            <span id="onlineAttractionGuestSummary" class="d-flex flex-column gap-1" style="font-size: 0.8rem;">
+                                                <span class="text-muted small">—</span>
+                                            </span>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="onlineAttractionGuestEditBtn" style="border-radius: 6px; padding: 0.25rem 0.5rem; margin-left: 0.5rem; flex-shrink: 0;">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="onlineAttractionPaxInfo" value="">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-list-ordered me-1"></i>Attraction Slot</label>
@@ -96,6 +107,91 @@
     </div>
 </div>
 
+{{-- Guest selector for online attraction search (editable pax) --}}
+<div class="modal fade" id="onlineAttractionGuestModal" tabindex="-1" aria-labelledby="onlineAttractionGuestModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content" style="border: none; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none; padding: 1rem 1.25rem;">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0 text-white" id="onlineAttractionGuestModalLabel" style="font-size: 1rem;">
+                    <i class="ri-group-line me-2"></i> Select Guests for Attraction Search
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem; background: #ffffff;">
+                <p class="text-muted small mb-3" id="onlineAttractionGuestLimitHint" style="font-size: 0.8rem;"></p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="font-size: 0.875rem;"><i class="ri-user-line me-1 text-primary"></i>Adults</h6>
+                            </div>
+                            <div class="card-body py-3">
+                                <div class="guest-counter mb-3 text-center">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.85rem;">Total Adults</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm online-attraction-guest-adults-minus" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold" id="onlineAttractionModalAdults" style="font-size: 1.5rem; min-width: 32px;">1</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm online-attraction-guest-adults-plus" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="guest-counter mb-3 text-center">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.85rem;">Male</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="male" data-delta="-1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold" id="onlineAttractionModalMale" style="font-size: 1.5rem; min-width: 32px;">1</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="male" data-delta="1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                                <div class="guest-counter text-center">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.85rem;">Female</label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="female" data-delta="-1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold" id="onlineAttractionModalFemale" style="font-size: 1.5rem; min-width: 32px;">0</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="female" data-delta="1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card" style="border: 1px solid #e9ecef; border-radius: 8px;">
+                            <div class="card-header py-2" style="background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                <h6 class="mb-0 fw-semibold" style="font-size: 0.875rem;"><i class="ri-user-smile-line me-1 text-primary"></i>Children & Infants</h6>
+                            </div>
+                            <div class="card-body py-3">
+                                <div class="guest-counter mb-3 text-center">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.85rem;">Children <small class="text-muted fw-normal">(1–17)</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="children" data-delta="-1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold" id="onlineAttractionModalChildren" style="font-size: 1.5rem; min-width: 32px;">0</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="children" data-delta="1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                    <div id="onlineAttractionChildAgesSection" class="mt-3 text-start" style="display: none;">
+                                        <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.8rem;">Child ages</label>
+                                        <div id="onlineAttractionChildAgeDropdowns" class="d-flex flex-column gap-2"></div>
+                                    </div>
+                                </div>
+                                <div class="guest-counter text-center">
+                                    <label class="form-label fw-semibold mb-2 d-block" style="font-size: 0.85rem;">Infants <small class="text-muted fw-normal">(under 1)</small></label>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="infants" data-delta="-1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-subtract-line"></i></button>
+                                        <span class="mx-3 fw-bold" id="onlineAttractionModalInfants" style="font-size: 1.5rem; min-width: 32px;">0</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-online-attraction-guest="infants" data-delta="1" style="width: 36px; height: 36px; border-radius: 6px;"><i class="ri-add-line"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #e9ecef;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="onlineAttractionGuestApplyBtn" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none;">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
 (function () {
@@ -105,6 +201,7 @@
     let onlineAttractionsCache = [];
     let onlineCurrentTickets = [];
     let onlineAttractionTarget = { day: 1, index: 1 };
+    let onlineAttractionGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
 
     function bindAttractionSourceToggle() {
         $(document).off('change.attractionSource', '.attraction-source-radio');
@@ -126,9 +223,282 @@
         });
     }
 
+    function getMainGuestLimits() {
+        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
+        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
+        const mainAdultsField = parseInt(document.getElementById('adults')?.value, 10) || 1;
+        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
+        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+
+        const maxAdults = Math.max(1, (mainMale + mainFemale) > 0 ? (mainMale + mainFemale) : mainAdultsField);
+
+        return {
+            adults: maxAdults,
+            children: mainChildren,
+            infants: mainInfants,
+            totalPax: maxAdults + mainChildren + mainInfants,
+        };
+    }
+
+    function getOnlineAttractionTotalAdults() {
+        return Math.max(1, onlineAttractionGuestState.male + onlineAttractionGuestState.female);
+    }
+
+    function notifyOnlineAttractionGuestLimit(message) {
+        if (typeof showNotification === 'function') {
+            showNotification(message, 'warning');
+        }
+    }
+
+    function clampOnlineAttractionGuestState() {
+        const limits = getMainGuestLimits();
+
+        onlineAttractionGuestState.children = Math.min(Math.max(0, onlineAttractionGuestState.children), limits.children);
+        onlineAttractionGuestState.infants = Math.min(Math.max(0, onlineAttractionGuestState.infants), limits.infants);
+        onlineAttractionGuestState.male = Math.max(0, onlineAttractionGuestState.male);
+        onlineAttractionGuestState.female = Math.max(0, onlineAttractionGuestState.female);
+
+        let totalAdults = getOnlineAttractionTotalAdults();
+        if (totalAdults > limits.adults) {
+            let excess = totalAdults - limits.adults;
+            const maleReduce = Math.min(onlineAttractionGuestState.male, excess);
+            onlineAttractionGuestState.male -= maleReduce;
+            excess -= maleReduce;
+            onlineAttractionGuestState.female = Math.max(0, onlineAttractionGuestState.female - excess);
+        }
+
+        if (getOnlineAttractionTotalAdults() < 1) {
+            onlineAttractionGuestState.male = Math.min(1, limits.adults);
+            onlineAttractionGuestState.female = 0;
+        }
+    }
+
+    function loadOnlineAttractionGuestStateFromMain() {
+        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
+        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
+        const mainAdults = parseInt(document.getElementById('adults')?.value, 10) || 1;
+        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
+        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+
+        onlineAttractionGuestState.male = mainMale;
+        onlineAttractionGuestState.female = mainFemale;
+        if (mainMale + mainFemale === 0) {
+            onlineAttractionGuestState.male = mainAdults;
+            onlineAttractionGuestState.female = 0;
+        }
+        onlineAttractionGuestState.children = mainChildren;
+        onlineAttractionGuestState.infants = mainInfants;
+
+        try {
+            const raw = document.getElementById('child_ages')?.value || '[]';
+            const parsed = JSON.parse(raw);
+            onlineAttractionGuestState.childAges = Array.isArray(parsed) ? parsed.map(function (a) { return parseInt(a, 10); }).filter(function (a) { return !isNaN(a); }) : [];
+        } catch (e) {
+            onlineAttractionGuestState.childAges = [];
+        }
+
+        clampOnlineAttractionGuestState();
+    }
+
+    function getAttractionGuestCounts() {
+        const male = Math.max(0, onlineAttractionGuestState.male);
+        const female = Math.max(0, onlineAttractionGuestState.female);
+        const adults = Math.max(1, male + female);
+        const children = Math.max(0, onlineAttractionGuestState.children);
+        const infants = Math.max(0, onlineAttractionGuestState.infants);
+        return { adults, male, female, children, infants };
+    }
+
+    function renderOnlineAttractionGuestSummary() {
+        const { adults, male, female, children, infants } = getAttractionGuestCounts();
+        const guestSummary = document.getElementById('onlineAttractionGuestSummary');
+        if (!guestSummary) return;
+
+        let summaryHTML = '<span class="d-flex align-items-center gap-1">';
+        summaryHTML += '<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>' + adults + ' Adults</span></span>';
+        summaryHTML += ' <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>' + male + '</span></span>';
+        summaryHTML += ' <span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>' + female + '</span></span>';
+        summaryHTML += '</span>';
+        summaryHTML += '<span class="d-flex align-items-center gap-1">';
+        summaryHTML += ' <span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>' + children + '</span></span>';
+        summaryHTML += ' <span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>' + infants + '</span></span>';
+        summaryHTML += '</span>';
+        guestSummary.innerHTML = summaryHTML;
+    }
+
+    function syncOnlineAttractionGuestDerivedFields() {
+        renderOnlineAttractionGuestSummary();
+        const paxEl = document.getElementById('onlineAttractionPaxInfo');
+        if (paxEl) paxEl.value = buildPaxInfo();
+    }
+
+    function renderOnlineAttractionGuestModalCounters() {
+        const { adults, male, female, children, infants } = getAttractionGuestCounts();
+        const setText = function (id, val) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = String(val);
+        };
+        setText('onlineAttractionModalAdults', adults);
+        setText('onlineAttractionModalMale', male);
+        setText('onlineAttractionModalFemale', female);
+        setText('onlineAttractionModalChildren', children);
+        setText('onlineAttractionModalInfants', infants);
+    }
+
+    function updateOnlineAttractionChildAgeDropdowns() {
+        const section = document.getElementById('onlineAttractionChildAgesSection');
+        const container = document.getElementById('onlineAttractionChildAgeDropdowns');
+        if (!section || !container) return;
+
+        const count = Math.max(0, onlineAttractionGuestState.children);
+        if (count === 0) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            onlineAttractionGuestState.childAges = [];
+            return;
+        }
+
+        section.style.display = '';
+        while (onlineAttractionGuestState.childAges.length < count) {
+            onlineAttractionGuestState.childAges.push(8);
+        }
+        onlineAttractionGuestState.childAges = onlineAttractionGuestState.childAges.slice(0, count);
+
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            let ageOptions = '';
+            for (let age = 1; age <= 17; age++) {
+                ageOptions += '<option value="' + age + '"' + (onlineAttractionGuestState.childAges[i] === age ? ' selected' : '') + '>' + age + ' years</option>';
+            }
+            const row = document.createElement('div');
+            row.className = 'd-flex align-items-center gap-2';
+            row.innerHTML = '<label class="text-success fw-semibold mb-0" style="min-width: 70px; font-size: 0.8rem;">Child ' + (i + 1) + ':</label>' +
+                '<select class="form-select form-select-sm online-attraction-child-age-select" data-child-index="' + i + '">' + ageOptions + '</select>';
+            container.appendChild(row);
+        }
+    }
+
+    function adjustOnlineAttractionGuest(type, delta) {
+        delta = parseInt(delta, 10) || 0;
+        const limits = getMainGuestLimits();
+
+        if (type === 'male') {
+            if (delta > 0) {
+                if (onlineAttractionGuestState.female < 1) {
+                    notifyOnlineAttractionGuestLimit('Cannot increase male without reducing female. Use Female − or increase total adults.');
+                    return;
+                }
+                onlineAttractionGuestState.male += 1;
+                onlineAttractionGuestState.female -= 1;
+            } else if (delta < 0) {
+                if (onlineAttractionGuestState.male < 1) return;
+                onlineAttractionGuestState.male -= 1;
+                onlineAttractionGuestState.female += 1;
+            }
+        } else if (type === 'female') {
+            if (delta > 0) {
+                if (onlineAttractionGuestState.male < 1) {
+                    notifyOnlineAttractionGuestLimit('Cannot increase female without reducing male. Use Male − or increase total adults.');
+                    return;
+                }
+                onlineAttractionGuestState.female += 1;
+                onlineAttractionGuestState.male -= 1;
+            } else if (delta < 0) {
+                if (onlineAttractionGuestState.female < 1) return;
+                onlineAttractionGuestState.female -= 1;
+                onlineAttractionGuestState.male += 1;
+            }
+        } else if (type === 'children') {
+            if (delta > 0 && onlineAttractionGuestState.children >= limits.children) {
+                notifyOnlineAttractionGuestLimit('Children cannot exceed tour guests (' + limits.children + ').');
+                return;
+            }
+            onlineAttractionGuestState.children = Math.max(0, onlineAttractionGuestState.children + delta);
+            updateOnlineAttractionChildAgeDropdowns();
+        } else if (type === 'infants') {
+            if (delta > 0 && onlineAttractionGuestState.infants >= limits.infants) {
+                notifyOnlineAttractionGuestLimit('Infants cannot exceed tour guests (' + limits.infants + ').');
+                return;
+            }
+            onlineAttractionGuestState.infants = Math.max(0, onlineAttractionGuestState.infants + delta);
+        }
+
+        clampOnlineAttractionGuestState();
+        renderOnlineAttractionGuestModalCounters();
+    }
+
+    function adjustOnlineAttractionAdults(delta) {
+        delta = parseInt(delta, 10) || 0;
+        const limits = getMainGuestLimits();
+        const newTotal = getOnlineAttractionTotalAdults() + delta;
+
+        if (newTotal < 1) return;
+        if (newTotal > limits.adults) {
+            notifyOnlineAttractionGuestLimit('Adults cannot exceed tour guests (' + limits.adults + ').');
+            return;
+        }
+
+        if (delta > 0) {
+            onlineAttractionGuestState.male += delta;
+        } else {
+            let toRemove = -delta;
+            const fromMale = Math.min(onlineAttractionGuestState.male, toRemove);
+            onlineAttractionGuestState.male -= fromMale;
+            toRemove -= fromMale;
+            onlineAttractionGuestState.female = Math.max(0, onlineAttractionGuestState.female - toRemove);
+        }
+
+        clampOnlineAttractionGuestState();
+        renderOnlineAttractionGuestModalCounters();
+    }
+
+    function renderOnlineAttractionGuestLimitHint() {
+        const el = document.getElementById('onlineAttractionGuestLimitHint');
+        if (!el) return;
+        const limits = getMainGuestLimits();
+        el.textContent = 'Total adults = male + female (max ' + limits.adults + ' from tour). Children max ' + limits.children + ', infants max ' + limits.infants + '.';
+    }
+
+    function openOnlineAttractionGuestSelector() {
+        renderOnlineAttractionGuestModalCounters();
+        updateOnlineAttractionChildAgeDropdowns();
+        renderOnlineAttractionGuestLimitHint();
+        const modalEl = document.getElementById('onlineAttractionGuestModal');
+        if (!modalEl || !window.bootstrap) return;
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function applyOnlineAttractionGuestSelection() {
+        clampOnlineAttractionGuestState();
+        const childAgeSelects = document.querySelectorAll('#onlineAttractionChildAgeDropdowns .online-attraction-child-age-select');
+        if (onlineAttractionGuestState.children > 0) {
+            if (childAgeSelects.length !== onlineAttractionGuestState.children) {
+                if (typeof showNotification === 'function') {
+                    showNotification('Please select ages for all children.', 'warning');
+                } else {
+                    alert('Please select ages for all children.');
+                }
+                return;
+            }
+            onlineAttractionGuestState.childAges = [];
+            childAgeSelects.forEach(function (select) {
+                onlineAttractionGuestState.childAges.push(parseInt(select.value, 10) || 8);
+            });
+        } else {
+            onlineAttractionGuestState.childAges = [];
+        }
+
+        syncOnlineAttractionGuestDerivedFields();
+        applySelectedTicketPrice();
+
+        const guestModal = document.getElementById('onlineAttractionGuestModal');
+        if (guestModal && window.bootstrap) {
+            bootstrap.Modal.getInstance(guestModal)?.hide();
+        }
+    }
+
     function getAdultsChildren() {
-        const adults = parseInt(document.getElementById('adults')?.value, 10) || 1;
-        const children = parseInt(document.getElementById('children')?.value, 10) || 0;
+        const { adults, children } = getAttractionGuestCounts();
         return { adults, children };
     }
 
@@ -163,6 +533,44 @@
             item.propertyDetail?.attractionName ||
             item.propertyDetail?.hotelName ||
             ('Attraction #' + (attractionId(item) || ''));
+    }
+
+    function attractionLowestPrice(item) {
+        const low = toNumber(item.lowest_ticket_price ?? item.lowestPrice ?? item.lowest_price ?? 0);
+        if (low > 0) {
+            return low;
+        }
+
+        const tickets = buildSgTickets(item);
+        if (tickets.length) {
+            let min = Infinity;
+            tickets.forEach(function (ticket) {
+                const p = ticketAdultPrice(ticket);
+                if (p > 0 && p < min) {
+                    min = p;
+                }
+            });
+            if (min !== Infinity) {
+                return min;
+            }
+        }
+
+        return toNumber(item.price ?? item.amount ?? 0);
+    }
+
+    function attractionCurrency(item) {
+        return String(item.currency || item.currencyCode || item.currency_code || 'SGD').trim() || 'SGD';
+    }
+
+    function attractionSelectLabel(item) {
+        const name = attractionLabel(item);
+        const price = attractionLowestPrice(item);
+        const currency = attractionCurrency(item);
+
+        if (price > 0) {
+            return name + ' - ' + currency + ' ' + price.toFixed(2);
+        }
+        return name;
     }
 
     function buildSgTickets(item) {
@@ -260,6 +668,8 @@
     function syncOnlineAttractionDefaults(day) {
         onlineAttractionTarget.day = day;
 
+        loadOnlineAttractionGuestStateFromMain();
+
         const citySelect = document.getElementById('day' + day + '_attraction_city_1') ||
             document.querySelector('.attraction-city-select');
         const onlineCity = document.getElementById('onlineAttractionCity');
@@ -282,8 +692,7 @@
             visitDateEl.value = getTourDateForDay(day);
         }
 
-        const paxEl = document.getElementById('onlineAttractionPaxInfo');
-        if (paxEl) paxEl.value = buildPaxInfo();
+        syncOnlineAttractionGuestDerivedFields();
 
         syncOnlineAttractionTargetOptions(day);
 
@@ -292,7 +701,13 @@
     }
 
     function populateOnlineAttractions(attractions) {
-        onlineAttractionsCache = Array.isArray(attractions) ? attractions : [];
+        onlineAttractionsCache = Array.isArray(attractions) ? attractions.slice() : [];
+        onlineAttractionsCache.sort(function (a, b) {
+            const pa = attractionLowestPrice(a) || Infinity;
+            const pb = attractionLowestPrice(b) || Infinity;
+            return pa - pb;
+        });
+
         const sel = document.getElementById('onlineAttractionSelect');
         const timeSel = document.getElementById('onlineAttractionTimeSelect');
         const ticketSel = document.getElementById('onlineAttractionTicketSelect');
@@ -307,8 +722,9 @@
         onlineAttractionsCache.forEach(function (item, idx) {
             const opt = document.createElement('option');
             opt.value = attractionId(item) || String(idx);
-            opt.textContent = attractionLabel(item);
+            opt.textContent = attractionSelectLabel(item);
             opt.dataset.index = String(idx);
+            opt.dataset.price = String(attractionLowestPrice(item));
             sel.appendChild(opt);
         });
 
@@ -521,6 +937,16 @@
     bindAttractionSourceToggle();
     $(function () { bindAttractionSourceToggle(); });
 
+    document.getElementById('onlineAttractionGuestEditBtn')?.addEventListener('click', openOnlineAttractionGuestSelector);
+    document.getElementById('onlineAttractionGuestApplyBtn')?.addEventListener('click', applyOnlineAttractionGuestSelection);
+    document.querySelectorAll('[data-online-attraction-guest]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            adjustOnlineAttractionGuest(this.dataset.onlineAttractionGuest, this.dataset.delta);
+        });
+    });
+    document.querySelector('.online-attraction-guest-adults-minus')?.addEventListener('click', function () { adjustOnlineAttractionAdults(-1); });
+    document.querySelector('.online-attraction-guest-adults-plus')?.addEventListener('click', function () { adjustOnlineAttractionAdults(1); });
+
     document.getElementById('onlineAttractionTargetIndex')?.addEventListener('change', function () {
         onlineAttractionTarget.index = parseInt(this.value, 10) || 1;
     });
@@ -659,3 +1085,5 @@
 })();
 </script>
 @endpush
+
+

@@ -35,6 +35,7 @@ use App\Models\Agency;
 use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
+use App\Services\HotelSuppliers\OnlineHotelAggregator;
 
 class SingleTourPackageController extends Controller
 {
@@ -2169,9 +2170,9 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Proxy: fetch hotels from Tiniva (third-party) online hotel API.
+     * Proxy: fetch hotels from country-mapped online hotel supplier (adapter layer).
      */
-    public function fetchOnlineHotels(Request $request)
+    public function fetchOnlineHotels(Request $request, OnlineHotelAggregator $aggregator)
     {
         $request->validate([
             'checkIn' => 'required|date',
@@ -2180,97 +2181,28 @@ class SingleTourPackageController extends Controller
             'paxInfo' => 'required|string|max:50',
         ]);
 
-        
-
-        $baseUrl = rtrim((string) config('services.tiniva.base_url', ''), '/');
-        if ($baseUrl === '') {
-            // Safety fallback for environments where TINIVA_API_BASE_URL is not being loaded.
-            $baseUrl = 'https://elevator-staging-api.tiniva.com';
-        }
-        if ($baseUrl === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Online hotel API is not configured. Set TINIVA_API_BASE_URL in .env',
-            ], 503);
-        }
-
-        $apiKey = trim((string) config('services.tiniva.api_key'));
-        if ($apiKey === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Online hotel API key is not configured. Set TINIVA_API_KEY in .env',
-            ], 503);
-        }
-
         try {
-            $payload = [
-                'checkIn' => $request->input('checkIn'),
-                'checkOut' => $request->input('checkOut'),
-                'city' => "Mysore",
-                'paxInfo' => $request->input('paxInfo'),
-            ];
-
-            $headers = [
-                'apikey' => $apiKey,
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ];
-
-            $jwt = trim((string) config('services.tiniva.jwt'));
-            if ($jwt !== '') {
-                $headers['Jwt'] = $jwt;
-            }
-
-            $entityId = trim((string) config('services.tiniva.entity_id'));
-            if ($entityId !== '') {
-                $headers['entityId'] = $entityId;
-            }
-
-            $response = Http::timeout((int) config('services.tiniva.timeout', 30))
-                ->withHeaders($headers)
-                ->acceptJson()
-                ->asJson()
-                ->post($baseUrl . '/api/ext/fetchHotels', $payload);
-
-            if (! $response->successful()) {
-                Log::warning('Tiniva fetchHotels failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                    'payload' => $payload,
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to fetch online hotels from provider.',
-                    'status' => $response->status(),
-                    'provider' => $response->json(),
-                ], $response->status() >= 400 ? $response->status() : 502);
-            }
-
-            $body = $response->json();
-            $hotels = [];
-
-            if (is_array($body)) {
-                if (isset($body['hotels']) && is_array($body['hotels'])) {
-                    $hotels = $body['hotels'];
-                } elseif (isset($body['data']) && is_array($body['data'])) {
-                    $hotels = $body['data'];
-                } elseif (isset($body['results']) && is_array($body['results'])) {
-                    $hotels = $body['results'];
-                } elseif (array_is_list($body)) {
-                    $hotels = $body;
-                }
-            }
+            return response()->json(
+                $aggregator->search(
+                    $request->input('city'),
+                    $request->input('checkIn'),
+                    $request->input('checkOut'),
+                    $request->input('paxInfo'),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online hotel search failed', [
+                'city' => $request->input('city'),
+                'message' => $e->getMessage(),
+            ]);
 
             return response()->json([
-                'success' => true,
-                'hotels' => $hotels,
-                'total_hotels' => count($hotels),
-                'request' => $payload,
-                'provider' => $body,
-            ]);
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
-            Log::error('Tiniva fetchHotels exception', [
+            Log::error('Online hotel search exception', [
+                'city' => $request->input('city'),
                 'error' => $e->getMessage(),
             ]);
 

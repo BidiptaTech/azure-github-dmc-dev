@@ -59,5 +59,12 @@ return [
         'timeout' => (int) env('SG_ATTRACTIONS_TIMEOUT', 60),
     ],
 
+    'hotelbeds' => [
+        'base_url' => env('HOTELBEDS_API_BASE_URL', 'https://api.test.hotelbeds.com'),
+        'api_key' => env('HOTELBEDS_API_KEY', ''),
+        'api_secret' => env('HOTELBEDS_API_SECRET', ''),
+        'timeout' => (int) env('HOTELBEDS_API_TIMEOUT', 30),
+    ],
+
 
 ];
