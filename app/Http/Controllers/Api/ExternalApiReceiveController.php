@@ -39,6 +39,8 @@ class ExternalApiReceiveController extends Controller
             $reparsed = $this->unwrapPayload($this->normalizeToArray($payload['raw_body']));
             if (! empty($reparsed['destinations'])) {
                 $payload = $reparsed;
+            } elseif ($reparsed !== []) {
+                $payload = array_merge($payload, $reparsed);
             }
         }
 
@@ -74,11 +76,25 @@ class ExternalApiReceiveController extends Controller
                 'status' => false,
             ]);
 
+            $senderNotify = ['sent' => false, 'email' => null];
+            if ($this->payloadMatchingIsZero($payload)) {
+                $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
+                'message' => $this->payloadMatchingIsZero($payload)
+                    ? 'Incomplete travel details. A notification email has been sent to the sender.'
+                    : 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
                 'received_id' => $record->id,
-                'hint' => 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
+                'result' => [
+                    'matching' => $this->payloadMatchingValue($payload),
+                    'sender_email_sent' => $senderNotify['sent'],
+                    'sender_email' => $senderNotify['email'],
+                ],
+                'hint' => $this->payloadMatchingIsZero($payload)
+                    ? null
+                    : 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
             ], 422);
         }
         // Always persist the received payload first (audit trail). The index()
@@ -183,12 +199,12 @@ class ExternalApiReceiveController extends Controller
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
         );
-        $nights = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
-        $checkOutTime = $nights > 0
-            ? (clone $checkInTime)->addDays($nights)
-            : (clone $checkInTime)->addDay();
-        if ($checkOutTime->lte($checkInTime)) {
-            $checkOutTime = (clone $checkInTime)->addDay();
+        $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
+        $checkOutTime = $requestedDays > 0
+            ? (clone $checkInTime)->addDays($requestedDays - 1)
+            : (clone $checkInTime);
+        if ($checkOutTime->lt($checkInTime)) {
+            $checkOutTime = clone $checkInTime;
         }
         $autoCancelDay = (int) ($dmcUser->auto_cancel_date ?? 0);
         $autoCancelDate = (clone $checkInTime)->subDays($autoCancelDay)->toDateString();
@@ -1316,6 +1332,7 @@ class ExternalApiReceiveController extends Controller
         try {
             $availability = $this->resolvePackageAvailability($payload);
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
+            $emailUuid = $this->resolveEmailUuidFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1359,7 +1376,11 @@ class ExternalApiReceiveController extends Controller
                     ]);
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
+                if ($emailData) {
+                    $emailData['email_uuid'] = $emailUuid;
+                }
+
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: ['email_uuid' => $emailUuid]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1369,6 +1390,7 @@ class ExternalApiReceiveController extends Controller
 
                 $timestamp = now()->format('M d, Y H:i');
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
+                    'email_uuid' => $emailUuid,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1423,22 +1445,54 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveSenderNotificationEmail(array $payload): ?string
     {
-        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'email'], ''));
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
         }
 
+        $mainGuest = $this->extractMainGuest($payload);
+        if (is_array($mainGuest) && ! empty($mainGuest['email'])) {
+            $guestEmail = trim((string) $mainGuest['email']);
+            if ($guestEmail !== '' && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+                return $guestEmail;
+            }
+        }
+
         return null;
+    }
+
+    protected function resolveEmailUuidFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailUuidFromContext($payload);
+    }
+
+    protected function payloadMatchingValue(array $payload): ?int
+    {
+        $value = $this->payloadValue($payload, ['matching', 'Matching']);
+
+        if ($value === null || $value === '') {
+            foreach (['response', 'data', 'body'] as $wrapper) {
+                if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                    continue;
+                }
+                if (array_key_exists('matching', $payload[$wrapper])) {
+                    $value = $payload[$wrapper]['matching'];
+                    break;
+                }
+            }
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     protected function payloadMatchingIsZero(array $payload): bool
     {
-        if (! array_key_exists('matching', $payload)) {
-            return false;
-        }
-
-        return (int) $payload['matching'] === 0;
+        return $this->payloadMatchingValue($payload) === 0;
     }
 
     /**
@@ -1464,15 +1518,18 @@ class ExternalApiReceiveController extends Controller
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
             : 'DMC';
         $senderName = ucfirst(explode('@', $senderEmail)[0]);
+        $missingItems = $this->resolveMissingTravelDetailItems($payload);
 
         try {
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-            ]);
+                'missing_items' => $missingItems,
+            ], $dmcUser);
 
             if ($sent !== true) {
                 Log::warning('External API incomplete travel details email not sent', [
@@ -1492,6 +1549,26 @@ class ExternalApiReceiveController extends Controller
 
             return ['sent' => false, 'email' => $senderEmail];
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveMissingTravelDetailItems(array $payload): array
+    {
+        $fromPayload = $this->payloadValue($payload, ['missing_fields', 'missingFields', 'missing_items', 'missingItems']);
+        if (is_string($fromPayload) && $fromPayload !== '') {
+            $fromPayload = array_map('trim', explode(',', $fromPayload));
+        }
+        if (is_array($fromPayload) && $fromPayload !== []) {
+            return array_values(array_filter(array_map(static fn ($item) => trim((string) $item), $fromPayload)));
+        }
+
+        return [
+            'Destination country',
+            'Number of nights/days of stay',
+            'Travel dates',
+        ];
     }
 
     protected function resolveDmcContactEmail(array $payload, array $primaryDmc, ?User $dmcUser): ?string
@@ -2913,6 +2990,21 @@ class ExternalApiReceiveController extends Controller
         foreach ($keys as $key) {
             if (array_key_exists($key, $payload) && $payload[$key] !== null && $payload[$key] !== '') {
                 return $payload[$key];
+            }
+        }
+
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                if (
+                    array_key_exists($key, $payload[$wrapper])
+                    && $payload[$wrapper][$key] !== null
+                    && $payload[$wrapper][$key] !== ''
+                ) {
+                    return $payload[$wrapper][$key];
+                }
             }
         }
 

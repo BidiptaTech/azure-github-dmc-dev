@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
@@ -1718,6 +1719,68 @@ class CommonHelper
         return null;
     }
 
+    public static function normalizeEmailMessageId(?string $messageId): ?string
+    {
+        $messageId = trim((string) $messageId);
+        if ($messageId === '') {
+            return null;
+        }
+
+        if (! str_starts_with($messageId, '<')) {
+            $messageId = '<'.$messageId;
+        }
+        if (! str_ends_with($messageId, '>')) {
+            $messageId = rtrim($messageId, '>').'>';
+        }
+
+        return $messageId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    public static function resolveEmailUuidFromContext(array $context): ?string
+    {
+        return self::normalizeEmailMessageId(
+            (string) ($context['email_uuid']
+                ?? $context['message_id']
+                ?? $context['email_message_id']
+                ?? $context['Message-ID']
+                ?? '')
+        );
+    }
+
+    public static function sendHtmlEmail(
+        string $recipientEmail,
+        string $html,
+        string $subject,
+        ?string $fromEmail = null,
+        ?string $fromName = null,
+        ?string $replyToEmail = null,
+        ?string $emailUuid = null
+    ): void {
+        if ($emailUuid !== null && $emailUuid !== '') {
+            Mail::to($recipientEmail)->send(new AutomatedMail(
+                $html,
+                $subject,
+                $emailUuid,
+                $fromEmail,
+                $fromName,
+                $replyToEmail
+            ));
+
+            return;
+        }
+
+        Mail::to($recipientEmail)->send(new DmcMail(
+            $html,
+            $subject,
+            $fromEmail,
+            $fromName,
+            $replyToEmail
+        ));
+    }
+
     /**
      * Send itinerary-style email using the DMC's ai_response setting (QTN or ITN).
      *
@@ -1890,6 +1953,8 @@ class CommonHelper
             'diff' => (int) ($tourData['diff'] ?? 0),
             'requested_days' => (int) ($tourData['requested_days'] ?? 0),
             'available_days' => (int) ($tourData['available_days'] ?? 0),
+            'requested_nights' => max(0, (int) ($tourData['requested_days'] ?? 0) - 1),
+            'available_nights' => max(0, (int) ($tourData['available_days'] ?? 0) - 1),
             'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
             'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
             'country' => (string) ($tourData['country'] ?? ''),
@@ -1927,12 +1992,13 @@ class CommonHelper
         }
 
         try {
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
+            self::sendHtmlEmail($dmcEmail, $html, trim($subject), null, null, null, $emailUuid);
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
@@ -1965,6 +2031,7 @@ class CommonHelper
         }
 
         try {
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
             $emailData = self::normalizeQuotationEmailData($tourData);
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
@@ -1972,7 +2039,7 @@ class CommonHelper
             $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
-            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+            self::sendHtmlEmail($recipientEmail, $html, trim($subject), null, null, null, $emailUuid);
 
             Log::info('Quotation email sent', [
                 'email' => $recipientEmail,
@@ -1998,7 +2065,7 @@ class CommonHelper
      * @return bool|string
      */
 
-    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
+    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [], ?User $dmcUser = null)
     {
         $recipientEmail = trim($recipientEmail);
         if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -2006,20 +2073,49 @@ class CommonHelper
         }
 
         try {
+            $emailUuid = self::resolveEmailUuidFromContext($emailData);
             $viewData = [
                 'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
                 'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
                 'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
                 'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
                 'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+                'missing_items' => is_array($emailData['missing_items'] ?? null) ? $emailData['missing_items'] : [],
             ];
 
-            $subject = 'Additional Information Required for Your Travel Inquiry — Travclicks';
+            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
+            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
-            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+
+            $dmcEmail = trim($viewData['dmc_contact_email']);
+            if ($dmcEmail === '' && $dmcUser) {
+                $dmcEmail = trim((string) ($dmcUser->email ?? ''));
+            }
+
+            // SMTP auth is tied to MAIL_FROM; use DMC email only as Reply-To.
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            if ($dmcName !== '' && $dmcName !== 'DMC') {
+                $fromName = $dmcName.' via '.$fromName;
+            }
+            $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid
+            );
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
+                'from' => $fromEmail,
+                'reply_to' => $replyTo,
             ]);
 
             return true;
@@ -2029,7 +2125,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: ' . $e->getMessage();
+            return 'Failed to send email: '.$e->getMessage();
         }
     }
 

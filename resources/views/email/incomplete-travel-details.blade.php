@@ -65,16 +65,20 @@
                             </p>
 
                             <p style="font-size:15px; line-height:1.7; color:{{ $textDark }}; margin:0 0 20px 0;">
-                                Thank you for your inquiry. Unfortunately, we are unable to process your request because we did not receive complete travel details. Please provide the following information so that we can proceed:
+                                Thank you for your inquiry. We could not process your request because some required travel details are missing. Please check and provide the following:
                             </p>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0; background-color:#f8fafc; border:1px solid {{ $border }}; border-radius:10px;">
                                 <tr>
                                     <td style="padding:20px 24px;">
                                         <ul style="margin:0; padding-left:20px; font-size:15px; line-height:1.9; color:{{ $textDark }};">
-                                            <li>Destination country</li>
-                                            <li>Number of nights/days of stay</li>
-                                            <li>Travel dates</li>
+                                            @forelse($missing_items ?? [] as $item)
+                                                <li>{{ $item }}</li>
+                                            @empty
+                                                <li>Destination country</li>
+                                                <li>Number of nights/days of stay</li>
+                                                <li>Travel dates</li>
+                                            @endforelse
                                         </ul>
                                     </td>
                                 </tr>

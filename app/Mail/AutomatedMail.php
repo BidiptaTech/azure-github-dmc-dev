@@ -7,26 +7,40 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
-class DmcMail extends Mailable
+class AutomatedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $htmlContent;
+
     public $emailSubject;
-    public $emailUuid;
+
+    public ?string $emailUuid;
+
+    public ?string $fromEmail;
+
+    public ?string $fromName;
+
+    public ?string $replyToEmail;
 
     public function __construct(
         $htmlContent,
         $subject = null,
-        $emailUuid = null
+        ?string $emailUuid = null,
+        ?string $fromEmail = null,
+        ?string $fromName = null,
+        ?string $replyToEmail = null
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
         $this->emailUuid = $emailUuid;
+        $this->fromEmail = $fromEmail;
+        $this->fromName = $fromName;
+        $this->replyToEmail = $replyToEmail;
     }
 
     /**
-     * Email Threading Headers
+     * Thread this reply into the sender's original email conversation.
      */
     public function headers(): Headers
     {
@@ -35,16 +49,26 @@ class DmcMail extends Mailable
         }
 
         return new Headers(
+            references: [$this->emailUuid],
             text: [
                 'In-Reply-To' => $this->emailUuid,
-                'References'  => $this->emailUuid,
             ]
         );
     }
 
     public function build()
     {
-        return $this->subject($this->emailSubject)
-                    ->html($this->htmlContent);
+        $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
+
+        if ($this->fromEmail && filter_var($this->fromEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->from($this->fromEmail, (string) ($this->fromName ?? ''));
+        }
+
+        $replyTo = $this->replyToEmail ?: $this->fromEmail;
+        if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+            $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
+        }
+
+        return $mail;
     }
 }
