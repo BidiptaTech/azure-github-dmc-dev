@@ -7,10 +7,6 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
-/**
- * Automated replies from the external API pipeline (quotation, incomplete details, etc.).
- * Supports DMC from/reply-to and email thread headers via email_uuid.
- */
 class AutomatedMail extends Mailable
 {
     use Queueable, SerializesModels;
@@ -25,55 +21,49 @@ class AutomatedMail extends Mailable
 
     public ?string $replyToEmail;
 
-    public ?string $emailUuid;
+    public ?string $inReplyToMessageId;
 
+    /** @var list<string> */
+    public array $referenceMessageIds;
+
+    /**
+     * @param  list<string>  $referenceMessageIds
+     */
     public function __construct(
         $htmlContent,
         $subject = null,
         ?string $fromEmail = null,
         ?string $fromName = null,
         ?string $replyToEmail = null,
-        ?string $emailUuid = null
+        ?string $inReplyToMessageId = null,
+        array $referenceMessageIds = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
         $this->fromEmail = $fromEmail;
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
-        $this->emailUuid = self::normalizeMessageId($emailUuid);
+        $this->inReplyToMessageId = $inReplyToMessageId;
+        $this->referenceMessageIds = $referenceMessageIds;
     }
 
-  /**
-     * Normalize payload email_uuid to a valid Message-ID for In-Reply-To / References.
+    /**
+     * Thread AI replies into the sender's original email conversation.
      */
-    public static function normalizeMessageId(?string $emailUuid): ?string
-    {
-        $emailUuid = trim((string) $emailUuid);
-        if ($emailUuid === '' || strtolower($emailUuid) === 'no-uuid-provided') {
-            return null;
-        }
-
-        if (str_starts_with($emailUuid, '<') && str_ends_with($emailUuid, '>')) {
-            return $emailUuid;
-        }
-
-        if (str_contains($emailUuid, '@')) {
-            return '<'.$emailUuid.'>';
-        }
-
-        return '<'.$emailUuid.'@travclicks.com>';
-    }
-
     public function headers(): Headers
     {
-        if ($this->emailUuid === null) {
+        if ($this->inReplyToMessageId === null || $this->inReplyToMessageId === '') {
             return new Headers();
         }
 
+        $references = $this->referenceMessageIds !== []
+            ? $this->referenceMessageIds
+            : [$this->inReplyToMessageId];
+
         return new Headers(
+            references: $references,
             text: [
-                'In-Reply-To' => $this->emailUuid,
-                'References' => $this->emailUuid,
+                'In-Reply-To' => $this->inReplyToMessageId,
             ]
         );
     }
