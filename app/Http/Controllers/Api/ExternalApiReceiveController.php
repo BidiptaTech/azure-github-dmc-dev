@@ -199,12 +199,12 @@ class ExternalApiReceiveController extends Controller
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
         );
-        $nights = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
-        $checkOutTime = $nights > 0
-            ? (clone $checkInTime)->addDays($nights)
-            : (clone $checkInTime)->addDay();
-        if ($checkOutTime->lte($checkInTime)) {
-            $checkOutTime = (clone $checkInTime)->addDay();
+        $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
+        $checkOutTime = $requestedDays > 0
+            ? (clone $checkInTime)->addDays($requestedDays - 1)
+            : (clone $checkInTime);
+        if ($checkOutTime->lt($checkInTime)) {
+            $checkOutTime = clone $checkInTime;
         }
         $autoCancelDay = (int) ($dmcUser->auto_cancel_date ?? 0);
         $autoCancelDate = (clone $checkInTime)->subDays($autoCancelDay)->toDateString();

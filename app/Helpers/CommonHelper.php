@@ -1890,6 +1890,8 @@ class CommonHelper
             'diff' => (int) ($tourData['diff'] ?? 0),
             'requested_days' => (int) ($tourData['requested_days'] ?? 0),
             'available_days' => (int) ($tourData['available_days'] ?? 0),
+            'requested_nights' => max(0, (int) ($tourData['requested_days'] ?? 0) - 1),
+            'available_nights' => max(0, (int) ($tourData['available_days'] ?? 0) - 1),
             'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
             'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
             'country' => (string) ($tourData['country'] ?? ''),
