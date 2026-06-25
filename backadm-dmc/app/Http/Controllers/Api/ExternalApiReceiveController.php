@@ -1332,6 +1332,7 @@ class ExternalApiReceiveController extends Controller
         try {
             $availability = $this->resolvePackageAvailability($payload);
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
+            $emailUuid = $this->resolvePayloadEmailUuid($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1372,10 +1373,11 @@ class ExternalApiReceiveController extends Controller
                         'booked_services' => $bookedServices,
                         'total_estimation' => $totalEstimation,
                         'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                        'email_uuid' => $emailUuid,
                     ]);
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData, $dmcUser);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1411,6 +1413,7 @@ class ExternalApiReceiveController extends Controller
                     'booked_services' => $bookedServices,
                     'total_estimation' => $totalEstimation,
                     'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                    'email_uuid' => $emailUuid,
                 ], $dmcUser);
             }
 
@@ -1481,7 +1484,19 @@ class ExternalApiReceiveController extends Controller
 
     protected function payloadMatchingIsZero(array $payload): bool
     {
-        return $this->payloadMatchingValue($payload) === 0;
+        $matching = $this->payloadMatchingValue($payload);
+        if ($matching === null) {
+            return false;
+        }
+
+        return $matching <= (int) config('external_api.matching_threshold', 0);
+    }
+
+    protected function resolvePayloadEmailUuid(array $payload): ?string
+    {
+        $uuid = trim((string) $this->payloadValue($payload, ['email_uuid', 'emailUuid', 'message_id', 'messageId'], ''));
+
+        return $uuid !== '' ? $uuid : null;
     }
 
     /**
@@ -1517,6 +1532,7 @@ class ExternalApiReceiveController extends Controller
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
                 'missing_items' => $missingItems,
+                'email_uuid' => $this->resolvePayloadEmailUuid($payload),
             ], $dmcUser);
 
             if ($sent !== true) {
