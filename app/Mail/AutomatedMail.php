@@ -15,55 +15,43 @@ class AutomatedMail extends Mailable
 
     public $emailSubject;
 
+    public ?string $emailUuid;
+
     public ?string $fromEmail;
 
     public ?string $fromName;
 
     public ?string $replyToEmail;
 
-    public ?string $inReplyToMessageId;
-
-    /** @var list<string> */
-    public array $referenceMessageIds;
-
-    /**
-     * @param  list<string>  $referenceMessageIds
-     */
     public function __construct(
         $htmlContent,
         $subject = null,
+        ?string $emailUuid = null,
         ?string $fromEmail = null,
         ?string $fromName = null,
-        ?string $replyToEmail = null,
-        ?string $inReplyToMessageId = null,
-        array $referenceMessageIds = []
+        ?string $replyToEmail = null
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
+        $this->emailUuid = $emailUuid;
         $this->fromEmail = $fromEmail;
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
-        $this->inReplyToMessageId = $inReplyToMessageId;
-        $this->referenceMessageIds = $referenceMessageIds;
     }
 
     /**
-     * Thread AI replies into the sender's original email conversation.
+     * Thread this reply into the sender's original email conversation.
      */
     public function headers(): Headers
     {
-        if ($this->inReplyToMessageId === null || $this->inReplyToMessageId === '') {
+        if (empty($this->emailUuid)) {
             return new Headers();
         }
 
-        $references = $this->referenceMessageIds !== []
-            ? $this->referenceMessageIds
-            : [$this->inReplyToMessageId];
-
         return new Headers(
-            references: $references,
+            references: [$this->emailUuid],
             text: [
-                'In-Reply-To' => $this->inReplyToMessageId,
+                'In-Reply-To' => $this->emailUuid,
             ]
         );
     }
