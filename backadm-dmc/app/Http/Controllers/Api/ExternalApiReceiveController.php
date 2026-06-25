@@ -2981,6 +2981,21 @@ class ExternalApiReceiveController extends Controller
             }
         }
 
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                if (
+                    array_key_exists($key, $payload[$wrapper])
+                    && $payload[$wrapper][$key] !== null
+                    && $payload[$wrapper][$key] !== ''
+                ) {
+                    return $payload[$wrapper][$key];
+                }
+            }
+        }
+
         return $default;
     }
 
