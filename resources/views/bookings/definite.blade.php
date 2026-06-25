@@ -12380,7 +12380,7 @@ window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, booking
             
             var qrPayload = {
                 tid: tourId,
-                bid: fullData?.booking_id ?? fullData?.bookingId ?? dataSource?.booking_id ?? '',
+                bid: dataSource?.booking_id ?? dataSource?.bookingId ?? restaurantData?.booking_id ?? restaurantData?.bookingId ?? document.getElementById(`bookingId_${tourId}_${restaurantOrderIndex}_${bookingIndex}`)?.value ?? '',
                 r: safeStr(fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant', 60),
                 rid: restaurantId,
                 rd: safeStr(fullData?.booking_date || fullData?.bookingDate || '', 12),
