@@ -1332,7 +1332,7 @@ class ExternalApiReceiveController extends Controller
         try {
             $availability = $this->resolvePackageAvailability($payload);
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
-            $emailThread = $this->resolveEmailThreadContextFromPayload($payload);
+            $emailUuid = $this->resolveEmailUuidFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1377,10 +1377,10 @@ class ExternalApiReceiveController extends Controller
                 }
 
                 if ($emailData) {
-                    $emailData['email_thread'] = $emailThread;
+                    $emailData['email_uuid'] = $emailUuid;
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: ['email_thread' => $emailThread]);
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: ['email_uuid' => $emailUuid]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1390,7 +1390,7 @@ class ExternalApiReceiveController extends Controller
 
                 $timestamp = now()->format('M d, Y H:i');
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
-                    'email_thread' => $emailThread,
+                    'email_uuid' => $emailUuid,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1462,32 +1462,9 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
-    /**
-     * @return array{message_id: ?string, references: list<string>, thread_subject: string}
-     */
-    protected function resolveEmailThreadContextFromPayload(array $payload): array
+    protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
-        return CommonHelper::resolveEmailThreadContext([
-            'message_id' => $this->payloadValue($payload, [
-                'message_id',
-                'email_message_id',
-                'Message-ID',
-                'messageId',
-                'in_reply_to',
-            ]),
-            'references' => $this->payloadValue($payload, [
-                'references',
-                'email_references',
-                'References',
-            ]),
-            'thread_subject' => $this->payloadValue($payload, [
-                'subject',
-                'email_subject',
-                'thread_subject',
-                'original_subject',
-                'emailSubject',
-            ]),
-        ]);
+        return CommonHelper::resolveEmailUuidFromContext($payload);
     }
 
     protected function payloadMatchingValue(array $payload): ?int
@@ -1545,7 +1522,7 @@ class ExternalApiReceiveController extends Controller
 
         try {
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
-                'email_thread' => $this->resolveEmailThreadContextFromPayload($payload),
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
