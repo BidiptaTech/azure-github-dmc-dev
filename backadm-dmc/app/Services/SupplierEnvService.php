@@ -49,7 +49,28 @@ class SupplierEnvService
     {
         $values = $this->valuesFor($code);
 
-        return filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null);
+        if (in_array($code, ['hotelbeds', 'mybeds', 'mg_bedbank'], true)) {
+            if (filled($values['base_url'] ?? null)
+                && filled($values['api_key'] ?? null)
+                && filled($values['api_secret'] ?? null)) {
+                return true;
+            }
+        } elseif (filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null)) {
+            return true;
+        }
+
+        // Fallback when .env values are cached under config/services.php (e.g. tinivia → tiniva).
+        if ($code === 'tinivia') {
+            return filled(config('services.tiniva.base_url')) && filled(config('services.tiniva.api_key'));
+        }
+
+        if ($code === 'hotelbeds') {
+            return filled(config('services.hotelbeds.base_url'))
+                && filled(config('services.hotelbeds.api_key'))
+                && filled(config('services.hotelbeds.api_secret'));
+        }
+
+        return false;
     }
 
     /**
