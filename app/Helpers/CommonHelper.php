@@ -2024,10 +2024,12 @@ class CommonHelper
                 $dmcEmail = trim((string) ($dmcUser->email ?? ''));
             }
 
-            $fromEmail = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
-                ? $dmcEmail
-                : (string) config('mail.from.address');
-            $fromName = $dmcName;
+            // SMTP auth is tied to MAIL_FROM; use DMC email only as Reply-To.
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            if ($dmcName !== '' && $dmcName !== 'DMC') {
+                $fromName = $dmcName.' via '.$fromName;
+            }
             $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
                 ? $dmcEmail
                 : $fromEmail;
