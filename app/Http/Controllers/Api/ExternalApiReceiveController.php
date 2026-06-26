@@ -1333,6 +1333,7 @@ class ExternalApiReceiveController extends Controller
             $availability = $this->resolvePackageAvailability($payload);
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
+            $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1378,9 +1379,13 @@ class ExternalApiReceiveController extends Controller
 
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
+                    $emailData['email_subject'] = $emailSubject;
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: ['email_uuid' => $emailUuid]);
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: [
+                    'email_uuid' => $emailUuid,
+                    'email_subject' => $emailSubject,
+                ]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1391,6 +1396,7 @@ class ExternalApiReceiveController extends Controller
                 $timestamp = now()->format('M d, Y H:i');
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
                     'email_uuid' => $emailUuid,
+                    'email_subject' => $emailSubject,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1464,7 +1470,21 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
-        return CommonHelper::resolveEmailUuidFromContext($payload);
+        return CommonHelper::resolveEmailUuidFromContext([
+            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+        ]);
+    }
+
+    protected function resolveEmailSubjectFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailSubjectFromContext([
+            'email_subject' => $this->payloadValue($payload, [
+                'email_subject',
+                'subject',
+                'mail_subject',
+                'original_subject',
+            ], ''),
+        ]);
     }
 
     protected function payloadMatchingValue(array $payload): ?int
@@ -1523,6 +1543,7 @@ class ExternalApiReceiveController extends Controller
         try {
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
                 'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
