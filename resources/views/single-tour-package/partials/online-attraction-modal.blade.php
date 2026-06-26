@@ -42,24 +42,18 @@
                                 </div>
                                 <input type="hidden" id="onlineAttractionPaxInfo" value="">
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-list-ordered me-1"></i>Attraction Slot</label>
-                                <select class="form-select form-select-sm" id="onlineAttractionTargetIndex">
-                                    <option value="1">Attraction #1</option>
-                                </select>
-                            </div>
                         </div>
                         <div class="mt-3 d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-sm btn-primary" id="onlineAttractionFetchBtn" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none;">
-                                <span class="spinner-border spinner-border-sm d-none me-1" id="onlineAttractionFetchSpinner"></span>
-                                <i class="ri-search-line me-1"></i> Fetch Attractions
+                                <span class="spinner-border spinner-border-sm d-none me-1" id="onlineAttractionFetchSpinner" role="status" aria-hidden="true"></span>
+                                <i class="ri-search-line me-1" id="onlineAttractionFetchIcon"></i> Fetch Attractions
                             </button>
                             <small class="text-muted" id="onlineAttractionFetchStatus" style="font-size: 0.8rem;"></small>
                         </div>
                     </div>
                 </div>
 
-                <div class="card border-0 shadow-sm">
+                <div class="card border-0 shadow-sm d-none" id="onlineAttractionSelectionPanel">
                     <div class="card-body">
                         <div class="row g-2 mb-2">
                             <div class="col-md-4">
@@ -99,7 +93,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="onlineAttractionAddBtn" disabled>
+                <button type="button" class="btn btn-success d-none" id="onlineAttractionAddBtn" disabled>
                     <i class="ri-add-line me-1"></i> Add Attraction
                 </button>
             </div>
@@ -204,16 +198,21 @@
     let onlineAttractionGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
 
     function bindAttractionSourceToggle() {
-        $(document).off('change.attractionSource', '.attraction-source-radio');
-        $(document).on('change.attractionSource', '.attraction-source-radio', function () {
+        $(document).off('change.attractionSlotSource', '.attraction-slot-source-radio');
+        $(document).on('change.attractionSlotSource', '.attraction-slot-source-radio', function () {
             const day = parseInt(this.dataset.day, 10) || 1;
+            const index = parseInt(this.dataset.index, 10) || 1;
             const isOnline = this.value === 'online';
-            const offlinePanel = document.getElementById('day' + day + '_offlineAttractionPanel');
+            const offlinePanel = document.getElementById('day' + day + '_attraction_' + index + '_offline_panel');
+            const onlineHint = document.getElementById('day' + day + '_attraction_' + index + '_online_hint');
             if (offlinePanel) {
-                offlinePanel.style.display = isOnline ? 'none' : '';
+                offlinePanel.classList.toggle('d-none', isOnline);
+            }
+            if (onlineHint) {
+                onlineHint.classList.toggle('d-none', !isOnline);
             }
             if (isOnline) {
-                window.openOnlineAttractionModal(day, 1);
+                window.openOnlineAttractionModal(day, index);
             } else {
                 const modalEl = document.getElementById('onlineAttractionModal');
                 if (modalEl && window.bootstrap) {
@@ -221,6 +220,40 @@
                 }
             }
         });
+    }
+
+    window.buildAttractionSlotSourceToggleHtml = function (day, index) {
+        return '<div class="mb-3 attraction-slot-source-block">' +
+            '<label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #' + index + '</label>' +
+            '<div class="d-flex flex-wrap gap-4">' +
+            '<div class="form-check">' +
+            '<input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day' + day + '_slot' + index + '" id="attractionSourceOffline_day' + day + '_slot' + index + '" value="offline" data-day="' + day + '" data-index="' + index + '" checked>' +
+            '<label class="form-check-label" for="attractionSourceOffline_day' + day + '_slot' + index + '" style="font-size: 0.85rem;"><i class="ri-database-2-line me-1"></i> Offline Attractions</label>' +
+            '</div>' +
+            '<div class="form-check">' +
+            '<input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day' + day + '_slot' + index + '" id="attractionSourceOnline_day' + day + '_slot' + index + '" value="online" data-day="' + day + '" data-index="' + index + '">' +
+            '<label class="form-check-label" for="attractionSourceOnline_day' + day + '_slot' + index + '" style="font-size: 0.85rem;"><i class="ri-global-line me-1"></i> Online Attractions</label>' +
+            '</div>' +
+            '</div>' +
+            '<small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses DMC inventory. Online opens live API search for this slot.</small>' +
+            '</div>' +
+            '<div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day' + day + '_attraction_' + index + '_online_hint" style="font-size: 0.8rem;">' +
+            '<i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.' +
+            '</div>' +
+            '<div class="attraction-slot-offline-panel" id="day' + day + '_attraction_' + index + '_offline_panel">';
+    };
+
+    function setSlotAttractionSource(day, index, source) {
+        const selector = 'input[name="attractionSourceType_day' + day + '_slot' + index + '"][value="' + source + '"]';
+        const radio = document.querySelector(selector);
+        if (radio && !radio.checked) {
+            radio.click();
+        } else if (radio && source === 'offline') {
+            const offlinePanel = document.getElementById('day' + day + '_attraction_' + index + '_offline_panel');
+            const onlineHint = document.getElementById('day' + day + '_attraction_' + index + '_online_hint');
+            if (offlinePanel) offlinePanel.classList.remove('d-none');
+            if (onlineHint) onlineHint.classList.add('d-none');
+        }
     }
 
     function getMainGuestLimits() {
@@ -651,21 +684,45 @@
     }
 
     function syncOnlineAttractionTargetOptions(day) {
-        const sel = document.getElementById('onlineAttractionTargetIndex');
-        if (!sel) return;
-        sel.innerHTML = '';
-        const items = document.querySelectorAll('#day' + day + '_attractions_container .attraction-item');
-        const count = items.length || 1;
-        for (let i = 1; i <= count; i++) {
-            const opt = document.createElement('option');
-            opt.value = String(i);
-            opt.textContent = 'Attraction #' + i;
-            sel.appendChild(opt);
+        // Slot is chosen when opening the modal from a specific attraction slot.
+    }
+
+    function resetOnlineAttractionFetchResults() {
+        hideOnlineAttractionSelectionPanel();
+        populateOnlineAttractions([]);
+        const statusEl = document.getElementById('onlineAttractionFetchStatus');
+        if (statusEl) statusEl.textContent = '';
+    }
+
+    function hideOnlineAttractionSelectionPanel() {
+        const panel = document.getElementById('onlineAttractionSelectionPanel');
+        if (panel) panel.classList.add('d-none');
+        const addBtn = document.getElementById('onlineAttractionAddBtn');
+        if (addBtn) {
+            addBtn.classList.add('d-none');
+            addBtn.disabled = true;
         }
-        sel.value = String(onlineAttractionTarget.index || 1);
+    }
+
+    function showOnlineAttractionSelectionPanel() {
+        const panel = document.getElementById('onlineAttractionSelectionPanel');
+        if (panel) panel.classList.remove('d-none');
+        const addBtn = document.getElementById('onlineAttractionAddBtn');
+        if (addBtn) addBtn.classList.remove('d-none');
+        validateOnlineAttractionAddBtn();
+    }
+
+    function setOnlineAttractionFetchLoading(isLoading) {
+        const btn = document.getElementById('onlineAttractionFetchBtn');
+        const spinner = document.getElementById('onlineAttractionFetchSpinner');
+        const icon = document.getElementById('onlineAttractionFetchIcon');
+        if (btn) btn.disabled = !!isLoading;
+        if (spinner) spinner.classList.toggle('d-none', !isLoading);
+        if (icon) icon.classList.toggle('d-none', !!isLoading);
     }
 
     function syncOnlineAttractionDefaults(day) {
+        resetOnlineAttractionFetchResults();
         onlineAttractionTarget.day = day;
 
         loadOnlineAttractionGuestStateFromMain();
@@ -694,10 +751,10 @@
 
         syncOnlineAttractionGuestDerivedFields();
 
-        syncOnlineAttractionTargetOptions(day);
-
         const label = document.getElementById('onlineAttractionTargetLabel');
-        if (label) label.textContent = 'Assigning to Day ' + day;
+        if (label) {
+            label.textContent = 'Day ' + day + ' · Attraction Slot #' + (onlineAttractionTarget.index || 1);
+        }
     }
 
     function populateOnlineAttractions(attractions) {
@@ -729,6 +786,12 @@
         });
 
         sel.disabled = onlineAttractionsCache.length === 0;
+
+        if (onlineAttractionsCache.length > 0) {
+            sel.selectedIndex = 1;
+            populateOnlineAttractionDetails(onlineAttractionsCache[0]);
+        }
+
         validateOnlineAttractionAddBtn();
     }
 
@@ -921,10 +984,6 @@
             index: parseInt(index, 10) || 1
         };
         syncOnlineAttractionDefaults(onlineAttractionTarget.day);
-        const targetIndexSel = document.getElementById('onlineAttractionTargetIndex');
-        if (targetIndexSel) {
-            targetIndexSel.value = String(onlineAttractionTarget.index);
-        }
 
         const modalEl = document.getElementById('onlineAttractionModal');
         if (!modalEl || !window.bootstrap?.Modal) {
@@ -947,8 +1006,8 @@
     document.querySelector('.online-attraction-guest-adults-minus')?.addEventListener('click', function () { adjustOnlineAttractionAdults(-1); });
     document.querySelector('.online-attraction-guest-adults-plus')?.addEventListener('click', function () { adjustOnlineAttractionAdults(1); });
 
-    document.getElementById('onlineAttractionTargetIndex')?.addEventListener('change', function () {
-        onlineAttractionTarget.index = parseInt(this.value, 10) || 1;
+    ['onlineAttractionCity', 'onlineAttractionVisitDate'].forEach(function (id) {
+        document.getElementById(id)?.addEventListener('change', resetOnlineAttractionFetchResults);
     });
 
     document.getElementById('onlineAttractionFetchBtn')?.addEventListener('click', function () {
@@ -956,17 +1015,17 @@
         const visitDate = document.getElementById('onlineAttractionVisitDate')?.value;
         const paxInfo = document.getElementById('onlineAttractionPaxInfo')?.value || buildPaxInfo();
         const statusEl = document.getElementById('onlineAttractionFetchStatus');
-        const spinner = document.getElementById('onlineAttractionFetchSpinner');
 
         if (!city || !visitDate) {
             if (typeof showNotification === 'function') {
-                showNotification('Visit date is required.', 'warning');
+                showNotification('City and visit date are required.', 'warning');
             }
             return;
         }
 
-        if (spinner) spinner.classList.remove('d-none');
-        if (statusEl) statusEl.textContent = 'Fetching attractions...';
+        hideOnlineAttractionSelectionPanel();
+        setOnlineAttractionFetchLoading(true);
+        if (statusEl) statusEl.textContent = '';
 
         fetch(fetchUrl, {
             method: 'POST',
@@ -983,11 +1042,21 @@
             if (data && data.success) {
                 const attractions = extractAttractionsFromResponse(data);
                 populateOnlineAttractions(attractions);
-                if (statusEl) statusEl.textContent = attractions.length + ' attraction(s) found.';
-                if (typeof showNotification === 'function') {
-                    showNotification('Online attractions loaded successfully.', 'success');
+                if (attractions.length > 0) {
+                    showOnlineAttractionSelectionPanel();
+                    if (statusEl) statusEl.textContent = attractions.length + ' attraction(s) found.';
+                    if (typeof showNotification === 'function') {
+                        showNotification('Online attractions loaded successfully.', 'success');
+                    }
+                } else {
+                    hideOnlineAttractionSelectionPanel();
+                    if (statusEl) statusEl.textContent = '0 attractions found.';
+                    if (typeof showNotification === 'function') {
+                        showNotification('No attractions found for the selected criteria.', 'warning');
+                    }
                 }
             } else {
+                hideOnlineAttractionSelectionPanel();
                 populateOnlineAttractions([]);
                 if (statusEl) statusEl.textContent = data?.message || 'No attractions found.';
                 if (typeof showNotification === 'function') {
@@ -996,6 +1065,7 @@
             }
         })
         .catch(function (err) {
+            hideOnlineAttractionSelectionPanel();
             populateOnlineAttractions([]);
             if (statusEl) statusEl.textContent = 'Request failed.';
             console.error(err);
@@ -1004,7 +1074,7 @@
             }
         })
         .finally(function () {
-            if (spinner) spinner.classList.add('d-none');
+            setOnlineAttractionFetchLoading(false);
         });
     });
 
@@ -1022,7 +1092,7 @@
 
     document.getElementById('onlineAttractionAddBtn')?.addEventListener('click', function () {
         const day = onlineAttractionTarget.day;
-        const index = parseInt(document.getElementById('onlineAttractionTargetIndex')?.value, 10) || onlineAttractionTarget.index || 1;
+        const index = onlineAttractionTarget.index || 1;
 
         const attrSel = document.getElementById('onlineAttractionSelect');
         const attrIdx = attrSel.selectedIndex >= 0 ? parseInt(attrSel.options[attrSel.selectedIndex].dataset.index, 10) : -1;
@@ -1065,25 +1135,29 @@
         }
 
         if (typeof showNotification === 'function') {
-            showNotification('Online attraction "' + payload.attractionName + '" added to Day ' + day + '.', 'success');
+            showNotification('Online attraction "' + payload.attractionName + '" added to Day ' + day + ', Slot #' + index + '.', 'success');
         }
 
         const modalEl = document.getElementById('onlineAttractionModal');
         if (modalEl && typeof bootstrap !== 'undefined') {
             bootstrap.Modal.getInstance(modalEl)?.hide();
         }
-        document.querySelector('input[name="attractionSourceType_day' + day + '"][value="offline"]')?.click();
+        setSlotAttractionSource(day, index, 'offline');
     });
 
     document.getElementById('onlineAttractionModal')?.addEventListener('hidden.bs.modal', function () {
         const day = onlineAttractionTarget.day;
-        const onlineRadio = document.querySelector('input[name="attractionSourceType_day' + day + '"][value="online"]');
+        const index = onlineAttractionTarget.index || 1;
+        const onlineRadio = document.querySelector('input[name="attractionSourceType_day' + day + '_slot' + index + '"][value="online"]');
         if (onlineRadio && onlineRadio.checked) {
-            document.querySelector('input[name="attractionSourceType_day' + day + '"][value="offline"]')?.click();
+            setSlotAttractionSource(day, index, 'offline');
         }
+        resetOnlineAttractionFetchResults();
     });
 })();
 </script>
 @endpush
+
+
 
 

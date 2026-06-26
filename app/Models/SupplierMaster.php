@@ -77,7 +77,7 @@ class SupplierMaster extends Model
     {
         $options = [];
 
-        foreach (config('suppliers', []) as $code => $definition) {
+        foreach (app(SupplierEnvService::class)->definitions() as $code => $definition) {
             $options[$code] = $definition['label'] ?? $code;
         }
 
@@ -86,8 +86,14 @@ class SupplierMaster extends Model
 
     public static function forCountry(int $countryId): ?self
     {
+        return static::forCountryAndService($countryId, 'hotels');
+    }
+
+    public static function forCountryAndService(int $countryId, string $serviceType = 'hotels'): ?self
+    {
         return static::query()
             ->where('country_id', $countryId)
+            ->where('service_type', $serviceType)
             ->where('status', true)
             ->first();
     }

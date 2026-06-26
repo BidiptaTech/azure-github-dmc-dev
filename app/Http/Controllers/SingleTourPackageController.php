@@ -36,6 +36,7 @@ use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
+use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 
 class SingleTourPackageController extends Controller
 {
@@ -2214,9 +2215,9 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Proxy: fetch attractions from SG Attractions reseller API.
+     * Proxy: fetch attractions from country-mapped online attraction supplier (adapter layer).
      */
-    public function fetchOnlineAttractions(Request $request)
+    public function fetchOnlineAttractions(Request $request, OnlineAttractionAggregator $aggregator)
     {
         $request->validate([
             'visitDate' => 'nullable|date',
@@ -2226,98 +2227,29 @@ class SingleTourPackageController extends Controller
             'current_page' => 'nullable|integer|min:1',
         ]);
 
-        $baseUrl = rtrim((string) config('services.sg_attractions.base_url', ''), '/');
-        $apiKey = trim((string) config('services.sg_attractions.api_key'));
-        $secretKey = trim((string) config('services.sg_attractions.secret_key'));
-        $staticBearer = trim((string) config('services.sg_attractions.bearer_token'));
-
-        if ($baseUrl === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Online attraction API is not configured. Set SG_ATTRACTIONS_API_BASE_URL in .env',
-            ], 503);
-        }
-
-        if ($apiKey === '' && $staticBearer === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Online attraction API key is not configured. Set SG_ATTRACTIONS_API_KEY in .env',
-            ], 503);
-        }
-
-        if ($secretKey === '' && $staticBearer === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Set SG_ATTRACTIONS_SECRET_KEY in .env (reseller secret from SG Attractions — not the apikey). auth_key = md5(session_key . secret). For quick testing, paste a token from Postman into SG_ATTRACTIONS_BEARER_TOKEN.',
-            ], 503);
-        }
-
         try {
-            $auth = $this->getSgAttractionsBearerToken($baseUrl, $apiKey, $secretKey, $staticBearer);
-            if (! $auth['success']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $auth['message'] ?? 'Failed to authenticate with SG Attractions API.',
-                    'provider' => $auth['provider'] ?? null,
-                ], $auth['status'] ?? 502);
-            }
-
-            $query = array_filter([
-                'display_limit' => $request->input('display_limit'),
-                'current_page' => $request->input('current_page'),
-            ], static fn ($value) => $value !== null && $value !== '');
-
-            $response = Http::timeout((int) config('services.sg_attractions.timeout', 60))
-                ->withHeaders($this->sgAttractionsHeaders($auth['token']))
-                ->acceptJson()
-                ->get($baseUrl . '/attractions', $query);
-
-            if (! $response->successful()) {
-                Log::warning('SG Attractions list failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                    'query' => $query,
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to fetch online attractions from provider.',
-                    'status' => $response->status(),
-                    'provider' => $response->json(),
-                ], $response->status() >= 400 ? $response->status() : 502);
-            }
-
-            $body = $response->json();
-            if ((int) ($body['status'] ?? 0) !== 1000) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $body['message'] ?? 'SG Attractions API returned an error.',
-                    'provider' => $body,
-                ], 502);
-            }
-
-            $rawAttractions = $body['response']['data'] ?? [];
-            if (! is_array($rawAttractions)) {
-                $rawAttractions = [];
-            }
-
-            $attractions = array_map(fn (array $item) => $this->normalizeSgAttractionItem($item), $rawAttractions);
+            return response()->json(
+                $aggregator->search(
+                    $request->input('visitDate'),
+                    $request->input('city'),
+                    $request->input('paxInfo'),
+                    $request->input('display_limit') !== null ? (int) $request->input('display_limit') : null,
+                    $request->input('current_page') !== null ? (int) $request->input('current_page') : null,
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online attraction search failed', [
+                'city' => $request->input('city'),
+                'message' => $e->getMessage(),
+            ]);
 
             return response()->json([
-                'success' => true,
-                'attractions' => $attractions,
-                'total_attractions' => count($attractions),
-                'request' => [
-                    'visitDate' => $request->input('visitDate'),
-                    'city' => $request->input('city'),
-                    'paxInfo' => $request->input('paxInfo'),
-                    'display_limit' => $request->input('display_limit'),
-                    'current_page' => $request->input('current_page'),
-                ],
-                'provider' => $body,
-            ]);
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
-            Log::error('SG Attractions fetch exception', [
+            Log::error('Online attraction search exception', [
+                'city' => $request->input('city'),
                 'error' => $e->getMessage(),
             ]);
 
@@ -2326,176 +2258,6 @@ class SingleTourPackageController extends Controller
                 'message' => 'Error fetching online attractions: ' . $e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * @return array{success:bool,token?:string,message?:string,status?:int,provider?:mixed}
-     */
-    private function getSgAttractionsBearerToken(string $baseUrl, string $apiKey, string $secretKey, string $staticBearer = ''): array
-    {
-        if ($staticBearer !== '') {
-            return ['success' => true, 'token' => $staticBearer];
-        }
-
-        $cacheKey = 'sg_attractions_bearer_token_' . md5($apiKey);
-        $cachedToken = Cache::get($cacheKey);
-        if (is_string($cachedToken) && $cachedToken !== '') {
-            return ['success' => true, 'token' => $cachedToken];
-        }
-
-        $sessionResponse = Http::timeout((int) config('services.sg_attractions.timeout', 60))
-            ->asForm()
-            ->withHeaders($this->sgAttractionsHeaders())
-            ->post($baseUrl . '/reseller_auth/session', [
-                'apikey' => $apiKey,
-            ]);
-
-        if (! $sessionResponse->successful()) {
-            return [
-                'success' => false,
-                'message' => 'Failed to request SG Attractions session.',
-                'status' => $sessionResponse->status(),
-                'provider' => $sessionResponse->json(),
-            ];
-        }
-
-        $sessionBody = $sessionResponse->json();
-        if ((int) ($sessionBody['status'] ?? 0) !== 1000) {
-            return [
-                'success' => false,
-                'message' => $sessionBody['message'] ?? 'SG Attractions session request failed.',
-                'provider' => $sessionBody,
-            ];
-        }
-
-        $sessionKey = (string) ($sessionBody['response']['data']['session_key'] ?? '');
-        if ($sessionKey === '') {
-            return [
-                'success' => false,
-                'message' => 'SG Attractions session key missing in provider response.',
-                'provider' => $sessionBody,
-            ];
-        }
-
-        $authKey = md5($sessionKey . $secretKey);
-
-        $tokenResponse = Http::timeout((int) config('services.sg_attractions.timeout', 60))
-            ->asForm()
-            ->withHeaders($this->sgAttractionsHeaders())
-            ->post($baseUrl . '/reseller_auth/token', [
-                'session_key' => $sessionKey,
-                'auth_key' => $authKey,
-            ]);
-
-        if (! $tokenResponse->successful()) {
-            return [
-                'success' => false,
-                'message' => 'Failed to request SG Attractions auth token.',
-                'status' => $tokenResponse->status(),
-                'provider' => $tokenResponse->json(),
-            ];
-        }
-
-        $tokenBody = $tokenResponse->json();
-        if ((int) ($tokenBody['status'] ?? 0) !== 1000) {
-            return [
-                'success' => false,
-                'message' => $tokenBody['message'] ?? 'SG Attractions token request failed.',
-                'provider' => $tokenBody,
-            ];
-        }
-
-        $authToken = (string) ($tokenBody['response']['data']['auth_token'] ?? '');
-        if ($authToken === '') {
-            return [
-                'success' => false,
-                'message' => 'SG Attractions auth token missing in provider response.',
-                'provider' => $tokenBody,
-            ];
-        }
-
-        $expiresIn = $tokenBody['response']['data']['expires_in'] ?? null;
-        $ttlSeconds = 3600;
-        if (is_string($expiresIn) && $expiresIn !== '') {
-            try {
-                $ttlSeconds = max(60, Carbon::parse($expiresIn)->diffInSeconds(now()) - 60);
-            } catch (\Throwable $e) {
-                $ttlSeconds = 3600;
-            }
-        }
-
-        Cache::put($cacheKey, $authToken, $ttlSeconds);
-
-        return ['success' => true, 'token' => $authToken];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function sgAttractionsHeaders(?string $bearerToken = null): array
-    {
-        $headers = [
-            'Accept' => 'application/json',
-            'X-API-Version' => (string) config('services.sg_attractions.api_version', 'v1.10'),
-        ];
-
-        if ($bearerToken) {
-            $headers['Authorization'] = 'BEARER ' . $bearerToken;
-        }
-
-        return $headers;
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array<string, mixed>
-     */
-    private function normalizeSgAttractionItem(array $item): array
-    {
-        $skuId = (string) ($item['sku_id'] ?? '');
-        $low = (float) ($item['lowest_ticket_price'] ?? 0);
-        $high = (float) ($item['highest_ticket_price'] ?? 0);
-        $tickets = [];
-
-        if ($low > 0) {
-            $tickets[] = [
-                'ticketId' => $skuId . '-standard',
-                'ticketName' => 'Standard Ticket',
-                'price' => [
-                    'adult' => $low,
-                    'child' => $low,
-                ],
-            ];
-        }
-
-        if ($high > 0 && abs($high - $low) > 0.0001) {
-            $tickets[] = [
-                'ticketId' => $skuId . '-premium',
-                'ticketName' => 'Premium Ticket',
-                'price' => [
-                    'adult' => $high,
-                    'child' => $high,
-                ],
-            ];
-        }
-
-        if ($tickets === [] && $skuId !== '') {
-            $tickets[] = [
-                'ticketId' => $skuId . '-default',
-                'ticketName' => 'General Admission',
-                'price' => [
-                    'adult' => 0,
-                    'child' => 0,
-                ],
-            ];
-        }
-
-        return array_merge($item, [
-            'sku_id' => $skuId,
-            'title' => (string) ($item['title'] ?? ''),
-            'tickets' => $tickets,
-            'currency' => 'SGD',
-        ]);
     }
 
     /**
