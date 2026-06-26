@@ -2111,6 +2111,10 @@ class UserController extends Controller
                 $validationRules['master_dmc'] = 'required|exists:users,userId';
             }
             $validationRules['company_name'] = 'required|string|max:255';
+            $validationRules['markup_type_attraction'] = 'nullable|in:0,1';
+            $validationRules['markup_price_attraction'] = 'nullable|numeric|min:0';
+            $validationRules['markup_type_flight'] = 'nullable|in:0,1';
+            $validationRules['markup_price_flight'] = 'nullable|numeric|min:0';
             // Only require country_name if it's being sent (created by Master DMC)
             if ($request->has('country_name')) {
                 $validationRules['country_name'] = 'required|string';
@@ -2213,6 +2217,21 @@ class UserController extends Controller
             'markup_type' => $request->has('markup_type') && $request->markup_type !== '' ? (int) $request->markup_type : $user->markup_type,
             'markup_price' => $request->filled('markup_price') ? (int) $request->markup_price : $user->markup_price,
         ];
+
+        if (in_array((int) $userRole, [11, 20], true)) {
+            $updateData['markup_type_attraction'] = $request->has('markup_type_attraction') && $request->markup_type_attraction !== ''
+                ? (int) $request->markup_type_attraction
+                : (int) ($user->markup_type_attraction ?? 1);
+            $updateData['markup_price_attraction'] = $request->filled('markup_price_attraction')
+                ? (float) $request->markup_price_attraction
+                : (float) ($user->markup_price_attraction ?? 0);
+            $updateData['markup_type_flight'] = $request->has('markup_type_flight') && $request->markup_type_flight !== ''
+                ? (int) $request->markup_type_flight
+                : (int) ($user->markup_type_flight ?? 1);
+            $updateData['markup_price_flight'] = $request->filled('markup_price_flight')
+                ? (float) $request->markup_price_flight
+                : (float) ($user->markup_price_flight ?? 0);
+        }
 
         // Optional codes / registration fields (update only when present in request)
         if ($request->has('company_code')) {

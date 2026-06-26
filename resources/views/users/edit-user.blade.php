@@ -336,6 +336,45 @@
                             <small class="text-muted">Amount or percentage number</small>
                         </div>
                     </div>
+
+                    <div class="col-md-12" id="dmc_only_attr_flight_markup" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_type_attraction" class="form-label"><strong>Markup Type (Attr.)</strong></label>
+                                    <select class="form-select" id="markup_type_attraction" name="markup_type_attraction">
+                                        <option value="0" {{ (int) ($users->markup_type_attraction ?? 1) === 0 || old('markup_type_attraction') === '0' ? 'selected' : '' }}>By Value (Flat)</option>
+                                        <option value="1" {{ (int) ($users->markup_type_attraction ?? 1) === 1 || old('markup_type_attraction') === '1' ? 'selected' : '' }}>By Percentage</option>
+                                    </select>
+                                    <small class="text-muted">Attraction markup calculation</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_price_attraction" class="form-label"><strong>Markup Price (Attr.)</strong></label>
+                                    <input type="number" class="form-control" id="markup_price_attraction" name="markup_price_attraction" value="{{ old('markup_price_attraction', $users->markup_price_attraction ?? 0) }}" placeholder="Enter value" min="0" step="0.01">
+                                    <small class="text-muted">Attraction markup amount</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_type_flight" class="form-label"><strong>Markup Type (Flights)</strong></label>
+                                    <select class="form-select" id="markup_type_flight" name="markup_type_flight">
+                                        <option value="0" {{ (int) ($users->markup_type_flight ?? 1) === 0 || old('markup_type_flight') === '0' ? 'selected' : '' }}>By Value (Flat)</option>
+                                        <option value="1" {{ (int) ($users->markup_type_flight ?? 1) === 1 || old('markup_type_flight') === '1' ? 'selected' : '' }}>By Percentage</option>
+                                    </select>
+                                    <small class="text-muted">Flight markup calculation</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_price_flight" class="form-label"><strong>Markup Price (Flights)</strong></label>
+                                    <input type="number" class="form-control" id="markup_price_flight" name="markup_price_flight" value="{{ old('markup_price_flight', $users->markup_price_flight ?? 0) }}" placeholder="Enter value" min="0" step="0.01">
+                                    <small class="text-muted">Flight markup amount</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Contact Information -->
@@ -653,7 +692,8 @@
                 licence_no_container: $('#licence_no_container'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
                 markuptypes: $('#markuptypes'),
-                dmc_settings_section: $('#dmc_settings_section')
+                dmc_settings_section: $('#dmc_settings_section'),
+                dmc_only_attr_flight_markup: $('#dmc_only_attr_flight_markup')
             };
 
             // Hide all containers
@@ -681,6 +721,7 @@
                 containers.company_reg_no_container.show();
                 containers.licence_no_container.show();
                 containers.dmc_settings_section.show();
+                containers.dmc_only_attr_flight_markup.show();
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
             } else if ([3, 24, 25, 26, 27].includes(userRole)) {
