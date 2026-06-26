@@ -404,6 +404,11 @@
             white-space: nowrap;
         }
 
+        .add-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         
         .enquiry-sidebar .card-header {
             background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
@@ -1302,12 +1307,12 @@
                                     </div>
                                 
                                     <div class="d-flex align-items-end" style="gap: 8px;">
-                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <span class="get-price-spinner spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
                                             <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                         </button>
 
-                                        <button type="button" class="btn add-btn d-none" id="addHotelBtn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
                                     </div>
@@ -15727,7 +15732,7 @@
             // Toggle spinner / disabled state on the button.
             const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             if (spinner) spinner.classList.remove('d-none');
             if (getPriceBtn) getPriceBtn.disabled = true;
 
@@ -15779,7 +15784,7 @@
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
-                    if (addHotelBtn) addHotelBtn.classList.remove('d-none');
+                    if (addHotelBtn) addHotelBtn.disabled = false;
                 } else {
                     showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
                 }
@@ -16272,7 +16277,7 @@
             }
 
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             // Clear selected bed info
             window.selectedBedInfo = null;
@@ -25139,7 +25144,7 @@
             }
 
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             console.log('Hotel section reset completed');
         };
