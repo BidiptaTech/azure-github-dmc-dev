@@ -16,26 +16,19 @@ class AutomatedMail extends Mailable
 
     public ?string $emailUuid;
 
-    /** @var list<string> */
-    public array $referenceMessageIds;
-
     public ?string $fromEmail;
 
     public ?string $fromName;
 
     public ?string $replyToEmail;
 
-    /**
-     * @param  list<string>  $referenceMessageIds  Bare or bracketed Message-IDs for References chain
-     */
     public function __construct(
         $htmlContent,
         $subject = null,
         ?string $emailUuid = null,
         ?string $fromEmail = null,
         ?string $fromName = null,
-        ?string $replyToEmail = null,
-        array $referenceMessageIds = []
+        ?string $replyToEmail = null
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -43,7 +36,6 @@ class AutomatedMail extends Mailable
         $this->fromEmail = $fromEmail;
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
-        $this->referenceMessageIds = $referenceMessageIds;
     }
 
     public function build()
@@ -60,25 +52,13 @@ class AutomatedMail extends Mailable
         }
 
         if (! empty($this->emailUuid)) {
-            $inReplyTo = trim($this->emailUuid, '<>');
-            $references = $this->referenceMessageIds !== []
-                ? array_values(array_map(static fn (string $id): string => trim($id, '<>'), $this->referenceMessageIds))
-                : [$inReplyTo];
-
-            if (! in_array($inReplyTo, $references, true)) {
-                $references[] = $inReplyTo;
-            }
-
-            $mail->withSymfonyMessage(function ($message) use ($inReplyTo, $references) {
+            $parentMessageId = $this->emailUuid;
+            $mail->withSymfonyMessage(function ($message) use ($parentMessageId) {
                 $headers = $message->getHeaders();
-                if ($headers->has('In-Reply-To')) {
-                    $headers->remove('In-Reply-To');
-                }
-                if ($headers->has('References')) {
-                    $headers->remove('References');
-                }
-                $headers->addIdHeader('In-Reply-To', $inReplyTo);
-                $headers->addIdHeader('References', $references);
+                $headers->remove('In-Reply-To');
+                $headers->remove('References');
+                $headers->addTextHeader('In-Reply-To', $parentMessageId);
+                $headers->addTextHeader('References', $parentMessageId);
             });
         }
 
