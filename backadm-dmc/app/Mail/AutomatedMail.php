@@ -4,7 +4,6 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class AutomatedMail extends Mailable
@@ -39,23 +38,6 @@ class AutomatedMail extends Mailable
         $this->replyToEmail = $replyToEmail;
     }
 
-    /**
-     * Thread this reply into the sender's original email conversation.
-     */
-    public function headers(): Headers
-    {
-        if (empty($this->emailUuid)) {
-            return new Headers();
-        }
-
-        return new Headers(
-            references: [$this->emailUuid],
-            text: [
-                'In-Reply-To' => $this->emailUuid,
-            ]
-        );
-    }
-
     public function build()
     {
         $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
@@ -67,6 +49,17 @@ class AutomatedMail extends Mailable
         $replyTo = $this->replyToEmail ?: $this->fromEmail;
         if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
             $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
+        }
+
+        if (! empty($this->emailUuid)) {
+            $parentMessageId = $this->emailUuid;
+            $mail->withSymfonyMessage(function ($message) use ($parentMessageId) {
+                $headers = $message->getHeaders();
+                $headers->remove('In-Reply-To');
+                $headers->remove('References');
+                $headers->addTextHeader('In-Reply-To', $parentMessageId);
+                $headers->addTextHeader('References', $parentMessageId);
+            });
         }
 
         return $mail;

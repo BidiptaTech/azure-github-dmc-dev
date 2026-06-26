@@ -1726,6 +1726,13 @@ class CommonHelper
             return null;
         }
 
+        $messageId = preg_replace('/^message-id:\s*/i', '', $messageId) ?? $messageId;
+        $messageId = trim($messageId, " \t\n\r\0\x0B\"'");
+
+        if ($messageId === '') {
+            return null;
+        }
+
         if (! str_starts_with($messageId, '<')) {
             $messageId = '<'.$messageId;
         }
@@ -1736,18 +1743,61 @@ class CommonHelper
         return $messageId;
     }
 
+    public static function isUsableEmailUuid(?string $emailUuid): bool
+    {
+        $emailUuid = trim((string) $emailUuid);
+        if ($emailUuid === '') {
+            return false;
+        }
+
+        $normalized = strtolower(trim($emailUuid, '<>'));
+
+        return ! in_array($normalized, [
+            'no-uuid-provided',
+            'none',
+            'null',
+            'n/a',
+            'na',
+            'undefined',
+        ], true);
+    }
+
     /**
      * @param  array<string, mixed>  $context
      */
     public static function resolveEmailUuidFromContext(array $context): ?string
     {
-        return self::normalizeEmailMessageId(
-            (string) ($context['email_uuid']
-                ?? $context['message_id']
-                ?? $context['email_message_id']
-                ?? $context['Message-ID']
-                ?? '')
-        );
+        $raw = trim((string) ($context['email_uuid'] ?? ''));
+        if (! self::isUsableEmailUuid($raw)) {
+            return null;
+        }
+
+        return self::normalizeEmailMessageId($raw);
+    }
+
+    public static function resolveEmailSubjectFromContext(array $context): ?string
+    {
+        $subject = trim((string) ($context['email_subject']
+            ?? $context['subject']
+            ?? $context['mail_subject']
+            ?? $context['original_subject']
+            ?? ''));
+
+        return $subject !== '' ? $subject : null;
+    }
+
+    public static function applyThreadReplySubject(string $subject, ?string $originalSubject = null): string
+    {
+        $originalSubject = trim((string) $originalSubject);
+        if ($originalSubject === '') {
+            return trim($subject);
+        }
+
+        if (preg_match('/^re:\s/i', $originalSubject)) {
+            return $originalSubject;
+        }
+
+        return 'Re: '.$originalSubject;
     }
 
     public static function sendHtmlEmail(
@@ -1757,17 +1807,26 @@ class CommonHelper
         ?string $fromEmail = null,
         ?string $fromName = null,
         ?string $replyToEmail = null,
-        ?string $emailUuid = null
+        ?string $emailUuid = null,
+        ?string $threadSubject = null
     ): void {
         if ($emailUuid !== null && $emailUuid !== '') {
+            $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+
             Mail::to($recipientEmail)->send(new AutomatedMail(
                 $html,
-                $subject,
+                $finalSubject,
                 $emailUuid,
                 $fromEmail,
                 $fromName,
                 $replyToEmail
             ));
+
+            Log::info('Threaded email sent', [
+                'to' => $recipientEmail,
+                'in_reply_to' => $emailUuid,
+                'subject' => $finalSubject,
+            ]);
 
             return;
         }
@@ -1993,12 +2052,13 @@ class CommonHelper
 
         try {
             $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            self::sendHtmlEmail($dmcEmail, $html, trim($subject), null, null, null, $emailUuid);
+            self::sendHtmlEmail($dmcEmail, $html, trim($subject), null, null, null, $emailUuid, $threadSubject);
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
@@ -2032,6 +2092,7 @@ class CommonHelper
 
         try {
             $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
             $emailData = self::normalizeQuotationEmailData($tourData);
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
@@ -2039,7 +2100,7 @@ class CommonHelper
             $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
-            self::sendHtmlEmail($recipientEmail, $html, trim($subject), null, null, null, $emailUuid);
+            self::sendHtmlEmail($recipientEmail, $html, trim($subject), null, null, null, $emailUuid, $threadSubject);
 
             Log::info('Quotation email sent', [
                 'email' => $recipientEmail,
@@ -2074,6 +2135,7 @@ class CommonHelper
 
         try {
             $emailUuid = self::resolveEmailUuidFromContext($emailData);
+            $threadSubject = self::resolveEmailSubjectFromContext($emailData);
             $viewData = [
                 'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
                 'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
@@ -2109,7 +2171,8 @@ class CommonHelper
                 $fromEmail,
                 $fromName,
                 $replyTo,
-                $emailUuid
+                $emailUuid,
+                $threadSubject
             );
 
             Log::info('Incomplete travel details email sent', [
