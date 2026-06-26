@@ -54,6 +54,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
+        'markup_price_attraction' => 'decimal:2',
+        'markup_price_flight' => 'decimal:2',
     ];
 
     /**
