@@ -49,16 +49,16 @@
                         </div>
                         <div class="mt-3 d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-sm btn-primary" id="onlineHotelFetchBtn">
-                                <span class="spinner-border spinner-border-sm d-none me-1" id="onlineHotelFetchSpinner"></span>
-                                <i class="ri-search-line me-1"></i> Fetch Hotels
+                                <span class="spinner-border spinner-border-sm d-none me-1" id="onlineHotelFetchSpinner" role="status" aria-hidden="true"></span>
+                                <i class="ri-search-line me-1" id="onlineHotelFetchIcon"></i> Fetch Hotels
                             </button>
                             <small class="text-muted" id="onlineHotelFetchStatus" style="font-size: 0.8rem;"></small>
                         </div>
                     </div>
                 </div>
 
-                {{-- Hotel selection (mirrors offline fields) --}}
-                <div class="card border-0 shadow-sm">
+                {{-- Hotel selection (shown only after a successful fetch with results) --}}
+                <div class="card border-0 shadow-sm d-none" id="onlineHotelSelectionPanel">
                     <div class="card-body">
                         <div class="row g-2 mb-2">
                             <div class="col-md-3">
@@ -126,7 +126,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="onlineHotelAddBtn" disabled>
+                <button type="button" class="btn btn-success d-none" id="onlineHotelAddBtn" disabled>
                     <i class="ri-add-line me-1"></i> Add Hotel
                 </button>
             </div>
@@ -248,6 +248,7 @@
     let onlineSelectedNights = [];
     let onlineCurrentRooms = [];
     let onlineLastSupplierCode = '';
+    let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
 
     function getMainGuestLimits() {
@@ -543,6 +544,8 @@
 
         syncOnlineGuestDerivedFields();
 
+        resetOnlineHotelFetchResults();
+
         const guestModal = document.getElementById('onlineHotelGuestModal');
         if (guestModal && window.bootstrap) {
             bootstrap.Modal.getInstance(guestModal)?.hide();
@@ -550,6 +553,7 @@
     }
 
     function syncOnlineSearchDefaults() {
+        resetOnlineHotelFetchResults();
         loadOnlineGuestStateFromMain();
         const citySelect = document.getElementById('hotelCitySelect');
         const onlineCity = document.getElementById('onlineHotelCity');
@@ -567,16 +571,29 @@
             }
         }
 
-        const planStart = (typeof getHotelNightPlanStart === 'function') ? getHotelNightPlanStart() : (window.tourStartDate || '');
-        const planNights = (typeof getHotelNightPlanNightCount === 'function') ? getHotelNightPlanNightCount() : (window.tourNights || 0);
+        const tourStart = document.getElementById('start_date')?.value || '';
+        const tourEnd = document.getElementById('end_date')?.value || '';
         const checkInEl = document.getElementById('onlineHotelCheckIn');
         const checkOutEl = document.getElementById('onlineHotelCheckOut');
-        if (checkInEl && planStart) {
-            checkInEl.value = moment(planStart).format('YYYY-MM-DD');
+        if (checkInEl && tourStart) {
+            checkInEl.value = tourStart;
         }
-        if (checkOutEl && planStart && planNights > 0) {
-            checkOutEl.value = moment(planStart).add(planNights, 'days').format('YYYY-MM-DD');
+        if (checkOutEl && tourEnd) {
+            checkOutEl.value = tourEnd;
+        } else if (checkOutEl && tourStart) {
+            const planNights = (typeof window.getHotelNightPlanNightCount === 'function')
+                ? window.getHotelNightPlanNightCount()
+                : countDaysBetween(tourStart, tourEnd);
+            if (planNights > 0) {
+                checkOutEl.value = addDaysToDateStr(tourStart, planNights);
+            }
         }
+
+        onlineHotelLastSearch = {
+            checkIn: checkInEl?.value || '',
+            checkOut: checkOutEl?.value || '',
+            city: onlineCity?.value || '',
+        };
 
         renderOnlineGuestSummary();
         const paxEl = document.getElementById('onlineHotelPaxInfo');
@@ -591,36 +608,126 @@
             personsEl.value = Math.min(Math.max(1, adults + children), maxPersons);
         }
 
-        generateOnlineNightButtons();
+        generateOnlineNightButtons(false, getOnlineNightPlanContext());
     }
 
-    function generateOnlineNightButtons() {
+    function parseDateInput(value) {
+        if (!value) return null;
+        const parts = String(value).split('-').map(function (p) { return parseInt(p, 10); });
+        if (parts.length !== 3 || parts.some(function (n) { return isNaN(n); })) {
+            return null;
+        }
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function countDaysBetween(startStr, endStr) {
+        const start = parseDateInput(startStr);
+        const end = parseDateInput(endStr);
+        if (!start || !end) return 0;
+        const diffMs = end.getTime() - start.getTime();
+        return Math.max(0, Math.round(diffMs / 86400000));
+    }
+
+    function addDaysToDateStr(dateStr, days) {
+        const date = parseDateInput(dateStr);
+        if (!date) return dateStr;
+        date.setDate(date.getDate() + days);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+    }
+
+    function formatNightDateLabel(dateStr, addDays) {
+        const date = parseDateInput(dateStr);
+        if (!date) return dateStr || '';
+        date.setDate(date.getDate() + addDays);
+        if (typeof moment !== 'undefined') {
+            return moment(date).format('MMM DD');
+        }
+        return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+    }
+
+    function getOnlineNightPlanContext() {
+        const checkIn = document.getElementById('onlineHotelCheckIn')?.value || onlineHotelLastSearch.checkIn || '';
+        const checkOut = document.getElementById('onlineHotelCheckOut')?.value || onlineHotelLastSearch.checkOut || '';
+        const nightsFromModalDates = countDaysBetween(checkIn, checkOut);
+        if (checkIn && checkOut && nightsFromModalDates > 0) {
+            return { start: checkIn, nights: nightsFromModalDates };
+        }
+
+        if (typeof window.getHotelNightPlanStart === 'function' && typeof window.getHotelNightPlanNightCount === 'function') {
+            const planStart = window.getHotelNightPlanStart();
+            const planNights = window.getHotelNightPlanNightCount();
+            if (planStart && planNights > 0) {
+                return { start: planStart, nights: planNights };
+            }
+        }
+
+        const tourStart = document.getElementById('start_date')?.value || '';
+        const tourEnd = document.getElementById('end_date')?.value || '';
+        const nightsFromTour = countDaysBetween(tourStart, tourEnd);
+        if (tourStart && nightsFromTour > 0) {
+            return { start: tourStart, nights: nightsFromTour };
+        }
+
+        return { start: '', nights: 0 };
+    }
+
+    function generateOnlineNightButtons(autoSelectAll, nightPlanOverride) {
         const wrap = document.getElementById('onlineNightSelection');
+        const summaryEl = document.getElementById('onlineNightSelectionSummary');
         if (!wrap) return;
         wrap.innerHTML = '';
         onlineSelectedNights = [];
 
-        const planNights = (typeof getHotelNightPlanNightCount === 'function') ? getHotelNightPlanNightCount() : (window.tourNights || 0);
-        const planStart = (typeof getHotelNightPlanStart === 'function') ? getHotelNightPlanStart() : (window.tourStartDate || '');
+        const plan = nightPlanOverride || getOnlineNightPlanContext();
+        const planNights = plan.nights;
+        const planStart = plan.start;
         if (!planNights || !planStart) {
-            document.getElementById('onlineNightSelectionSummary').innerHTML = '<small class="text-muted">Set travel dates first.</small>';
+            if (summaryEl) {
+                summaryEl.innerHTML = '<small class="text-muted">Set travel dates first.</small>';
+            }
+            validateOnlineAddBtn();
             return;
         }
 
         for (let i = 1; i <= planNights; i++) {
-            const startDate = moment(planStart).add(i - 1, 'days');
-            const endDate = moment(planStart).add(i, 'days');
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'btn btn-outline-primary btn-sm online-night-btn';
             btn.dataset.night = String(i);
-            btn.innerHTML = '<strong>Night ' + i + '</strong><br><small>' + startDate.format('MMM DD') + ' - ' + endDate.format('MMM DD') + '</small>';
+            btn.innerHTML = '<strong>Night ' + i + '</strong><br><small>'
+                + formatNightDateLabel(planStart, i - 1) + ' - ' + formatNightDateLabel(planStart, i)
+                + '</small>';
             btn.addEventListener('click', function () {
                 toggleOnlineNight(parseInt(this.dataset.night, 10));
             });
             wrap.appendChild(btn);
         }
+
+        if (autoSelectAll) {
+            selectAllOnlineNights();
+        } else {
+            updateOnlineNightSummary();
+            validateOnlineAddBtn();
+        }
+    }
+
+    function selectAllOnlineNights() {
+        onlineSelectedNights = [];
+        document.querySelectorAll('.online-night-btn').forEach(function (btn) {
+            onlineSelectedNights.push(parseInt(btn.dataset.night, 10));
+        });
+        onlineSelectedNights.sort(function (a, b) { return a - b; });
+        document.querySelectorAll('.online-night-btn').forEach(function (btn) {
+            const n = parseInt(btn.dataset.night, 10);
+            btn.classList.toggle('active', onlineSelectedNights.includes(n));
+            btn.classList.toggle('btn-primary', onlineSelectedNights.includes(n));
+            btn.classList.toggle('btn-outline-primary', !onlineSelectedNights.includes(n));
+        });
         updateOnlineNightSummary();
+        validateOnlineAddBtn();
     }
 
     function toggleOnlineNight(nightNum) {
@@ -781,7 +888,75 @@
         document.getElementById('onlineBedTypeSelect').innerHTML = '<option value="">Bed Type</option>';
         document.getElementById('onlineRoomTypeSelect').disabled = true;
         document.getElementById('onlineBedTypeSelect').disabled = true;
+
+        if (onlineHotelsCache.length > 0) {
+            sel.selectedIndex = 1;
+            populateOnlineRooms(onlineHotelsCache[0]);
+        }
+
         validateOnlineAddBtn();
+    }
+
+    function hideOnlineHotelSelectionPanel() {
+        const panel = document.getElementById('onlineHotelSelectionPanel');
+        if (panel) {
+            panel.classList.add('d-none');
+        }
+        const addBtn = document.getElementById('onlineHotelAddBtn');
+        if (addBtn) {
+            addBtn.classList.add('d-none');
+            addBtn.disabled = true;
+        }
+    }
+
+    function showOnlineHotelSelectionPanel(nightPlanOverride) {
+        const panel = document.getElementById('onlineHotelSelectionPanel');
+        if (panel) {
+            panel.classList.remove('d-none');
+        }
+        generateOnlineNightButtons(true, nightPlanOverride);
+        const addBtn = document.getElementById('onlineHotelAddBtn');
+        if (addBtn) {
+            addBtn.classList.remove('d-none');
+        }
+        validateOnlineAddBtn();
+    }
+
+    function setOnlineHotelFetchLoading(isLoading) {
+        const btn = document.getElementById('onlineHotelFetchBtn');
+        const spinner = document.getElementById('onlineHotelFetchSpinner');
+        const icon = document.getElementById('onlineHotelFetchIcon');
+
+        if (btn) {
+            btn.disabled = !!isLoading;
+        }
+        if (spinner) {
+            spinner.classList.toggle('d-none', !isLoading);
+        }
+        if (icon) {
+            icon.classList.toggle('d-none', !!isLoading);
+        }
+    }
+
+    function onOnlineHotelSearchCriteriaChange() {
+        onlineHotelLastSearch = {
+            checkIn: document.getElementById('onlineHotelCheckIn')?.value || '',
+            checkOut: document.getElementById('onlineHotelCheckOut')?.value || '',
+            city: document.getElementById('onlineHotelCity')?.value || '',
+        };
+        resetOnlineHotelFetchResults();
+        if (!document.getElementById('onlineHotelSelectionPanel')?.classList.contains('d-none')) {
+            generateOnlineNightButtons(false);
+        }
+    }
+
+    function resetOnlineHotelFetchResults() {
+        hideOnlineHotelSelectionPanel();
+        populateOnlineHotels([]);
+        const statusEl = document.getElementById('onlineHotelFetchStatus');
+        if (statusEl) {
+            statusEl.textContent = '';
+        }
     }
 
     function inferBedTypeFromRoom(room) {
@@ -940,7 +1115,6 @@
         const checkOut = document.getElementById('onlineHotelCheckOut')?.value;
         const paxInfo = document.getElementById('onlineHotelPaxInfo')?.value || buildPaxInfo();
         const statusEl = document.getElementById('onlineHotelFetchStatus');
-        const spinner = document.getElementById('onlineHotelFetchSpinner');
 
         if (!city || !checkIn || !checkOut) {
             if (typeof showNotification === 'function') {
@@ -949,8 +1123,12 @@
             return;
         }
 
-        if (spinner) spinner.classList.remove('d-none');
-        if (statusEl) statusEl.textContent = 'Fetching hotels...';
+        hideOnlineHotelSelectionPanel();
+        setOnlineHotelFetchLoading(true);
+        if (statusEl) statusEl.textContent = '';
+
+        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city };
+        const fetchedNightPlan = { start: checkIn, nights: countDaysBetween(checkIn, checkOut) };
 
         fetch(fetchUrl, {
             method: 'POST',
@@ -968,14 +1146,26 @@
                 onlineLastSupplierCode = data.supplier_code || data.supplier_name || '';
                 const hotels = extractHotelsFromResponse(data);
                 populateOnlineHotels(hotels);
-                const supplierLabel = data.supplier_name || data.supplier_code || 'supplier';
-                if (statusEl) {
-                    statusEl.textContent = hotels.length + ' hotel(s) via ' + supplierLabel + '.';
-                }
-                if (typeof showNotification === 'function') {
-                    showNotification('Online hotels loaded successfully.', 'success');
+
+                if (hotels.length > 0) {
+                    showOnlineHotelSelectionPanel(fetchedNightPlan.nights > 0 ? fetchedNightPlan : null);
+                    if (statusEl) {
+                        statusEl.textContent = hotels.length + ' hotel(s) found.';
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification('Online hotels loaded successfully.', 'success');
+                    }
+                } else {
+                    hideOnlineHotelSelectionPanel();
+                    if (statusEl) {
+                        statusEl.textContent = '0 hotels found.';
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification('No hotels found for the selected criteria.', 'warning');
+                    }
                 }
             } else {
+                hideOnlineHotelSelectionPanel();
                 populateOnlineHotels([]);
                 if (statusEl) statusEl.textContent = data?.message || 'No hotels found.';
                 if (typeof showNotification === 'function') {
@@ -984,6 +1174,7 @@
             }
         })
         .catch(function (err) {
+            hideOnlineHotelSelectionPanel();
             populateOnlineHotels([]);
             if (statusEl) statusEl.textContent = 'Request failed.';
             console.error(err);
@@ -992,8 +1183,12 @@
             }
         })
         .finally(function () {
-            if (spinner) spinner.classList.add('d-none');
+            setOnlineHotelFetchLoading(false);
         });
+    });
+
+    ['onlineHotelCity', 'onlineHotelCheckIn', 'onlineHotelCheckOut'].forEach(function (id) {
+        document.getElementById(id)?.addEventListener('change', onOnlineHotelSearchCriteriaChange);
     });
 
     document.getElementById('onlineHotelSelect')?.addEventListener('change', function () {
@@ -1015,12 +1210,19 @@
     });
 
     document.getElementById('onlineHotelAddBtn')?.addEventListener('click', function () {
-        if (typeof selectedHotels === 'undefined' || typeof displaySelectedHotels !== 'function') {
+        if (typeof window.pushSelectedHotel !== 'function') {
             alert('Hotel list is not ready. Please reload the page.');
             return;
         }
-        if (!tourStartDate) {
+
+        const nightPlan = getOnlineNightPlanContext();
+        const planStart = nightPlan.start || document.getElementById('start_date')?.value || onlineHotelLastSearch.checkIn;
+        if (!planStart) {
             alert('Please add travel dates first before adding hotels.');
+            return;
+        }
+        if (!onlineSelectedNights.length) {
+            alert('Please select at least one hotel night.');
             return;
         }
 
@@ -1030,11 +1232,12 @@
         if (!hotelRaw) return;
 
         const nightNumbers = onlineSelectedNights.slice().sort((a, b) => a - b);
-        const planStart = (typeof getHotelNightPlanStart === 'function') ? getHotelNightPlanStart() : tourStartDate;
         const startNight = Math.min(...nightNumbers);
         const endNight = Math.max(...nightNumbers);
-        const checkInDate = moment(planStart).add(startNight - 1, 'days');
-        const checkOutDate = moment(planStart).add(endNight, 'days');
+        const checkInDateStr = addDaysToDateStr(planStart, startNight - 1);
+        const checkOutDateStr = addDaysToDateStr(planStart, endNight);
+        const checkInDate = typeof moment !== 'undefined' ? moment(checkInDateStr).format('MMM DD') : formatNightDateLabel(planStart, startNight - 1);
+        const checkOutDate = typeof moment !== 'undefined' ? moment(checkOutDateStr).format('MMM DD') : formatNightDateLabel(planStart, endNight);
         const roomType = document.getElementById('onlineRoomTypeSelect')?.value || 'Standard';
         const bedType = document.getElementById('onlineBedTypeSelect')?.value || '';
         const mealPlan = document.getElementById('onlineMealPlanSelect')?.value || 'Not specified';
@@ -1058,8 +1261,8 @@
             mealPrices: { breakfast_price: 0, lunch_price: 0, dinner_price: 0 },
             numberOfRooms: numberOfRooms,
             nights: nightNumbers,
-            checkInDate: checkInDate.format('MMM DD'),
-            checkOutDate: checkOutDate.format('MMM DD'),
+            checkInDate: checkInDate,
+            checkOutDate: checkOutDate,
             totalNights: nightNumbers.length,
             remarks: remarks,
             isOnlineHotel: true,
@@ -1069,11 +1272,7 @@
             pricePerNight: nightNumbers.length ? price / nightNumbers.length : price
         };
 
-        selectedHotels.push(hotelData);
-        if (typeof lastSelectedHotelId !== 'undefined') {
-            lastSelectedHotelId = hotelData.id;
-        }
-        displaySelectedHotels();
+        window.pushSelectedHotel(hotelData);
         if (typeof window.updateHotelDataField === 'function') {
             window.updateHotelDataField();
         }

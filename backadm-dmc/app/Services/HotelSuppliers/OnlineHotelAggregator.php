@@ -2,7 +2,9 @@
 
 namespace App\Services\HotelSuppliers;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\OnlinePricing\OnlinePricingService;
 use RuntimeException;
 
 class OnlineHotelAggregator
@@ -11,6 +13,7 @@ class OnlineHotelAggregator
         private HotelSupplierResolver $resolver,
         private HotelSupplierFactory $factory,
         private HotelResponseNormalizer $normalizer,
+        private OnlinePricingService $onlinePricing,
     ) {}
 
     /**
@@ -40,6 +43,11 @@ class OnlineHotelAggregator
 
         $result = $adapter->fetchHotels($searchRequest, $resolved['credentials']);
         $frontendHotels = $this->normalizer->forFrontend($result['hotels']);
+        $frontendHotels = $this->onlinePricing->applyHotelMarkups(
+            $frontendHotels,
+            $resolved['supplier'],
+            Auth::user(),
+        );
 
         return [
             'success' => true,

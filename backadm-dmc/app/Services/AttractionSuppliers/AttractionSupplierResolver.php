@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\HotelSuppliers;
+namespace App\Services\AttractionSuppliers;
 
 use App\Models\City;
 use App\Models\Country;
@@ -8,10 +8,10 @@ use App\Models\SupplierMaster;
 use App\Services\SupplierEnvService;
 use RuntimeException;
 
-class HotelSupplierResolver
+class AttractionSupplierResolver
 {
     public function __construct(
-        private SupplierEnvService $supplierEnv
+        private SupplierEnvService $supplierEnv,
     ) {}
 
     /**
@@ -36,12 +36,12 @@ class HotelSupplierResolver
             throw new RuntimeException("Could not determine country for city [{$city->name}].");
         }
 
-        $supplier = SupplierMaster::forCountryAndService($countryId, 'hotels');
+        $supplier = SupplierMaster::forCountryAndService($countryId, 'attractions');
 
         if (! $supplier) {
             $countryName = Country::query()->where('id', $countryId)->value('name') ?? 'this country';
 
-            throw new RuntimeException("No active hotel supplier is mapped for {$countryName}. Configure it in Supplier Master.");
+            throw new RuntimeException("No active attraction supplier is mapped for {$countryName}. Configure it in Supplier Master.");
         }
 
         if (! $this->supplierEnv->isConfigured($supplier->code)) {
@@ -58,6 +58,21 @@ class HotelSupplierResolver
         ];
     }
 
+    public function tryResolveSupplierForCity(?string $cityName): ?SupplierMaster
+    {
+        $cityName = trim((string) $cityName);
+
+        if ($cityName === '') {
+            return null;
+        }
+
+        try {
+            return $this->resolveForCityName($cityName)['supplier'];
+        } catch (RuntimeException) {
+            return null;
+        }
+    }
+
     private function findCity(string $cityName): ?City
     {
         $cityName = trim($cityName);
@@ -66,10 +81,9 @@ class HotelSupplierResolver
             return null;
         }
 
-        $query = City::query();
-
         if (ctype_digit($cityName)) {
-            return $query->where('id', (int) $cityName)
+            return City::query()
+                ->where('id', (int) $cityName)
                 ->orWhere('city_id', (int) $cityName)
                 ->first();
         }
