@@ -6,6 +6,25 @@
 <style>
     .select2-container { width: 100% !important; }
     .select2-container .select2-selection--single { height: 38px !important; display: flex !important; align-items: center !important; }
+    .supplier-action-btns {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .supplier-action-btns .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+    }
+    .supplier-action-btns .btn-icon i {
+        font-size: 16px;
+        line-height: 1;
+    }
 </style>
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -37,7 +56,7 @@
             @forelse($supplierDefinitions as $code => $definition)
                 @php
                     $values = $credentialValues[$code] ?? [];
-                    $configured = filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null);
+                    $configured = app(\App\Services\SupplierEnvService::class)->isConfigured($code);
                 @endphp
                 <div class="card mb-3 border" id="cred-{{ $code }}">
                     <div class="card-header d-flex justify-content-between align-items-center py-2">
@@ -87,7 +106,7 @@
         <div class="card-body">
             <form action="{{ route('suppliers.store') }}" method="POST" class="row g-3">
                 @csrf
-                <div class="col-md-4">
+                <div class="col-md-4 col-lg-2">
                     <label class="form-label">Country</label>
                     <select name="country_id" id="addCountrySelect" class="form-select country-select-search" required>
                         <option value="">Search country</option>
@@ -98,11 +117,11 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4 col-lg-2">
                     <label class="form-label">Supplier Name</label>
                     <input type="text" name="name" class="form-control" value="{{ old('name') }}" required>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4 col-lg-2">
                     <label class="form-label">Supplier Code</label>
                     <select name="code" class="form-select" required>
                         <option value="">Select</option>
@@ -111,7 +130,28 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
+                <div class="col-md-4 col-lg-2">
+                    <label class="form-label">Service Type</label>
+                    <select name="service_type" class="form-select" required>
+                        <option value="">Select</option>
+                        @foreach($serviceTypes as $value => $label)
+                            <option value="{{ $value }}" @selected(old('service_type', 'hotels') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4 col-lg-2">
+                    <label class="form-label">Markup Type</label>
+                    <select name="markup_type" class="form-select" required>
+                        @foreach($markupTypes as $value => $label)
+                            <option value="{{ $value }}" @selected(old('markup_type', 'percentage') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4 col-lg-2">
+                    <label class="form-label">Amount</label>
+                    <input type="number" name="amount" class="form-control" value="{{ old('amount', '0') }}" min="0" step="1.0" required>
+                </div>
+                <div class="col-md-4 col-lg-1 d-flex align-items-end">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" name="status" value="1" checked>
                         <label class="form-check-label">Active</label>
@@ -133,6 +173,9 @@
                         <th>Country</th>
                         <th>Supplier</th>
                         <th>Code</th>
+                        <th>Service Type</th>
+                        <th>Markup Type</th>
+                        <th>Amount</th>
                         <th>Credentials</th>
                         <th>Status</th>
                         <th>Action</th>
@@ -144,6 +187,9 @@
                             <td>{{ $supplier->country?->name }}</td>
                             <td>{{ $supplier->name }}</td>
                             <td><code>{{ $supplier->code }}</code></td>
+                            <td>{{ $supplier->serviceTypeLabel() }}</td>
+                            <td>{{ $supplier->markupTypeLabel() }}</td>
+                            <td>{{ number_format((float) ($supplier->amount ?? 0), 2) }}</td>
                             <td>
                                 @if($supplier->credentialsConfigured())
                                     <span class="badge bg-success">In .env</span>
@@ -155,11 +201,17 @@
                             </td>
                             <td>{{ $supplier->status ? 'Active' : 'Inactive' }}</td>
                             <td>
-                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editSupplier{{ $supplier->id }}">Edit</button>
-                                <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
+                                <div class="supplier-action-btns">
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-icon" data-bs-toggle="modal" data-bs-target="#editSupplier{{ $supplier->id }}" title="Edit" aria-label="Edit">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                    <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this supplier mapping?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger btn-icon" title="Delete" aria-label="Delete">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         <div class="modal fade" id="editSupplier{{ $supplier->id }}" tabindex="-1">
@@ -192,6 +244,26 @@
                                                     @endforeach
                                                 </select>
                                             </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Service Type</label>
+                                                <select name="service_type" class="form-select" required>
+                                                    @foreach($serviceTypes as $value => $label)
+                                                        <option value="{{ $value }}" @selected(($supplier->service_type ?? 'hotels') === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Markup Type</label>
+                                                <select name="markup_type" class="form-select" required>
+                                                    @foreach($markupTypes as $value => $label)
+                                                        <option value="{{ $value }}" @selected(($supplier->markup_type ?? 'percentage') === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Amount</label>
+                                                <input type="number" name="amount" class="form-control" value="{{ $supplier->amount ?? 0 }}" min="0" step="1.0" required>
+                                            </div>
                                             <div class="col-12">
                                                 <div class="form-check form-switch">
                                                     <input class="form-check-input" type="checkbox" name="status" value="1" @checked($supplier->status)>
@@ -207,7 +279,7 @@
                             </div>
                         </div>
                     @empty
-                        <tr><td colspan="6" class="text-center text-muted">No mappings yet.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted">No mappings yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

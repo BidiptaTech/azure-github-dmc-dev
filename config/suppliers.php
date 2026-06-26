@@ -43,4 +43,15 @@ return [
         ],
     ],
 
+    'sg_attractions' => [
+        'label' => 'SG Attractions',
+        'fields' => [
+            'base_url' => ['env' => 'SG_ATTRACTIONS_API_BASE_URL', 'label' => 'API Base URL', 'type' => 'url'],
+            'api_key' => ['env' => 'SG_ATTRACTIONS_API_KEY', 'label' => 'API Key', 'type' => 'text'],
+            'secret_key' => ['env' => 'SG_ATTRACTIONS_SECRET_KEY', 'label' => 'Secret Key', 'type' => 'password'],
+            'bearer_token' => ['env' => 'SG_ATTRACTIONS_BEARER_TOKEN', 'label' => 'Bearer Token (optional)', 'type' => 'password'],
+            'timeout' => ['env' => 'SG_ATTRACTIONS_API_TIMEOUT', 'label' => 'Timeout (seconds)', 'type' => 'number', 'default' => '60'],
+        ],
+    ],
+
 ];

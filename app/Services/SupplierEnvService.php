@@ -16,7 +16,30 @@ class SupplierEnvService
      */
     public function allDefinitions(): array
     {
+        return $this->definitions();
+    }
+
+    /**
+     * Authoritative supplier registry — always read from config/suppliers.php
+     * so new entries (e.g. sg_attractions) appear even when config is cached.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function definitions(): array
+    {
+        if (is_file(config_path('suppliers.php'))) {
+            return require config_path('suppliers.php');
+        }
+
         return config('suppliers', []);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function allowedCodes(): array
+    {
+        return array_keys($this->definitions());
     }
 
     /**
@@ -24,7 +47,7 @@ class SupplierEnvService
      */
     public function valuesFor(string $code): array
     {
-        $definition = config("suppliers.{$code}");
+        $definition = $this->definitions()[$code] ?? null;
 
         if (! is_array($definition)) {
             return [];
@@ -70,7 +93,32 @@ class SupplierEnvService
                 && filled(config('services.hotelbeds.api_secret'));
         }
 
+        if ($code === 'sg_attractions') {
+            return $this->isSgAttractionsConfigured($values);
+        }
+
         return false;
+    }
+
+    /**
+     * @param  array<string, string|null>  $values
+     */
+    private function isSgAttractionsConfigured(array $values): bool
+    {
+        $baseUrl = $values['base_url'] ?? config('services.sg_attractions.base_url');
+        $apiKey = $values['api_key'] ?? config('services.sg_attractions.api_key');
+        $secretKey = $values['secret_key'] ?? config('services.sg_attractions.secret_key');
+        $bearerToken = $values['bearer_token'] ?? config('services.sg_attractions.bearer_token');
+
+        if (! filled($baseUrl)) {
+            return false;
+        }
+
+        if (filled($bearerToken)) {
+            return true;
+        }
+
+        return filled($apiKey) && filled($secretKey);
     }
 
     /**
@@ -78,8 +126,12 @@ class SupplierEnvService
      */
     public function validationRules(string $code): array
     {
-        $definition = config("suppliers.{$code}");
+        $definition = $this->definitions()[$code] ?? null;
         $rules = [];
+
+        if (! is_array($definition)) {
+            return $rules;
+        }
 
         foreach ($definition['fields'] ?? [] as $fieldKey => $field) {
             $rules[$fieldKey] = ['nullable', 'string', 'max:2000'];
@@ -90,7 +142,7 @@ class SupplierEnvService
 
     public function updateFromRequest(string $code, Request $request): void
     {
-        $definition = config("suppliers.{$code}");
+        $definition = $this->definitions()[$code] ?? null;
 
         if (! is_array($definition)) {
             throw new \InvalidArgumentException("Unknown supplier code [{$code}].");

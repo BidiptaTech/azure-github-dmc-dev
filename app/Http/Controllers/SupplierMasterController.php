@@ -27,14 +27,13 @@ class SupplierMasterController extends Controller
             ->orderBy('name')
             ->get();
 
+        $this->ensureSupplierConfigLoaded();
+
         $countries = Country::query()->orderBy('name')->get();
         $supplierCodes = SupplierMaster::codeOptions();
-        $supplierDefinitions = $this->supplierEnv->allDefinitions();
-
-        if ($supplierDefinitions === [] && is_file(config_path('suppliers.php'))) {
-            config(['suppliers' => require config_path('suppliers.php')]);
-            $supplierDefinitions = config('suppliers', []);
-        }
+        $serviceTypes = SupplierMaster::serviceTypeOptions();
+        $markupTypes = SupplierMaster::markupTypeOptions();
+        $supplierDefinitions = $this->supplierEnv->definitions();
 
         $credentialValues = [];
         foreach (array_keys($supplierDefinitions) as $code) {
@@ -45,6 +44,8 @@ class SupplierMasterController extends Controller
             'suppliers',
             'countries',
             'supplierCodes',
+            'serviceTypes',
+            'markupTypes',
             'supplierDefinitions',
             'credentialValues'
         ));
@@ -56,17 +57,17 @@ class SupplierMasterController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'country_id' => ['required', 'integer', 'exists:countries,id', 'unique:suppliers_master,country_id'],
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', Rule::in(array_keys(config('suppliers', [])))],
-            'status' => ['sometimes', 'boolean'],
-        ]);
+        $this->ensureSupplierConfigLoaded();
+
+        $validated = $request->validate($this->supplierMappingRules());
 
         SupplierMaster::query()->create([
             'country_id' => $validated['country_id'],
             'name' => $validated['name'],
             'code' => $validated['code'],
+            'service_type' => $validated['service_type'],
+            'markup_type' => $validated['markup_type'],
+            'amount' => $validated['amount'],
             'status' => $request->boolean('status', true),
         ]);
 
@@ -79,17 +80,17 @@ class SupplierMasterController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'country_id' => ['required', 'integer', 'exists:countries,id', 'unique:suppliers_master,country_id,'.$supplier->id],
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', Rule::in(array_keys(config('suppliers', [])))],
-            'status' => ['sometimes', 'boolean'],
-        ]);
+        $this->ensureSupplierConfigLoaded();
+
+        $validated = $request->validate($this->supplierMappingRules($supplier->id));
 
         $supplier->update([
             'country_id' => $validated['country_id'],
             'name' => $validated['name'],
             'code' => $validated['code'],
+            'service_type' => $validated['service_type'],
+            'markup_type' => $validated['markup_type'],
+            'amount' => $validated['amount'],
             'status' => $request->boolean('status'),
         ]);
 
@@ -102,7 +103,9 @@ class SupplierMasterController extends Controller
             abort(403);
         }
 
-        if (! array_key_exists($code, config('suppliers', []))) {
+        $this->ensureSupplierConfigLoaded();
+
+        if (! in_array($code, $this->supplierEnv->allowedCodes(), true)) {
             abort(404);
         }
 
@@ -127,7 +130,57 @@ class SupplierMasterController extends Controller
 
         $supplier->delete();
 
-        return back()->with('success', 'Supplier mapping removed.');
+        return back()->with('success', 'Deleted successfully.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function supplierMappingRules(?int $supplierId = null): array
+    {
+        $allowedCodes = $this->supplierEnv->allowedCodes();
+
+        return [
+            'country_id' => [
+                'required',
+                'integer',
+                'exists:countries,id',
+                function (string $attribute, mixed $value, \Closure $fail) use ($supplierId): void {
+                    $serviceType = request()->input('service_type');
+
+                    if (! is_string($serviceType) || $serviceType === '') {
+                        return;
+                    }
+
+                    if (! array_key_exists($serviceType, SupplierMaster::serviceTypeOptions())) {
+                        return;
+                    }
+
+                    $exists = SupplierMaster::query()
+                        ->where('country_id', $value)
+                        ->where('service_type', $serviceType)
+                        ->whereNull('deleted_at')
+                        ->when($supplierId, fn ($query) => $query->where('id', '!=', $supplierId))
+                        ->exists();
+
+                    if ($exists) {
+                        $serviceLabel = SupplierMaster::serviceTypeOptions()[$serviceType];
+                        $fail("This country already has a {$serviceLabel} supplier mapping.");
+                    }
+                },
+            ],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', Rule::in($allowedCodes)],
+            'service_type' => ['required', 'string', Rule::in(array_keys(SupplierMaster::serviceTypeOptions()))],
+            'markup_type' => ['required', 'string', Rule::in(array_keys(SupplierMaster::markupTypeOptions()))],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'status' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    private function ensureSupplierConfigLoaded(): void
+    {
+        config(['suppliers' => $this->supplierEnv->definitions()]);
     }
 
     private function isTravClicksAdmin(): bool
