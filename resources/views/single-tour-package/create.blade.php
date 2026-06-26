@@ -1087,6 +1087,29 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
+                            <!-- Offline / Online hotel source -->
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
+                                    <i class="ri-toggle-line me-1"></i>Hotel Source
+                                </label>
+                                <div class="d-flex flex-wrap gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOffline" value="offline" checked>
+                                        <label class="form-check-label" for="hotelSourceOffline" style="font-size: 0.85rem;">
+                                            <i class="ri-database-2-line me-1"></i> Offline Hotels
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOnline" value="online">
+                                        <label class="form-check-label" for="hotelSourceOnline" style="font-size: 0.85rem;">
+                                            <i class="ri-global-line me-1"></i> Online Hotels
+                                        </label>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC hotel inventory. Online opens a live API search popup.</small>
+                            </div>
+
+                            <div id="offlineHotelPanel">
                             <!-- Hotel Selection Controls -->
                             <!-- Row 1: City, Select Hotel, Room Type, Bed Type -->
                             <div class="row g-2 mb-2">
@@ -1284,7 +1307,7 @@
                                             <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                         </button>
 
-                                        <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn add-btn d-none" id="addHotelBtn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
                                     </div>
@@ -1298,8 +1321,7 @@
                                     </div>
                                 </div>
                             </div>
-
-                            
+                            </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
                             <div id="selectedHotels">
@@ -1362,7 +1384,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
             <!-- Transports and Other Services Section -->
@@ -2838,7 +2859,11 @@
                                     }
                                     return !!(hotel.supplement_breakfast_included);
                                 })(),
-                                breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
+                                breakfast_included_room: hotel.breakfast_included_room ? 1 : 0,
+
+                                isOnlineHotel: hotel.isOnlineHotel === true,
+                                hotelSourceType: hotel.isOnlineHotel ? 'online' : 'offline',
+                                onlineHotelSource: hotel.onlineHotelSource || null
                             };
                         });
                         
@@ -3104,6 +3129,12 @@
                                         
                                         // Remarks
                                         remarks: document.getElementById(`day${day}_attraction_${index}_remarks`)?.value || '',
+
+                                        isOnlineAttraction: selectedOption?.dataset?.isOnline === '1' ||
+                                            document.querySelector(`#day${day}_attractions_container .attraction-item[data-attraction-index="${index}"]`)?.dataset?.isOnlineAttraction === '1',
+                                        attractionSourceType: (selectedOption?.dataset?.isOnline === '1' ||
+                                            document.querySelector(`#day${day}_attractions_container .attraction-item[data-attraction-index="${index}"]`)?.dataset?.isOnlineAttraction === '1') ? 'online' : 'offline',
+                                        onlineAttractionSource: selectedOption?.dataset?.isOnline === '1' ? 'sg_attractions' : null,
                                         
                                         // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
                                         supplement: (() => {
@@ -6377,6 +6408,8 @@
         </div>
     </div>
 </div>
+@include('single-tour-package.partials.online-hotel-modal')
+@include('single-tour-package.partials.online-attraction-modal')
 @endsection
 
 @section('scripts')
@@ -15693,6 +15726,8 @@
 
             // Toggle spinner / disabled state on the button.
             const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             if (spinner) spinner.classList.remove('d-none');
             if (getPriceBtn) getPriceBtn.disabled = true;
 
@@ -15744,6 +15779,7 @@
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
+                    if (addHotelBtn) addHotelBtn.classList.remove('d-none');
                 } else {
                     showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
                 }
@@ -16234,6 +16270,9 @@
                     roomPriceDisplay.dataset.manuallyEdited = 'false';
                 }
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             
             // Clear selected bed info
             window.selectedBedInfo = null;
@@ -17357,6 +17396,27 @@
                                 </div>
                                 <div id="allAttractionsSection" class="collapse">
                                     <div class="card-body bg-light p-4">
+                                        <div class="col-12 mb-3">
+                                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
+                                                <i class="ri-toggle-line me-1"></i>Attraction Source
+                                            </label>
+                                            <div class="d-flex flex-wrap gap-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input attraction-source-radio" type="radio" name="attractionSourceType_day${day}" id="attractionSourceOffline_day${day}" value="offline" data-day="${day}" checked>
+                                                    <label class="form-check-label" for="attractionSourceOffline_day${day}" style="font-size: 0.85rem;">
+                                                        <i class="ri-database-2-line me-1"></i> Offline Attractions
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input attraction-source-radio" type="radio" name="attractionSourceType_day${day}" id="attractionSourceOnline_day${day}" value="online" data-day="${day}">
+                                                    <label class="form-check-label" for="attractionSourceOnline_day${day}" style="font-size: 0.85rem;">
+                                                        <i class="ri-global-line me-1"></i> Online Attractions
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC inventory. Online opens a live API search popup for Day ${day}.</small>
+                                        </div>
+                                        <div id="day${day}_offlineAttractionPanel">
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
@@ -17787,6 +17847,7 @@
                                                 <i class="ri-add-line me-2 fs-5"></i>Add More Attraction
                                             </button>
                                         </div>
+                                        </div><!-- /offlineAttractionPanel -->
                                     </div>
                                 </div>
                             </div>
@@ -25076,6 +25137,9 @@
             if (hasHotelSelections && typeof showNotification === 'function') {
                 showNotification('Hotel room settings have been updated for the new guest count', 'info');
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             
             console.log('Hotel section reset completed');
         };

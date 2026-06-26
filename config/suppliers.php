@@ -36,7 +36,7 @@ return [
     'hotelbeds' => [
         'label' => 'Hotelbeds',
         'fields' => [
-            'base_url' => ['env' => 'HOTELBEDS_API_BASE_URL', 'label' => 'API Base URL', 'type' => 'url'],
+            'base_url' => ['env' => 'HOTELBEDS_API_BASE_URL', 'label' => 'API Base URL', 'type' => 'url', 'default' => 'https://api.test.hotelbeds.com'],
             'api_key' => ['env' => 'HOTELBEDS_API_KEY', 'label' => 'API Key', 'type' => 'text'],
             'api_secret' => ['env' => 'HOTELBEDS_API_SECRET', 'label' => 'API Secret', 'type' => 'password'],
             'timeout' => ['env' => 'HOTELBEDS_API_TIMEOUT', 'label' => 'Timeout (seconds)', 'type' => 'number', 'default' => '30'],

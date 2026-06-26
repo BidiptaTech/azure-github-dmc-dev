@@ -199,12 +199,12 @@ class ExternalApiReceiveController extends Controller
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
         );
-        $nights = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
-        $checkOutTime = $nights > 0
-            ? (clone $checkInTime)->addDays($nights)
-            : (clone $checkInTime)->addDay();
-        if ($checkOutTime->lte($checkInTime)) {
-            $checkOutTime = (clone $checkInTime)->addDay();
+        $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
+        $checkOutTime = $requestedDays > 0
+            ? (clone $checkInTime)->addDays($requestedDays - 1)
+            : (clone $checkInTime);
+        if ($checkOutTime->lt($checkInTime)) {
+            $checkOutTime = clone $checkInTime;
         }
         $autoCancelDay = (int) ($dmcUser->auto_cancel_date ?? 0);
         $autoCancelDate = (clone $checkInTime)->subDays($autoCancelDay)->toDateString();
@@ -1332,6 +1332,9 @@ class ExternalApiReceiveController extends Controller
         try {
             $availability = $this->resolvePackageAvailability($payload);
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
+            $emailUuid = $this->resolveEmailUuidFromPayload($payload);
+            $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
+            $emailReferences = $this->resolveEmailReferencesFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1375,7 +1378,17 @@ class ExternalApiReceiveController extends Controller
                     ]);
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData);
+                if ($emailData) {
+                    $emailData['email_uuid'] = $emailUuid;
+                    $emailData['email_subject'] = $emailSubject;
+                    $emailData['email_references'] = $emailReferences;
+                }
+
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: [
+                    'email_uuid' => $emailUuid,
+                    'email_subject' => $emailSubject,
+                    'email_references' => $emailReferences,
+                ]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1385,6 +1398,9 @@ class ExternalApiReceiveController extends Controller
 
                 $timestamp = now()->format('M d, Y H:i');
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
+                    'email_uuid' => $emailUuid,
+                    'email_subject' => $emailSubject,
+                    'email_references' => $emailReferences,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1456,6 +1472,42 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
+    protected function resolveEmailUuidFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailUuidFromContext([
+            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+        ]);
+    }
+
+    protected function resolveEmailSubjectFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailSubjectFromContext([
+            'email_subject' => $this->payloadValue($payload, [
+                'email_subject',
+                'subject',
+                'mail_subject',
+                'original_subject',
+                'thread_subject',
+                'emailSubject',
+            ], ''),
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveEmailReferencesFromPayload(array $payload): array
+    {
+        return CommonHelper::resolveEmailReferencesFromContext([
+            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+            'email_references' => $this->payloadValue($payload, [
+                'email_references',
+                'references',
+                'References',
+            ], ''),
+        ]);
+    }
+
     protected function payloadMatchingValue(array $payload): ?int
     {
         $value = $this->payloadValue($payload, ['matching', 'Matching']);
@@ -1511,6 +1563,9 @@ class ExternalApiReceiveController extends Controller
 
         try {
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
+                'email_references' => $this->resolveEmailReferencesFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
@@ -2978,6 +3033,21 @@ class ExternalApiReceiveController extends Controller
         foreach ($keys as $key) {
             if (array_key_exists($key, $payload) && $payload[$key] !== null && $payload[$key] !== '') {
                 return $payload[$key];
+            }
+        }
+
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                if (
+                    array_key_exists($key, $payload[$wrapper])
+                    && $payload[$wrapper][$key] !== null
+                    && $payload[$wrapper][$key] !== ''
+                ) {
+                    return $payload[$wrapper][$key];
+                }
             }
         }
 
