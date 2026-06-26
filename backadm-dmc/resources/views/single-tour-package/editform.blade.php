@@ -3111,15 +3111,15 @@
                                                         setTimeout(() => {
                                                             try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
                                                         }, 600);
-                                                        // After the static grid hydrates, fetch the rate-aware price
-                                                        // (HotelPriceHelper) and populate the pricing details + totals.
-                                                        setTimeout(() => {
-                                                            try {
-                                                                if (typeof window.autoGetHotelHelperPriceForBooking === 'function') {
-                                                                    window.autoGetHotelHelperPriceForBooking({{ $hotelOrder->booking_id }});
-                                                                }
-                                                            } catch (e) {}
-                                                        }, 900);
+
+                                                        if (typeof window.setHotelSaveBlocked === 'function') {
+                                                            window.setHotelSaveBlocked({{ $hotelOrder->booking_id }}, true);
+                                                        }
+
+                                                        const getPriceBtn = document.getElementById('get_price_btn_{{ $hotelOrder->booking_id }}');
+                                                        if (getPriceBtn && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+                                                            bootstrap.Tooltip.getOrCreateInstance(getPriceBtn);
+                                                        }
 
                                                         // Any user change to this booking must be re-priced via "Get Price".
                                                         // Capture phase runs before the inline onchange handlers so the
@@ -3242,7 +3242,7 @@
                                                 <div class="input-group">
                                                     <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
                                                     <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
-                                                    <button type="button" class="btn d-flex align-items-center" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" title="Get rate-aware price">
+                                                    <button type="button" class="btn d-flex align-items-center get-hotel-price-btn" id="get_price_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price">
                                                         <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                                     </button>
                                                 </div>
@@ -3302,7 +3302,7 @@
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                             <div class="text-muted small" id="hotel_feedback_{{ $hotelOrder->booking_id }}"></div>
                                             <span class="d-inline-block" tabindex="0" id="hotel_save_wrap_{{ $hotelOrder->booking_id }}">
-                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="hotel_save_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
+                                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" id="hotel_save_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; padding: 0 10px;" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})" disabled>
                                                     <span class="spinner-border spinner-border-sm d-none" id="hotel_spinner_{{ $hotelOrder->booking_id }}"></span>
                                                     <span>Save Changes</span>
                                                 </button>
@@ -19145,7 +19145,7 @@
         if (btn) btn.disabled = !!blocked;
         if (wrap) {
             if (blocked) {
-                wrap.setAttribute('title', 'Please click on Get Price');
+                wrap.setAttribute('title', 'Please click Get Price before saving');
             } else {
                 wrap.removeAttribute('title');
             }
@@ -19287,6 +19287,7 @@
         }
 
         if (btn) btn.disabled = true;
+        window.setHotelSaveBlocked(bookingId, true);
         if (feedback) feedback.textContent = 'Calculating price...';
 
         window.fetchHotelHelperPrice({
@@ -23770,8 +23771,9 @@
 
     async function updateExistingHotel(event, bookingId) {
         event.preventDefault();
+        const saveBtn = document.getElementById('hotel_save_btn_' + bookingId);
         // Block saving while the booking is waiting for a fresh "Get Price".
-        if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[bookingId]) {
+        if ((saveBtn && saveBtn.disabled) || (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[bookingId])) {
             showNotification('Please click on Get Price before saving.', 'warning');
             return;
         }
