@@ -1307,7 +1307,7 @@
                                             <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                         </button>
 
-                                        <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn add-btn d-none" id="addHotelBtn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
                                     </div>
@@ -15726,6 +15726,8 @@
 
             // Toggle spinner / disabled state on the button.
             const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             if (spinner) spinner.classList.remove('d-none');
             if (getPriceBtn) getPriceBtn.disabled = true;
 
@@ -15777,6 +15779,7 @@
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
+                    if (addHotelBtn) addHotelBtn.classList.remove('d-none');
                 } else {
                     showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
                 }
@@ -16267,6 +16270,9 @@
                     roomPriceDisplay.dataset.manuallyEdited = 'false';
                 }
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             
             // Clear selected bed info
             window.selectedBedInfo = null;
@@ -25131,6 +25137,9 @@
             if (hasHotelSelections && typeof showNotification === 'function') {
                 showNotification('Hotel room settings have been updated for the new guest count', 'info');
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.classList.add('d-none');
             
             console.log('Hotel section reset completed');
         };
