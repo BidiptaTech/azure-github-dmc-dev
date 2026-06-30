@@ -314,7 +314,7 @@
                                     style="width: 25px; height: 15px;">
                             </div>
                         </div>
-                        <div class="settings-col">
+                        {{-- <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="email_on" value="0">
                                 <input {{$user->email_on == 1 ? 'checked' : ''}} 
@@ -325,8 +325,8 @@
                                     value="1" 
                                     style="width: 25px; height: 15px;">
                             </div>
-                        </div>
-                        <div class="settings-col">
+                        </div> --}}
+                        {{-- <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="auto_cancel_on" value="0">
                                 <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
@@ -337,7 +337,7 @@
                                     value="1"
                                     style="width: 25px; height: 15px;">
                             </div>
-                        </div>
+                        </div> --}}
                         <div class="settings-col">
                             <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }}; padding-right: 5px;">
                                 <select class="form-select auto-cancel-dropdown"
@@ -413,7 +413,7 @@
                                     disabled>
                             </div>
                         </div>
-                        <div class="settings-col">
+                        {{-- <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="email_on" value="0">
                                 <input {{$user->email_on == 1 ? 'checked' : ''}} 
@@ -425,7 +425,7 @@
                                     style="width: 25px; height: 15px;" 
                                     disabled>
                             </div>
-                        </div>
+                        </div> --}}
                         <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
