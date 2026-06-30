@@ -73,6 +73,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DayLevelController;
 use App\Http\Controllers\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
+use App\Http\Controllers\AiConfigController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -106,6 +107,12 @@ Route::get('/clear', function () {
             Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
             Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
             Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
+
+            Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
+            Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');
+            Route::get('/ai-key-words/{ai_keyword}/edit', [AiConfigController::class, 'edit'])->name('ai-key-words.edit');
+            Route::put('/ai-key-words/{ai_keyword}', [AiConfigController::class, 'update'])->name('ai-key-words.update');
+            Route::delete('/ai-key-words/{ai_keyword}', [AiConfigController::class, 'destroy'])->name('ai-key-words.destroy');
 
             Route::get('/suppliers', [SupplierMasterController::class, 'index'])->name('suppliers.index');
             Route::post('/suppliers', [SupplierMasterController::class, 'store'])->name('suppliers.store');

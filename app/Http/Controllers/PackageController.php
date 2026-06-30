@@ -824,29 +824,7 @@ class PackageController extends Controller
         $package = Package::with(['creator', 'updater'])->where('package_id', $package_id)->firstOrFail();
         $countries = $this->getAllowedCountriesForPackageDefinition(Auth::user());
         $mode = 'edit';
-
-        // Build initial payload for the JS UI (prefer columns, fallback to itinerary JSON)
-        $itinerary = is_array($package->itinerary) ? $package->itinerary : (is_string($package->itinerary) ? (json_decode($package->itinerary, true) ?: []) : []);
-        $initialDefinition = [
-            'package_id' => $package->package_id,
-            'title' => $package->title,
-            'destination' => $package->destination,
-            'cities' => array_values(array_filter(array_map('trim', preg_split('/,/', (string) ($package->city ?? ''), -1, PREG_SPLIT_NO_EMPTY)))),
-            'category' => $package->category,
-            'duration_days' => (int) ($package->duration_days ?? 1),
-            'description' => $package->description,
-            'start_date' => optional($package->start_date)->format('Y-m-d'),
-            'expiry_date' => optional($package->expire_date)->format('Y-m-d'),
-            'selected_hotels' => is_array($package->selected_hotels) ? $package->selected_hotels : (is_string($package->selected_hotels) ? (json_decode($package->selected_hotels, true) ?: []) : []),
-            'selected_attractions' => is_array($package->selected_attractions) ? $package->selected_attractions : (is_string($package->selected_attractions) ? (json_decode($package->selected_attractions, true) ?: []) : []),
-            'selected_restaurants' => is_array($package->selected_restaurants) ? $package->selected_restaurants : (is_string($package->selected_restaurants) ? (json_decode($package->selected_restaurants, true) ?: []) : []),
-            'day_city_plan' => $itinerary['day_city_plan'] ?? [],
-            'day_wise_itinerary' => $itinerary['day_wise_itinerary'] ?? [],
-            'price_data' => is_array($package->price_data) ? $package->price_data : (is_string($package->price_data) ? (json_decode($package->price_data, true) ?: []) : []),
-            'arrival_data' => is_array($package->arrival_data) ? $package->arrival_data : (is_string($package->arrival_data) ? (json_decode($package->arrival_data, true) ?: []) : []),
-            'departure_data' => is_array($package->departure_data) ? $package->departure_data : (is_string($package->departure_data) ? (json_decode($package->departure_data, true) ?: []) : []),
-            'transfer_data' => is_array($package->transfer_data) ? $package->transfer_data : (is_string($package->transfer_data) ? (json_decode($package->transfer_data, true) ?: []) : []),
-        ];
+        $initialDefinition = $this->buildInitialDefinition($package);
 
         return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition'));
     }
@@ -1136,6 +1114,303 @@ class PackageController extends Controller
             Log::error('Package definition update error: ' . $e->getMessage());
             return back()->withInput()->withErrors(['error' => 'Failed to update package definition. ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Build the initial JS payload when editing a package definition.
+     */
+    private function buildInitialDefinition(Package $package): array
+    {
+        $itinerary = $this->decodePackageJsonField($package->itinerary);
+
+        $hotels = $this->decodePackageJsonField($package->selected_hotels);
+        if (empty($hotels) && !empty($itinerary['hotels'])) {
+            $hotels = is_array($itinerary['hotels']) ? $itinerary['hotels'] : [];
+        }
+
+        $attractions = $this->decodePackageJsonField($package->selected_attractions);
+        if (empty($attractions) && !empty($itinerary['attractions'])) {
+            $attractions = is_array($itinerary['attractions']) ? $itinerary['attractions'] : [];
+        }
+
+        $restaurants = $this->decodePackageJsonField($package->selected_restaurants);
+        if (empty($restaurants) && !empty($itinerary['restaurants'])) {
+            $restaurants = is_array($itinerary['restaurants']) ? $itinerary['restaurants'] : [];
+        }
+
+        $hotels = $this->normalizeDefinitionHotelsForEdit($hotels);
+        $attractions = $this->normalizeDefinitionAttractionsForEdit($attractions);
+        $restaurants = $this->normalizeDefinitionRestaurantsForEdit($restaurants);
+
+        $dayCityPlanRaw = $itinerary['day_city_plan'] ?? [];
+        $cityPlans = $this->buildDefinitionCityPlansForEdit($dayCityPlanRaw, $hotels, $attractions, $restaurants);
+
+        $transferData = $this->decodePackageJsonField($package->transfer_data);
+        $localTransfers = $itinerary['local_transfers'] ?? $transferData;
+        $priceData = $this->decodePackageJsonField($package->price_data);
+
+        return [
+            'package_id' => $package->package_id,
+            'title' => $package->title,
+            'destination' => $package->destination,
+            'cities' => array_values(array_filter(array_map('trim', preg_split('/,/', (string) ($package->city ?? ''), -1, PREG_SPLIT_NO_EMPTY)))),
+            'category' => $package->category,
+            'duration_days' => (int) ($package->duration_days ?? 1),
+            'description' => $package->description,
+            'start_date' => optional($package->start_date)->format('Y-m-d'),
+            'expiry_date' => optional($package->expire_date)->format('Y-m-d'),
+            'city_plans' => $cityPlans,
+            'day_city_plan' => $dayCityPlanRaw,
+            'day_wise_itinerary' => $itinerary['day_wise_itinerary'] ?? [],
+            'selected_hotels' => $hotels,
+            'selected_attractions' => $attractions,
+            'selected_restaurants' => $restaurants,
+            'independent_guide' => $itinerary['independent_guide'] ?? $this->decodePackageJsonField($package->selected_guide),
+            'local_transfers' => is_array($localTransfers) ? $localTransfers : [],
+            'transfer_data' => is_array($transferData) ? $transferData : [],
+            'price_data' => $priceData,
+            'arrival_data' => $this->decodePackageJsonField($package->arrival_data),
+            'departure_data' => $this->decodePackageJsonField($package->departure_data),
+        ];
+    }
+
+    /**
+     * Normalize a package JSON column to an array.
+     */
+    private function decodePackageJsonField($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Map stored hotel rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionHotelsForEdit(array $hotels): array
+    {
+        return array_values(array_map(function ($hotel) {
+            if (!is_array($hotel)) {
+                return $hotel;
+            }
+
+            $startDay = $hotel['start_day'] ?? $hotel['stay_start_day'] ?? null;
+            $nights = isset($hotel['nights']) ? (int) $hotel['nights'] : 1;
+            $fromDay = isset($hotel['city_day_from']) ? (int) $hotel['city_day_from'] : (is_numeric($startDay) ? (int) $startDay : null);
+            $toDay = isset($hotel['city_day_to']) ? (int) $hotel['city_day_to'] : (($fromDay !== null) ? $fromDay + max(1, $nights) - 1 : null);
+
+            return array_merge($hotel, [
+                'hotel_id' => $hotel['hotel_id'] ?? $hotel['id'] ?? null,
+                'hotel_name' => $hotel['hotel_name'] ?? $hotel['name'] ?? '',
+                'start_day' => is_numeric($startDay) ? (int) $startDay : $fromDay,
+                'city_plan_id' => isset($hotel['city_plan_id']) ? (string) $hotel['city_plan_id'] : null,
+                'city_plan_city' => $hotel['city_plan_city'] ?? ($hotel['city'] ?? null),
+                'city_day_from' => $fromDay,
+                'city_day_to' => $toDay,
+                'rooms' => is_array($hotel['rooms'] ?? null) ? $hotel['rooms'] : [],
+            ]);
+        }, $hotels));
+    }
+
+    /**
+     * Map stored attraction rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionAttractionsForEdit(array $attractions): array
+    {
+        return array_values(array_map(function ($attraction) {
+            if (!is_array($attraction)) {
+                return $attraction;
+            }
+
+            return array_merge($attraction, [
+                'attraction_id' => $attraction['attraction_id'] ?? $attraction['id'] ?? null,
+                'name' => $attraction['name'] ?? $attraction['attraction_name'] ?? '',
+                'city_plan_id' => isset($attraction['city_plan_id']) ? (string) $attraction['city_plan_id'] : null,
+                'city_plan_city' => $attraction['city_plan_city'] ?? ($attraction['city'] ?? null),
+                'transfer' => !empty($attraction['transfer']),
+            ]);
+        }, $attractions));
+    }
+
+    /**
+     * Map stored restaurant rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionRestaurantsForEdit(array $restaurants): array
+    {
+        return array_values(array_map(function ($restaurant) {
+            if (!is_array($restaurant)) {
+                return $restaurant;
+            }
+
+            return array_merge($restaurant, [
+                'restaurant_id' => $restaurant['restaurant_id'] ?? $restaurant['id'] ?? null,
+                'restaurant_name' => $restaurant['restaurant_name'] ?? $restaurant['name'] ?? '',
+                'city_plan_id' => isset($restaurant['city_plan_id']) ? (string) $restaurant['city_plan_id'] : null,
+                'city_plan_city' => $restaurant['city_plan_city'] ?? ($restaurant['city'] ?? null),
+                'transfer' => !empty($restaurant['transfer']),
+            ]);
+        }, $restaurants));
+    }
+
+    /**
+     * Rebuild city-plan rows for edit preload.
+     *
+     * Stored day_city_plan is usually a day => city map, not the plan array the UI uses.
+     */
+    private function buildDefinitionCityPlansForEdit($dayCityPlanRaw, array $hotels, array $attractions, array $restaurants): array
+    {
+        if (is_array($dayCityPlanRaw) && array_is_list($dayCityPlanRaw) && !empty($dayCityPlanRaw)) {
+            $first = $dayCityPlanRaw[0] ?? null;
+            if (is_array($first) && (isset($first['id']) || isset($first['city_plan_id']) || isset($first['day_from']) || isset($first['city_day_from']))) {
+                return $this->normalizeDefinitionCityPlansArray($dayCityPlanRaw);
+            }
+        }
+
+        $planMap = [];
+
+        $consumeDay = function ($planId, $city, $day) use (&$planMap) {
+            if (!$planId || !$city || !$day) {
+                return;
+            }
+            $planId = (string) $planId;
+            $day = (int) $day;
+            if (!isset($planMap[$planId])) {
+                $planMap[$planId] = [
+                    'id' => $planId,
+                    'city' => (string) $city,
+                    'day_from' => $day,
+                    'day_to' => $day,
+                ];
+                return;
+            }
+            $planMap[$planId]['day_from'] = min($planMap[$planId]['day_from'], $day);
+            $planMap[$planId]['day_to'] = max($planMap[$planId]['day_to'], $day);
+        };
+
+        foreach ($hotels as $hotel) {
+            if (!is_array($hotel)) {
+                continue;
+            }
+            $planId = $hotel['city_plan_id'] ?? null;
+            $city = $hotel['city_plan_city'] ?? ($hotel['city'] ?? null);
+            if (!$planId || !$city) {
+                continue;
+            }
+            $from = (int) ($hotel['city_day_from'] ?? $hotel['start_day'] ?? 1);
+            $nights = (int) ($hotel['nights'] ?? 1);
+            $to = (int) ($hotel['city_day_to'] ?? ($from + max(1, $nights) - 1));
+            $consumeDay($planId, $city, $from);
+            $consumeDay($planId, $city, $to);
+        }
+
+        foreach ($attractions as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $consumeDay(
+                $row['city_plan_id'] ?? null,
+                $row['city_plan_city'] ?? ($row['city'] ?? null),
+                $row['day'] ?? null
+            );
+        }
+
+        foreach ($restaurants as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $consumeDay(
+                $row['city_plan_id'] ?? null,
+                $row['city_plan_city'] ?? ($row['city'] ?? null),
+                $row['day'] ?? null
+            );
+        }
+
+        if (!empty($planMap)) {
+            return array_values($planMap);
+        }
+
+        if (is_array($dayCityPlanRaw) && !array_is_list($dayCityPlanRaw)) {
+            return $this->definitionCityDayMapToPlans($dayCityPlanRaw);
+        }
+
+        return [];
+    }
+
+    /**
+     * Normalize saved city-plan rows to the UI shape.
+     */
+    private function normalizeDefinitionCityPlansArray(array $plans): array
+    {
+        $normalized = [];
+        foreach ($plans as $plan) {
+            if (!is_array($plan)) {
+                continue;
+            }
+            $id = $plan['id'] ?? $plan['city_plan_id'] ?? $plan['plan_id'] ?? null;
+            $city = $plan['city'] ?? $plan['city_plan_city'] ?? '';
+            $from = (int) ($plan['day_from'] ?? $plan['city_day_from'] ?? $plan['from_day'] ?? $plan['from'] ?? $plan['start_day'] ?? 1);
+            $to = (int) ($plan['day_to'] ?? $plan['city_day_to'] ?? $plan['to_day'] ?? $plan['to'] ?? $plan['end_day'] ?? $from);
+            if (!$id || $city === '') {
+                continue;
+            }
+            $normalized[] = [
+                'id' => (string) $id,
+                'city' => (string) $city,
+                'day_from' => $from,
+                'day_to' => max($from, $to),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Convert a stored day => city map into synthetic city-plan rows.
+     */
+    private function definitionCityDayMapToPlans(array $map): array
+    {
+        $days = array_filter(array_keys($map), 'is_numeric');
+        sort($days, SORT_NUMERIC);
+        if (empty($days)) {
+            return [];
+        }
+
+        $plans = [];
+        $current = null;
+        foreach ($days as $day) {
+            $dayNum = (int) $day;
+            $city = trim((string) ($map[$day] ?? $map[(string) $day] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+
+            if ($current && $current['city'] === $city && $dayNum === $current['day_to'] + 1) {
+                $current['day_to'] = $dayNum;
+                continue;
+            }
+
+            if ($current) {
+                $plans[] = $current;
+            }
+            $current = [
+                'id' => 'plan_recovered_' . $dayNum . '_' . substr(md5($city), 0, 8),
+                'city' => $city,
+                'day_from' => $dayNum,
+                'day_to' => $dayNum,
+            ];
+        }
+
+        if ($current) {
+            $plans[] = $current;
+        }
+
+        return $plans;
     }
 
     /**
@@ -1611,11 +1886,11 @@ class PackageController extends Controller
             ];
 
             $user = Auth::user();
-            $dmc_id = $user->userId;
-            if (in_array($user->role_id, [1, 2, 23])) {
-                $dmc_id = $request->input('dmc_id', $user->userId);
-            }
-
+            // $dmc_id = $user->userId;
+            // if (in_array($user->role_id, [1, 2, 23])) {
+            //     $dmc_id = $request->input('dmc_id', $user->userId);
+            // }
+            $dmc_id = CommonHelper::getDmcId($user);
             // $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
             // $package_max_id = $lastPackage->package_id ?? 0;
             // $packageId = CommonHelper::createId($package_max_id);
@@ -1644,7 +1919,7 @@ class PackageController extends Controller
                 'exclusions' => $validated['exclusions'] ?? '',
                 'terms_conditions' => $validated['terms_conditions'] ?? '',
                 'status' => $validated['status'],
-                'dmc_id' => $dmc_id,
+                'dmc_id' => (int)$dmc_id,
                 'created_by' => $user->userId,
                 'updated_by' => $user->userId,
                 'selected_hotels' => $decodedHotels,
