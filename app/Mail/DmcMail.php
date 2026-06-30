@@ -20,18 +20,26 @@ class DmcMail extends Mailable
 
     public ?string $replyToEmail;
 
+    /** @var list<string> */
+    public array $ccEmails;
+
+    /**
+     * @param  list<string>  $ccEmails
+     */
     public function __construct(
         $htmlContent,
         $subject = null,
         ?string $fromEmail = null,
         ?string $fromName = null,
-        ?string $replyToEmail = null
+        ?string $replyToEmail = null,
+        array $ccEmails = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
         $this->fromEmail = $fromEmail;
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
+        $this->ccEmails = $ccEmails;
     }
 
     public function build()
@@ -45,6 +53,12 @@ class DmcMail extends Mailable
         $replyTo = $this->replyToEmail ?: $this->fromEmail;
         if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
             $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
+        }
+
+        foreach ($this->ccEmails as $ccEmail) {
+            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->cc($ccEmail);
+            }
         }
 
         return $mail;
