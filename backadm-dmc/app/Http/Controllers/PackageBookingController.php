@@ -96,9 +96,13 @@ class PackageBookingController extends Controller
             'travel_start_date' => 'required|date',
         ]);
 
+        $user = Auth::user();
+        $dmcId = CommonHelper::getDmcId($user);
+
         $startDate = Carbon::parse($validated['travel_start_date'])->startOfDay();
 
         $packages = Package::query()
+            ->where('dmc_id', (int)$dmcId)
             ->whereDate('start_date', '<=', $startDate->toDateString())
             ->whereDate('expire_date', '>=', $startDate->toDateString())
             ->orderBy('title')
