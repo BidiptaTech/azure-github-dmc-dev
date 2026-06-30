@@ -1487,7 +1487,7 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * @return array{references: mixed, cc: mixed}
+     * @return array{references: mixed, cc: mixed, bcc: mixed}
      */
     protected function resolveEmailThreadPayloadFields(array $payload): array
     {
@@ -1502,6 +1502,12 @@ class ExternalApiReceiveController extends Controller
                 'cc_emails',
                 'cc_email',
                 'CC',
+            ], ''),
+            'bcc' => $this->payloadValue($payload, [
+                'bcc',
+                'bcc_emails',
+                'bcc_email',
+                'BCC',
             ], ''),
         ];
     }
