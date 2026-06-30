@@ -1499,12 +1499,14 @@ class ExternalApiReceiveController extends Controller
             ], ''),
             'cc' => $this->payloadValue($payload, [
                 'cc',
+                'cc_list',
                 'cc_emails',
                 'cc_email',
                 'CC',
             ], ''),
             'bcc' => $this->payloadValue($payload, [
                 'bcc',
+                'bcc_list',
                 'bcc_emails',
                 'bcc_email',
                 'BCC',

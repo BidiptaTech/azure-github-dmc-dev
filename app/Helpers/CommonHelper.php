@@ -1922,7 +1922,7 @@ class CommonHelper
         }
 
         $ccEmails = array_values(array_unique(array_merge(
-            self::normalizeEmailList($context['cc'] ?? $context['cc_emails'] ?? $context['cc_email'] ?? $context['CC'] ?? null),
+            self::normalizeEmailList($context['cc'] ?? $context['cc_list'] ?? $context['cc_emails'] ?? $context['cc_email'] ?? $context['CC'] ?? null),
             $ccFromReferences
         )));
 
@@ -1939,7 +1939,7 @@ class CommonHelper
     public static function resolveBccEmailsFromContext(array $context, ?string $primaryRecipient = null): array
     {
         $bccEmails = self::normalizeEmailList(
-            $context['bcc'] ?? $context['bcc_emails'] ?? $context['bcc_email'] ?? $context['BCC'] ?? null
+            $context['bcc'] ?? $context['bcc_list'] ?? $context['bcc_emails'] ?? $context['bcc_email'] ?? $context['BCC'] ?? null
         );
         $exclude = array_map(
             'strtolower',
