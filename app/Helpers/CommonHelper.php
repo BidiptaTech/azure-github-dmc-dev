@@ -1836,6 +1836,26 @@ class CommonHelper
         return $emails;
     }
 
+    /**
+     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     *
+     * @param  array<string, mixed>  $context
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    public static function resolveEmailListFromContext(array $context, array $keys): array
+    {
+        $emails = [];
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $context)) {
+                continue;
+            }
+            $emails = array_merge($emails, self::normalizeEmailList($context[$key]));
+        }
+
+        return array_values(array_unique($emails));
+    }
+
     public static function looksLikeEmailMessageId(string $value): bool
     {
         $bare = trim($value, '<>');
@@ -1922,7 +1942,7 @@ class CommonHelper
         }
 
         $ccEmails = array_values(array_unique(array_merge(
-            self::normalizeEmailList($context['cc'] ?? $context['cc_list'] ?? $context['cc_emails'] ?? $context['cc_email'] ?? $context['CC'] ?? null),
+            self::resolveEmailListFromContext($context, ['cc', 'cc_list', 'cc_emails', 'cc_email', 'CC']),
             $ccFromReferences
         )));
 
@@ -1938,9 +1958,9 @@ class CommonHelper
      */
     public static function resolveBccEmailsFromContext(array $context, ?string $primaryRecipient = null): array
     {
-        $bccEmails = self::normalizeEmailList(
-            $context['bcc'] ?? $context['bcc_list'] ?? $context['bcc_emails'] ?? $context['bcc_email'] ?? $context['BCC'] ?? null
-        );
+        $bccEmails = self::resolveEmailListFromContext($context, [
+            'bcc', 'bcc_list', 'bcc_emails', 'bcc_email', 'BCC',
+        ]);
         $exclude = array_map(
             'strtolower',
             array_values(array_filter(array_unique(array_merge(
