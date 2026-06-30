@@ -1663,17 +1663,15 @@ class DayLevelController extends Controller
                     ->with('error', 'Package not found or cannot be edited individually.');
             }
             $editingPackageId = $packageId;
-            $editPayload = $dayLevel->filterStructuredPayloadToPackage($packageId);
         } elseif (count($packageSummaries) > 1) {
             return redirect()
                 ->route('day-level.index')
                 ->with('error', 'This DMC has multiple packages. Choose Edit on the package you want to change.');
         } elseif (count($packageSummaries) === 1 && $packageSummaries[0]['has_stable_id']) {
             $editingPackageId = $packageSummaries[0]['package_id'];
-            $editPayload = $dayLevel->filterStructuredPayloadToPackage($editingPackageId);
-        } else {
-            $editPayload = $dayLevel->structured_payload;
         }
+
+        $editPayload = $dayLevel->buildEditPayload($editingPackageId !== '' ? $editingPackageId : null);
 
         // Per-package day count for the edit form (row-level `days` is max across all packages).
         $editPackageDays = max(1, (int) ($dayLevel->days ?? 1));
