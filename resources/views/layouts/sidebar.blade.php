@@ -1510,8 +1510,8 @@
                     $aiKeywordsRoles = [1];
                 @endphp
                 @if(in_array(auth()->user()->role_id, $aiKeywordsRoles))
-                <li class="menu-item @if(Request::is('ai-key-words') && !Request::is('day-level*')) active @endif">
-                    <a href="{{ route('day-level.index') }}" class="menu-link">
+                <li class="menu-item @if(Request::is('ai-key-words*')) active @endif">
+                    <a href="{{ route('ai-key-words.index') }}" class="menu-link">
                             <i class="menu-icon tf-icons ri-key-line"></i>
                             <div data-i18n="AI Keywords">AI Keywords</div>
                         </a>
