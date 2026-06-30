@@ -404,6 +404,11 @@
             white-space: nowrap;
         }
 
+        .add-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         
         .enquiry-sidebar .card-header {
             background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
@@ -1302,12 +1307,12 @@
                                     </div>
                                 
                                     <div class="d-flex align-items-end" style="gap: 8px;">
-                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <span class="get-price-spinner spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
                                             <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                         </button>
 
-                                        <button type="button" class="btn add-btn d-none" id="addHotelBtn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
                                     </div>
@@ -13647,6 +13652,9 @@
             return tourNights;
         }
 
+        window.getHotelNightPlanStart = getHotelNightPlanStart;
+        window.getHotelNightPlanNightCount = getHotelNightPlanNightCount;
+
         function generateNightSelection() {
             const nightSelectionDiv = document.getElementById('nightSelection');
             nightSelectionDiv.innerHTML = '';
@@ -15727,7 +15735,7 @@
             // Toggle spinner / disabled state on the button.
             const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             if (spinner) spinner.classList.remove('d-none');
             if (getPriceBtn) getPriceBtn.disabled = true;
 
@@ -15779,7 +15787,7 @@
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
-                    if (addHotelBtn) addHotelBtn.classList.remove('d-none');
+                    if (addHotelBtn) addHotelBtn.disabled = false;
                 } else {
                     showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
                 }
@@ -16272,7 +16280,7 @@
             }
 
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             // Clear selected bed info
             window.selectedBedInfo = null;
@@ -16687,6 +16695,13 @@
                 }
             }
         }
+
+        window.displaySelectedHotels = displaySelectedHotels;
+        window.pushSelectedHotel = function (hotelData) {
+            selectedHotels.push(hotelData);
+            lastSelectedHotelId = hotelData.id;
+            displaySelectedHotels();
+        };
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
@@ -17396,30 +17411,25 @@
                                 </div>
                                 <div id="allAttractionsSection" class="collapse">
                                     <div class="card-body bg-light p-4">
-                                        <div class="col-12 mb-3">
-                                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
-                                                <i class="ri-toggle-line me-1"></i>Attraction Source
-                                            </label>
-                                            <div class="d-flex flex-wrap gap-4">
-                                                <div class="form-check">
-                                                    <input class="form-check-input attraction-source-radio" type="radio" name="attractionSourceType_day${day}" id="attractionSourceOffline_day${day}" value="offline" data-day="${day}" checked>
-                                                    <label class="form-check-label" for="attractionSourceOffline_day${day}" style="font-size: 0.85rem;">
-                                                        <i class="ri-database-2-line me-1"></i> Offline Attractions
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input attraction-source-radio" type="radio" name="attractionSourceType_day${day}" id="attractionSourceOnline_day${day}" value="online" data-day="${day}">
-                                                    <label class="form-check-label" for="attractionSourceOnline_day${day}" style="font-size: 0.85rem;">
-                                                        <i class="ri-global-line me-1"></i> Online Attractions
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC inventory. Online opens a live API search popup for Day ${day}.</small>
-                                        </div>
-                                        <div id="day${day}_offlineAttractionPanel">
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
+                                    <div class="mb-3 attraction-slot-source-block">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #1</label>
+                                        <div class="d-flex flex-wrap gap-4">
+                                            <div class="form-check">
+                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOffline_day${day}_slot1" value="offline" data-day="${day}" data-index="1" checked>
+                                                <label class="form-check-label" for="attractionSourceOffline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-database-2-line me-1"></i> Offline Attractions</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOnline_day${day}_slot1" value="online" data-day="${day}" data-index="1">
+                                                <label class="form-check-label" for="attractionSourceOnline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-global-line me-1"></i> Online Attractions</label>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses DMC inventory. Online opens live API search for this slot.</small>
+                                    </div>
+                                    <div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day${day}_attraction_1_online_hint" style="font-size: 0.8rem;"><i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.</div>
+                                    <div class="attraction-slot-offline-panel" id="day${day}_attraction_1_offline_panel">
                                     
                                     ${hasEnquiryLayout ? `
                                     <div class="row g-3">
@@ -17838,16 +17848,16 @@
                                         </div>
                                     </div>
                                     
-                                    </div>
+                                    </div><!-- /attraction-slot-offline-panel slot 1 -->
                                 </div>
                             </div>
-                            
-                                                    <div class="mt-4 text-center">
+                                        </div><!-- /attractions-container -->
+
+                                        <div class="mt-4 text-center" id="day${day}_attractions_add_more_wrap">
                                             <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreAttractions(${day})" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none; color: white; font-weight: 600;">
                                                 <i class="ri-add-line me-2 fs-5"></i>Add More Attraction
                                             </button>
                                         </div>
-                                        </div><!-- /offlineAttractionPanel -->
                                     </div>
                                 </div>
                             </div>
@@ -19879,6 +19889,9 @@
             const container = document.getElementById(`day${day}_attractions_container`);
             const existingAttractions = container.querySelectorAll('.attraction-item');
             const newIndex = existingAttractions.length + 1;
+            const slotSourceHtml = (typeof window.buildAttractionSlotSourceToggleHtml === 'function')
+                ? window.buildAttractionSlotSourceToggleHtml(day, newIndex)
+                : '';
             
             const newAttractionHTML = `
                 <div class="card border shadow-sm attraction-item mb-3" data-attraction-index="${newIndex}">
@@ -19899,6 +19912,7 @@
                         </div>
                     </div>
                     <div class="card-body bg-white">
+                        ${slotSourceHtml}
                         <div class="row g-3">
                             <div class="col-md-2">
                                 <label class="form-label fw-semibold">
@@ -20229,9 +20243,9 @@
                                             <textarea class="form-control" name="day${day}_attraction_${newIndex}_remarks" id="day${day}_attraction_${newIndex}_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
+                                </div><!-- /offline panel -->
+                    </div>
+                </div>
             `;
             
             container.insertAdjacentHTML('beforeend', newAttractionHTML);
@@ -25139,7 +25153,7 @@
             }
 
             const addHotelBtn = document.getElementById('addHotelBtn');
-            if (addHotelBtn) addHotelBtn.classList.add('d-none');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             console.log('Hotel section reset completed');
         };

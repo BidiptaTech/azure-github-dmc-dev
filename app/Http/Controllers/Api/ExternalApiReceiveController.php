@@ -147,7 +147,7 @@ class ExternalApiReceiveController extends Controller
             $result['agency_id'] = Agent::where('agent_id', $tour->agent_id)->value('agency_id');
 
             // Notify the agent (non-fatal: never roll back a committed tour for an email).
-            $result['email_sent'] = $this->notifyAgent($tour);
+            $result['email_sent'] = $this->notifyAgent($tour, $payload);
 
             // Notify sender_email from payload (non-fatal).
             $senderNotify = $this->notifySender($tour, $payload, $orders);
@@ -178,6 +178,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
+    
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
@@ -1334,7 +1335,6 @@ class ExternalApiReceiveController extends Controller
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
-            $emailReferences = $this->resolveEmailReferencesFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1381,13 +1381,11 @@ class ExternalApiReceiveController extends Controller
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
                     $emailData['email_subject'] = $emailSubject;
-                    $emailData['email_references'] = $emailReferences;
                 }
 
                 $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: [
                     'email_uuid' => $emailUuid,
                     'email_subject' => $emailSubject,
-                    'email_references' => $emailReferences,
                 ]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
@@ -1400,7 +1398,6 @@ class ExternalApiReceiveController extends Controller
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
                     'email_uuid' => $emailUuid,
                     'email_subject' => $emailSubject,
-                    'email_references' => $emailReferences,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1487,23 +1484,7 @@ class ExternalApiReceiveController extends Controller
                 'subject',
                 'mail_subject',
                 'original_subject',
-                'thread_subject',
-                'emailSubject',
-            ], ''),
-        ]);
-    }
-
-    /**
-     * @return list<string>
-     */
-    protected function resolveEmailReferencesFromPayload(array $payload): array
-    {
-        return CommonHelper::resolveEmailReferencesFromContext([
-            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
-            'email_references' => $this->payloadValue($payload, [
-                'email_references',
-                'references',
-                'References',
+                'mail_received',
             ], ''),
         ]);
     }
@@ -1565,7 +1546,6 @@ class ExternalApiReceiveController extends Controller
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
                 'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
                 'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
-                'email_references' => $this->resolveEmailReferencesFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
@@ -2470,7 +2450,7 @@ class ExternalApiReceiveController extends Controller
      * Send tour proposal email to the agent using DMC ai_response (QTN / ITN).
      * Non-fatal by design.
      */
-    protected function notifyAgent(Tour $tour): bool
+    protected function notifyAgent(Tour $tour, array $payload = []): bool
     {
         if (empty($tour->agent_id)) {
             Log::info('External API: skipping proposal email, no agent linked to tour', [
@@ -2514,6 +2494,8 @@ class ExternalApiReceiveController extends Controller
                         'adult' => $tour->adult,
                         'child' => $tour->child,
                         'infant' => $tour->infant,
+                        'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                        'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
                     ],
                     $dmcUser
                 );

@@ -56,7 +56,7 @@
             @forelse($supplierDefinitions as $code => $definition)
                 @php
                     $values = $credentialValues[$code] ?? [];
-                    $configured = filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null);
+                    $configured = app(\App\Services\SupplierEnvService::class)->isConfigured($code);
                 @endphp
                 <div class="card mb-3 border" id="cred-{{ $code }}">
                     <div class="card-header d-flex justify-content-between align-items-center py-2">
