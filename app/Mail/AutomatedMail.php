@@ -20,6 +20,9 @@ class AutomatedMail extends Mailable
     /** @var list<string> */
     public array $referenceMessageIds;
 
+    /** @var list<string> */
+    public array $ccEmails;
+
     public ?string $fromEmail;
 
     public ?string $fromName;
@@ -28,6 +31,7 @@ class AutomatedMail extends Mailable
 
     /**
      * @param  list<string>  $referenceMessageIds
+     * @param  list<string>  $ccEmails
      */
     public function __construct(
         $htmlContent,
@@ -36,7 +40,8 @@ class AutomatedMail extends Mailable
         ?string $fromEmail = null,
         ?string $fromName = null,
         ?string $replyToEmail = null,
-        array $referenceMessageIds = []
+        array $referenceMessageIds = [],
+        array $ccEmails = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -45,6 +50,7 @@ class AutomatedMail extends Mailable
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
         $this->referenceMessageIds = $referenceMessageIds;
+        $this->ccEmails = $ccEmails;
     }
 
     public function headers(): Headers
@@ -82,6 +88,12 @@ class AutomatedMail extends Mailable
         $replyTo = $this->replyToEmail ?: $this->fromEmail;
         if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
             $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
+        }
+
+        foreach ($this->ccEmails as $ccEmail) {
+            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->cc($ccEmail);
+            }
         }
 
         return $mail;
