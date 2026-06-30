@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class AutomatedMail extends Mailable
@@ -16,19 +17,31 @@ class AutomatedMail extends Mailable
 
     public ?string $emailUuid;
 
+    /** @var list<string> */
+    public array $referenceMessageIds;
+
+    /** @var list<string> */
+    public array $ccEmails;
+
     public ?string $fromEmail;
 
     public ?string $fromName;
 
     public ?string $replyToEmail;
 
+    /**
+     * @param  list<string>  $referenceMessageIds
+     * @param  list<string>  $ccEmails
+     */
     public function __construct(
         $htmlContent,
         $subject = null,
         ?string $emailUuid = null,
         ?string $fromEmail = null,
         ?string $fromName = null,
-        ?string $replyToEmail = null
+        ?string $replyToEmail = null,
+        array $referenceMessageIds = [],
+        array $ccEmails = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -36,6 +49,32 @@ class AutomatedMail extends Mailable
         $this->fromEmail = $fromEmail;
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
+        $this->referenceMessageIds = $referenceMessageIds;
+        $this->ccEmails = $ccEmails;
+    }
+
+    public function headers(): Headers
+    {
+        if (empty($this->emailUuid)) {
+            return new Headers;
+        }
+
+        $parentId = trim($this->emailUuid, '<>');
+        $references = [];
+
+        foreach (array_merge($this->referenceMessageIds, [$parentId]) as $messageId) {
+            $id = trim((string) $messageId, '<>');
+            if ($id !== '' && ! in_array($id, $references, true)) {
+                $references[] = $id;
+            }
+        }
+
+        return new Headers(
+            references: $references,
+            text: [
+                'In-Reply-To' => '<'.$parentId.'>',
+            ],
+        );
     }
 
     public function build()
@@ -51,15 +90,10 @@ class AutomatedMail extends Mailable
             $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
         }
 
-        if (! empty($this->emailUuid)) {
-            $parentMessageId = $this->emailUuid;
-            $mail->withSymfonyMessage(function ($message) use ($parentMessageId) {
-                $headers = $message->getHeaders();
-                $headers->remove('In-Reply-To');
-                $headers->remove('References');
-                $headers->addTextHeader('In-Reply-To', $parentMessageId);
-                $headers->addTextHeader('References', $parentMessageId);
-            });
+        foreach ($this->ccEmails as $ccEmail) {
+            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->cc($ccEmail);
+            }
         }
 
         return $mail;

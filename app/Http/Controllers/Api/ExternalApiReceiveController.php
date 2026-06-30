@@ -178,7 +178,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
-    
+
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
@@ -1335,6 +1335,7 @@ class ExternalApiReceiveController extends Controller
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
+            $threadFields = $this->resolveEmailThreadPayloadFields($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1380,13 +1381,14 @@ class ExternalApiReceiveController extends Controller
 
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
-                    $emailData['email_subject'] = $emailSubject;
+                    $emailData['subject'] = $emailSubject;
+                    $emailData = array_merge($emailData, $threadFields);
                 }
 
-                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: [
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: array_merge([
                     'email_uuid' => $emailUuid,
-                    'email_subject' => $emailSubject,
-                ]);
+                    'subject' => $emailSubject,
+                ], $threadFields));
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1395,9 +1397,9 @@ class ExternalApiReceiveController extends Controller
                 )), 2);
 
                 $timestamp = now()->format('M d, Y H:i');
-                $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
+                $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, array_merge([
                     'email_uuid' => $emailUuid,
-                    'email_subject' => $emailSubject,
+                    'subject' => $emailSubject,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1424,7 +1426,7 @@ class ExternalApiReceiveController extends Controller
                     'booked_services' => $bookedServices,
                     'total_estimation' => $totalEstimation,
                     'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
-                ], $dmcUser);
+                ], $threadFields), $dmcUser);
             }
 
             if ($sent !== true) {
@@ -1479,12 +1481,41 @@ class ExternalApiReceiveController extends Controller
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailSubjectFromContext([
-            'email_subject' => $this->payloadValue($payload, [
-                'email_subject',
-                'subject',
-                'mail_subject',
-                'original_subject',
-                'mail_received',
+            'subject' => $this->payloadValue($payload, ['subject'], ''),
+            'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
+        ]);
+    }
+
+    /**
+     * @return array{references: mixed, cc: mixed}
+     */
+    protected function resolveEmailThreadPayloadFields(array $payload): array
+    {
+        return [
+            'references' => $this->payloadValue($payload, [
+                'references',
+                'email_references',
+                'References',
+            ], ''),
+            'cc' => $this->payloadValue($payload, [
+                'cc',
+                'cc_emails',
+                'cc_email',
+                'CC',
+            ], ''),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveEmailReferencesFromPayload(array $payload): array
+    {
+        return CommonHelper::resolveEmailReferencesFromContext([
+            'references' => $this->payloadValue($payload, [
+                'references',
+                'email_references',
+                'References',
             ], ''),
         ]);
     }
@@ -1543,16 +1574,16 @@ class ExternalApiReceiveController extends Controller
         $missingItems = $this->resolveMissingTravelDetailItems($payload);
 
         try {
-            $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
+            $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, array_merge([
                 'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
-                'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
+                'subject' => $this->resolveEmailSubjectFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
                 'missing_items' => $missingItems,
-            ], $dmcUser);
+            ], $this->resolveEmailThreadPayloadFields($payload)), $dmcUser);
 
             if ($sent !== true) {
                 Log::warning('External API incomplete travel details email not sent', [
@@ -2486,7 +2517,7 @@ class ExternalApiReceiveController extends Controller
                     $tour->agent_id,
                     $tour->tour_id,
                     $tour->display_id,
-                    [
+                    array_merge([
                         'destination' => $tour->destination,
                         'city' => $tour->city,
                         'check_in_time' => $tour->check_in_time,
@@ -2495,8 +2526,8 @@ class ExternalApiReceiveController extends Controller
                         'child' => $tour->child,
                         'infant' => $tour->infant,
                         'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
-                        'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
-                    ],
+                        'subject' => $this->resolveEmailSubjectFromPayload($payload),
+                    ], $this->resolveEmailThreadPayloadFields($payload)),
                     $dmcUser
                 );
             } finally {

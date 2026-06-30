@@ -20,6 +20,7 @@ Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@r
 Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
 Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
 Route::get('/v1/day-level/combined-json', 'App\Http\Controllers\Api\DayLevelController@combinedJsonApi');
+Route::get('/v1/ai-keywords', 'App\Http\Controllers\Api\AiConfigController@keywords');
 
 Route::post('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
