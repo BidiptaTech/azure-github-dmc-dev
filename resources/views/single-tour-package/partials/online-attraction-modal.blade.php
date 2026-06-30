@@ -186,6 +186,26 @@
     </div>
 </div>
 
+@push('styles')
+<style>
+    #onlineAttractionModal .select2-container { width: 100% !important; }
+    #onlineAttractionModal .select2-container--default .select2-selection--single {
+        height: 31px;
+        min-height: 31px;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+    #onlineAttractionModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 29px;
+        padding-left: 0.5rem;
+    }
+    #onlineAttractionModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 29px;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
@@ -196,6 +216,68 @@
     let onlineCurrentTickets = [];
     let onlineAttractionTarget = { day: 1, index: 1 };
     let onlineAttractionGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
+
+    function initOnlineAttractionSelect2(disabled) {
+        if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
+            return;
+        }
+
+        const $sel = jQuery('#onlineAttractionSelect');
+        if (!$sel.length) {
+            return;
+        }
+
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            $sel.select2('destroy');
+        }
+
+        $sel.select2({
+            placeholder: 'Search attraction...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: jQuery('#onlineAttractionModal'),
+        });
+
+        $sel.prop('disabled', !!disabled);
+    }
+
+    function getOnlineAttractionSelectIndex() {
+        if (typeof jQuery !== 'undefined') {
+            const $sel = jQuery('#onlineAttractionSelect');
+            if ($sel.length && $sel.data('select2')) {
+                try {
+                    const data = $sel.select2('data');
+                    if (data && data.length && data[0].element) {
+                        const idx = data[0].element.getAttribute('data-index');
+                        if (idx !== null && idx !== '') {
+                            return parseInt(idx, 10);
+                        }
+                    }
+                } catch (e) { /* select2 not ready */ }
+            }
+        }
+
+        const sel = document.getElementById('onlineAttractionSelect');
+        if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) {
+            const idx = sel.options[sel.selectedIndex].dataset.index;
+            if (idx !== undefined) {
+                return parseInt(idx, 10);
+            }
+        }
+
+        return -1;
+    }
+
+    function onlineAttractionSelectHasValue() {
+        if (typeof jQuery !== 'undefined') {
+            const value = jQuery('#onlineAttractionSelect').val();
+            if (value) {
+                return true;
+            }
+        }
+
+        return !!document.getElementById('onlineAttractionSelect')?.value;
+    }
 
     function bindAttractionSourceToggle() {
         $(document).off('change.attractionSlotSource', '.attraction-slot-source-radio');
@@ -785,11 +867,16 @@
             sel.appendChild(opt);
         });
 
-        sel.disabled = onlineAttractionsCache.length === 0;
+        initOnlineAttractionSelect2(onlineAttractionsCache.length === 0);
 
-        if (onlineAttractionsCache.length > 0) {
+        if (typeof jQuery !== 'undefined' && onlineAttractionsCache.length > 0) {
+            const firstVal = attractionId(onlineAttractionsCache[0]) || '0';
+            jQuery('#onlineAttractionSelect').val(firstVal).trigger('change');
+        } else if (onlineAttractionsCache.length > 0) {
             sel.selectedIndex = 1;
             populateOnlineAttractionDetails(onlineAttractionsCache[0]);
+        } else if (typeof jQuery !== 'undefined') {
+            jQuery('#onlineAttractionSelect').val(null).trigger('change');
         }
 
         validateOnlineAttractionAddBtn();
@@ -893,7 +980,7 @@
 
     function validateOnlineAttractionAddBtn() {
         const btn = document.getElementById('onlineAttractionAddBtn');
-        const ok = document.getElementById('onlineAttractionSelect')?.value &&
+        const ok = onlineAttractionSelectHasValue() &&
             document.getElementById('onlineAttractionTicketSelect')?.value;
         if (btn) btn.disabled = !ok;
     }
@@ -994,7 +1081,10 @@
     };
 
     bindAttractionSourceToggle();
-    $(function () { bindAttractionSourceToggle(); });
+    $(function () {
+        bindAttractionSourceToggle();
+        initOnlineAttractionSelect2(true);
+    });
 
     document.getElementById('onlineAttractionGuestEditBtn')?.addEventListener('click', openOnlineAttractionGuestSelector);
     document.getElementById('onlineAttractionGuestApplyBtn')?.addEventListener('click', applyOnlineAttractionGuestSelection);
@@ -1078,12 +1168,20 @@
         });
     });
 
-    document.getElementById('onlineAttractionSelect')?.addEventListener('change', function () {
-        const idx = this.selectedIndex >= 0 ? this.options[this.selectedIndex].dataset.index : null;
-        const attraction = idx !== null && idx !== undefined ? onlineAttractionsCache[parseInt(idx, 10)] : null;
-        if (attraction) populateOnlineAttractionDetails(attraction);
+    function onOnlineAttractionSelectChange() {
+        const idx = getOnlineAttractionSelectIndex();
+        const attraction = idx >= 0 ? onlineAttractionsCache[idx] : null;
+        if (attraction) {
+            populateOnlineAttractionDetails(attraction);
+        }
         validateOnlineAttractionAddBtn();
-    });
+    }
+
+    if (typeof jQuery !== 'undefined') {
+        jQuery('#onlineAttractionSelect').on('change.onlineAttraction select2:select.onlineAttraction select2:clear.onlineAttraction', onOnlineAttractionSelectChange);
+    } else {
+        document.getElementById('onlineAttractionSelect')?.addEventListener('change', onOnlineAttractionSelectChange);
+    }
 
     document.getElementById('onlineAttractionTicketSelect')?.addEventListener('change', function () {
         applySelectedTicketPrice();
@@ -1094,8 +1192,7 @@
         const day = onlineAttractionTarget.day;
         const index = onlineAttractionTarget.index || 1;
 
-        const attrSel = document.getElementById('onlineAttractionSelect');
-        const attrIdx = attrSel.selectedIndex >= 0 ? parseInt(attrSel.options[attrSel.selectedIndex].dataset.index, 10) : -1;
+        const attrIdx = getOnlineAttractionSelectIndex();
         const attractionRaw = attrIdx >= 0 ? onlineAttractionsCache[attrIdx] : null;
         if (!attractionRaw) return;
 
