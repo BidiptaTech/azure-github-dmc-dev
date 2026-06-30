@@ -178,7 +178,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
-    
+
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
@@ -1335,6 +1335,7 @@ class ExternalApiReceiveController extends Controller
             $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
+            $emailReferences = $this->resolveEmailReferencesFromPayload($payload);
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1380,12 +1381,14 @@ class ExternalApiReceiveController extends Controller
 
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
-                    $emailData['email_subject'] = $emailSubject;
+                    $emailData['subject'] = $emailSubject;
+                    $emailData['references'] = $emailReferences;
                 }
 
                 $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: [
                     'email_uuid' => $emailUuid,
-                    'email_subject' => $emailSubject,
+                    'subject' => $emailSubject,
+                    'references' => $emailReferences,
                 ]);
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
@@ -1397,7 +1400,8 @@ class ExternalApiReceiveController extends Controller
                 $timestamp = now()->format('M d, Y H:i');
                 $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, [
                     'email_uuid' => $emailUuid,
-                    'email_subject' => $emailSubject,
+                    'subject' => $emailSubject,
+                    'references' => $emailReferences,
                     'dmc_name' => $dmcName,
                     'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                     'tour_display_id' => $tour->display_id,
@@ -1479,12 +1483,21 @@ class ExternalApiReceiveController extends Controller
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailSubjectFromContext([
-            'email_subject' => $this->payloadValue($payload, [
-                'email_subject',
-                'subject',
-                'mail_subject',
-                'original_subject',
-                'mail_received',
+            'subject' => $this->payloadValue($payload, ['subject'], ''),
+            'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveEmailReferencesFromPayload(array $payload): array
+    {
+        return CommonHelper::resolveEmailReferencesFromContext([
+            'references' => $this->payloadValue($payload, [
+                'references',
+                'email_references',
+                'References',
             ], ''),
         ]);
     }
@@ -1545,7 +1558,8 @@ class ExternalApiReceiveController extends Controller
         try {
             $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
                 'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
-                'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
+                'subject' => $this->resolveEmailSubjectFromPayload($payload),
+                'references' => $this->resolveEmailReferencesFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
@@ -2495,7 +2509,8 @@ class ExternalApiReceiveController extends Controller
                         'child' => $tour->child,
                         'infant' => $tour->infant,
                         'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
-                        'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
+                        'subject' => $this->resolveEmailSubjectFromPayload($payload),
+                        'references' => $this->resolveEmailReferencesFromPayload($payload),
                     ],
                     $dmcUser
                 );
