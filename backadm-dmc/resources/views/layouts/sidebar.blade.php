@@ -123,12 +123,12 @@
                 </a>
             </li>
 
-            <li class="menu-item @if(Request::is('day-level*')) active @endif">
+            {{-- <li class="menu-item @if(Request::is('day-level*')) active @endif">
                 <a href="{{ route('day-level.index') }}" class="menu-link">
                     <i class="menu-icon tf-icons ri-calendar-2-line"></i>
                     <div data-i18n="Day Level Packages">Day Level Packages</div>
                 </a>
-            </li>
+            </li> --}}
         @endif
 
         <!-- End Tour -->
@@ -1498,6 +1498,37 @@
                 </li>
                 @endif --}}
 
+
+                @php
+                    $aiConfigurationRoles = [1, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $aiConfigurationRoles))
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="AI Configuration">AI Configuration</span>
+                </li>
+                @php
+                    $aiKeywordsRoles = [1];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $aiKeywordsRoles))
+                <li class="menu-item @if(Request::is('ai-key-words') && !Request::is('day-level*')) active @endif">
+                    <a href="{{ route('day-level.index') }}" class="menu-link">
+                            <i class="menu-icon tf-icons ri-key-line"></i>
+                            <div data-i18n="AI Keywords">AI Keywords</div>
+                        </a>
+                    </li>
+                @endif
+                @php
+                    $dayLevelRoles = [33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                @endphp
+                @if(in_array(auth()->user()->role_id, $dayLevelRoles))
+                <li class="menu-item @if(Request::is('day-level*')) active @endif">
+                    <a href="{{ route('day-level.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-calendar-2-line"></i>
+                        <div data-i18n="Day Level Packages">Day Level Packages</div>
+                    </a>
+                </li>
+                @endif
+                @endif
 
                     <!-- Settings -->
                     @php
