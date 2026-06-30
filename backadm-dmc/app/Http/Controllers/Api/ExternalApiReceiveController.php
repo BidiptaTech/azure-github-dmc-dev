@@ -178,6 +178,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
+    
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
