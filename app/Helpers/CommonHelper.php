@@ -1781,6 +1781,7 @@ class CommonHelper
             ?? $context['subject']
             ?? $context['mail_subject']
             ?? $context['original_subject']
+            ?? $context['mail_received']
             ?? ''));
 
         return $subject !== '' ? $subject : null;
@@ -1950,6 +1951,15 @@ class CommonHelper
             $emailData['agent_name'] = $agent->name ?? 'Valued Partner';
             $emailData['agency_name'] = $agencyName;
             $emailData['query_date'] = now()->format('M d, Y');
+
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            if ($emailUuid !== null) {
+                $emailData['email_uuid'] = $emailUuid;
+            }
+            if ($threadSubject !== null) {
+                $emailData['email_subject'] = $threadSubject;
+            }
 
             return self::sendTourItineraryEmailByAiResponse($agent->email, $emailData, $dmcUser);
 

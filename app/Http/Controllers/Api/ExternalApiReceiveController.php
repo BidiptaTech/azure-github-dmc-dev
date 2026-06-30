@@ -147,7 +147,7 @@ class ExternalApiReceiveController extends Controller
             $result['agency_id'] = Agent::where('agent_id', $tour->agent_id)->value('agency_id');
 
             // Notify the agent (non-fatal: never roll back a committed tour for an email).
-            $result['email_sent'] = $this->notifyAgent($tour);
+            $result['email_sent'] = $this->notifyAgent($tour, $payload);
 
             // Notify sender_email from payload (non-fatal).
             $senderNotify = $this->notifySender($tour, $payload, $orders);
@@ -178,6 +178,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
+    
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
@@ -1483,6 +1484,7 @@ class ExternalApiReceiveController extends Controller
                 'subject',
                 'mail_subject',
                 'original_subject',
+                'mail_received',
             ], ''),
         ]);
     }
@@ -2448,7 +2450,7 @@ class ExternalApiReceiveController extends Controller
      * Send tour proposal email to the agent using DMC ai_response (QTN / ITN).
      * Non-fatal by design.
      */
-    protected function notifyAgent(Tour $tour): bool
+    protected function notifyAgent(Tour $tour, array $payload = []): bool
     {
         if (empty($tour->agent_id)) {
             Log::info('External API: skipping proposal email, no agent linked to tour', [
@@ -2492,6 +2494,8 @@ class ExternalApiReceiveController extends Controller
                         'adult' => $tour->adult,
                         'child' => $tour->child,
                         'infant' => $tour->infant,
+                        'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                        'email_subject' => $this->resolveEmailSubjectFromPayload($payload),
                     ],
                     $dmcUser
                 );
