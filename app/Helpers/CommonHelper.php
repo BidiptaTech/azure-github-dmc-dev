@@ -1777,14 +1777,218 @@ class CommonHelper
 
     public static function resolveEmailSubjectFromContext(array $context): ?string
     {
-        $subject = trim((string) ($context['email_subject']
-            ?? $context['subject']
-            ?? $context['mail_subject']
-            ?? $context['original_subject']
-            ?? $context['mail_received']
-            ?? ''));
+        $candidates = [
+            $context['subject'] ?? null,
+            $context['mail_received'] ?? null,
+        ];
 
-        return $subject !== '' ? $subject : null;
+        foreach ($candidates as $subject) {
+            $subject = trim((string) $subject);
+            if ($subject === '' || self::looksLikeEmailReceivedTimestamp($subject)) {
+                continue;
+            }
+
+            return $subject;
+        }
+
+        return null;
+    }
+
+    public static function looksLikeEmailReceivedTimestamp(string $value): bool
+    {
+        return (bool) preg_match(
+            '/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/',
+            $value
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function normalizeEmailList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $value = preg_split('/[,;]+/', $value) ?: [];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $emails = [];
+        foreach ($value as $item) {
+            if (is_array($item)) {
+                $email = trim((string) ($item['email'] ?? $item['address'] ?? ''));
+            } else {
+                $email = trim((string) $item);
+            }
+
+            $email = trim($email, " \t\n\r\0\x0B<>\"'");
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && ! in_array($email, $emails, true)) {
+                $emails[] = $email;
+            }
+        }
+
+        return $emails;
+    }
+
+    public static function looksLikeEmailMessageId(string $value): bool
+    {
+        $bare = trim($value, '<>');
+        if ($bare === '' || ! str_contains($bare, '@')) {
+            return false;
+        }
+
+        $local = strstr($bare, '@', true) ?: '';
+        if ($local === '') {
+            return false;
+        }
+
+        if (preg_match('/[+=%]/', $local) || strlen($local) > 40) {
+            return true;
+        }
+
+        return ! filter_var($bare, FILTER_VALIDATE_EMAIL);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function extractReferenceTokens(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        if (is_array($raw)) {
+            $tokens = [];
+            foreach ($raw as $item) {
+                $tokens = array_merge($tokens, self::extractReferenceTokens($item));
+            }
+
+            return $tokens;
+        }
+
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        if (preg_match_all('/<[^>]+>/', $raw, $matches)) {
+            return $matches[0];
+        }
+
+        $tokens = [];
+        foreach (preg_split('/[\s,;]+/', $raw) ?: [] as $part) {
+            $part = trim((string) $part);
+            if ($part !== '') {
+                $tokens[] = $part;
+            }
+        }
+
+        return $tokens !== [] ? $tokens : [$raw];
+    }
+
+    /**
+     * Split payload references into Message-IDs (threading) and CC mailbox addresses.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array{message_ids: list<string>, cc_emails: list<string>}
+     */
+    public static function partitionEmailReferencesContext(array $context): array
+    {
+        $raw = $context['references'] ?? $context['email_references'] ?? $context['References'] ?? null;
+        $messageIds = [];
+        $ccFromReferences = [];
+
+        foreach (self::extractReferenceTokens($raw) as $token) {
+            if (self::looksLikeEmailMessageId($token)) {
+                $normalized = self::normalizeEmailMessageId($token);
+                if ($normalized !== null) {
+                    $messageIds[] = $normalized;
+                }
+
+                continue;
+            }
+
+            $email = trim($token, " \t\n\r\0\x0B<>\"'");
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $ccFromReferences[] = $email;
+            }
+        }
+
+        $ccEmails = array_values(array_unique(array_merge(
+            self::normalizeEmailList($context['cc'] ?? $context['cc_emails'] ?? $context['cc_email'] ?? $context['CC'] ?? null),
+            $ccFromReferences
+        )));
+
+        return [
+            'message_ids' => array_values(array_unique($messageIds)),
+            'cc_emails' => $ccEmails,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveCcEmailsFromContext(array $context, ?string $primaryRecipient = null): array
+    {
+        $ccEmails = self::partitionEmailReferencesContext($context)['cc_emails'];
+        $exclude = strtolower(trim((string) $primaryRecipient));
+
+        if ($exclude === '') {
+            return $ccEmails;
+        }
+
+        return array_values(array_filter(
+            $ccEmails,
+            static fn (string $email): bool => strtolower($email) !== $exclude
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveEmailReferencesFromContext(array $context): array
+    {
+        return self::partitionEmailReferencesContext($context)['message_ids'];
+    }
+
+    /**
+     * @param  list<string>  $additionalReferences
+     * @return list<string>
+     */
+    public static function buildEmailReferenceChain(?string $parentMessageId, array $additionalReferences = []): array
+    {
+        $normalizedParent = self::normalizeEmailMessageId($parentMessageId);
+        if ($normalizedParent === null) {
+            return [];
+        }
+
+        $chain = [];
+        foreach ($additionalReferences as $reference) {
+            $normalized = self::normalizeEmailMessageId((string) $reference);
+            if ($normalized === null) {
+                continue;
+            }
+            $id = trim($normalized, '<>');
+            if ($id !== '' && ! in_array($id, $chain, true)) {
+                $chain[] = $id;
+            }
+        }
+
+        $parentId = trim($normalizedParent, '<>');
+        if ($parentId !== '' && ! in_array($parentId, $chain, true)) {
+            $chain[] = $parentId;
+        }
+
+        return $chain;
     }
 
     public static function applyThreadReplySubject(string $subject, ?string $originalSubject = null): string
@@ -1809,10 +2013,13 @@ class CommonHelper
         ?string $fromName = null,
         ?string $replyToEmail = null,
         ?string $emailUuid = null,
-        ?string $threadSubject = null
+        ?string $threadSubject = null,
+        array $referenceMessageIds = [],
+        array $ccEmails = []
     ): void {
         if ($emailUuid !== null && $emailUuid !== '') {
             $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+            $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
 
             Mail::to($recipientEmail)->send(new AutomatedMail(
                 $html,
@@ -1820,13 +2027,18 @@ class CommonHelper
                 $emailUuid,
                 $fromEmail,
                 $fromName,
-                $replyToEmail
+                $replyToEmail,
+                $referenceChain,
+                $ccEmails
             ));
 
             Log::info('Threaded email sent', [
                 'to' => $recipientEmail,
+                'cc' => $ccEmails,
                 'in_reply_to' => $emailUuid,
+                'references' => $referenceChain,
                 'subject' => $finalSubject,
+                'thread_subject' => $threadSubject,
             ]);
 
             return;
@@ -1837,7 +2049,8 @@ class CommonHelper
             $subject,
             $fromEmail,
             $fromName,
-            $replyToEmail
+            $replyToEmail,
+            $ccEmails
         ));
     }
 
@@ -1954,11 +2167,19 @@ class CommonHelper
 
             $emailUuid = self::resolveEmailUuidFromContext($tourData);
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $agent->email);
             if ($emailUuid !== null) {
                 $emailData['email_uuid'] = $emailUuid;
             }
             if ($threadSubject !== null) {
-                $emailData['email_subject'] = $threadSubject;
+                $emailData['subject'] = $threadSubject;
+            }
+            if ($referenceMessageIds !== []) {
+                $emailData['references'] = $referenceMessageIds;
+            }
+            if ($ccEmails !== []) {
+                $emailData['cc'] = $ccEmails;
             }
 
             return self::sendTourItineraryEmailByAiResponse($agent->email, $emailData, $dmcUser);
@@ -2063,15 +2284,40 @@ class CommonHelper
         try {
             $emailUuid = self::resolveEmailUuidFromContext($tourData);
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            self::sendHtmlEmail($dmcEmail, $html, trim($subject), null, null, null, $emailUuid, $threadSubject);
+            $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            $dmcLabel = trim((string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? ''));
+            if ($dmcLabel !== '' && $dmcLabel !== 'DMC') {
+                $fromName = $dmcLabel.' via '.$fromName;
+            }
+            $replyTo = ($dmcContactEmail !== '' && filter_var($dmcContactEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcContactEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $dmcEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails
+            );
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
+                'cc' => $ccEmails,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
 
@@ -2103,6 +2349,8 @@ class CommonHelper
         try {
             $emailUuid = self::resolveEmailUuidFromContext($tourData);
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $recipientEmail);
             $emailData = self::normalizeQuotationEmailData($tourData);
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
@@ -2110,10 +2358,22 @@ class CommonHelper
             $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
-            self::sendHtmlEmail($recipientEmail, $html, trim($subject), null, null, null, $emailUuid, $threadSubject);
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                null,
+                null,
+                null,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails
+            );
 
             Log::info('Quotation email sent', [
                 'email' => $recipientEmail,
+                'cc' => $ccEmails,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
 
@@ -2146,6 +2406,8 @@ class CommonHelper
         try {
             $emailUuid = self::resolveEmailUuidFromContext($emailData);
             $threadSubject = self::resolveEmailSubjectFromContext($emailData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($emailData);
+            $ccEmails = self::resolveCcEmailsFromContext($emailData, $recipientEmail);
             $viewData = [
                 'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
                 'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
@@ -2182,11 +2444,14 @@ class CommonHelper
                 $fromName,
                 $replyTo,
                 $emailUuid,
-                $threadSubject
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails
             );
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
+                'cc' => $ccEmails,
                 'from' => $fromEmail,
                 'reply_to' => $replyTo,
             ]);

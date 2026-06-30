@@ -31,6 +31,18 @@ class MarkupCalculator
             $price = $this->apply($price, $rule);
         }
 
-        return $price;
+        return $this->finalizePrice($price);
+    }
+
+    /**
+     * Final customer-facing price — always rounded up to the nearest whole unit.
+     */
+    private function finalizePrice(float $price): float
+    {
+        if ($price <= 0) {
+            return 0.0;
+        }
+
+        return ceil($price);
     }
 }
