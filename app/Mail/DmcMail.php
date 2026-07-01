@@ -23,8 +23,12 @@ class DmcMail extends Mailable
     /** @var list<string> */
     public array $ccEmails;
 
+    /** @var list<string> */
+    public array $bccEmails;
+
     /**
      * @param  list<string>  $ccEmails
+     * @param  list<string>  $bccEmails
      */
     public function __construct(
         $htmlContent,
@@ -32,7 +36,8 @@ class DmcMail extends Mailable
         ?string $fromEmail = null,
         ?string $fromName = null,
         ?string $replyToEmail = null,
-        array $ccEmails = []
+        array $ccEmails = [],
+        array $bccEmails = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -40,6 +45,7 @@ class DmcMail extends Mailable
         $this->fromName = $fromName;
         $this->replyToEmail = $replyToEmail;
         $this->ccEmails = $ccEmails;
+        $this->bccEmails = $bccEmails;
     }
 
     public function build()
@@ -58,6 +64,12 @@ class DmcMail extends Mailable
         foreach ($this->ccEmails as $ccEmail) {
             if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
                 $mail->cc($ccEmail);
+            }
+        }
+
+        foreach ($this->bccEmails as $bccEmail) {
+            if (filter_var($bccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->bcc($bccEmail);
             }
         }
 

@@ -30,6 +30,8 @@ class ExternalApiReceiveController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $payload = $this->normalizeToArray($request->input('payload', $request->all()));
+        // print_r($payload);
+        // die();
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
         }
@@ -1487,7 +1489,7 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * @return array{references: mixed, cc: mixed}
+     * @return array{references: mixed, cc: list<string>, bcc: list<string>}
      */
     protected function resolveEmailThreadPayloadFields(array $payload): array
     {
@@ -1497,13 +1499,42 @@ class ExternalApiReceiveController extends Controller
                 'email_references',
                 'References',
             ], ''),
-            'cc' => $this->payloadValue($payload, [
+            'cc' => $this->resolvePayloadEmailList($payload, [
                 'cc',
+                'cc_list',
                 'cc_emails',
                 'cc_email',
                 'CC',
-            ], ''),
+            ]),
+            'bcc' => $this->resolvePayloadEmailList($payload, [
+                'bcc',
+                'bcc_list',
+                'bcc_emails',
+                'bcc_email',
+                'BCC',
+            ]),
         ];
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    protected function resolvePayloadEmailList(array $payload, array $keys): array
+    {
+        $layers = [$payload];
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (isset($payload[$wrapper]) && is_array($payload[$wrapper])) {
+                $layers[] = $payload[$wrapper];
+            }
+        }
+
+        $emails = [];
+        foreach ($layers as $layer) {
+            $emails = array_merge($emails, CommonHelper::resolveEmailListFromContext($layer, $keys));
+        }
+
+        return array_values(array_unique($emails));
     }
 
     /**
