@@ -888,9 +888,18 @@
                 </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2">
+            <div class="d-flex justify-content-end gap-2 mt-3">
                 <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary"><i class="ri-close-line me-1"></i>Cancel</a>
-                <button type="submit" class="btn btn-primary"><i class="ri-save-line me-1"></i>{{ $isEdit ? 'Update Package Definition' : 'Create Package Definition' }}</button>
+                <span class="d-inline-block definition-submit-wrap definition-submit-wrap--disabled"
+                      id="definition-submit-btn-wrap"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Please book at least one service (hotel, attraction, restaurant, or arrival/departure transfer) before {{ $isEdit ? 'updating' : 'creating' }} the package definition.">
+                    <button type="submit" class="btn btn-primary" id="definition-submit-btn" disabled>
+                        <i class="ri-save-line me-1"></i>{{ $isEdit ? 'Update Package Definition' : 'Create Package Definition' }}
+                    </button>
+                </span>
             </div>
         </form>
     </div>
@@ -1795,6 +1804,76 @@ $(document).ready(function() {
             final_price: parseFloat(finalPrice.toFixed(2))
         };
         $('#definition-price-data').val(JSON.stringify(priceData));
+        updateDefinitionSubmitButton();
+    }
+
+    function countBookedDefinitionServices() {
+        let count = (definitionHotels || []).length
+            + (definitionAttractions || []).length
+            + (definitionRestaurants || []).length;
+
+        (definitionCityPlans || []).forEach(function(plan) {
+            if (!plan || !plan.id) return;
+            const st = getPlanTransferState(plan.id);
+            if (!st) return;
+            let arrivalVehicles = Array.isArray(st.arrival_vehicles) ? st.arrival_vehicles : [];
+            let departureVehicles = Array.isArray(st.departure_vehicles) ? st.departure_vehicles : [];
+            if (plan.id === activeCityPlanId) {
+                if (Array.isArray(arrivalChosenVehicles) && arrivalChosenVehicles.length) {
+                    arrivalVehicles = arrivalChosenVehicles;
+                }
+                if (Array.isArray(departureChosenVehicles) && departureChosenVehicles.length) {
+                    departureVehicles = departureChosenVehicles;
+                }
+            }
+            count += arrivalVehicles.length + departureVehicles.length;
+        });
+
+        return count;
+    }
+
+    let definitionSubmitTooltip = null;
+
+    function setDefinitionSubmitTooltip(enabled) {
+        const wrap = document.getElementById('definition-submit-btn-wrap');
+        if (!wrap || !window.bootstrap || !bootstrap.Tooltip) return;
+
+        if (definitionSubmitTooltip) {
+            definitionSubmitTooltip.dispose();
+            definitionSubmitTooltip = null;
+        }
+
+        if (enabled) {
+            definitionSubmitTooltip = new bootstrap.Tooltip(wrap);
+        }
+    }
+
+    function updateDefinitionSubmitButton() {
+        const btn = $('#definition-submit-btn');
+        const wrap = $('#definition-submit-btn-wrap');
+        if (!btn.length) return;
+        const hasServices = countBookedDefinitionServices() > 0;
+        btn.prop('disabled', !hasServices);
+
+        if (!wrap.length) return;
+
+        if (hasServices) {
+            wrap.removeClass('definition-submit-wrap--disabled');
+            wrap.removeAttr('data-bs-toggle tabindex title');
+            setDefinitionSubmitTooltip(false);
+        } else {
+            wrap.addClass('definition-submit-wrap--disabled');
+            const msg = typeof definitionServiceRequiredMsg !== 'undefined'
+                ? definitionServiceRequiredMsg
+                : (wrap.attr('title') || '');
+            wrap.attr({
+                'data-bs-toggle': 'tooltip',
+                'data-bs-placement': 'top',
+                tabindex: '0',
+                title: msg
+            });
+            setDefinitionSubmitTooltip(true);
+        }
     }
     function escapeHtml(str) {
         if (!str) return '';
@@ -3823,23 +3902,55 @@ $(document).ready(function() {
     $('input[name="departure_transfer_type"]').on('change', updateDepartureTransferPriceInput);
     $('#definition-markup-type, #definition-markup-amount').on('change input', updateDefinitionTotalsAndMarkup);
 
+    let definitionFormSubmitting = false;
+
     // Form submit: build full JSON for selected_hotels, selected_attractions, selected_restaurants
     $('#package-definition-form').on('submit', function(e) {
-        if (!definitionCityPlans.length) {
-            alert('Please add at least one city plan before creating package.');
-            e.preventDefault();
+        e.preventDefault();
+        const form = this;
+
+        if (definitionFormSubmitting) {
             return false;
         }
+
+        if (!definitionCityPlans.length) {
+            alert('Please add at least one city plan before creating the package.');
+            return false;
+        }
+        if (countBookedDefinitionServices() === 0) {
+            setDefinitionSubmitTooltip(true);
+            const wrap = document.getElementById('definition-submit-btn-wrap');
+            if (wrap && definitionSubmitTooltip) {
+                definitionSubmitTooltip.show();
+            }
+            return false;
+        }
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+
         persistTransferStateForActivePlan();
-        const mainImageInput = $(this).find('#main_image')[0];
+        const mainImageInput = form.querySelector('#main_image');
         const hasSelectedMainImage = mainImageInput && mainImageInput.files && mainImageInput.files.length;
         if (!hasExistingMainImage && !hasSelectedMainImage) {
             $('#main-image-required-msg').removeClass('d-none');
-            e.preventDefault();
+            alert('Please upload a main image before creating the package definition.');
+            const basicAccordion = document.getElementById('collapseBasicDetails');
+            if (basicAccordion && window.bootstrap && bootstrap.Collapse && !basicAccordion.classList.contains('show')) {
+                bootstrap.Collapse.getOrCreateInstance(basicAccordion).show();
+            }
+            const mainImageArea = document.getElementById('main-image-drop-area');
+            if (mainImageArea) {
+                mainImageArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             return false;
         }
         $('#main-image-required-msg').addClass('d-none');
         updateDefinitionTotalsAndMarkup();
+
+        try {
         // Hotels: full data with id/name for API compatibility
         const selectedHotelsPayload = definitionHotels.map(function(h) {
             const basePriceNum = h.base_price != null && h.base_price !== '' && !isNaN(parseFloat(h.base_price)) ? parseFloat(h.base_price) : 0;
@@ -3964,6 +4075,17 @@ $(document).ready(function() {
         $('#departure-vehicles-hidden').val(JSON.stringify(transferStateByPlan || {}));
         $('#definition-day-city-plan').val(JSON.stringify(getDayCityPlanMap()));
         $('#definition-day-wise-itinerary').val(JSON.stringify(buildDefinitionDayWiseItineraryPayload()));
+
+            definitionFormSubmitting = true;
+            const submitBtn = $('#definition-submit-btn');
+            submitBtn.prop('disabled', true).html('<i class="ri-loader-4-line me-1"></i>{{ $isEdit ? "Updating..." : "Creating..." }}');
+            form.submit();
+        } catch (err) {
+            console.error('Package definition submit failed:', err);
+            alert('Could not prepare package data. Please try again.');
+            definitionFormSubmitting = false;
+            updateDefinitionSubmitButton();
+        }
     });
 
     // Main image preview
@@ -4061,13 +4183,26 @@ $(document).ready(function() {
         renderGalleryPreview(gallerySelectedFiles);
     });
 
+    @php
+        $definitionServiceRequiredMsg = 'Please book at least one service (hotel, attraction, restaurant, or arrival/departure transfer) before ' . ($isEdit ? 'updating' : 'creating') . ' the package definition.';
+    @endphp
+    const definitionServiceRequiredMsg = @json($definitionServiceRequiredMsg);
+
     updateDefinitionTotalsAndMarkup();
+    updateDefinitionSubmitButton();
 });
 </script>
 @endsection
 
 @section('css')
 <style>
+#definition-submit-btn-wrap.definition-submit-wrap--disabled .btn {
+    pointer-events: none;
+}
+#definition-submit-btn-wrap.definition-submit-wrap--disabled {
+    cursor: not-allowed;
+}
+
 /* Accordion: use theme primary (follows template / customizer --bs-primary) */
 #packageBasicAccordion.accordion {
     --bs-accordion-btn-bg: var(--bs-primary-bg-subtle);

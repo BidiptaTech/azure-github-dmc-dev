@@ -377,7 +377,7 @@ class VehicleController extends Controller
             'seating_capacity' => 'required|integer|min:1',
             'vehicle_status' => 'nullable|integer',
             'city_tour_seating_capacity' => 'required|integer|min:1',
-            'city_tour_guides' => 'required|integer|min:1',
+            // 'city_tour_guides' => 'required|integer|min:1',
             // Add validation for sharable prices when sharable is checked
         ]);
 
@@ -521,7 +521,7 @@ class VehicleController extends Controller
         $vehicle->sharable = $request->input('sharable') ?? 0;
         $vehicle->seating_capacity = $request->input('seating_capacity');
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity');
-        $vehicle->city_tour_guides = $request->input('city_tour_guides');
+        // $vehicle->city_tour_guides = $request->input('city_tour_guides');
         // $vehicle->vehicle_id = $vehicleId;
         $vehicle->image = $masterImage;
         $vehicle->is_available = $request->vehicle_status == 1 ? 1 : 0;
@@ -763,7 +763,7 @@ class VehicleController extends Controller
                 'description' => 'nullable|string',
                 'seating_capacity' => 'required|integer',
                 'city_tour_seating_capacity' => 'required|integer',
-                'city_tour_guides' => 'required|integer',
+                // 'city_tour_guides' => 'required|integer',
                 'vehicle_status' => 'nullable|integer',
                 'vehicle_plate_no' => $vehiclePlateRules,
                 // Regular Day Pricing
@@ -829,7 +829,7 @@ class VehicleController extends Controller
         $vehicle->driver_id = $request->driver_id;
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
-        $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
+        // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
         // Regular Day Pricing
         $vehicle->base_price = $request->input('base_price')?? 0;
         $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10')?? 0;
