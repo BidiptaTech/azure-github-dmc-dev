@@ -76,11 +76,11 @@
                                 </div>
                                 <div class="col-md-6 col-lg-3">
                                     <label class="form-label">Package Start Date <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" name="start_date" value="{{ old('start_date', $isEdit ? optional($package->start_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="start-date-input">
+                                    <input type="date" class="form-control" name="start_date" value="{{ old('start_date', $isEdit ? optional($package->start_date)->format('Y-m-d') : '') }}" required @if(!$isEdit) min="{{ date('Y-m-d') }}" @endif id="start-date-input">
                                 </div>
                                 <div class="col-md-6 col-lg-3">
                                     <label class="form-label">Package Expiry Date <span class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date', $isEdit ? optional($package->expire_date)->format('Y-m-d') : '') }}" required min="{{ date('Y-m-d') }}" id="expiry-date-input">
+                                    <input type="date" class="form-control" name="expiry_date" value="{{ old('expiry_date', $isEdit ? optional($package->expire_date)->format('Y-m-d') : '') }}" required @if(!$isEdit) min="{{ date('Y-m-d') }}" @endif id="expiry-date-input">
                                 </div>
                                 <div class="col-md-6 col-lg-3">
                                     <label class="form-label">Tour Duration (Days) <span class="text-danger">*</span></label>
@@ -905,7 +905,6 @@
     </div>
 </div>
 @endsection
-
 @section('scripts')
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -917,6 +916,7 @@ $(document).ready(function() {
     const fetchRestaurantTransferPricingUrl = '{{ route("fetch-restaurant-transfer-pricing") }}';
     const restaurantMealsUrlTemplate = '{{ route("restaurant-meals", ["restaurantId" => "__RESTAURANT_ID__"]) }}';
     const hasExistingMainImage = @json($isEdit && !empty($package->main_image));
+    const isEditMode = @json($isEdit);
 
     $('#country-select').select2();
     $('#city-select').select2({
@@ -2311,83 +2311,140 @@ $(document).ready(function() {
         return dayWise;
     }
 
+    function mapStoredCityPlans(rawPlans) {
+        if (!Array.isArray(rawPlans)) return [];
+        return rawPlans.map(function(p) {
+            const fromRaw = p.day_from ?? p.city_day_from ?? p.from_day ?? p.from ?? p.start_day;
+            const toRaw = p.day_to ?? p.city_day_to ?? p.to_day ?? p.to ?? p.end_day;
+            const fromNum = parseInt(fromRaw, 10) || 1;
+            const toNum = parseInt(toRaw, 10) || fromNum;
+            return {
+                id: String(p.id || p.city_plan_id || p.plan_id || ''),
+                city: p.city || p.city_plan_city || '',
+                day_from: fromNum,
+                day_to: toNum,
+            };
+        }).filter(function(p) { return p.id && p.city; });
+    }
+
+    function deriveCityPlansFromServices(initial) {
+        const planMap = {};
+        const consume = function(row) {
+            if (!row || typeof row !== 'object') return;
+            const pid = row.city_plan_id;
+            const city = row.city_plan_city || row.city;
+            const day = parseInt(row.day, 10);
+            if (!pid || !city || !day) return;
+            const key = String(pid);
+            if (!planMap[key]) planMap[key] = { id: key, city: String(city), day_from: day, day_to: day };
+            planMap[key].day_from = Math.min(planMap[key].day_from, day);
+            planMap[key].day_to = Math.max(planMap[key].day_to, day);
+        };
+        (Array.isArray(initial.selected_hotels) ? initial.selected_hotels : []).forEach(function(h) {
+            const pid = h && h.city_plan_id ? h.city_plan_id : null;
+            const city = h && (h.city_plan_city || h.city) ? (h.city_plan_city || h.city) : null;
+            if (!pid || !city) return;
+            const from = parseInt(h.city_day_from, 10) || parseInt(h.start_day, 10) || 1;
+            const nights = parseInt(h.nights, 10) || 1;
+            const to = parseInt(h.city_day_to, 10) || (from + Math.max(1, nights) - 1);
+            consume({ city_plan_id: pid, city_plan_city: city, day: from });
+            consume({ city_plan_id: pid, city_plan_city: city, day: to });
+        });
+        (Array.isArray(initial.selected_attractions) ? initial.selected_attractions : []).forEach(consume);
+        (Array.isArray(initial.selected_restaurants) ? initial.selected_restaurants : []).forEach(consume);
+        return Object.values(planMap).sort(function(a, b) { return a.day_from - b.day_from; });
+    }
+
+    function normalizePreloadedHotels(list) {
+        return (Array.isArray(list) ? list : []).map(function(h) {
+            if (!h || typeof h !== 'object') return h;
+            const startDay = h.start_day != null ? h.start_day : h.stay_start_day;
+            return Object.assign({}, h, {
+                hotel_id: h.hotel_id || h.id || null,
+                hotel_name: h.hotel_name || h.name || '',
+                start_day: startDay != null ? parseInt(startDay, 10) || 1 : 1,
+                city_plan_id: h.city_plan_id != null ? String(h.city_plan_id) : null,
+                city_plan_city: h.city_plan_city || h.city || null,
+                rooms: Array.isArray(h.rooms) ? h.rooms : []
+            });
+        });
+    }
+
+    function normalizePreloadedAttractions(list) {
+        return (Array.isArray(list) ? list : []).map(function(a) {
+            if (!a || typeof a !== 'object') return a;
+            return Object.assign({}, a, {
+                attraction_id: a.attraction_id || a.id || null,
+                name: a.name || a.attraction_name || '',
+                city_plan_id: a.city_plan_id != null ? String(a.city_plan_id) : null,
+                city_plan_city: a.city_plan_city || a.city || null,
+                transfer: a.transfer === true
+            });
+        });
+    }
+
+    function normalizePreloadedRestaurants(list) {
+        return (Array.isArray(list) ? list : []).map(function(r) {
+            if (!r || typeof r !== 'object') return r;
+            return Object.assign({}, r, {
+                restaurant_id: r.restaurant_id || r.id || null,
+                restaurant_name: r.restaurant_name || r.name || '',
+                city_plan_id: r.city_plan_id != null ? String(r.city_plan_id) : null,
+                city_plan_city: r.city_plan_city || r.city || null,
+                transfer: r.transfer === true
+            });
+        });
+    }
+
     // ---- Edit mode preload (existing package definition) ----
     const __initialDefinition = @json($initial);
     if (__initialDefinition && typeof __initialDefinition === 'object') {
         isEditPreloading = true;
-        // Preload city plans
-        if (Array.isArray(__initialDefinition.day_city_plan)) {
-            definitionCityPlans = __initialDefinition.day_city_plan.map(function(p) {
-                const fromRaw = p.day_from ?? p.city_day_from ?? p.from_day ?? p.from ?? p.start_day;
-                const toRaw = p.day_to ?? p.city_day_to ?? p.to_day ?? p.to ?? p.end_day;
-                const fromNum = parseInt(fromRaw, 10) || 1;
-                const toNum = parseInt(toRaw, 10) || fromNum;
-                return {
-                    id: String(p.id || p.city_plan_id || p.plan_id || ''),
-                    city: p.city || p.city_plan_city || '',
-                    day_from: fromNum,
-                    day_to: toNum,
-                };
-            }).filter(function(p) { return p.id && p.city; });
-        }
 
-        // If no plans were saved, derive plans from selected services (best effort)
+        // City plans: prefer server-built city_plans, then legacy array, then derive from services
+        if (Array.isArray(__initialDefinition.city_plans) && __initialDefinition.city_plans.length) {
+            definitionCityPlans = mapStoredCityPlans(__initialDefinition.city_plans);
+        } else if (Array.isArray(__initialDefinition.day_city_plan) && __initialDefinition.day_city_plan.length) {
+            definitionCityPlans = mapStoredCityPlans(__initialDefinition.day_city_plan);
+        }
         if (!definitionCityPlans.length) {
-            const planMap = {};
-            const consume = function(row) {
-                if (!row || typeof row !== 'object') return;
-                const pid = row.city_plan_id;
-                const city = row.city_plan_city || row.city;
-                const day = parseInt(row.day, 10);
-                if (!pid || !city || !day) return;
-                if (!planMap[pid]) planMap[pid] = { id: String(pid), city: String(city), day_from: day, day_to: day };
-                planMap[pid].day_from = Math.min(planMap[pid].day_from, day);
-                planMap[pid].day_to = Math.max(planMap[pid].day_to, day);
-            };
-            (Array.isArray(__initialDefinition.selected_hotels) ? __initialDefinition.selected_hotels : []).forEach(function(h) {
-                // Hotels have strong day range hints: city_day_from/city_day_to or start_day + nights
-                const pid = h && h.city_plan_id ? h.city_plan_id : null;
-                const city = h && (h.city_plan_city || h.city) ? (h.city_plan_city || h.city) : null;
-                if (!pid || !city) return;
-                const from = parseInt(h.city_day_from, 10) || parseInt(h.start_day, 10) || 1;
-                const nights = parseInt(h.nights, 10) || 1;
-                const to = parseInt(h.city_day_to, 10) || (from + Math.max(1, nights) - 1);
-                consume({ city_plan_id: pid, city_plan_city: city, day: from });
-                consume({ city_plan_id: pid, city_plan_city: city, day: to });
-            });
-            (Array.isArray(__initialDefinition.selected_attractions) ? __initialDefinition.selected_attractions : []).forEach(consume);
-            (Array.isArray(__initialDefinition.selected_restaurants) ? __initialDefinition.selected_restaurants : []).forEach(consume);
-            definitionCityPlans = Object.values(planMap).sort(function(a,b){return a.day_from-b.day_from;});
+            definitionCityPlans = deriveCityPlansFromServices(__initialDefinition);
         }
 
-        // Preload services
-        definitionHotels = Array.isArray(__initialDefinition.selected_hotels) ? __initialDefinition.selected_hotels : [];
-        definitionAttractions = Array.isArray(__initialDefinition.selected_attractions) ? __initialDefinition.selected_attractions : [];
-        definitionRestaurants = Array.isArray(__initialDefinition.selected_restaurants) ? __initialDefinition.selected_restaurants : [];
+        // Preload services (normalize stored DB/API field names to UI shape)
+        definitionHotels = normalizePreloadedHotels(__initialDefinition.selected_hotels);
+        definitionAttractions = normalizePreloadedAttractions(__initialDefinition.selected_attractions);
+        definitionRestaurants = normalizePreloadedRestaurants(__initialDefinition.selected_restaurants);
 
         // Hidden inputs for submit
         $('#definition-hotels-input').val(JSON.stringify(definitionHotels));
         $('#definition-attractions-input').val(JSON.stringify(definitionAttractions));
         $('#definition-restaurants-input').val(JSON.stringify(definitionRestaurants));
-        if (Array.isArray(__initialDefinition.day_city_plan)) {
-            $('#definition-day-city-plan').val(JSON.stringify(__initialDefinition.day_city_plan));
-        }
+        $('#definition-day-city-plan').val(JSON.stringify(definitionCityPlans));
         if (Array.isArray(__initialDefinition.day_wise_itinerary)) {
             $('#definition-day-wise-itinerary').val(JSON.stringify(__initialDefinition.day_wise_itinerary));
         }
 
-        // Preload markup/price (best effort; totals will be recomputed)
+        // Preload markup/price
         if (__initialDefinition.price_data && typeof __initialDefinition.price_data === 'object') {
-            const mt = __initialDefinition.price_data.markup_type || '';
-            const ma = __initialDefinition.price_data.markup_amount != null ? __initialDefinition.price_data.markup_amount : 0;
+            const pd = __initialDefinition.price_data;
+            const mt = pd.markup_type || '';
+            const ma = pd.markup_amount != null ? pd.markup_amount : 0;
             if (mt) $('#definition-markup-type').val(mt);
             if (ma != null && !isNaN(parseFloat(ma))) $('#definition-markup-amount').val(parseFloat(ma));
+            if (pd.total_price != null && !isNaN(parseFloat(pd.total_price))) {
+                $('#definition-total-price').val(parseFloat(pd.total_price).toFixed(2));
+            }
+            if (pd.final_price != null && !isNaN(parseFloat(pd.final_price))) {
+                $('#definition-final-price').val(parseFloat(pd.final_price).toFixed(2));
+            }
+            $('#definition-price-data').val(JSON.stringify(pd));
         }
 
         // Preload arrival/departure into per-plan transfer state
         const ensureState = function(planId) {
-            activeCityPlanId = activeCityPlanId || planId;
-            return getPlanTransferState(planId);
+            activeCityPlanId = activeCityPlanId || String(planId);
+            return getPlanTransferState(String(planId));
         };
         const aItems = (__initialDefinition.arrival_data && Array.isArray(__initialDefinition.arrival_data.items)) ? __initialDefinition.arrival_data.items : [];
         aItems.forEach(function(item) {
@@ -2413,7 +2470,7 @@ $(document).ready(function() {
         });
 
         // Ensure an active plan for rendering (first plan)
-        if (!activeCityPlanId && definitionCityPlans.length) activeCityPlanId = definitionCityPlans[0].id;
+        if (!activeCityPlanId && definitionCityPlans.length) activeCityPlanId = String(definitionCityPlans[0].id);
 
         toggleServiceCards(!!definitionCityPlans.length);
 
@@ -2555,7 +2612,7 @@ $(document).ready(function() {
         const activePlan = getActiveCityPlan();
         const hotelsToRender = definitionHotels
             .map(function(entry, idx) { return { entry: entry, idx: idx }; })
-            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+            .filter(function(row) { return !activePlan || String(row.entry.city_plan_id) === String(activePlan.id); });
         if (hotelsToRender.length === 0) {
             placeholder.show().html('<div class="alert alert-primary border-0 py-3 mb-0 def-ha-hint d-flex align-items-center"><i class="ri-information-line me-2 fs-5"></i><span>No hotels selected yet. Choose your hotels above and click <strong>Add</strong>.</span></div>');
             listEl.hide().empty();
@@ -3029,7 +3086,7 @@ $(document).ready(function() {
         const activePlan = getActiveCityPlan();
         const attractionsToRender = definitionAttractions
             .map(function(entry, idx) { return { entry: entry, idx: idx }; })
-            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+            .filter(function(row) { return !activePlan || String(row.entry.city_plan_id) === String(activePlan.id); });
         if (attractionsToRender.length === 0) {
             emptyEl.show();
             container.hide();
@@ -3398,7 +3455,7 @@ $(document).ready(function() {
         const activePlan = getActiveCityPlan();
         const restaurantsToRender = definitionRestaurants
             .map(function(entry, idx) { return { entry: entry, idx: idx }; })
-            .filter(function(row) { return !activePlan || row.entry.city_plan_id === activePlan.id; });
+            .filter(function(row) { return !activePlan || String(row.entry.city_plan_id) === String(activePlan.id); });
         if (restaurantsToRender.length === 0) {
             emptyEl.show();
             container.hide();
@@ -3914,7 +3971,8 @@ $(document).ready(function() {
         }
 
         if (!definitionCityPlans.length) {
-            alert('Please add at least one city plan before creating the package.');
+            alert(isEditMode ? 'Please add at least one city plan before updating the package.' : 'Please add at least one city plan before creating the package.');
+            e.preventDefault();
             return false;
         }
         if (countBookedDefinitionServices() === 0) {
@@ -5122,5 +5180,6 @@ $(document).ready(function() {
 }
 </style>
 @endsection
+
 
 

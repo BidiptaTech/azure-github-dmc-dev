@@ -30,6 +30,8 @@ class ExternalApiReceiveController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $payload = $this->normalizeToArray($request->input('payload', $request->all()));
+        // print_r($payload);
+        // die();
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
         }
@@ -97,6 +99,59 @@ class ExternalApiReceiveController extends Controller
                     : 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
             ], 422);
         }
+
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+        $requestedCountry = $this->resolveRequestedDestinationCountry($payload);
+
+        if ($dmcUser && $requestedCountry !== '') {
+            $countrySupport = CommonHelper::validateDmcDestinationCountrySupport($dmcUser, $requestedCountry);
+
+            if (! $countrySupport['supported']) {
+                $record = ExternalApiReceive::create([
+                    'source_ip' => $request->ip(),
+                    'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
+                    'headers' => $request->headers->all(),
+                    'payload' => $payload,
+                    'status' => false,
+                ]);
+
+                $agentNotify = $this->notifyUnsupportedDestinationCountry(
+                    $payload,
+                    $dmcUser,
+                    $primaryDmc,
+                    $countrySupport
+                );
+
+                Log::warning('External API: destination country not supported by selected DMC', [
+                    'received_id' => $record->id,
+                    'dmc_id' => $dmcUser->userId,
+                    'dmc_name' => trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: '')),
+                    'requested_country' => $countrySupport['requested_country'],
+                    'supported_countries' => $countrySupport['supported_countries'],
+                    'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                    'agent_email' => $agentNotify['email'],
+                    'agent_email_sent' => $agentNotify['sent'],
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected DMC does not provide services for the requested destination country. An informational email has been sent to the agent.',
+                    'received_id' => $record->id,
+                    'result' => [
+                        'destination_country_supported' => false,
+                        'requested_country' => $countrySupport['requested_country'],
+                        'supported_countries' => $countrySupport['supported_countries'],
+                        'selected_dmc_id' => $dmcUser->userId,
+                        'selected_dmc_name' => trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC')),
+                        'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                        'agent_email_sent' => $agentNotify['sent'],
+                        'agent_email' => $agentNotify['email'],
+                    ],
+                ], 422);
+            }
+        }
+
         // Always persist the received payload first (audit trail). The index()
         // endpoint reads status=false rows as "pending", so keeping the record
         // even when conversion fails lets the payload be retried/inspected later.
@@ -1487,7 +1542,7 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * @return array{references: mixed, cc: mixed}
+     * @return array{references: mixed, cc: list<string>, bcc: list<string>}
      */
     protected function resolveEmailThreadPayloadFields(array $payload): array
     {
@@ -1497,13 +1552,42 @@ class ExternalApiReceiveController extends Controller
                 'email_references',
                 'References',
             ], ''),
-            'cc' => $this->payloadValue($payload, [
+            'cc' => $this->resolvePayloadEmailList($payload, [
                 'cc',
+                'cc_list',
                 'cc_emails',
                 'cc_email',
                 'CC',
-            ], ''),
+            ]),
+            'bcc' => $this->resolvePayloadEmailList($payload, [
+                'bcc',
+                'bcc_list',
+                'bcc_emails',
+                'bcc_email',
+                'BCC',
+            ]),
         ];
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    protected function resolvePayloadEmailList(array $payload, array $keys): array
+    {
+        $layers = [$payload];
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (isset($payload[$wrapper]) && is_array($payload[$wrapper])) {
+                $layers[] = $payload[$wrapper];
+            }
+        }
+
+        $emails = [];
+        foreach ($layers as $layer) {
+            $emails = array_merge($emails, CommonHelper::resolveEmailListFromContext($layer, $keys));
+        }
+
+        return array_values(array_unique($emails));
     }
 
     /**
@@ -1546,6 +1630,121 @@ class ExternalApiReceiveController extends Controller
     protected function payloadMatchingIsZero(array $payload): bool
     {
         return $this->payloadMatchingValue($payload) === 0;
+    }
+
+    /**
+     * Destination country requested for the booking (travel destination, not DMC home country).
+     */
+    protected function resolveRequestedDestinationCountry(array $payload): string
+    {
+        $explicit = trim((string) $this->payloadValue($payload, [
+            'country',
+            'destination_country',
+            'destinationCountry',
+            'requested_country',
+            'requestedCountry',
+        ], ''));
+
+        if ($explicit !== '') {
+            return CommonHelper::normalizeCountryName($explicit);
+        }
+
+        foreach ($payload['destinations'] ?? [] as $destination) {
+            if (! is_array($destination)) {
+                continue;
+            }
+
+            $destinationCountry = trim((string) (
+                $destination['country']
+                ?? $destination['destination_country']
+                ?? $destination['destinationCountry']
+                ?? ''
+            ));
+
+            if ($destinationCountry !== '') {
+                return CommonHelper::normalizeCountryName($destinationCountry);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Email the agent when the selected DMC does not serve the requested destination country.
+     *
+     * @param  array{
+     *   supported: bool,
+     *   requested_country: string,
+     *   supported_countries: list<string>,
+     *   alternate_dmcs: list<array{name: string, email: string, country: string}>
+     * }  $countrySupport
+     * @return array{sent: bool, email: ?string}
+     */
+    protected function notifyUnsupportedDestinationCountry(
+        array $payload,
+        User $dmcUser,
+        array $primaryDmc,
+        array $countrySupport
+    ): array {
+        $agentEmail = $this->resolveAgentNotificationEmail($payload, $dmcUser);
+
+        if ($agentEmail === null) {
+            Log::info('External API: skipping unsupported destination email, no valid agent email', [
+                'dmc_id' => $dmcUser->userId,
+                'requested_country' => $countrySupport['requested_country'],
+            ]);
+
+            return ['sent' => false, 'email' => null];
+        }
+
+        $agent = $this->resolveAgent($payload);
+        $agentName = $agent?->name;
+        if ($agentName === null || trim((string) $agentName) === '') {
+            $agentName = ucfirst(explode('@', $agentEmail)[0]);
+        }
+
+        $selectedDmcName = trim((string) (
+            $primaryDmc['DMC_name']
+            ?? $primaryDmc['dmc_name']
+            ?? $dmcUser->company_name
+            ?? $dmcUser->name
+            ?? 'DMC'
+        ));
+
+        $dmcLabel = trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: $selectedDmcName));
+
+        try {
+            $sent = CommonHelper::sendUnsupportedDestinationCountryEmail($agentEmail, array_merge([
+                'recipient_name' => $agentName,
+                'selected_dmc_name' => $selectedDmcName,
+                'requested_country' => $countrySupport['requested_country'],
+                'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                'dmc_name' => $dmcLabel,
+                'dmc_label' => $dmcLabel,
+                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                'subject' => $this->resolveEmailSubjectFromPayload($payload),
+            ], $this->resolveEmailThreadPayloadFields($payload)), $dmcUser);
+
+            if ($sent !== true) {
+                Log::warning('External API unsupported destination email not sent', [
+                    'agent_email' => $agentEmail,
+                    'reason' => $sent,
+                ]);
+
+                return ['sent' => false, 'email' => $agentEmail];
+            }
+
+            return ['sent' => true, 'email' => $agentEmail];
+        } catch (Throwable $e) {
+            Log::error('External API unsupported destination email failed', [
+                'agent_email' => $agentEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['sent' => false, 'email' => $agentEmail];
+        }
     }
 
     /**
@@ -2761,6 +2960,27 @@ class ExternalApiReceiveController extends Controller
         $email = $this->payloadValue($payload, ['agent_email', 'agentEmail', 'sender_email']);
         if (!empty($email)) {
             return Agent::where('email', $email)->first();
+        }
+
+        return null;
+    }
+
+    protected function resolveAgentNotificationEmail(array $payload, User $dmcUser): ?string
+    {
+        $agent = $this->resolveAgent($payload);
+        if ($agent && ! empty($agent->email) && filter_var($agent->email, FILTER_VALIDATE_EMAIL)) {
+            return trim((string) $agent->email);
+        }
+
+        $senderEmail = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'agent_email', 'agentEmail'], ''));
+        if ($senderEmail !== '' && filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+            return $senderEmail;
+        }
+
+        $agents = $this->findAgentsForDmc((int) ($dmcUser->master_dmc_id ?: $dmcUser->userId), $dmcUser);
+        $firstAgent = $agents->first();
+        if ($firstAgent && ! empty($firstAgent->email) && filter_var($firstAgent->email, FILTER_VALIDATE_EMAIL)) {
+            return trim((string) $firstAgent->email);
         }
 
         return null;

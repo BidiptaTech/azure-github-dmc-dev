@@ -1092,8 +1092,8 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
-                            <!-- Offline / Online hotel source -->
-                            <div class="col-12 mb-3">
+                            <!-- Offline / Online hotel source (UI paused — radios kept for JS) -->
+                            <div class="col-12 mb-3 d-none">
                                 <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
                                     <i class="ri-toggle-line me-1"></i>Hotel Source
                                 </label>
@@ -17648,7 +17648,7 @@
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
-                                    <div class="mb-3 attraction-slot-source-block">
+                                    <div class="mb-3 attraction-slot-source-block d-none">
                                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #1</label>
                                         <div class="d-flex flex-wrap gap-4">
                                             <div class="form-check">

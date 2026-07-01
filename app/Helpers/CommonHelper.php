@@ -1836,6 +1836,26 @@ class CommonHelper
         return $emails;
     }
 
+    /**
+     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     *
+     * @param  array<string, mixed>  $context
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    public static function resolveEmailListFromContext(array $context, array $keys): array
+    {
+        $emails = [];
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $context)) {
+                continue;
+            }
+            $emails = array_merge($emails, self::normalizeEmailList($context[$key]));
+        }
+
+        return array_values(array_unique($emails));
+    }
+
     public static function looksLikeEmailMessageId(string $value): bool
     {
         $bare = trim($value, '<>');
@@ -1922,7 +1942,7 @@ class CommonHelper
         }
 
         $ccEmails = array_values(array_unique(array_merge(
-            self::normalizeEmailList($context['cc'] ?? $context['cc_emails'] ?? $context['cc_email'] ?? $context['CC'] ?? null),
+            self::resolveEmailListFromContext($context, ['cc', 'cc_list', 'cc_emails', 'cc_email', 'CC']),
             $ccFromReferences
         )));
 
@@ -1930,6 +1950,29 @@ class CommonHelper
             'message_ids' => array_values(array_unique($messageIds)),
             'cc_emails' => $ccEmails,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveBccEmailsFromContext(array $context, ?string $primaryRecipient = null): array
+    {
+        $bccEmails = self::resolveEmailListFromContext($context, [
+            'bcc', 'bcc_list', 'bcc_emails', 'bcc_email', 'BCC',
+        ]);
+        $exclude = array_map(
+            'strtolower',
+            array_values(array_filter(array_unique(array_merge(
+                [trim((string) $primaryRecipient)],
+                self::resolveCcEmailsFromContext($context, $primaryRecipient)
+            ))))
+        );
+
+        return array_values(array_filter(
+            $bccEmails,
+            static fn (string $email): bool => ! in_array(strtolower($email), $exclude, true)
+        ));
     }
 
     /**
@@ -2015,7 +2058,8 @@ class CommonHelper
         ?string $emailUuid = null,
         ?string $threadSubject = null,
         array $referenceMessageIds = [],
-        array $ccEmails = []
+        array $ccEmails = [],
+        array $bccEmails = []
     ): void {
         if ($emailUuid !== null && $emailUuid !== '') {
             $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
@@ -2029,12 +2073,14 @@ class CommonHelper
                 $fromName,
                 $replyToEmail,
                 $referenceChain,
-                $ccEmails
+                $ccEmails,
+                $bccEmails
             ));
 
             Log::info('Threaded email sent', [
                 'to' => $recipientEmail,
                 'cc' => $ccEmails,
+                'bcc' => $bccEmails,
                 'in_reply_to' => $emailUuid,
                 'references' => $referenceChain,
                 'subject' => $finalSubject,
@@ -2050,7 +2096,8 @@ class CommonHelper
             $fromEmail,
             $fromName,
             $replyToEmail,
-            $ccEmails
+            $ccEmails,
+            $bccEmails
         ));
     }
 
@@ -2169,6 +2216,7 @@ class CommonHelper
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
             $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
             $ccEmails = self::resolveCcEmailsFromContext($tourData, $agent->email);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $agent->email);
             if ($emailUuid !== null) {
                 $emailData['email_uuid'] = $emailUuid;
             }
@@ -2180,6 +2228,9 @@ class CommonHelper
             }
             if ($ccEmails !== []) {
                 $emailData['cc'] = $ccEmails;
+            }
+            if ($bccEmails !== []) {
+                $emailData['bcc'] = $bccEmails;
             }
 
             return self::sendTourItineraryEmailByAiResponse($agent->email, $emailData, $dmcUser);
@@ -2286,6 +2337,7 @@ class CommonHelper
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
             $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
             $ccEmails = self::resolveCcEmailsFromContext($tourData, $dmcEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
@@ -2312,12 +2364,14 @@ class CommonHelper
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
-                $ccEmails
+                $ccEmails,
+                $bccEmails
             );
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
                 'cc' => $ccEmails,
+                'bcc' => $bccEmails,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
 
@@ -2351,6 +2405,7 @@ class CommonHelper
             $threadSubject = self::resolveEmailSubjectFromContext($tourData);
             $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
             $ccEmails = self::resolveCcEmailsFromContext($tourData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $recipientEmail);
             $emailData = self::normalizeQuotationEmailData($tourData);
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
@@ -2368,12 +2423,14 @@ class CommonHelper
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
-                $ccEmails
+                $ccEmails,
+                $bccEmails
             );
 
             Log::info('Quotation email sent', [
                 'email' => $recipientEmail,
                 'cc' => $ccEmails,
+                'bcc' => $bccEmails,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
 
@@ -2385,6 +2442,252 @@ class CommonHelper
             ]);
 
             return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /** @var list<int> */
+    public const MASTER_DMC_ROLE_IDS = [10, 19];
+
+    /** @var list<int> */
+    public const NORMAL_DMC_ROLE_IDS = [11, 20];
+
+    /**
+     * @return list<string>
+     */
+    public static function parseUserCountryList(?string $rawCountry): array
+    {
+        if (! is_string($rawCountry) || trim($rawCountry) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($rawCountry, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $parts = $decoded;
+        } else {
+            $parts = preg_split('/[,|]/', $rawCountry) ?: [];
+        }
+
+        $countries = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '' && ! in_array($name, $countries, true)) {
+                $countries[] = $name;
+            }
+        }
+
+        return $countries;
+    }
+
+    public static function normalizeCountryName(string $country): string
+    {
+        $trimmed = trim($country);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $match = Country::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($trimmed)])
+            ->value('name');
+
+        return is_string($match) && $match !== '' ? $match : $trimmed;
+    }
+
+    public static function countriesMatch(string $left, string $right): bool
+    {
+        $left = strtolower(trim(self::normalizeCountryName($left)));
+        $right = strtolower(trim(self::normalizeCountryName($right)));
+
+        return $left !== '' && $right !== '' && $left === $right;
+    }
+
+    public static function isMasterDmcUser(?User $user): bool
+    {
+        return $user !== null && in_array((int) $user->role_id, self::MASTER_DMC_ROLE_IDS, true);
+    }
+
+    /**
+     * Countries a DMC user is allowed to serve (one for normal DMC, many for Master DMC).
+     *
+     * @return list<string>
+     */
+    public static function resolveSupportedCountriesForDmc(User $dmcUser): array
+    {
+        return self::parseUserCountryList($dmcUser->country ?? null);
+    }
+
+    public static function dmcSupportsDestinationCountry(User $dmcUser, string $requestedCountry): bool
+    {
+        $requestedCountry = trim($requestedCountry);
+        if ($requestedCountry === '') {
+            return true;
+        }
+
+        $supported = self::resolveSupportedCountriesForDmc($dmcUser);
+        if ($supported === []) {
+            return false;
+        }
+
+        foreach ($supported as $country) {
+            if (self::countriesMatch($country, $requestedCountry)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<array{name: string, email: string, country: string}>
+     */
+    public static function findAlternateDmcsForCountry(User $selectedDmc, string $requestedCountry): array
+    {
+        $requestedCountry = trim($requestedCountry);
+        if ($requestedCountry === '') {
+            return [];
+        }
+
+        $masterId = (int) ($selectedDmc->master_dmc_id ?? 0);
+        if ($masterId <= 0 && self::isMasterDmcUser($selectedDmc)) {
+            $masterId = (int) $selectedDmc->userId;
+        }
+
+        $query = User::query()
+            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
+            ->where('userId', '!=', $selectedDmc->userId);
+
+        if ($masterId > 0) {
+            $query->where('master_dmc_id', $masterId);
+        } else {
+            return [];
+        }
+
+        $alternates = [];
+        foreach ($query->get() as $dmc) {
+            if (! self::dmcSupportsDestinationCountry($dmc, $requestedCountry)) {
+                continue;
+            }
+
+            $alternates[] = [
+                'name' => trim((string) ($dmc->company_name ?: $dmc->name ?: 'DMC')),
+                'email' => trim((string) ($dmc->email ?? '')),
+                'country' => self::normalizeCountryName(
+                    self::resolveSupportedCountriesForDmc($dmc)[0] ?? $requestedCountry
+                ),
+            ];
+        }
+
+        return $alternates;
+    }
+
+    /**
+     * @return array{
+     *   supported: bool,
+     *   requested_country: string,
+     *   supported_countries: list<string>,
+     *   alternate_dmcs: list<array{name: string, email: string, country: string}>
+     * }
+     */
+    public static function validateDmcDestinationCountrySupport(User $dmcUser, string $requestedCountry): array
+    {
+        $requestedCountry = self::normalizeCountryName(trim($requestedCountry));
+        $supported = array_map(
+            static fn (string $country): string => self::normalizeCountryName($country),
+            self::resolveSupportedCountriesForDmc($dmcUser)
+        );
+
+        return [
+            'supported' => self::dmcSupportsDestinationCountry($dmcUser, $requestedCountry),
+            'requested_country' => $requestedCountry,
+            'supported_countries' => $supported,
+            'alternate_dmcs' => self::findAlternateDmcsForCountry($dmcUser, $requestedCountry),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $emailData
+     * @return bool|string
+     */
+    public static function sendUnsupportedDestinationCountryEmail(
+        string $recipientEmail,
+        array $emailData = [],
+        ?User $dmcUser = null
+    ) {
+        $recipientEmail = trim($recipientEmail);
+        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid recipient email address';
+        }
+
+        try {
+            $emailUuid = self::resolveEmailUuidFromContext($emailData);
+            $threadSubject = self::resolveEmailSubjectFromContext($emailData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($emailData);
+            $ccEmails = self::resolveCcEmailsFromContext($emailData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($emailData, $recipientEmail);
+
+            $selectedDmcName = (string) ($emailData['selected_dmc_name'] ?? $emailData['dmc_name'] ?? 'DMC');
+            $requestedCountry = (string) ($emailData['requested_country'] ?? '');
+            $alternateDmcs = is_array($emailData['alternate_dmcs'] ?? null) ? $emailData['alternate_dmcs'] : [];
+
+            $viewData = [
+                'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Partner'),
+                'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
+                'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
+                'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
+                'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+                'selected_dmc_name' => $selectedDmcName,
+                'requested_country' => $requestedCountry,
+                'alternate_dmcs' => $alternateDmcs,
+            ];
+
+            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: $selectedDmcName;
+            $subject = 'Destination not supported — '.$requestedCountry.' — '.$dmcName;
+            $html = view('email.unsupported-destination-country', $viewData)->render();
+
+            $dmcEmail = trim($viewData['dmc_contact_email']);
+            if ($dmcEmail === '' && $dmcUser) {
+                $dmcEmail = trim((string) ($dmcUser->email ?? ''));
+            }
+
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            if ($dmcName !== '' && $dmcName !== 'DMC') {
+                $fromName = $dmcName.' via '.$fromName;
+            }
+            $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails,
+                $bccEmails
+            );
+
+            Log::info('Unsupported destination country email sent', [
+                'email' => $recipientEmail,
+                'selected_dmc' => $selectedDmcName,
+                'requested_country' => $requestedCountry,
+                'alternate_dmcs' => $alternateDmcs,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Unsupported destination country email failed', [
+                'email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: '.$e->getMessage();
         }
     }
 
@@ -2408,6 +2711,7 @@ class CommonHelper
             $threadSubject = self::resolveEmailSubjectFromContext($emailData);
             $referenceMessageIds = self::resolveEmailReferencesFromContext($emailData);
             $ccEmails = self::resolveCcEmailsFromContext($emailData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($emailData, $recipientEmail);
             $viewData = [
                 'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
                 'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
@@ -2446,12 +2750,14 @@ class CommonHelper
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
-                $ccEmails
+                $ccEmails,
+                $bccEmails
             );
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
                 'cc' => $ccEmails,
+                'bcc' => $bccEmails,
                 'from' => $fromEmail,
                 'reply_to' => $replyTo,
             ]);
