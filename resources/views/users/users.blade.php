@@ -193,10 +193,10 @@
                   <div class="settings-header-grid fw-bold text-uppercase">
                     <span>Zone On</span>
                     <span>Price Hide</span>
-                    <span>Email On</span>
-                    <span>Auto Cancel Status</span>
+                    {{-- <span>Email On</span> --}}
+                    {{-- <span>Auto Cancel Status</span> --}}
                     <span>Auto Cancel</span>
-                    <span>Guide Pax</span>
+                    {{-- <span>Guide Pax</span> --}}
                     <span>AI Response</span>
                   </div>
                 </th>
@@ -361,7 +361,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="settings-col">
+                        {{-- <div class="settings-col">
                             <div class="form-group mb-0">
                                 <input type="text" class="form-control guide-pax-input"
                                     data-user-id="{{ $user->userId }}"
@@ -371,7 +371,7 @@
                                     style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center; padding-left: 5px;"
                                     oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
                             </div>
-                        </div>
+                        </div> --}}
                         <div class="settings-col">
                             <div class="form-group mb-0">
                                 <select class="form-select ai-response-dropdown"

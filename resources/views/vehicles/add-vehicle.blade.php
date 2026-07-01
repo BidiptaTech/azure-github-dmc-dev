@@ -228,7 +228,7 @@
                                 @enderror
                             </div> 
                             
-                            <!-- City Tour No of Guides -->
+                            {{-- <!-- City Tour No of Guides -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
@@ -236,7 +236,7 @@
                                 @error('city_tour_guides')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
-                            </div>
+                            </div> --}}
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
