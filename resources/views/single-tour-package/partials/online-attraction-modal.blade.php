@@ -305,7 +305,7 @@
     }
 
     window.buildAttractionSlotSourceToggleHtml = function (day, index) {
-        return '<div class="mb-3 attraction-slot-source-block">' +
+        return '<div class="mb-3 attraction-slot-source-block d-none">' +
             '<label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #' + index + '</label>' +
             '<div class="d-flex flex-wrap gap-4">' +
             '<div class="form-check">' +
