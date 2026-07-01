@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\AiConfigController;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -14,13 +16,14 @@ use Illuminate\Support\Facades\Log;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::get('/v1/ai-keywords', [AiConfigController::class, 'keywords'])
+    ->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
 
 Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
 Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
 Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
 Route::get('/v1/day-level/combined-json', 'App\Http\Controllers\Api\DayLevelController@combinedJsonApi');
-Route::get('/v1/ai-keywords', 'App\Http\Controllers\Api\AiConfigController@keywords');
 
 Route::post('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
