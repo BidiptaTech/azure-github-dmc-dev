@@ -1680,9 +1680,16 @@
             
             <!-- Right Side: Action Buttons -->
             <div style="display: flex; gap: 6px;">
-                <button class="btn btn-success btn-sm" onclick="saveEnquiryData()">
-                    <i class="ri-save-line me-1"></i>Create Enquiry
-                </button>
+                <span class="d-inline-block enquiry-submit-wrap enquiry-submit-wrap--disabled"
+                      id="enquiry-submit-btn-wrap"
+                      tabindex="0"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Please book at least one service (hotel, attraction, restaurant, guide, transfer, or arrival/departure) before creating the enquiry.">
+                    <button type="button" class="btn btn-success btn-sm" id="enquiry-submit-btn" onclick="saveEnquiryData()" disabled>
+                        <i class="ri-save-line me-1"></i>Create Enquiry
+                    </button>
+                </span>
                 <button class="btn btn-danger btn-sm">Cancel</button>
             </div>
         </div>
@@ -4092,6 +4099,13 @@
         padding: 4px 8px !important;
         font-size: 10px !important;
     }
+
+    #enquiry-submit-btn-wrap.enquiry-submit-wrap--disabled .btn {
+        pointer-events: none;
+    }
+    #enquiry-submit-btn-wrap.enquiry-submit-wrap--disabled {
+        cursor: not-allowed;
+    }
 </style>
 @endsection
 
@@ -4118,6 +4132,63 @@
     let transferList = [];
     let mealList = [];
     let miscList = [];
+
+    @php
+        $enquiryServiceRequiredMsg = 'Please book at least one service (hotel, attraction, restaurant, guide, transfer, or arrival/departure) before creating the enquiry.';
+    @endphp
+    const enquiryServiceRequiredMsg = @json($enquiryServiceRequiredMsg);
+
+    window.countBookedEnquiryServices = function () {
+        return (accommodationList || []).length
+            + (tourList || []).length
+            + (mealList || []).length
+            + (guideList || []).length
+            + (transferList || []).length
+            + (arrivalDepartureList || []).length;
+    };
+
+    let enquirySubmitTooltip = null;
+
+    function setEnquirySubmitTooltip(enabled) {
+        const wrap = document.getElementById('enquiry-submit-btn-wrap');
+        if (!wrap || !window.bootstrap || !bootstrap.Tooltip) return;
+        if (enquirySubmitTooltip) {
+            enquirySubmitTooltip.dispose();
+            enquirySubmitTooltip = null;
+        }
+        if (enabled) {
+            enquirySubmitTooltip = new bootstrap.Tooltip(wrap);
+        }
+    }
+
+    window.updateEnquirySubmitButton = function (showTooltip) {
+        const btn = document.getElementById('enquiry-submit-btn');
+        const wrap = document.getElementById('enquiry-submit-btn-wrap');
+        if (!btn) return;
+
+        const hasServices = window.countBookedEnquiryServices() > 0;
+        btn.disabled = !hasServices;
+
+        if (!wrap) return;
+
+        if (hasServices) {
+            wrap.classList.remove('enquiry-submit-wrap--disabled');
+            wrap.removeAttribute('data-bs-toggle');
+            wrap.removeAttribute('tabindex');
+            wrap.removeAttribute('title');
+            setEnquirySubmitTooltip(false);
+        } else {
+            wrap.classList.add('enquiry-submit-wrap--disabled');
+            wrap.setAttribute('data-bs-toggle', 'tooltip');
+            wrap.setAttribute('data-bs-placement', 'top');
+            wrap.setAttribute('tabindex', '0');
+            wrap.setAttribute('title', enquiryServiceRequiredMsg);
+            setEnquirySubmitTooltip(true);
+            if (showTooltip && enquirySubmitTooltip) {
+                enquirySubmitTooltip.show();
+            }
+        }
+    };
 
     // Soft-remove + undo state (same as edit form)
     let removedItems = new Map();
@@ -13673,6 +13744,7 @@
 
     // Update main accommodation table
     function updateAccommodationTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('accommodationTableBody');
         const table = document.getElementById('accommodationTable');
         const emptyMessage = document.getElementById('emptyAccommodationMessage');
@@ -15233,6 +15305,7 @@
 
     // Update Arrival/Departure table
     function updateArrivalDepartureTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('arrivalDepartureTableBody');
         const table = document.getElementById('arrivalDepartureTable');
         const emptyMessage = document.getElementById('emptyArrivalDepartureMessage');
@@ -17672,6 +17745,7 @@
     
     // Update tour table
     function updateTourTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('tourTableBody');
         const table = document.getElementById('tourTable');
         const emptyMessage = document.getElementById('emptyTourMessage');
@@ -18376,6 +18450,7 @@
     
     // Update guide table
     function updateGuideTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('guideTableBody');
         const table = document.getElementById('guideTable');
         const emptyMessage = document.getElementById('emptyGuideMessage');
@@ -21264,6 +21339,7 @@
     
     // Update meal table
     function updateMealTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('mealTableBody');
         const table = document.getElementById('mealTable');
         const emptyMessage = document.getElementById('emptyMealMessage');
@@ -21887,6 +21963,7 @@
     
     // Update transfer table - displays all transfers from tours and meals
     function updateTransferTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
         const tbody = document.getElementById('transferTableBody');
         const table = document.getElementById('transferTable');
         const emptyMessage = document.getElementById('emptyTransferMessage');
@@ -27094,6 +27171,11 @@
     async function saveEnquiryData() {
         finalizePendingRemovals();
 
+        if (window.countBookedEnquiryServices() === 0) {
+            window.updateEnquirySubmitButton(true);
+            return;
+        }
+
         // Get values from header fields
         const destinationSelect = document.getElementById('destinationSelect');
         const cityNames = (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 0)
@@ -27965,6 +28047,9 @@
         setTimeout(function() {
             if (typeof updateAllMaxAttributes === 'function') {
                 updateAllMaxAttributes();
+            }
+            if (typeof window.updateEnquirySubmitButton === 'function') {
+                window.updateEnquirySubmitButton();
             }
         }, 500);
     });

@@ -1271,6 +1271,10 @@ Route::get('day-level/cities-by-country', [DayLevelController::class, 'citiesByC
 Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'combinedJsonFile'])
     ->name('day-level.combined-json-file');
 
+Route::patch('day-level/{day_level}/inclusion', [DayLevelController::class, 'updateInclusion'])
+    ->name('day-level.update-inclusion')
+    ->whereNumber('day_level');
+
 // Resource route AFTER
 Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
 

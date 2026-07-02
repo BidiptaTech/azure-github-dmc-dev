@@ -540,110 +540,6 @@
             height: 1rem;
             stroke: currentColor;
         }
-        .day-service-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-            width: 100%;
-        }
-        .day-inclusion-field .form-label {
-            display: block;
-            width: 100%;
-            text-align: center;
-        }
-        .day-inclusion-control {
-            min-height: 38px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .day-inclusion-check {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0;
-            width: auto;
-            min-height: 0;
-            padding: 0;
-            margin: 0;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            user-select: none;
-        }
-        .day-inclusion-check:has(input:checked) {
-            border: none;
-            background: transparent;
-        }
-        .day-inclusion-check input[type="checkbox"] {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-            pointer-events: none;
-        }
-        .day-inclusion-check__box {
-            width: 22px;
-            height: 22px;
-            border: 2px solid #ef4444;
-            border-radius: 4px;
-            background: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: background 0.15s ease, border-color 0.15s ease;
-        }
-        .day-inclusion-check__box i {
-            display: none;
-            font-size: 15px;
-            font-weight: 700;
-            color: #fff;
-            line-height: 1;
-        }
-        .day-inclusion-check:has(input:checked) .day-inclusion-check__box {
-            border-color: #16a34a;
-            background: #16a34a;
-        }
-        .day-inclusion-check:has(input:checked) .day-inclusion-check__box i {
-            display: inline-flex;
-        }
-        .day-add-service-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.3rem;
-            padding: 0.45rem 0.5rem;
-            font-size: 0.72rem;
-            font-weight: 600;
-            line-height: 1.2;
-            min-height: 38px;
-            white-space: nowrap;
-        }
-        .day-add-service-btn i {
-            font-size: 0.95rem;
-            line-height: 1;
-        }
-        .item-inclusion-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.12rem 0.45rem;
-            border-radius: 999px;
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-        }
-        .item-inclusion-badge--yes {
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #86efac;
-        }
-        .item-inclusion-badge--no {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fca5a5;
-        }
         .day-card .day-card-header {
             color: #1f2d4d;
         }
@@ -969,6 +865,21 @@
             font-size: 0.78rem;
             color: #435971;
             margin-top: 0.2rem;
+        }
+        .form-actions-bar {
+            position: relative;
+        }
+        .package-submit-hint {
+            width: 100%;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #b45309;
+            margin-top: 0.35rem;
+        }
+        #mainSubmitBtn:disabled,
+        #previewConfirmBtn:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
         }
         .preview-hotel-continuation {
             font-size: 0.78rem;
@@ -1333,9 +1244,10 @@
                     <div class="col-12">
                         <div class="d-flex justify-content-center gap-2 flex-wrap form-actions-bar">
                             <button type="button" class="btn btn-outline-primary btn-lg px-4" id="packagePreviewBtn" onclick="openPackagePreview()">Preview Package</button>
-                            <button type="submit" class="btn btn-primary btn-lg px-5" id="mainSubmitBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}">{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="submit" class="btn btn-primary btn-lg px-5" id="mainSubmitBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" disabled>{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                             <button type="reset" class="btn btn-outline-secondary btn-lg px-4" onclick="resetAll()">Reset</button>
                         </div>
+                        <div id="packageSubmitHint" class="package-submit-hint">Add at least one hotel or day service before submitting.</div>
                     </div>
                 </div>
             </form>
@@ -1350,7 +1262,7 @@
                         <div class="modal-body" id="packagePreviewBody"></div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" id="previewConfirmBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" onclick="submitFromPreview()">Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="button" class="btn btn-primary" id="previewConfirmBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" onclick="submitFromPreview()" disabled>Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                         </div>
                     </div>
                 </div>
@@ -1362,7 +1274,7 @@
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     @if(isset($dayLevel))
-        <script id="edit-payload-data" type="application/json">{!! json_encode($editPayload ?? ['Master_DMC' => []], JSON_UNESCAPED_SLASHES) !!}</script>
+        <script id="edit-payload-data" type="application/json">{!! json_encode($editPayload ?? $dayLevel->structured_payload ?? ['Master_DMC' => []], JSON_UNESCAPED_SLASHES) !!}</script>
         <script id="edit-meta-data" type="application/json">{!! json_encode([
             'days' => (int)($editPackageDays ?? $dayLevel->days ?? 1),
             'row_days' => (int)($dayLevel->days ?? 1),
@@ -2043,125 +1955,6 @@
                 return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
             }
             return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
-        }
-
-        function parseIsInclusionFlag(value) {
-            return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
-        }
-
-        const DAY_SERVICE_ACTIONS = {
-            attraction: {
-                handler: 'addAttractionItemForDay',
-                icon: 'ri-map-pin-line',
-                addTitle: 'Add Attraction',
-                updateTitle: 'Update Attraction',
-                addLabel: 'Add Attraction',
-            },
-            attraction_transfer: {
-                handler: 'addAttractionTransferItemForDay',
-                icon: 'ri-bus-line',
-                addTitle: 'Add Attraction Transfer',
-                updateTitle: 'Update Attraction Transfer',
-                addLabel: 'Add Transfer',
-            },
-            restaurant: {
-                handler: 'addRestaurantItemForDay',
-                icon: 'ri-restaurant-line',
-                addTitle: 'Add Restaurant',
-                updateTitle: 'Update Restaurant',
-                addLabel: 'Add Restaurant',
-            },
-            restaurant_transfer: {
-                handler: 'addRestaurantTransferItemForDay',
-                icon: 'ri-bus-line',
-                addTitle: 'Add Restaurant Transfer',
-                updateTitle: 'Update Restaurant Transfer',
-                addLabel: 'Add Transfer',
-            },
-            arrival: {
-                handler: 'addArrivalItemForDay',
-                icon: 'ri-flight-land-line',
-                addTitle: 'Add Arrival',
-                updateTitle: 'Update Arrival',
-                addLabel: 'Add Arrival',
-            },
-            departure: {
-                handler: 'addDepartureItemForDay',
-                icon: 'ri-flight-takeoff-line',
-                addTitle: 'Add Departure',
-                updateTitle: 'Update Departure',
-                addLabel: 'Add Departure',
-            },
-        };
-
-        function isDayInclusionChecked(day, key) {
-            const el = document.getElementById(`${key}_incl_${day}`);
-            return !!(el && el.checked);
-        }
-
-        function setDayInclusionCheckbox(day, key, checked) {
-            const el = document.getElementById(`${key}_incl_${day}`);
-            if (el) el.checked = !!checked;
-        }
-
-        function resetDayInclusionCheckboxes(day) {
-            Object.keys(DAY_SERVICE_ACTIONS).forEach((key) => setDayInclusionCheckbox(day, key, false));
-        }
-
-        function inferInclusionKeyFromItem(item) {
-            if (!item) return null;
-            const transferType = String(inferTransferTypeFromItem(item) || '').toLowerCase();
-            if (isTransferOnlyActivityItem(item)) {
-                if (transferType === 'arrival') return 'arrival';
-                if (transferType === 'departure') return 'departure';
-                if (transferType === 'restaurant transfer') return 'restaurant_transfer';
-                return 'attraction_transfer';
-            }
-            if (item.type === 'restaurant') return 'restaurant';
-            if (item.type === 'attraction') return 'attraction';
-            return null;
-        }
-
-        function dayInclusionCheckboxHtml(day, key, colClass = 'col-md-2') {
-            return `
-                <div class="${colClass} day-inclusion-field">
-                    <label class="form-label" for="${key}_incl_${day}">Inclusion</label>
-                    <div class="day-inclusion-control">
-                        <label class="day-inclusion-check" for="${key}_incl_${day}" title="Mark as package inclusion">
-                            <input type="checkbox" class="day-inclusion-checkbox" id="${key}_incl_${day}" value="1">
-                            <span class="day-inclusion-check__box" aria-hidden="true"><i class="ri-check-line"></i></span>
-                        </label>
-                    </div>
-                </div>
-            `;
-        }
-
-        function dayServiceAddButtonHtml(day, key, colClass = 'col-md-2') {
-            const cfg = DAY_SERVICE_ACTIONS[key] || DAY_SERVICE_ACTIONS.attraction;
-            return `
-                <div class="${colClass}">
-                    <label class="form-label mb-0 d-block" aria-hidden="true">&nbsp;</label>
-                    <button type="button" class="btn btn-outline-primary w-100 day-add-service-btn" id="${key}_add_btn_${day}" onclick="${cfg.handler}(${day})" title="${cfg.addTitle}" aria-label="${cfg.addTitle}">
-                        <i class="${cfg.icon}" aria-hidden="true"></i><span>${cfg.addLabel}</span>
-                    </button>
-                </div>
-            `;
-        }
-
-        function setDayAddButtonTitle(day, key, isUpdate = false) {
-            const cfg = DAY_SERVICE_ACTIONS[key];
-            if (!cfg) return;
-            const addBtn = document.getElementById(`${key}_add_btn_${day}`);
-            const addTitle = isUpdate ? (cfg.updateTitle || cfg.addTitle) : cfg.addTitle;
-            if (!addBtn) return;
-            addBtn.title = addTitle;
-            addBtn.setAttribute('aria-label', addTitle);
-            const label = addBtn.querySelector('span');
-            if (label) {
-                label.textContent = isUpdate
-                    ? String(cfg.addLabel).replace(/^Add /, 'Update ')
-                    : cfg.addLabel;
-            }
         }
 
         function getTransferOptionsForDay(dayVal) {
@@ -3122,7 +2915,7 @@
                                     <span class="day-service-group__hint">Attraction &amp; its transfer share this section</span>
                                 </div>
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-3">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="attraction_select_${d}">Attraction</label>
                                         <select id="attraction_select_${d}" class="form-select searchable-select">
                                             <option value="">Select attraction</option>
@@ -3141,8 +2934,9 @@
                                             <input type="number" class="form-control" id="attraction_price_${d}" min="0" step="0.01" placeholder="0.00">
                                         </div>
                                     </div>
-                                    ${dayInclusionCheckboxHtml(d, 'attraction', 'col-md-2')}
-                                    ${dayServiceAddButtonHtml(d, 'attraction', 'col-md-2')}
+                                    <div class="col-md-3 d-flex">
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_add_btn_${d}" onclick="addAttractionItemForDay(${d})">Add Attraction</button>
+                                    </div>
                                 </div>
                                 <div class="day-service-transfer-panel attraction-transfer-panel" id="attraction_transfer_panel_${d}">
                                     <div class="day-service-transfer-panel__header">
@@ -3153,13 +2947,13 @@
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="attraction_transfer_pickup_select_${d}">Pickup Location</label>
                                             <select id="attraction_transfer_pickup_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="attraction_transfer_drop_select_${d}">Drop Location</label>
                                             <select id="attraction_transfer_drop_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select drop</option>
@@ -3172,8 +2966,9 @@
                                                 <input type="number" class="form-control" id="attraction_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        ${dayInclusionCheckboxHtml(d, 'attraction_transfer', 'col-md-2')}
-                                        ${dayServiceAddButtonHtml(d, 'attraction_transfer', 'col-md-2')}
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="attraction_transfer_add_btn_${d}" onclick="addAttractionTransferItemForDay(${d})">Add Transfer</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="day-group-msg" id="attraction_group_msg_${d}" role="alert"></div>
@@ -3192,7 +2987,7 @@
                                             <option value="">Select restaurant</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
                                         <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
                                             <option value="">All periods</option>
@@ -3201,7 +2996,7 @@
                                             <option value="3">Dinner</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-2">
+                                    <div class="col-md-3">
                                         <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
                                         <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
                                             <option value="">Select restaurant first</option>
@@ -3214,8 +3009,9 @@
                                             <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
                                         </div>
                                     </div>
-                                    ${dayInclusionCheckboxHtml(d, 'restaurant', 'col-md-1')}
-                                    ${dayServiceAddButtonHtml(d, 'restaurant', 'col-md-2')}
+                                    <div class="col-md-1 d-flex">
+                                        <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
+                                    </div>
                                 </div>
                                 <div class="day-service-transfer-panel restaurant-transfer-panel" id="restaurant_transfer_panel_${d}">
                                     <div class="day-service-transfer-panel__header">
@@ -3226,13 +3022,13 @@
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
                                             <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_drop_select_${d}">Drop Location</label>
                                             <select id="restaurant_transfer_drop_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select drop</option>
@@ -3245,8 +3041,9 @@
                                                 <input type="number" class="form-control" id="restaurant_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        ${dayInclusionCheckboxHtml(d, 'restaurant_transfer', 'col-md-2')}
-                                        ${dayServiceAddButtonHtml(d, 'restaurant_transfer', 'col-md-2')}
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_transfer_add_btn_${d}" onclick="addRestaurantTransferItemForDay(${d})">Add Transfer</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="day-group-msg" id="restaurant_group_msg_${d}" role="alert"></div>
@@ -3264,13 +3061,13 @@
                                         <span class="day-service-group__hint">Airport pickup on arrival day</span>
                                     </div>
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
                                             <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
                                             <select id="arrival_drop_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select drop</option>
@@ -3283,8 +3080,9 @@
                                                 <input type="number" class="form-control transfer-leg-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        ${dayInclusionCheckboxHtml(d, 'arrival', 'col-md-2')}
-                                        ${dayServiceAddButtonHtml(d, 'arrival', 'col-md-2')}
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
+                                        </div>
                                     </div>
                                     <div class="day-group-msg" id="arrival_group_msg_${d}" role="alert"></div>
                                 </div>
@@ -3296,13 +3094,13 @@
                                         <span class="day-service-group__hint">Airport drop on departure day</span>
                                     </div>
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
                                             <select id="departure_pickup_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select pickup</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
                                             <select id="departure_drop_select_${d}" class="form-select searchable-select">
                                                 <option value="">Select drop</option>
@@ -3315,8 +3113,9 @@
                                                 <input type="number" class="form-control transfer-leg-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        ${dayInclusionCheckboxHtml(d, 'departure', 'col-md-2')}
-                                        ${dayServiceAddButtonHtml(d, 'departure', 'col-md-2')}
+                                        <div class="col-md-2 d-flex">
+                                            <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
+                                        </div>
                                     </div>
                                     <div class="day-group-msg" id="departure_group_msg_${d}" role="alert"></div>
                                 </div>
@@ -3699,11 +3498,9 @@
                 const packagesToHydrate = relevantPackages.length ? relevantPackages : packages;
                 packagesToHydrate.forEach(pkg => {
                     const daysObj = (pkg && typeof pkg.days === 'object' && pkg.days) ? pkg.days : {};
-                    Object.entries(daysObj).forEach(([dayIdx, dayNode]) => {
+                    Object.values(daysObj).forEach(dayNode => {
                         if (!dayNode || typeof dayNode !== 'object') return;
-                        const dayFromNode = parseInt(String(dayNode.day || 0), 10) || 0;
-                        const dayFromKey = /^\d+$/.test(String(dayIdx)) ? (parseInt(String(dayIdx), 10) + 1) : 0;
-                        const dayNum = dayFromNode > 0 ? dayFromNode : (dayFromKey > 0 ? dayFromKey : 1);
+                        const dayNum = parseInt(String(dayNode.day || 1), 10) || 1;
 
                         const hotelSource = dayNode.hotels;
                         const hotelVals = Array.isArray(hotelSource)
@@ -3715,19 +3512,9 @@
                             const checkinDay = Math.max(1, parseInt(String(h.checkin_day || h.booked_day || dayNum), 10) || dayNum);
                             const totalPrice = parseFloat(String(h.total_price ?? h.price ?? 0)) || 0;
                             const perNightStored = parseFloat(String(h.price_per_night ?? 0)) || 0;
-                            const roomPrice = parseFloat(String(h.room_price ?? 0)) || 0;
-                            const breakfastPrice = parseFloat(String(h.breakfast_price ?? 0)) || 0;
-                            const lunchPrice = parseFloat(String(h.lunch_price ?? 0)) || 0;
-                            const dinnerPrice = parseFloat(String(h.dinner_price ?? 0)) || 0;
-                            const componentTotal = roomPrice + breakfastPrice + lunchPrice + dinnerPrice;
                             const perNight = perNightStored > 0
                                 ? perNightStored
-                                : (componentTotal > 0
-                                    ? componentTotal
-                                    : (totalPrice > 0 && nights > 0 ? totalPrice / nights : 0));
-                            const resolvedRoomPrice = roomPrice > 0
-                                ? roomPrice
-                                : (componentTotal > 0 ? Math.max(0, perNight - breakfastPrice - lunchPrice - dinnerPrice) : perNight);
+                                : (totalPrice > 0 && nights > 0 ? totalPrice / nights : 0);
                             const hydratedStarRating = String(h.hotel_star_rating ?? h.cat ?? '').trim();
                             hotels.push({
                                 day: checkinDay,
@@ -3750,10 +3537,10 @@
                                 transfer_city: String(h.transfer_city || ''),
                                 transfer_pickup: String(h.transfer_pickup || ''),
                                 transfer_drop: String(h.transfer_drop || ''),
-                                room_price: resolvedRoomPrice,
-                                breakfast_price: breakfastPrice,
-                                lunch_price: lunchPrice,
-                                dinner_price: dinnerPrice,
+                                room_price: parseFloat(String(h.room_price ?? perNight)) || perNight,
+                                breakfast_price: parseFloat(String(h.breakfast_price ?? 0)) || 0,
+                                lunch_price: parseFloat(String(h.lunch_price ?? 0)) || 0,
+                                dinner_price: parseFloat(String(h.dinner_price ?? 0)) || 0,
                                 price: perNight,
                                 priority: parseInt(String(h.priority || 1), 10) || 1
                             });
@@ -3811,12 +3598,9 @@
                                 ticket_price: parseFloat(String(a.ticket_price ?? a.price ?? 0)) || 0,
                                 price: parseFloat(String(a.ticket_price ?? a.price ?? 0)) || 0,
                                 transfer: buildHydratedItemTransferFields(normalizedTransfer, hasXfer),
-                                is_inclusion: parseIsInclusionFlag(a.is_inclusion),
                             });
-                            const addlXfer = Array.isArray(normalizedTransfer.additional_transfers)
-                                ? normalizedTransfer.additional_transfers
-                                : [];
-                            if (addlXfer.length) {
+                            const addlXfer = normalizedTransfer.additional_transfers;
+                            if (Array.isArray(addlXfer) && addlXfer.length) {
                                 ensureDayTransferExtras(dayNum);
                                 const mapped = addlXfer.map(item => {
                                     const row = normalizeHydratedTransfer(item);
@@ -3875,7 +3659,6 @@
                                         transfer_price: parseFloat(String(normalizedTransfer.transfer_price ?? normalizedTransfer.cost ?? 0)) || 0,
                                         additional_transfers: [],
                                     },
-                                    is_inclusion: parseIsInclusionFlag(s.is_inclusion),
                                 });
                                 return;
                             }
@@ -3925,8 +3708,7 @@
                                         pickup_time: String(normalizedTransfer.pickup_time || ''),
                                         additional_transfers: [],
                                     };
-                                })(),
-                                is_inclusion: parseIsInclusionFlag(s.is_inclusion),
+                                })()
                             });
                         });
 
@@ -3963,8 +3745,7 @@
                                     drop_location: '',
                                     cost: 0,
                                     pickup_time: ''
-                                },
-                                is_inclusion: parseIsInclusionFlag(r.is_inclusion),
+                                }
                             });
                         });
                     });
@@ -4670,42 +4451,47 @@
                 || label === 'departure';
         }
 
+        function setDayButtonText(buttonId, text) {
+            const el = document.getElementById(buttonId);
+            if (el) el.textContent = text;
+        }
+
         function resetDayActivityEditButtons() {
             for (let d = 1; d <= daysCount; d++) {
-                Object.keys(DAY_SERVICE_ACTIONS).forEach((key) => setDayAddButtonTitle(d, key, false));
+                setDayButtonText(`attraction_add_btn_${d}`, 'Add Attraction');
+                setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Add Transfer');
+                setDayButtonText(`restaurant_add_btn_${d}`, 'Add Restaurant');
+                setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Add Transfer');
+                setDayButtonText(`arrival_add_btn_${d}`, 'Add Arrival');
+                setDayButtonText(`departure_add_btn_${d}`, 'Add Departure');
             }
         }
 
         function updateDayActivityEditButtons(rowDay, item) {
             resetDayActivityEditButtons();
             const d = parseInt(String(rowDay || 1), 10) || 1;
-            resetDayInclusionCheckboxes(d);
             if (!item) return;
-            const inclusionKey = inferInclusionKeyFromItem(item);
-            if (inclusionKey) {
-                setDayInclusionCheckbox(d, inclusionKey, parseIsInclusionFlag(item.is_inclusion));
-            }
             const transferType = String(inferTransferTypeFromItem(item) || '').toLowerCase();
             const transferOnly = isTransferOnlyActivityItem(item);
             if (item.type === 'attraction' && String(item.id || '').trim()) {
-                setDayAddButtonTitle(d, 'attraction', true);
+                setDayButtonText(`attraction_add_btn_${d}`, 'Update Attraction');
                 if (item.transfer && (item.transfer.pickup_location || item.transfer.drop_location || parseFloat(item.transfer.cost ?? 0) > 0)) {
-                    setDayAddButtonTitle(d, 'attraction_transfer', true);
+                    setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Update Transfer');
                 }
             } else if (item.type === 'restaurant' && String(item.id || '').trim()) {
-                setDayAddButtonTitle(d, 'restaurant', true);
+                setDayButtonText(`restaurant_add_btn_${d}`, 'Update Restaurant');
                 if (item.transfer && (item.transfer.pickup_location || item.transfer.drop_location || parseFloat(item.transfer.cost ?? 0) > 0)) {
-                    setDayAddButtonTitle(d, 'restaurant_transfer', true);
+                    setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Update Transfer');
                 }
             } else if (transferOnly) {
                 if (transferType === 'arrival') {
-                    setDayAddButtonTitle(d, 'arrival', true);
+                    setDayButtonText(`arrival_add_btn_${d}`, 'Update Arrival');
                 } else if (transferType === 'departure') {
-                    setDayAddButtonTitle(d, 'departure', true);
+                    setDayButtonText(`departure_add_btn_${d}`, 'Update Departure');
                 } else if (transferType === 'restaurant transfer') {
-                    setDayAddButtonTitle(d, 'restaurant_transfer', true);
+                    setDayButtonText(`restaurant_transfer_add_btn_${d}`, 'Update Transfer');
                 } else {
-                    setDayAddButtonTitle(d, 'attraction_transfer', true);
+                    setDayButtonText(`attraction_transfer_add_btn_${d}`, 'Update Transfer');
                 }
             }
         }
@@ -4965,7 +4751,6 @@
             if (restaurantPriceEl) restaurantPriceEl.value = '0.00';
             dayTransferExtras[d] = [];
             renderExtraTransferRows(d);
-            resetDayInclusionCheckboxes(d);
         }
 
         function mealPeriodValueFromLabel(label) {
@@ -5788,6 +5573,7 @@
             for (let d = 1; d <= daysCount; d++) {
                 populateServiceTransferSelectsForDay(d);
             }
+            syncPackageSubmitButtonsState();
         }
 
         function isTransferOnlyPlaceholderItem(item) {
@@ -5851,8 +5637,7 @@
                 city_name: getCityNameFromSelect(`activity_city_select_${d}`) || transferPayload.city || '',
                 ticket_id: '',
                 ticket_name: '',
-                transfer: transferPayload,
-                is_inclusion: false,
+                transfer: transferPayload
             };
 
             if (placeholderIdx !== -1) {
@@ -5865,7 +5650,6 @@
 
         function addAttractionItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'attraction');
             const selOp = getSelectedOption(`attraction_select_${dayVal}`);
             const ticketOp = getSelectedOption(`attraction_ticket_select_${dayVal}`);
             if (!selOp) {
@@ -5884,8 +5668,7 @@
                 ticket_name: ticketOp?.textContent || '',
                 ticket_price: ticketPrice,
                 price: ticketPrice,
-                transfer: getAttractionTransferPayload(normalizedDay),
-                is_inclusion: !!isInclusion,
+                transfer: getAttractionTransferPayload(normalizedDay)
             };
             if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
                 dayItems[editingActivityIndex] = payload;
@@ -5945,7 +5728,6 @@
 
         function addRestaurantItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'restaurant');
             const selOp = getSelectedOption(`restaurant_select_${dayVal}`);
             if (!selOp) {
                 alert('Select restaurant first.');
@@ -5976,8 +5758,7 @@
                     meal_price: mealPrice,
                     time_slot: ''
                 },
-                transfer: getRestaurantTransferPayload(normalizedDay),
-                is_inclusion: !!isInclusion,
+                transfer: getRestaurantTransferPayload(normalizedDay)
             };
             if (editingActivityIndex !== null && dayItems[editingActivityIndex]) {
                 dayItems[editingActivityIndex] = payload;
@@ -6009,7 +5790,6 @@
 
         function addAttractionTransferItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'attraction_transfer');
             const hasAttraction = !!getSelectedOption(`attraction_select_${normalizedDay}`);
             const editingItem = editingActivityIndex !== null ? dayItems[editingActivityIndex] : null;
             const editingTransferOnly = !!(editingItem && !String(editingItem.id || '').trim());
@@ -6024,12 +5804,11 @@
             }
             // Legacy transfer-only row being edited.
             const transferPayload = getAttractionTransferPayload(normalizedDay);
-            return addTransferLikeItemForDay(normalizedDay, 'Attraction Transfer', transferPayload, 'attraction', isInclusion);
+            return addTransferLikeItemForDay(normalizedDay, 'Attraction Transfer', transferPayload, 'attraction');
         }
 
         function addRestaurantTransferItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'restaurant_transfer');
             const hasRestaurant = !!getSelectedOption(`restaurant_select_${normalizedDay}`);
             const editingItem = editingActivityIndex !== null ? dayItems[editingActivityIndex] : null;
             const editingTransferOnly = !!(editingItem && !String(editingItem.id || '').trim());
@@ -6044,12 +5823,11 @@
             }
             // Legacy transfer-only row being edited.
             const transferPayload = getRestaurantTransferPayload(normalizedDay);
-            return addTransferLikeItemForDay(normalizedDay, 'Restaurant Transfer', transferPayload, 'restaurant', isInclusion);
+            return addTransferLikeItemForDay(normalizedDay, 'Restaurant Transfer', transferPayload, 'restaurant');
         }
 
         function addArrivalItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'arrival');
             const pickupOp = getSelectedOption(`arrival_pickup_select_${normalizedDay}`);
             const dropOp = getSelectedOption(`arrival_drop_select_${normalizedDay}`);
             if (!pickupOp || !dropOp) {
@@ -6057,12 +5835,11 @@
                 return false;
             }
             const transferPayload = getArrivalTransferPayload(normalizedDay);
-            return addTransferLikeItemForDay(normalizedDay, 'Day Arrival', transferPayload, 'attraction', isInclusion);
+            return addTransferLikeItemForDay(normalizedDay, 'Day Arrival', transferPayload);
         }
 
         function addDepartureItemForDay(dayVal) {
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
-            const isInclusion = isDayInclusionChecked(normalizedDay, 'departure');
             const pickupOp = getSelectedOption(`departure_pickup_select_${normalizedDay}`);
             const dropOp = getSelectedOption(`departure_drop_select_${normalizedDay}`);
             if (!pickupOp || !dropOp) {
@@ -6070,10 +5847,10 @@
                 return false;
             }
             const transferPayload = getDepartureTransferPayload(normalizedDay);
-            return addTransferLikeItemForDay(normalizedDay, 'Day Departure', transferPayload, 'attraction', isInclusion);
+            return addTransferLikeItemForDay(normalizedDay, 'Day Departure', transferPayload);
         }
 
-        function addTransferLikeItemForDay(normalizedDay, label, transferPayload, itemType = 'attraction', isInclusion = false) {
+        function addTransferLikeItemForDay(normalizedDay, label, transferPayload, itemType = 'attraction') {
             const transferCost = parseFloat(transferPayload.cost ?? transferPayload.transfer_price ?? 0) || 0;
             const hasTransfer = transferPayload.required === 'Yes'
                 || !!transferPayload.city
@@ -6094,8 +5871,7 @@
                 city_name: getCityNameFromSelect(`activity_city_select_${normalizedDay}`) || transferPayload.city || '',
                 ticket_id: '',
                 ticket_name: '',
-                transfer: transferPayload,
-                is_inclusion: !!isInclusion,
+                transfer: transferPayload
             };
             if (isRestaurant) {
                 payload.meal_price = 0;
@@ -6154,6 +5930,7 @@
             renderActivityRows();
 
             resetDayEntryFields(rowDay, true);
+            updateDayActivityEditButtons(rowDay, x);
 
             const citySelectId = `activity_city_select_${rowDay}`;
             const resolvedCityName =
@@ -6227,7 +6004,6 @@
             }
 
             await applyTransferFieldsToDayForm(rowDay, x);
-            updateDayActivityEditButtons(rowDay, x);
             scrollToDayCard(rowDay);
             } finally {
                 isPrefillingActivityForm = false;
@@ -6254,16 +6030,15 @@
                             <table class="table table-sm data-table-sm day-items-table mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:10%">Type</th>
-                                        <th style="width:30%">Service</th>
+                                        <th style="width:11%">Type</th>
+                                        <th style="width:36%">Service</th>
                                         <th>Transfer</th>
-                                        <th style="width:90px" class="text-center">Inclusion</th>
-                                        <th style="width:90px" class="text-end">Total</th>
+                                        <th style="width:100px" class="text-end">Total</th>
                                         <th style="width:90px" class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="6" class="text-muted">No services added for Day ${d}</td></tr>
+                                    <tr><td colspan="5" class="text-muted">No services added for Day ${d}</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -6351,16 +6126,11 @@
                         `
                         : '<span class="item-meta">No transfer</span>';
 
-                    const inclusionHtml = parseIsInclusionFlag(x.is_inclusion)
-                        ? '<span class="item-inclusion-badge item-inclusion-badge--yes">Yes</span>'
-                        : '<span class="item-inclusion-badge item-inclusion-badge--no">No</span>';
-
                     return `
                         <tr>
                             <td class="align-middle"><span class="item-type-badge ${badgeClass}">${escapeHtml(badgeText)}</span></td>
                             <td class="align-middle">${serviceCellHtml}</td>
                             <td class="align-middle">${transferCellHtml}</td>
-                            <td class="text-center align-middle">${inclusionHtml}</td>
                             <td class="text-end align-middle">
                                 ${lineTotal > 0
                                     ? `<div class="hotel-price-total">SGD ${lineTotal.toFixed(2)}</div>`
@@ -6381,11 +6151,10 @@
                         <table class="table table-sm data-table-sm day-items-table mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:10%">Type</th>
-                                    <th style="width:30%">Service</th>
+                                    <th style="width:11%">Type</th>
+                                    <th style="width:36%">Service</th>
                                     <th>Transfer</th>
-                                    <th style="width:90px" class="text-center">Inclusion</th>
-                                    <th style="width:90px" class="text-end">Total</th>
+                                    <th style="width:100px" class="text-end">Total</th>
                                     <th style="width:90px" class="text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -6397,6 +6166,7 @@
 
             const outEl = document.getElementById('activities_json');
             if (outEl) outEl.value = JSON.stringify(dayItems);
+            syncPackageSubmitButtonsState();
         }
 
         function toggleRestaurantTransferConfig() {}
@@ -6449,6 +6219,7 @@
                 }).join('');
             }
             document.getElementById('inter_json').value = JSON.stringify(inter);
+            syncPackageSubmitButtonsState();
         }
 
         function normalizeFormStateBeforeBuild() {
@@ -6564,7 +6335,7 @@
             };
         }
 
-        function buildTransferLegPayloadRow(dayNum, transferOut, cityName, kind, isInclusion = false) {
+        function buildTransferLegPayloadRow(dayNum, transferOut, cityName, kind) {
             const transferPrice = parseFloat(transferOut.cost ?? transferOut.transfer_price ?? 0) || 0;
             const isArrival = kind === 'arrival';
             const isDeparture = kind === 'departure';
@@ -6578,7 +6349,6 @@
                 label: isArrival ? 'Day Arrival' : isDeparture ? 'Day Departure' : 'Attraction Transfer',
                 city: cityName,
                 total_price: transferPrice,
-                is_inclusion: !!isInclusion,
                 transfer: transferOut,
             };
         }
@@ -6643,7 +6413,6 @@
                 ticket_price: 0,
                 price: parseFloat(String(row.total_price ?? normalizedTransfer.cost ?? 0)) || 0,
                 transfer: buildHydratedItemTransferFields(normalizedTransfer, hasXfer),
-                is_inclusion: parseIsInclusionFlag(row.is_inclusion),
             });
         }
 
@@ -6774,21 +6543,21 @@
                     if (itemKind === 'arrival') {
                         arrivalSeq += 1;
                         arrivalMap[buildDayBucketKey(d, 'Arrival', arrivalSeq, true)] = buildTransferLegPayloadRow(
-                            d, transferOut, fallbackCityName, 'arrival', parseIsInclusionFlag(x.is_inclusion)
+                            d, transferOut, fallbackCityName, 'arrival'
                         );
                         return;
                     }
                     if (itemKind === 'departure') {
                         departureSeq += 1;
                         departureMap[buildDayBucketKey(d, 'Departure', departureSeq, true)] = buildTransferLegPayloadRow(
-                            d, transferOut, fallbackCityName, 'departure', parseIsInclusionFlag(x.is_inclusion)
+                            d, transferOut, fallbackCityName, 'departure'
                         );
                         return;
                     }
                     if (itemKind === 'attraction_transfer') {
                         attractionTransferSeq += 1;
                         transferMap[buildDayBucketKey(d, 'Attraction Transfer', attractionTransferSeq)] = buildTransferLegPayloadRow(
-                            d, transferOut, fallbackCityName, 'attraction_transfer', parseIsInclusionFlag(x.is_inclusion)
+                            d, transferOut, fallbackCityName, 'attraction_transfer'
                         );
                         return;
                     }
@@ -6805,7 +6574,6 @@
                         ticket_price: attractionTicketPrice,
                         price: attractionTicketPrice,
                         total_price: attractionTicketPrice + attractionTransferPrice,
-                        is_inclusion: parseIsInclusionFlag(x.is_inclusion),
                         transfer: transferOut
                     };
                 });
@@ -6850,7 +6618,6 @@
                         meal_price: restaurantMealPrice,
                         price: restaurantMealPrice,
                         total_price: restaurantMealPrice + restaurantTransferPrice,
-                        is_inclusion: parseIsInclusionFlag(x.is_inclusion),
                         meal_configuration: x.meal || {},
                         transfer: transferOut
                     };
@@ -6969,6 +6736,47 @@
             return REQUIRE_MASTER_DMC_CITY ? null : payload;
         }
 
+        function hasPackageBookedServices() {
+            const hasHotels = (Array.isArray(hotels) ? hotels : []).length > 0;
+            const hasDayServices = (Array.isArray(dayItems) ? dayItems : []).some((x) => {
+                if (x.type === 'restaurant') return true;
+                if (x.type !== 'attraction') return false;
+                if (String(x.id || '').trim()) return true;
+                const label = String(x.label || '').trim().toLowerCase();
+                return label.includes('transfer') || label.includes('arrival') || label.includes('departure');
+            });
+            const hasInterCity = (Array.isArray(inter) ? inter : []).length > 0;
+            return hasHotels || hasDayServices || hasInterCity;
+        }
+
+        function showPackageSubmitRequiredMessage() {
+            const message = 'Add at least one hotel or day service before submitting.';
+            if (typeof toastr !== 'undefined') {
+                toastr.warning(message);
+            } else {
+                alert(message);
+            }
+        }
+
+        function syncPackageSubmitButtonsState() {
+            const enabled = hasPackageBookedServices();
+            const mainBtn = document.getElementById('mainSubmitBtn');
+            const previewBtn = document.getElementById('previewConfirmBtn');
+            const hintEl = document.getElementById('packageSubmitHint');
+
+            if (mainBtn && mainBtn.dataset.loading !== '1') {
+                mainBtn.disabled = !enabled;
+                mainBtn.title = enabled ? '' : 'Add at least one hotel or day service first';
+            }
+            if (previewBtn && previewBtn.dataset.loading !== '1') {
+                previewBtn.disabled = !enabled;
+                previewBtn.title = enabled ? '' : 'Add at least one hotel or day service first';
+            }
+            if (hintEl) {
+                hintEl.style.display = enabled ? 'none' : 'block';
+            }
+        }
+
         function getPreviewWarnings(payload) {
             const warnings = [];
             if (!multiCityPlans.length) {
@@ -6983,6 +6791,9 @@
             );
             if (!hasActivities) {
                 warnings.push('No attractions or restaurants added for any day.');
+            }
+            if (!hasPackageBookedServices()) {
+                warnings.push('Add at least one hotel or day service before submitting this package.');
             }
             if (Array.isArray(inter) && inter.length) {
                 warnings.push('Inter-city rows are stored separately and may not appear in the structured payload preview.');
@@ -7054,10 +6865,6 @@
                 }
                 if (transferPrice > 0) priceParts.push(`Transfer SGD ${transferPrice.toFixed(2)}`);
 
-                const inclusionHtml = parseIsInclusionFlag(x.is_inclusion)
-                    ? '<span class="item-inclusion-badge item-inclusion-badge--yes">Yes</span>'
-                    : '<span class="item-inclusion-badge item-inclusion-badge--no">No</span>';
-
                 return `
                     <tr>
                         <td><span class="badge bg-primary-subtle text-primary">${escapeHtml(typeLabel)}</span></td>
@@ -7068,7 +6875,6 @@
                             ${priceParts.length ? `<div class="text-muted" style="font-size:0.76rem;">${escapeHtml(priceParts.join(' + '))}</div>` : ''}
                             ${renderPreviewTransferLine(transfer, dayNum, itemType)}
                         </td>
-                        <td class="text-center">${inclusionHtml}</td>
                         <td class="text-end fw-semibold ${lineTotal > 0 ? 'text-success' : 'text-muted'}">
                             ${lineTotal > 0 ? `SGD ${lineTotal.toFixed(2)}` : '-'}
                         </td>
@@ -7082,10 +6888,9 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="width:12%">Type</th>
-                                <th style="width:16%">Pickup</th>
-                                <th style="width:16%">Drop</th>
+                                <th style="width:18%">Pickup</th>
+                                <th style="width:18%">Drop</th>
                                 <th>Details</th>
-                                <th style="width:72px" class="text-center">Inclusion</th>
                                 <th style="width:90px" class="text-end">Total</th>
                             </tr>
                         </thead>
@@ -7297,6 +7102,7 @@
                 return;
             }
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            syncPackageSubmitButtonsState();
         }
 
         function setButtonLoading(btn) {
@@ -7312,16 +7118,20 @@
         function clearButtonLoading(btn) {
             if (!btn || btn.dataset.loading !== '1') return;
             btn.dataset.loading = '';
-            btn.disabled = false;
             btn.classList.remove('is-loading');
             if (btn.dataset.originalHtml) {
                 btn.innerHTML = btn.dataset.originalHtml;
             }
+            syncPackageSubmitButtonsState();
         }
 
         function submitFromPreview() {
             const confirmBtn = document.getElementById('previewConfirmBtn');
             if (confirmBtn?.dataset.loading === '1') return;
+            if (!hasPackageBookedServices()) {
+                showPackageSubmitRequiredMessage();
+                return;
+            }
             const payload = preparePayloadForSubmit();
             if (REQUIRE_MASTER_DMC_CITY && !payload) {
                 alert('Master DMC, DMC and city are required.');
@@ -7561,9 +7371,17 @@
             toggleHotelMealTypeVisibility();
             toggleHotelTransferFields();
             hydrateAllDayTransferCityOptions();
+            syncPackageSubmitButtonsState();
 
             document.getElementById('dayForm').addEventListener('submit', function (e) {
                 const submitBtn = document.getElementById('mainSubmitBtn');
+                if (!hasPackageBookedServices()) {
+                    e.preventDefault();
+                    clearButtonLoading(submitBtn);
+                    clearButtonLoading(document.getElementById('previewConfirmBtn'));
+                    showPackageSubmitRequiredMessage();
+                    return;
+                }
                 let payload = null;
                 try {
                     payload = preparePayloadForSubmit();
