@@ -428,7 +428,7 @@
                     <div class="card-footer bg-transparent border-top-0 pt-0">
                         <div class="d-flex gap-2">
                             <a href="{{ route('packages.show', ['package_id' => Crypt::encrypt($package->package_id)]) }}" class="btn btn-primary btn-sm w-100">
-                                <i class="ri-eye-line me-1"></i>Details
+                                <i class="ri-eye-line me-1"></i>
                             </a>
                             @php
                                 $editDisabled = $isBooked || $isExpired;
@@ -455,12 +455,12 @@
                                        tabindex="-1"
                                        aria-disabled="true"
                                        onclick="return false;">
-                                        <i class="ri-edit-line me-1"></i>Edit
+                                        <i class="ri-edit-line me-1"></i>
                                     </a>
                                 </span>
                             @else
                                 <a href="{{ $editHref }}" class="btn btn-outline-primary btn-sm w-100">
-                                    <i class="ri-edit-line me-1"></i>Edit
+                                    <i class="ri-edit-line me-1"></i>
                                 </a>
                             @endif
                             @if($deleteDisabled)
@@ -473,7 +473,7 @@
                                             class="btn btn-outline-danger btn-sm w-100 disabled"
                                             tabindex="-1"
                                             disabled>
-                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                        <i class="ri-delete-bin-line me-1"></i>
                                     </button>
                                 </span>
                             @else
@@ -482,7 +482,7 @@
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
                                             onclick="return confirm('Are you sure you want to delete this package?')">
-                                        <i class="ri-delete-bin-line me-1"></i>Delete
+                                        <i class="ri-delete-bin-line me-1"></i>
                                     </button>
                                 </form>
                             @endif
@@ -558,15 +558,7 @@
     background-color: rgba(var(--bs-warning-rgb), 0.1);
 }
 .hotel-preview {
-    max-height: 80px;
-    overflow-y: auto;
-}
-.hotel-preview::-webkit-scrollbar {
-    width: 4px;
-}
-.hotel-preview::-webkit-scrollbar-thumb {
-    background-color: rgba(var(--bs-primary-rgb), 0.3);
-    border-radius: 4px;
+    overflow: hidden;
 }
 </style>
 

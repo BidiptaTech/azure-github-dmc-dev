@@ -155,20 +155,26 @@
     }
 
     /* Auto-calculated field styles */
-    .auto-calculated {
+    .auto-calculated,
+    .auto-calculated-sell,
+    .auto-calculated-cost {
         background-color: #f8f9fa !important;
         border-left: 3px solid #17a2b8 !important;
         position: relative;
     }
 
-    .auto-calculated:focus {
+    .auto-calculated:focus,
+    .auto-calculated-sell:focus,
+    .auto-calculated-cost:focus {
         background-color: #fff !important;
         border-left-color: #007bff !important;
         box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25) !important;
     }
 
     /* Animation for value changes */
-    .auto-calculated.value-updated {
+    .auto-calculated.value-updated,
+    .auto-calculated-sell.value-updated,
+    .auto-calculated-cost.value-updated {
         animation: highlightUpdate 0.8s ease-in-out;
     }
 
@@ -591,12 +597,12 @@
                                 <h5 class="card-title mb-3">Rates</h5>
                                 <div class="row">
 
-                                    <!-- Minimum Base Price -->
+                                    <!-- Minimum Sell Price -->
                                     <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Base Price</strong><span
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
                                                 class="text-danger">*</span></label>
                                         <input type="text" class="form-control" id="day_rate" name="day_rate"
-                                            placeholder="Enter Day Rate" value="{{ old('day_rate') }}" required
+                                            placeholder="Enter Minimum Sell Price" value="{{ old('day_rate') }}" required
                                             oninput="validateNumericPrice(this); calculateHourlyRates();">
                                         <small class="validation-message text-danger" id="day_rate-validation-message"></small>
                                         <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
@@ -604,6 +610,20 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
+
+                                    <!-- Minimum Cost Price -->
+                                    <div class="col-md-3">
+                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="minimum_cost_price" name="minimum_cost_price"
+                                            placeholder="Enter Minimum Cost Price" value="{{ old('minimum_cost_price') }}" required
+                                            oninput="validateNumericPrice(this); calculateHourlyCostRates();">
+                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
+                                        @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+
                                     <!-- night_surcharge -->
                                     <div class="col-md-3">
                                         <label for="night_surcharge" class="form-label"><strong>Night
@@ -635,116 +655,172 @@
                                         @enderror
                                     </div>
 
-                                    <!-- Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Price</strong><span
-                                                class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Hourly Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="hourly_price" name="hourly_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="hourly_price" name="hourly_price"
                                             placeholder="Auto-calculated" value="{{ old('hourly_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('hourly_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="hourly_cost_price" name="hourly_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('hourly_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Two Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Two Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="two_hour_price" name="two_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="two_hour_price" name="two_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('two_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('two_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="two_hour_cost_price" name="two_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('two_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Four Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Four Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="four_hour_price" name="four_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="four_hour_price" name="four_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('four_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('four_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="four_hour_cost_price" name="four_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('four_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Six Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Six Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="six_hour_price" name="six_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="six_hour_price" name="six_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('six_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('six_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="six_hour_cost_price" name="six_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('six_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Eight Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Eight Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="eight_hour_price" name="eight_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="eight_hour_price" name="eight_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('eight_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('eight_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="eight_hour_cost_price" name="eight_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('eight_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Ten Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Ten Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="ten_hour_price" name="ten_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="ten_hour_price" name="ten_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('ten_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('ten_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="ten_hour_cost_price" name="ten_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('ten_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Twelve Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour
-                                                Price</strong><span class="text-danger">*</span>
-                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from base price"></i>
+                                    <!-- Twelve Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum sell price"></i>
                                         </label>
-                                        <input type="text" class="form-control auto-calculated" id="twelve_hour_price" name="twelve_hour_price"
+                                        <input type="text" class="form-control auto-calculated-sell" id="twelve_hour_price" name="twelve_hour_price"
                                             placeholder="Auto-calculated" value="{{ old('twelve_hour_price') }}" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
                                         <small class="text-muted">Auto-calculated • Editable</small>
-                                        @error('twelve_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span>
+                                            <i class="fas fa-calculator text-primary ms-1" title="Auto-calculated from minimum cost price"></i>
+                                        </label>
+                                        <input type="text" class="form-control auto-calculated-cost" id="twelve_hour_cost_price" name="twelve_hour_cost_price"
+                                            placeholder="Auto-calculated" value="{{ old('twelve_hour_cost_price') }}" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
+                                        <small class="text-muted">Auto-calculated • Editable</small>
+                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>
@@ -1774,72 +1850,89 @@ const driverAgeRules = {
         }
     }
 
-// Function to calculate hourly rates based on minimum base price
+// Function to calculate hourly sell rates based on minimum sell price
 function calculateHourlyRates() {
     const basePriceInput = document.getElementById('day_rate');
     const basePrice = parseFloat(basePriceInput.value) || 0;
     
     if (basePrice <= 0) {
-        // Clear all hourly rate fields if base price is 0 or invalid
-        clearHourlyRates();
+        clearHourlyRates('sell');
         return;
     }
     
-    // The base price IS the hourly rate (no division needed)
     const hourlyRate = basePrice;
-    
-    // Define the hour multipliers
     const hourMultipliers = {
-        'hourly_price': 1,     // 1 hour = base price × 1
-        'two_hour_price': 2,   // 2 hours = base price × 2
-        'four_hour_price': 4,  // 4 hours = base price × 4
-        'six_hour_price': 6,   // 6 hours = base price × 6
-        'eight_hour_price': 8, // 8 hours = base price × 8
-        'ten_hour_price': 10,  // 10 hours = base price × 10
-        'twelve_hour_price': 12 // 12 hours = base price × 12
+        'hourly_price': 1,
+        'two_hour_price': 2,
+        'four_hour_price': 4,
+        'six_hour_price': 6,
+        'eight_hour_price': 8,
+        'ten_hour_price': 10,
+        'twelve_hour_price': 12
     };
     
-    // Calculate and update each hourly rate field
+    updateCalculatedRates(hourMultipliers, hourlyRate, 'auto-calculated-sell');
+}
+
+// Function to calculate hourly cost rates based on minimum cost price
+function calculateHourlyCostRates() {
+    const baseCostInput = document.getElementById('minimum_cost_price');
+    const baseCost = parseFloat(baseCostInput.value) || 0;
+    
+    if (baseCost <= 0) {
+        clearHourlyRates('cost');
+        return;
+    }
+    
+    const hourlyCostRate = baseCost;
+    const hourMultipliers = {
+        'hourly_cost_price': 1,
+        'two_hour_cost_price': 2,
+        'four_hour_cost_price': 4,
+        'six_hour_cost_price': 6,
+        'eight_hour_cost_price': 8,
+        'ten_hour_cost_price': 10,
+        'twelve_hour_cost_price': 12
+    };
+    
+    updateCalculatedRates(hourMultipliers, hourlyCostRate, 'auto-calculated-cost');
+}
+
+function updateCalculatedRates(hourMultipliers, baseRate, cssClass) {
     Object.keys(hourMultipliers).forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) {
-            const calculatedValue = Math.round((hourlyRate * hourMultipliers[fieldId]) * 100) / 100;
-            
-            // Only update if the field is empty or if we want to override
-            // You can remove this condition if you always want to override
-            if (field.value === '' || field.classList.contains('auto-calculated')) {
+            const calculatedValue = Math.round((baseRate * hourMultipliers[fieldId]) * 100) / 100;
+            if (field.value === '' || field.classList.contains(cssClass)) {
                 field.value = calculatedValue.toFixed(2);
-                
-                // Add animation class
                 field.classList.add('value-updated');
-                setTimeout(() => {
-                    field.classList.remove('value-updated');
-                }, 800);
-                
-                // Trigger validation for the updated field
+                setTimeout(() => field.classList.remove('value-updated'), 800);
                 validateNumericPrice(field);
             }
         }
     });
 }
 
-// Function to clear all hourly rate fields
-function clearHourlyRates() {
-    const hourlyFields = [
-        'hourly_price', 'two_hour_price', 'four_hour_price', 
+// Function to clear hourly rate fields
+function clearHourlyRates(type) {
+    const sellFields = [
+        'hourly_price', 'two_hour_price', 'four_hour_price',
         'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price'
     ];
+    const costFields = [
+        'hourly_cost_price', 'two_hour_cost_price', 'four_hour_cost_price',
+        'six_hour_cost_price', 'eight_hour_cost_price', 'ten_hour_cost_price', 'twelve_hour_cost_price'
+    ];
+    const fields = type === 'cost' ? costFields : (type === 'sell' ? sellFields : sellFields.concat(costFields));
+    const cssClass = type === 'cost' ? 'auto-calculated-cost' : 'auto-calculated-sell';
     
-    hourlyFields.forEach(fieldId => {
+    fields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
-        if (field && field.classList.contains('auto-calculated')) {
+        if (field && field.classList.contains(cssClass)) {
             field.value = '';
-            // Clear any validation states
             field.classList.remove('is-valid', 'is-invalid');
             const messageElement = document.getElementById(`${fieldId}-validation-message`);
-            if (messageElement) {
-                messageElement.innerHTML = '';
-            }
+            if (messageElement) messageElement.innerHTML = '';
         }
     });
 }
@@ -1849,6 +1942,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const basePriceInput = document.getElementById('day_rate');
     if (basePriceInput && basePriceInput.value) {
         calculateHourlyRates();
+    }
+    const baseCostInput = document.getElementById('minimum_cost_price');
+    if (baseCostInput && baseCostInput.value) {
+        calculateHourlyCostRates();
     }
 });
 

@@ -773,17 +773,25 @@ class BulkUploadController extends Controller
             'Experience Years*',
             'Languages*',
             'Proficiency*',
-            'Minimum Base Price*',
+            'Minimum Sell Price*',
+            'Minimum Cost Price*',
             'Night Surcharge*',
             'Night Start Time*',
             'Night End Time*',
-            'Hourly Price*',
-            'Two Hour Price*',
-            'Four Hour Price*',
-            'Six Hour Price*',
-            'Eight Hour Price*',
-            'Ten Hour Price*',
-            'Twelve Hour Price*',
+            'Hourly Sell Price*',
+            'Hourly Cost Price*',
+            'Two Hour Sell Price*',
+            'Two Hour Cost Price*',
+            'Four Hour Sell Price*',
+            'Four Hour Cost Price*',
+            'Six Hour Sell Price*',
+            'Six Hour Cost Price*',
+            'Eight Hour Sell Price*',
+            'Eight Hour Cost Price*',
+            'Ten Hour Sell Price*',
+            'Ten Hour Cost Price*',
+            'Twelve Hour Sell Price*',
+            'Twelve Hour Cost Price*',
             'About*',
             'Status (1=Active, 0=Inactive)'
         ];
@@ -809,16 +817,24 @@ class BulkUploadController extends Controller
             'English',
             'Fluent',
             '180',
+            '150',
             '10',
             '18:00',
             '06:00',
             '30',
+            '25',
             '55',
+            '46',
             '100',
+            '83',
             '140',
+            '117',
             '180',
+            '150',
             '220',
+            '183',
             '250',
+            '208',
             'Professional tour guide with 5 years experience',
             '1'
         ];
@@ -841,6 +857,14 @@ class BulkUploadController extends Controller
             '',
             'Hindi',
             'Intermediate',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
             '',
             '',
             '',
@@ -886,6 +910,14 @@ class BulkUploadController extends Controller
             '',
             '',
             '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
             ''
         ];
 
@@ -908,16 +940,24 @@ class BulkUploadController extends Controller
             'Spanish',
             'Fluent',
             '200',
+            '170',
             '15',
             '19:00',
             '07:00',
             '35',
+            '29',
             '65',
+            '54',
             '120',
+            '100',
             '160',
+            '133',
             '200',
+            '167',
             '240',
+            '200',
             '280',
+            '233',
             'Experienced cultural guide specializing in heritage tours',
             '1'
         ];
@@ -1885,19 +1925,27 @@ class BulkUploadController extends Controller
                 $experienceYears = trim($row[13] ?? '');
                 $language = trim($row[14] ?? '');
                 $proficiency = trim($row[15] ?? '');
-                $minimumBasePrice = trim($row[16] ?? '');
-                $nightSurcharge = trim($row[17] ?? '');
-                $nightStartTime = trim($row[18] ?? '');
-                $nightEndTime = trim($row[19] ?? '');
-                $hourlyPrice = trim($row[20] ?? '');
-                $twoHourPrice = trim($row[21] ?? '');
-                $fourHourPrice = trim($row[22] ?? '');
-                $sixHourPrice = trim($row[23] ?? '');
-                $eightHourPrice = trim($row[24] ?? '');
-                $tenHourPrice = trim($row[25] ?? '');
-                $twelveHourPrice = trim($row[26] ?? '');
-                $about = trim($row[27] ?? '');
-                $status = trim($row[28] ?? '1');
+                $minimumSellPrice = trim($row[16] ?? '');
+                $minimumCostPrice = trim($row[17] ?? '');
+                $nightSurcharge = trim($row[18] ?? '');
+                $nightStartTime = trim($row[19] ?? '');
+                $nightEndTime = trim($row[20] ?? '');
+                $hourlyPrice = trim($row[21] ?? '');
+                $hourlyCostPrice = trim($row[22] ?? '');
+                $twoHourPrice = trim($row[23] ?? '');
+                $twoHourCostPrice = trim($row[24] ?? '');
+                $fourHourPrice = trim($row[25] ?? '');
+                $fourHourCostPrice = trim($row[26] ?? '');
+                $sixHourPrice = trim($row[27] ?? '');
+                $sixHourCostPrice = trim($row[28] ?? '');
+                $eightHourPrice = trim($row[29] ?? '');
+                $eightHourCostPrice = trim($row[30] ?? '');
+                $tenHourPrice = trim($row[31] ?? '');
+                $tenHourCostPrice = trim($row[32] ?? '');
+                $twelveHourPrice = trim($row[33] ?? '');
+                $twelveHourCostPrice = trim($row[34] ?? '');
+                $about = trim($row[35] ?? '');
+                $status = trim($row[36] ?? '1');
                 
                 // Check if this is a new guide or additional language for existing guide
                 if (!empty($guideName) && !empty($email) && !empty($contactNo)) {
@@ -1908,10 +1956,11 @@ class BulkUploadController extends Controller
                         empty($serviceType) || empty($age) || empty($masterImage) || empty($licenseNumber) || 
                         empty($licenseImage) || empty($licenseExpiryDate) || empty($city) || empty($country) || 
                         empty($experienceYears) || empty($language) || empty($proficiency) || 
-                        empty($minimumBasePrice) || empty($nightSurcharge) || empty($nightStartTime) || 
-                        empty($nightEndTime) || empty($hourlyPrice) || empty($twoHourPrice) || 
-                        empty($fourHourPrice) || empty($sixHourPrice) || empty($eightHourPrice) || 
-                        empty($tenHourPrice) || empty($twelveHourPrice) || empty($about)) {
+                        empty($minimumSellPrice) || empty($minimumCostPrice) || empty($nightSurcharge) || empty($nightStartTime) || 
+                        empty($nightEndTime) || empty($hourlyPrice) || empty($hourlyCostPrice) || empty($twoHourPrice) ||
+                        empty($twoHourCostPrice) || empty($fourHourPrice) || empty($fourHourCostPrice) ||
+                        empty($sixHourPrice) || empty($sixHourCostPrice) || empty($eightHourPrice) || empty($eightHourCostPrice) ||
+                        empty($tenHourPrice) || empty($tenHourCostPrice) || empty($twelveHourPrice) || empty($twelveHourCostPrice) || empty($about)) {
                         $errors[] = "Row {$rowNumber}: Missing required fields for new guide";
                         $errorCount++;
                         continue;
@@ -2021,17 +2070,25 @@ class BulkUploadController extends Controller
                     $guide->city = $city;
                     $guide->country = $country;
                     $guide->experience_years = is_numeric($experienceYears) ? intval($experienceYears) : 0;
-                    $guide->day_rate = is_numeric($minimumBasePrice) ? floatval($minimumBasePrice) : 0;
+                    $guide->day_rate = is_numeric($minimumSellPrice) ? floatval($minimumSellPrice) : 0;
+                    $guide->minimum_cost_price = is_numeric($minimumCostPrice) ? floatval($minimumCostPrice) : 0;
                     $guide->night_surcharge = is_numeric($nightSurcharge) ? floatval($nightSurcharge) : 0;
                     $guide->night_start_time = $nightStartTime;
                     $guide->night_end_time = $nightEndTime;
                     $guide->hourly_price = is_numeric($hourlyPrice) ? floatval($hourlyPrice) : 0;
+                    $guide->hourly_cost_price = is_numeric($hourlyCostPrice) ? floatval($hourlyCostPrice) : 0;
                     $guide->two_hour_price = is_numeric($twoHourPrice) ? floatval($twoHourPrice) : 0;
+                    $guide->two_hour_cost_price = is_numeric($twoHourCostPrice) ? floatval($twoHourCostPrice) : 0;
                     $guide->four_hour_price = is_numeric($fourHourPrice) ? floatval($fourHourPrice) : 0;
+                    $guide->four_hour_cost_price = is_numeric($fourHourCostPrice) ? floatval($fourHourCostPrice) : 0;
                     $guide->six_hour_price = is_numeric($sixHourPrice) ? floatval($sixHourPrice) : 0;
+                    $guide->six_hour_cost_price = is_numeric($sixHourCostPrice) ? floatval($sixHourCostPrice) : 0;
                     $guide->eight_hour_price = is_numeric($eightHourPrice) ? floatval($eightHourPrice) : 0;
+                    $guide->eight_hour_cost_price = is_numeric($eightHourCostPrice) ? floatval($eightHourCostPrice) : 0;
                     $guide->ten_hour_price = is_numeric($tenHourPrice) ? floatval($tenHourPrice) : 0;
+                    $guide->ten_hour_cost_price = is_numeric($tenHourCostPrice) ? floatval($tenHourCostPrice) : 0;
                     $guide->twelve_hour_price = is_numeric($twelveHourPrice) ? floatval($twelveHourPrice) : 0;
+                    $guide->twelve_hour_cost_price = is_numeric($twelveHourCostPrice) ? floatval($twelveHourCostPrice) : 0;
                     $guide->description = $about;
                     $guide->is_active = ($status == '1') ? 1 : 0;
                     $guide->status = 1; // Default approved status

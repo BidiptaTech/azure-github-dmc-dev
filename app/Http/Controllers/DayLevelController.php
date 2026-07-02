@@ -1429,7 +1429,10 @@ class DayLevelController extends Controller
 
             try {
                 DB::beginTransaction();
-                $savedRows = $this->storeStructuredPayload($payload);
+                $savedRows = $this->storeStructuredPayload(
+                    $payload,
+                    $request->boolean('is_inclusion')
+                );
                 DB::commit();
                 $this->refreshCombinedJsonFile();
 
@@ -1462,6 +1465,7 @@ class DayLevelController extends Controller
             'guide_id'              => ['nullable', 'integer', 'exists:guides,id'],
             'guide_cost'            => ['nullable', 'numeric', 'min:0'],
             'inter_json'            => ['nullable', 'string'],
+            'is_inclusion'          => ['nullable', 'boolean'],
         ]);
 
         $hotelsData     = $this->decodeAndValidateHotels($request->input('hotels_json'));
@@ -1486,6 +1490,7 @@ class DayLevelController extends Controller
             'inter_city'            => $interData,
             'dmc_id'                => $ids['dmc_id'],
             'master_dmc_id'         => $ids['master_dmc_id'],
+            'is_inclusion'          => $request->boolean('is_inclusion'),
         ];
 
         try {
@@ -1544,6 +1549,41 @@ class DayLevelController extends Controller
             ->get();
 
         return view('day-level.index', compact('dayLevels'));
+    }
+
+    public function updateInclusion(Request $request, DayLevel $dayLevel)
+    {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update inclusion.'], 403);
+        }
+
+        if (! $this->userCanAccessDayLevel($dayLevel)) {
+            return response()->json(['success' => false, 'message' => 'This package is not available for your account.'], 403);
+        }
+
+        $validated = $request->validate([
+            'is_inclusion' => ['required', 'boolean'],
+        ]);
+
+        $isInclusion = filter_var($validated['is_inclusion'], FILTER_VALIDATE_BOOLEAN);
+        $dayLevel->update(['is_inclusion' => $isInclusion]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $isInclusion ? 'Package marked as inclusion.' : 'Inclusion removed from package.',
+            'is_inclusion' => (bool) $dayLevel->is_inclusion,
+        ]);
+    }
+
+    private function userCanAccessDayLevel(DayLevel $dayLevel): bool
+    {
+        $ids = $this->resolveDmcIds();
+
+        return (int) $dayLevel->dmc_id === (int) $ids['dmc_id']
+            || (int) $dayLevel->master_dmc_id === (int) $ids['master_dmc_id'];
     }
 
     // =========================================================================
@@ -1663,15 +1703,17 @@ class DayLevelController extends Controller
                     ->with('error', 'Package not found or cannot be edited individually.');
             }
             $editingPackageId = $packageId;
+            $editPayload = $dayLevel->filterStructuredPayloadToPackage($packageId);
         } elseif (count($packageSummaries) > 1) {
             return redirect()
                 ->route('day-level.index')
                 ->with('error', 'This DMC has multiple packages. Choose Edit on the package you want to change.');
         } elseif (count($packageSummaries) === 1 && $packageSummaries[0]['has_stable_id']) {
             $editingPackageId = $packageSummaries[0]['package_id'];
+            $editPayload = $dayLevel->filterStructuredPayloadToPackage($editingPackageId);
+        } else {
+            $editPayload = $dayLevel->structured_payload;
         }
-
-        $editPayload = $dayLevel->buildEditPayload($editingPackageId !== '' ? $editingPackageId : null);
 
         // Per-package day count for the edit form (row-level `days` is max across all packages).
         $editPackageDays = max(1, (int) ($dayLevel->days ?? 1));
@@ -1996,7 +2038,7 @@ class DayLevelController extends Controller
         return $cleaned;
     }
 
-    private function storeStructuredPayload(array $payload): int
+    private function storeStructuredPayload(array $payload, bool $isInclusion = false): int
     {
         $rowsByMasterAndDmc = [];
 
@@ -2081,6 +2123,7 @@ class DayLevelController extends Controller
                     'vehicle_passengers'    => $services['airport_transfer']['vehicle_passengers'],
                     'activities' => $mergedDestinations,
                     'inter_city'   => $this->buildPersistedInterCityPayload($masterId, $mergedDestinations),
+                    'is_inclusion' => $isInclusion,
                 ]
             );
 
