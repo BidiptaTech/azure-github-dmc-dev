@@ -1504,7 +1504,7 @@
                 @endphp
                 @if(in_array(auth()->user()->role_id, $aiConfigurationRoles))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="AI Configuration">AI Configuration</span>
+                    <span class="menu-header-text" data-i18n="AI Management">AI Management</span>
                 </li>
                 @php
                     $aiKeywordsRoles = [1];
@@ -1524,7 +1524,7 @@
                 <li class="menu-item @if(Request::is('day-level*')) active @endif">
                     <a href="{{ route('day-level.index') }}" class="menu-link">
                         <i class="menu-icon tf-icons ri-calendar-2-line"></i>
-                        <div data-i18n="Day Level Packages">Day Level Packages</div>
+                        <div data-i18n="AI Configuration">AI Configuration</div>
                     </a>
                 </li>
                 @endif

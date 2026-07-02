@@ -469,12 +469,24 @@ class VehicleController extends Controller
                     'cost_per_km_above_25' => $request->input('cost_per_km_above_25') ?? 0,
                     'cost_per_hour' => $request->input('cost_per_hour') ?? 0,
                     'cancel_cost' => $request->input('cancel_cost') ?? 0,
+                    'base_cost_price' => $request->input('base_cost_price') ?? 0,
+                    'per_km_below_10_cost_price' => $request->input('per_km_below_10_cost_price') ?? 0,
+                    'per_km_10_to_25_cost_price' => $request->input('per_km_10_to_25_cost_price') ?? 0,
+                    'per_km_above_25_cost_price' => $request->input('per_km_above_25_cost_price') ?? 0,
+                    'per_hour_cost_price' => $request->input('per_hour_cost_price') ?? 0,
+                    'cancel_cost_price' => $request->input('cancel_cost_price') ?? 0,
                     'night_base_price' => $request->input('night_base_price') ?? 0,
                     'night_cost_per_km_below_10' => $request->input('night_cost_per_km_below_10') ?? 0,
                     'night_cost_per_km_10_to_25' => $request->input('night_cost_per_km_10_to_25') ?? 0,
                     'night_cost_per_km_above_25' => $request->input('night_cost_per_km_above_25') ?? 0,
                     'night_cost_per_hour' => $request->input('night_cost_per_hour') ?? 0,
                     'night_cancel_cost' => $request->input('night_cancel_cost') ?? 0,
+                    'night_base_cost_price' => $request->input('night_base_cost_price') ?? 0,
+                    'night_per_km_below_10_cost_price' => $request->input('night_per_km_below_10_cost_price') ?? 0,
+                    'night_per_km_10_to_25_cost_price' => $request->input('night_per_km_10_to_25_cost_price') ?? 0,
+                    'night_per_km_above_25_cost_price' => $request->input('night_per_km_above_25_cost_price') ?? 0,
+                    'night_per_hour_cost_price' => $request->input('night_per_hour_cost_price') ?? 0,
+                    'night_cancel_cost_price' => $request->input('night_cancel_cost_price') ?? 0,
                     'sharable_base_price' => $request->input('sharable_base_price') ?? 0,
                     'sharable_cost_per_km_below_10' => $request->input('sharable_cost_per_km_below_10') ?? 0,
                     'sharable_cost_per_km_10_to_25' => $request->input('sharable_cost_per_km_10_to_25') ?? 0,
@@ -537,6 +549,12 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
         $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
+        $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
+        $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
+        $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
+        $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
             
         // Night charges for sharable
         $vehicle->night_base_price = $request->input('night_base_price');
@@ -545,6 +563,12 @@ class VehicleController extends Controller
         $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25')?? 0;
         $vehicle->night_cost_per_hour = $request->input('night_cost_per_hour')?? 0;
         $vehicle->night_cancel_cost = $request->input('night_cancel_cost')?? 0;
+        $vehicle->night_base_cost_price = $request->input('night_base_cost_price')?? 0;
+        $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price')?? 0;
+        $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price')?? 0;
+        $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price')?? 0;
+        $vehicle->night_per_hour_cost_price = $request->input('night_per_hour_cost_price')?? 0;
+        $vehicle->night_cancel_cost_price = $request->input('night_cancel_cost_price')?? 0;
 
         // Add sharable prices if sharable is checked
         $vehicle->sharable_base_price = $request->input('sharable_base_price')?? 0;
@@ -773,6 +797,12 @@ class VehicleController extends Controller
                 'cost_per_km_above_25' => 'required|numeric',
                 'cost_per_hour' => 'required|numeric',
                 'cancel_cost' => 'required|numeric',
+                'base_cost_price' => 'required|numeric',
+                'per_km_below_10_cost_price' => 'required|numeric',
+                'per_km_10_to_25_cost_price' => 'required|numeric',
+                'per_km_above_25_cost_price' => 'required|numeric',
+                'per_hour_cost_price' => 'required|numeric',
+                'cancel_cost_price' => 'required|numeric',
                 // Regular Night Pricing
                 'night_base_price' => 'required|numeric',
                 'night_cost_per_km_below_10' => 'required|numeric',
@@ -780,6 +810,12 @@ class VehicleController extends Controller
                 'night_cost_per_km_above_25' => 'required|numeric',
                 'night_cost_per_hour' => 'required|numeric',
                 'night_cancel_cost' => 'required|numeric',
+                'night_base_cost_price' => 'required|numeric',
+                'night_per_km_below_10_cost_price' => 'required|numeric',
+                'night_per_km_10_to_25_cost_price' => 'required|numeric',
+                'night_per_km_above_25_cost_price' => 'required|numeric',
+                'night_per_hour_cost_price' => 'required|numeric',
+                'night_cancel_cost_price' => 'required|numeric',
             ],[
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
@@ -837,6 +873,12 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
         $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
+        $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
+        $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
+        $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
+        $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
 
         // Regular Night Pricing
         $vehicle->night_base_price = $request->input('night_base_price')?? 0;
@@ -845,6 +887,12 @@ class VehicleController extends Controller
         $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25')?? 0;
         $vehicle->night_cost_per_hour = $request->input('night_cost_per_hour')?? 0;
         $vehicle->night_cancel_cost = $request->input('night_cancel_cost')?? 0;
+        $vehicle->night_base_cost_price = $request->input('night_base_cost_price')?? 0;
+        $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price')?? 0;
+        $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price')?? 0;
+        $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price')?? 0;
+        $vehicle->night_per_hour_cost_price = $request->input('night_per_hour_cost_price')?? 0;
+        $vehicle->night_cancel_cost_price = $request->input('night_cancel_cost_price')?? 0;
 
             $vehicle->sharable_base_price = $request->input('sharable_base_price') ?? 0;
             $vehicle->sharable_cost_per_km_below_10 = $request->input('sharable_cost_per_km_below_10')?? 0;
