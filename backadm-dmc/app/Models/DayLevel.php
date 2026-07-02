@@ -2363,6 +2363,7 @@ class DayLevel extends Model
                 'Master_DMC_id'    => $masterId,
                 'DMC_id'           => $dmcId,
                 'package_id'       => $packageId,
+                'is_inclusion'     => (bool) $this->is_inclusion ? 1 : 0,
                 'raw_package'      => $rawPackageJson,
                 'raw_all_services' => $rawAllServicesJson,
             ];
@@ -2383,7 +2384,7 @@ class DayLevel extends Model
     private static function orderFlatPackageExportKeys(array $entry): array
     {
         $ordered = [];
-        foreach (['id', 'DMC_email', 'country', 'city', 'total_days', 'Master_DMC_id', 'DMC_id', 'package_id', 'raw_package', 'raw_all_services'] as $key) {
+        foreach (['id', 'DMC_email', 'country', 'city', 'total_days', 'Master_DMC_id', 'DMC_id', 'package_id', 'is_inclusion', 'raw_package', 'raw_all_services'] as $key) {
             if (array_key_exists($key, $entry)) {
                 $ordered[$key] = $entry[$key];
             }
