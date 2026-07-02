@@ -2215,18 +2215,30 @@ class BulkUploadController extends Controller
             'Attraction Shared Transport Price*',
             'Restaurant Private Transport Price*',
             'Restaurant Shared Transport Price*',
-            'Base Price*',
-            'Cost per KM Below 10*',
-            'Cost per KM 10 to 25*',
-            'Cost per KM Above 25*',
-            'Cost per Hour*',
-            'Cancel Cost*',
-            'Night Base Price*',
-            'Night Cost per KM Below 10*',
-            'Night Cost per KM 10 to 25*',
-            'Night Cost per KM Above 25*',
-            'Night Cost per Hour*',
-            'Night Cancel Cost*',
+            'Base Sell Price*',
+            'Base Cost Price*',
+            'Per KM Below 10 Sell Price*',
+            'Per KM Below 10 Cost Price*',
+            'Per KM 10-25 Sell Price*',
+            'Per KM 10-25 Cost Price*',
+            'Per KM Above 25 Sell Price*',
+            'Per KM Above 25 Cost Price*',
+            'Per Hour Sell Price*',
+            'Per Hour Cost Price*',
+            'Cancel Sell Price*',
+            'Cancel Cost Price*',
+            'Night Base Sell Price*',
+            'Night Base Cost Price*',
+            'Night Per KM Below 10 Sell Price*',
+            'Night Per KM Below 10 Cost Price*',
+            'Night Per KM 10-25 Sell Price*',
+            'Night Per KM 10-25 Cost Price*',
+            'Night Per KM Above 25 Sell Price*',
+            'Night Per KM Above 25 Cost Price*',
+            'Night Per Hour Sell Price*',
+            'Night Per Hour Cost Price*',
+            'Night Cancel Sell Price*',
+            'Night Cancel Cost Price*',
             'Vehicle Image*',
             'Description*',
             'Status (1=Active, 0=Inactive)'
@@ -2250,17 +2262,29 @@ class BulkUploadController extends Controller
             '30.00',
             '', // Empty for private
             '80.00',
+            '65.00',
             '2.50',
             '2.00',
+            '2.00',
+            '1.60',
             '1.80',
+            '1.50',
             '15.00',
+            '12.00',
             '20.00',
+            '16.00',
             '100.00',
+            '80.00',
             '3.00',
+            '2.40',
             '2.50',
+            '2.00',
             '2.20',
+            '1.80',
             '18.00',
+            '14.00',
             '25.00',
+            '20.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_1234.jpg',
             'Comfortable sedan for city travel',
             '1'
@@ -2281,17 +2305,29 @@ class BulkUploadController extends Controller
             '', // Empty for sharable
             '25.00',
             '60.00',
+            '48.00',
             '2.00',
+            '1.60',
             '1.80',
             '1.50',
+            '1.50',
+            '1.20',
             '12.00',
+            '10.00',
             '15.00',
+            '12.00',
             '80.00',
+            '64.00',
             '2.50',
+            '2.00',
             '2.20',
             '1.80',
+            '1.80',
+            '1.50',
             '15.00',
+            '12.00',
             '20.00',
+            '16.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_5678.jpg',
             'Economical shared ride option',
             '1'
@@ -2312,17 +2348,29 @@ class BulkUploadController extends Controller
             '28.00',
             '20.00',
             '70.00',
+            '56.00',
             '2.20',
+            '1.80',
             '1.90',
+            '1.50',
             '1.60',
+            '1.30',
             '13.00',
+            '10.50',
             '18.00',
+            '14.50',
             '90.00',
+            '72.00',
             '2.80',
+            '2.20',
             '2.30',
+            '1.85',
             '2.00',
+            '1.60',
             '16.00',
+            '13.00',
             '22.00',
+            '18.00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_9012.jpg',
             'Versatile vehicle for both private and shared rides',
             '1'
@@ -3201,20 +3249,32 @@ class BulkUploadController extends Controller
                 $restaurantPrivatePrice = trim($row[10] ?? '');
                 $restaurantSharedPrice = trim($row[11] ?? '');
                 $basePrice = trim($row[12] ?? '');
-                $costPerKmBelow10 = trim($row[13] ?? '');
-                $costPerKm10To25 = trim($row[14] ?? '');
-                $costPerKmAbove25 = trim($row[15] ?? '');
-                $costPerHour = trim($row[16] ?? '');
-                $cancelCost = trim($row[17] ?? '');
-                $nightBasePrice = trim($row[18] ?? '');
-                $nightCostPerKmBelow10 = trim($row[19] ?? '');
-                $nightCostPerKm10To25 = trim($row[20] ?? '');
-                $nightCostPerKmAbove25 = trim($row[21] ?? '');
-                $nightCostPerHour = trim($row[22] ?? '');
-                $nightCancelCost = trim($row[23] ?? '');
-                $vehicleImage = trim($row[24] ?? '');
-                $description = trim($row[25] ?? '');
-                $status = trim($row[26] ?? '1');
+                $baseCostPrice = trim($row[13] ?? '');
+                $costPerKmBelow10 = trim($row[14] ?? '');
+                $perKmBelow10CostPrice = trim($row[15] ?? '');
+                $costPerKm10To25 = trim($row[16] ?? '');
+                $perKm10To25CostPrice = trim($row[17] ?? '');
+                $costPerKmAbove25 = trim($row[18] ?? '');
+                $perKmAbove25CostPrice = trim($row[19] ?? '');
+                $costPerHour = trim($row[20] ?? '');
+                $perHourCostPrice = trim($row[21] ?? '');
+                $cancelCost = trim($row[22] ?? '');
+                $cancelCostPrice = trim($row[23] ?? '');
+                $nightBasePrice = trim($row[24] ?? '');
+                $nightBaseCostPrice = trim($row[25] ?? '');
+                $nightCostPerKmBelow10 = trim($row[26] ?? '');
+                $nightPerKmBelow10CostPrice = trim($row[27] ?? '');
+                $nightCostPerKm10To25 = trim($row[28] ?? '');
+                $nightPerKm10To25CostPrice = trim($row[29] ?? '');
+                $nightCostPerKmAbove25 = trim($row[30] ?? '');
+                $nightPerKmAbove25CostPrice = trim($row[31] ?? '');
+                $nightCostPerHour = trim($row[32] ?? '');
+                $nightPerHourCostPrice = trim($row[33] ?? '');
+                $nightCancelCost = trim($row[34] ?? '');
+                $nightCancelCostPrice = trim($row[35] ?? '');
+                $vehicleImage = trim($row[36] ?? '');
+                $description = trim($row[37] ?? '');
+                $status = trim($row[38] ?? '1');
                 
                 // Validate required fields with specific missing field names
                 $missingFields = [];
@@ -3226,18 +3286,30 @@ class BulkUploadController extends Controller
                 if (empty($seatingCapacity)) $missingFields[] = 'Seating Capacity';
                 if (empty($city)) $missingFields[] = 'City';
                 if (empty($vehicleSharingOption)) $missingFields[] = 'Vehicle Sharing Option';
-                if (empty($basePrice)) $missingFields[] = 'Base Price';
-                if (empty($costPerKmBelow10)) $missingFields[] = 'Cost per KM Below 10';
-                if (empty($costPerKm10To25)) $missingFields[] = 'Cost per KM 10 to 25';
-                if (empty($costPerKmAbove25)) $missingFields[] = 'Cost per KM Above 25';
-                if (empty($costPerHour)) $missingFields[] = 'Cost per Hour';
-                if (empty($cancelCost)) $missingFields[] = 'Cancel Cost';
-                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Price';
-                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Cost per KM Below 10';
-                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Cost per KM 10 to 25';
-                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Cost per KM Above 25';
-                if (empty($nightCostPerHour)) $missingFields[] = 'Night Cost per Hour';
-                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Cost';
+                if (empty($basePrice)) $missingFields[] = 'Base Sell Price';
+                if (empty($baseCostPrice)) $missingFields[] = 'Base Cost Price';
+                if (empty($costPerKmBelow10)) $missingFields[] = 'Per KM Below 10 Sell Price';
+                if (empty($perKmBelow10CostPrice)) $missingFields[] = 'Per KM Below 10 Cost Price';
+                if (empty($costPerKm10To25)) $missingFields[] = 'Per KM 10-25 Sell Price';
+                if (empty($perKm10To25CostPrice)) $missingFields[] = 'Per KM 10-25 Cost Price';
+                if (empty($costPerKmAbove25)) $missingFields[] = 'Per KM Above 25 Sell Price';
+                if (empty($perKmAbove25CostPrice)) $missingFields[] = 'Per KM Above 25 Cost Price';
+                if (empty($costPerHour)) $missingFields[] = 'Per Hour Sell Price';
+                if (empty($perHourCostPrice)) $missingFields[] = 'Per Hour Cost Price';
+                if (empty($cancelCost)) $missingFields[] = 'Cancel Sell Price';
+                if (empty($cancelCostPrice)) $missingFields[] = 'Cancel Cost Price';
+                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Sell Price';
+                if (empty($nightBaseCostPrice)) $missingFields[] = 'Night Base Cost Price';
+                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Per KM Below 10 Sell Price';
+                if (empty($nightPerKmBelow10CostPrice)) $missingFields[] = 'Night Per KM Below 10 Cost Price';
+                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Per KM 10-25 Sell Price';
+                if (empty($nightPerKm10To25CostPrice)) $missingFields[] = 'Night Per KM 10-25 Cost Price';
+                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Per KM Above 25 Sell Price';
+                if (empty($nightPerKmAbove25CostPrice)) $missingFields[] = 'Night Per KM Above 25 Cost Price';
+                if (empty($nightCostPerHour)) $missingFields[] = 'Night Per Hour Sell Price';
+                if (empty($nightPerHourCostPrice)) $missingFields[] = 'Night Per Hour Cost Price';
+                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Sell Price';
+                if (empty($nightCancelCostPrice)) $missingFields[] = 'Night Cancel Cost Price';
                 if (empty($vehicleImage)) $missingFields[] = 'Vehicle Image';
                 if (empty($description)) $missingFields[] = 'Description';
                 
@@ -3398,19 +3470,31 @@ class BulkUploadController extends Controller
                 
                 // Set pricing fields
                 $vehicle->base_price = is_numeric($basePrice) ? floatval($basePrice) : 0;
+                $vehicle->base_cost_price = is_numeric($baseCostPrice) ? floatval($baseCostPrice) : 0;
                 $vehicle->cost_per_km_below_10 = is_numeric($costPerKmBelow10) ? floatval($costPerKmBelow10) : 0;
+                $vehicle->per_km_below_10_cost_price = is_numeric($perKmBelow10CostPrice) ? floatval($perKmBelow10CostPrice) : 0;
                 $vehicle->cost_per_km_10_to_25 = is_numeric($costPerKm10To25) ? floatval($costPerKm10To25) : 0;
+                $vehicle->per_km_10_to_25_cost_price = is_numeric($perKm10To25CostPrice) ? floatval($perKm10To25CostPrice) : 0;
                 $vehicle->cost_per_km_above_25 = is_numeric($costPerKmAbove25) ? floatval($costPerKmAbove25) : 0;
+                $vehicle->per_km_above_25_cost_price = is_numeric($perKmAbove25CostPrice) ? floatval($perKmAbove25CostPrice) : 0;
                 $vehicle->cost_per_hour = is_numeric($costPerHour) ? floatval($costPerHour) : 0;
+                $vehicle->per_hour_cost_price = is_numeric($perHourCostPrice) ? floatval($perHourCostPrice) : 0;
                 $vehicle->cancel_cost = is_numeric($cancelCost) ? floatval($cancelCost) : 0;
+                $vehicle->cancel_cost_price = is_numeric($cancelCostPrice) ? floatval($cancelCostPrice) : 0;
                 
                 // Set night pricing fields
                 $vehicle->night_base_price = is_numeric($nightBasePrice) ? floatval($nightBasePrice) : 0;
+                $vehicle->night_base_cost_price = is_numeric($nightBaseCostPrice) ? floatval($nightBaseCostPrice) : 0;
                 $vehicle->night_cost_per_km_below_10 = is_numeric($nightCostPerKmBelow10) ? floatval($nightCostPerKmBelow10) : 0;
+                $vehicle->night_per_km_below_10_cost_price = is_numeric($nightPerKmBelow10CostPrice) ? floatval($nightPerKmBelow10CostPrice) : 0;
                 $vehicle->night_cost_per_km_10_to_25 = is_numeric($nightCostPerKm10To25) ? floatval($nightCostPerKm10To25) : 0;
+                $vehicle->night_per_km_10_to_25_cost_price = is_numeric($nightPerKm10To25CostPrice) ? floatval($nightPerKm10To25CostPrice) : 0;
                 $vehicle->night_cost_per_km_above_25 = is_numeric($nightCostPerKmAbove25) ? floatval($nightCostPerKmAbove25) : 0;
+                $vehicle->night_per_km_above_25_cost_price = is_numeric($nightPerKmAbove25CostPrice) ? floatval($nightPerKmAbove25CostPrice) : 0;
                 $vehicle->night_cost_per_hour = is_numeric($nightCostPerHour) ? floatval($nightCostPerHour) : 0;
+                $vehicle->night_per_hour_cost_price = is_numeric($nightPerHourCostPrice) ? floatval($nightPerHourCostPrice) : 0;
                 $vehicle->night_cancel_cost = is_numeric($nightCancelCost) ? floatval($nightCancelCost) : 0;
+                $vehicle->night_cancel_cost_price = is_numeric($nightCancelCostPrice) ? floatval($nightCancelCostPrice) : 0;
                 
                 $vehicle->save();
                 $successCount++;
