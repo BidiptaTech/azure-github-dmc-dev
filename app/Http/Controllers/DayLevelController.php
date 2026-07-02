@@ -1429,7 +1429,10 @@ class DayLevelController extends Controller
 
             try {
                 DB::beginTransaction();
-                $savedRows = $this->storeStructuredPayload($payload);
+                $savedRows = $this->storeStructuredPayload(
+                    $payload,
+                    $request->boolean('is_inclusion')
+                );
                 DB::commit();
                 $this->refreshCombinedJsonFile();
 
@@ -1462,6 +1465,7 @@ class DayLevelController extends Controller
             'guide_id'              => ['nullable', 'integer', 'exists:guides,id'],
             'guide_cost'            => ['nullable', 'numeric', 'min:0'],
             'inter_json'            => ['nullable', 'string'],
+            'is_inclusion'          => ['nullable', 'boolean'],
         ]);
 
         $hotelsData     = $this->decodeAndValidateHotels($request->input('hotels_json'));
@@ -1486,6 +1490,7 @@ class DayLevelController extends Controller
             'inter_city'            => $interData,
             'dmc_id'                => $ids['dmc_id'],
             'master_dmc_id'         => $ids['master_dmc_id'],
+            'is_inclusion'          => $request->boolean('is_inclusion'),
         ];
 
         try {
@@ -2033,7 +2038,7 @@ class DayLevelController extends Controller
         return $cleaned;
     }
 
-    private function storeStructuredPayload(array $payload): int
+    private function storeStructuredPayload(array $payload, bool $isInclusion = false): int
     {
         $rowsByMasterAndDmc = [];
 
@@ -2118,6 +2123,7 @@ class DayLevelController extends Controller
                     'vehicle_passengers'    => $services['airport_transfer']['vehicle_passengers'],
                     'activities' => $mergedDestinations,
                     'inter_city'   => $this->buildPersistedInterCityPayload($masterId, $mergedDestinations),
+                    'is_inclusion' => $isInclusion,
                 ]
             );
 

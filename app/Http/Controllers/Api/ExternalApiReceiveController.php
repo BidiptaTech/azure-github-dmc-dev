@@ -55,17 +55,15 @@ class ExternalApiReceiveController extends Controller
                 'status' => false,
             ]);
 
-            $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+            $matchingZeroNotify = $this->handleMatchingZeroNotification($payload, $record->id);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Incomplete travel details. A notification email has been sent to the sender.',
+                'message' => $matchingZeroNotify['message'],
                 'received_id' => $record->id,
-                'result' => [
+                'result' => array_merge([
                     'matching' => 0,
-                    'sender_email_sent' => $senderNotify['sent'],
-                    'sender_email' => $senderNotify['email'],
-                ],
+                ], $matchingZeroNotify['result']),
             ], 422);
         }
 
@@ -79,21 +77,28 @@ class ExternalApiReceiveController extends Controller
             ]);
 
             $senderNotify = ['sent' => false, 'email' => null];
+            $matchingZeroResult = [];
+            $matchingZeroNotify = null;
             if ($this->payloadMatchingIsZero($payload)) {
-                $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+                $matchingZeroNotify = $this->handleMatchingZeroNotification($payload, $record->id);
+                $senderNotify = [
+                    'sent' => (bool) ($matchingZeroNotify['result']['notification_email_sent'] ?? false),
+                    'email' => $matchingZeroNotify['result']['notification_email'] ?? null,
+                ];
+                $matchingZeroResult = $matchingZeroNotify['result'];
             }
 
             return response()->json([
                 'success' => false,
                 'message' => $this->payloadMatchingIsZero($payload)
-                    ? 'Incomplete travel details. A notification email has been sent to the sender.'
+                    ? ($matchingZeroNotify['message'] ?? 'Incomplete travel details. A notification email has been sent to the sender.')
                     : 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
                 'received_id' => $record->id,
-                'result' => [
+                'result' => array_merge([
                     'matching' => $this->payloadMatchingValue($payload),
                     'sender_email_sent' => $senderNotify['sent'],
                     'sender_email' => $senderNotify['email'],
-                ],
+                ], $matchingZeroResult),
                 'hint' => $this->payloadMatchingIsZero($payload)
                     ? null
                     : 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
@@ -125,6 +130,7 @@ class ExternalApiReceiveController extends Controller
 
                 Log::warning('External API: destination country not supported by selected DMC', [
                     'received_id' => $record->id,
+                    'matching' => $this->payloadMatchingValue($payload),
                     'dmc_id' => $dmcUser->userId,
                     'dmc_name' => trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: '')),
                     'requested_country' => $countrySupport['requested_country'],
@@ -1633,18 +1639,110 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * Destination country requested for the booking (travel destination, not DMC home country).
+     * matching == 0: validate secondary_country against Master DMC countries.
+     * Supported → incomplete-travel-details email. Not supported → mismatch email.
+     *
+     * @return array{message: string, result: array<string, mixed>}
      */
-    protected function resolveRequestedDestinationCountry(array $payload): string
+    protected function handleMatchingZeroNotification(array $payload, ?int $receivedId = null): array
     {
-        $explicit = trim((string) $this->payloadValue($payload, [
-            'country',
-            'destination_country',
-            'destinationCountry',
-            'requested_country',
-            'requestedCountry',
-        ], ''));
+        $requestedCountry = $this->resolveRequestedDestinationCountry($payload, true);
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+        $masterDmc = $this->resolveMasterDmcUser($dmcUser, $payload);
 
+        if ($requestedCountry !== '' && $masterDmc) {
+            $masterSupported = CommonHelper::dmcSupportsDestinationCountry($masterDmc, $requestedCountry);
+
+            if (! $masterSupported) {
+                $countrySupport = [
+                    'supported' => false,
+                    'requested_country' => $requestedCountry,
+                    'supported_countries' => CommonHelper::resolveSupportedCountriesForDmc($masterDmc),
+                    'alternate_dmcs' => CommonHelper::findAlternateDmcsForCountry(
+                        $dmcUser ?? $masterDmc,
+                        $requestedCountry
+                    ),
+                ];
+
+                $agentNotify = $this->notifyUnsupportedDestinationCountry(
+                    $payload,
+                    $dmcUser ?? $masterDmc,
+                    $primaryDmc,
+                    $countrySupport
+                );
+
+                Log::warning('External API: matching=0 destination country not supported by Master DMC', [
+                    'received_id' => $receivedId,
+                    'matching' => 0,
+                    'requested_country' => $requestedCountry,
+                    'secondary_country' => $this->payloadValue($payload, ['secondary_country', 'secondaryCountry'], ''),
+                    'master_dmc_id' => $masterDmc->userId,
+                    'master_dmc_name' => trim((string) ($masterDmc->company_name ?: $masterDmc->name ?: '')),
+                    'supported_countries' => $countrySupport['supported_countries'],
+                    'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                    'agent_email' => $agentNotify['email'],
+                    'agent_email_sent' => $agentNotify['sent'],
+                ]);
+
+                return [
+                    'message' => 'The requested destination country is not supported by this Master DMC. An informational email has been sent to the agent.',
+                    'result' => [
+                        'notification_type' => 'destination_country_mismatch',
+                        'destination_country_supported' => false,
+                        'validated_against' => 'master_dmc',
+                        'requested_country' => $requestedCountry,
+                        'supported_countries' => $countrySupport['supported_countries'],
+                        'master_dmc_id' => $masterDmc->userId,
+                        'master_dmc_name' => trim((string) ($masterDmc->company_name ?: $masterDmc->name ?: 'Master DMC')),
+                        'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                        'notification_email_sent' => $agentNotify['sent'],
+                        'notification_email' => $agentNotify['email'],
+                        'sender_email_sent' => $agentNotify['sent'],
+                        'sender_email' => $agentNotify['email'],
+                    ],
+                ];
+            }
+
+            Log::info('External API: matching=0 destination country supported by Master DMC', [
+                'received_id' => $receivedId,
+                'matching' => 0,
+                'requested_country' => $requestedCountry,
+                'master_dmc_id' => $masterDmc->userId,
+                'supported_countries' => CommonHelper::resolveSupportedCountriesForDmc($masterDmc),
+            ]);
+        }
+
+        $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+
+        return [
+            'message' => 'Incomplete travel details. A notification email has been sent to the sender.',
+            'result' => [
+                'notification_type' => 'incomplete_travel_details',
+                'destination_country_supported' => $requestedCountry === '' || ! $masterDmc
+                    ? null
+                    : true,
+                'requested_country' => $requestedCountry !== '' ? $requestedCountry : null,
+                'validated_against' => $masterDmc ? 'master_dmc' : null,
+                'notification_email_sent' => $senderNotify['sent'],
+                'notification_email' => $senderNotify['email'],
+                'sender_email_sent' => $senderNotify['sent'],
+                'sender_email' => $senderNotify['email'],
+            ],
+        ];
+    }
+
+    /**
+     * Travel destination from payload. When $preferSecondaryCountry is true (matching == 0),
+     * secondary_country is checked before country.
+     */
+    protected function resolveRequestedDestinationCountry(array $payload, bool $preferSecondaryCountry = false): string
+    {
+        $keys = $preferSecondaryCountry
+            ? ['secondary_country', 'secondaryCountry', 'country', 'destination_country', 'destinationCountry', 'requested_country', 'requestedCountry']
+            : ['country', 'destination_country', 'destinationCountry', 'secondary_country', 'secondaryCountry', 'requested_country', 'requestedCountry'];
+
+        $explicit = trim((string) $this->payloadValue($payload, $keys, ''));
         if ($explicit !== '') {
             return CommonHelper::normalizeCountryName($explicit);
         }
@@ -1669,9 +1767,38 @@ class ExternalApiReceiveController extends Controller
         return '';
     }
 
+    protected function resolveMasterDmcUser(?User $dmcUser, array $payload): ?User
+    {
+        $masterId = (int) $this->payloadValue($payload, ['Master_DMC_id', 'master_dmc_id', 'masterDmcId'], 0);
+
+        if ($dmcUser) {
+            if (CommonHelper::isMasterDmcUser($dmcUser)) {
+                return $dmcUser;
+            }
+
+            if ((int) ($dmcUser->master_dmc_id ?? 0) > 0) {
+                $masterId = (int) $dmcUser->master_dmc_id;
+            }
+        }
+
+        if ($masterId > 0) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                return $master;
+            }
+        }
+
+        if ($dmcUser && ! empty($dmcUser->created_by)) {
+            $parent = User::where('userId', $dmcUser->created_by)->first();
+            if ($parent && CommonHelper::isMasterDmcUser($parent)) {
+                return $parent;
+            }
+        }
+
+        return null;
+    }
+
     /**
-     * Email the agent when the selected DMC does not serve the requested destination country.
-     *
      * @param  array{
      *   supported: bool,
      *   requested_country: string,
@@ -2977,7 +3104,8 @@ class ExternalApiReceiveController extends Controller
             return $senderEmail;
         }
 
-        $agents = $this->findAgentsForDmc((int) ($dmcUser->master_dmc_id ?: $dmcUser->userId), $dmcUser);
+        $masterId = (int) ($dmcUser->master_dmc_id ?: (CommonHelper::isMasterDmcUser($dmcUser) ? $dmcUser->userId : 0));
+        $agents = $this->findAgentsForDmc($masterId > 0 ? $masterId : (int) $dmcUser->userId, $dmcUser);
         $firstAgent = $agents->first();
         if ($firstAgent && ! empty($firstAgent->email) && filter_var($firstAgent->email, FILTER_VALIDATE_EMAIL)) {
             return trim((string) $firstAgent->email);

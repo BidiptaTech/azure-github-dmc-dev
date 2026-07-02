@@ -2506,13 +2506,14 @@ class CommonHelper
     }
 
     /**
-     * Countries a DMC user is allowed to serve (one for normal DMC, many for Master DMC).
-     *
      * @return list<string>
      */
     public static function resolveSupportedCountriesForDmc(User $dmcUser): array
     {
-        return self::parseUserCountryList($dmcUser->country ?? null);
+        return array_map(
+            static fn (string $country): string => self::normalizeCountryName($country),
+            self::parseUserCountryList($dmcUser->country ?? null)
+        );
     }
 
     public static function dmcSupportsDestinationCountry(User $dmcUser, string $requestedCountry): bool
@@ -2551,18 +2552,16 @@ class CommonHelper
             $masterId = (int) $selectedDmc->userId;
         }
 
-        $query = User::query()
-            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
-            ->where('userId', '!=', $selectedDmc->userId);
-
-        if ($masterId > 0) {
-            $query->where('master_dmc_id', $masterId);
-        } else {
+        if ($masterId <= 0) {
             return [];
         }
 
         $alternates = [];
-        foreach ($query->get() as $dmc) {
+        foreach (User::query()
+            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
+            ->where('master_dmc_id', $masterId)
+            ->where('userId', '!=', $selectedDmc->userId)
+            ->get() as $dmc) {
             if (! self::dmcSupportsDestinationCountry($dmc, $requestedCountry)) {
                 continue;
             }
@@ -2590,15 +2589,11 @@ class CommonHelper
     public static function validateDmcDestinationCountrySupport(User $dmcUser, string $requestedCountry): array
     {
         $requestedCountry = self::normalizeCountryName(trim($requestedCountry));
-        $supported = array_map(
-            static fn (string $country): string => self::normalizeCountryName($country),
-            self::resolveSupportedCountriesForDmc($dmcUser)
-        );
 
         return [
             'supported' => self::dmcSupportsDestinationCountry($dmcUser, $requestedCountry),
             'requested_country' => $requestedCountry,
-            'supported_countries' => $supported,
+            'supported_countries' => self::resolveSupportedCountriesForDmc($dmcUser),
             'alternate_dmcs' => self::findAlternateDmcsForCountry($dmcUser, $requestedCountry),
         ];
     }
