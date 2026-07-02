@@ -1571,6 +1571,16 @@ class DayLevelController extends Controller
         $isInclusion = filter_var($validated['is_inclusion'], FILTER_VALIDATE_BOOLEAN);
         $dayLevel->update(['is_inclusion' => $isInclusion]);
 
+        try {
+            $this->refreshCombinedJsonFile();
+        } catch (\Throwable $e) {
+            Log::warning('Day-level inclusion updated in DB but Azure JSON refresh failed', [
+                'day_level_id' => $dayLevel->id,
+                'is_inclusion' => $isInclusion ? 1 : 0,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => $isInclusion ? 'Package marked as inclusion.' : 'Inclusion removed from package.',
