@@ -1458,6 +1458,9 @@ class UserController extends Controller
         
             $deletedUser = User::withTrashed()->where('email', $email)->first();
             if ($deletedUser && $deletedUser->trashed()) {
+                $restoredCountry = is_array($request->country_names)
+                    ? implode(',', $request->country_names)
+                    : ($request->country_name ?? $deletedUser->country);
                 $deletedUser->restore();
                 // Optional: Update user details after restore
                 $deletedUser->update([
@@ -1466,6 +1469,8 @@ class UserController extends Controller
                     'role_id' => $request->role,
                     'password' => bcrypt($request->password),
                     'is_active' => 1,
+                    'country' => $restoredCountry,
+                    'currency' => $this->resolveCurrencyForCountry($restoredCountry),
                 ]);
                 return redirect()->route('users.index')->with('success', 'User restored successfully.');
             }
@@ -1535,13 +1540,19 @@ class UserController extends Controller
         }
 
         $dmc_id = CommonHelper::getDmcId($this->auth_user);
+
+        $userCountry = is_array($request->country_names)
+            ? implode(',', $request->country_names)
+            : ($get_country_name ?? null);
+        $userCurrency = $this->resolveCurrencyForCountry($userCountry);
         
         $user = User::create([
             'salutation' => $request->input('salutation'),
             'name' => $request->input('yourname'),
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
-            'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
+            'country' => $userCountry,
+            'currency' => $userCurrency,
             // 'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
             'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
@@ -2935,5 +2946,29 @@ class UserController extends Controller
 
         return redirect()->route('user.profile')
             ->with('success', 'Password changed successfully.');
+    }
+
+    /**
+     * Resolve ISO currency code from countries table using a country name or comma-separated list.
+     */
+    private function resolveCurrencyForCountry(?string $countryValue): ?string
+    {
+        if ($countryValue === null || trim($countryValue) === '') {
+            return null;
+        }
+
+        $countryNames = array_values(array_filter(array_map('trim', preg_split('/,/', $countryValue))));
+        if (empty($countryNames)) {
+            return null;
+        }
+
+        $currency = Country::where('name', $countryNames[0])->value('currency');
+        if ($currency) {
+            return $currency;
+        }
+
+        return Country::whereIn('name', $countryNames)
+            ->whereNotNull('currency')
+            ->value('currency');
     }
 }
