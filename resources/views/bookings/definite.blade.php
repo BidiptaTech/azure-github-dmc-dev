@@ -211,6 +211,13 @@
         text-overflow: ellipsis;
         background-color: #f8f9fa;
     }
+    #toursTable thead th.col-index,
+    #toursTable tbody td.row-index-cell {
+        text-align: center;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+        white-space: nowrap;
+    }
     #toursTable tbody td {
         padding: 0.5rem 0.5rem;
         vertical-align: top;
@@ -921,8 +928,8 @@
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
                     <colgroup>
-                        <col style="width: 2%">
-                        <col style="width: 15%">
+                        <col class="col-index-num" style="width: 2%">
+                        <col style="width: 31%">
                         <col style="width: 9%">
                         <col style="width: 14%">
                         <col style="width: 10%">
@@ -936,7 +943,7 @@
                             {{-- <th>
                                 <input type="checkbox" class="form-check-input" id="selectAll">
                             </th> --}}
-                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip col-index" data-tooltip="#">#</th>
                             <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
                             <th class="th-tooltip" data-tooltip="Agent">Agent</th>
                             <th class="th-tooltip" data-tooltip="Manage Services">Services</th>
@@ -953,10 +960,11 @@
                             // Determine execution status and corresponding CSS class
                             $executionStatusClass = '';
                             $executionStatus = '';
-                            if ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast()) {
+                            $checkIn = $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time) : null;
+                            if ($checkIn && $checkIn->isPast()) {
                                 $executionStatusClass = 'execution-status-ready';
                                 $executionStatus = 'Ready';
-                            } elseif ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7) {
+                            } elseif ($checkIn && $checkIn->isFuture() && $checkIn->lte(now()->addDays(7))) {
                                 $executionStatusClass = 'execution-status-soon';
                                 $executionStatus = 'Soon';
                             } else {
@@ -975,11 +983,14 @@
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
                             data-execution-status="{{ $executionStatus }}"
+                            data-destination="{{ $tour->destination ?? '' }}"
+                            data-agent-name="{{ $tour->agent_name ?? '' }}"
+                            data-created-by-name="{{ $tour->created_by_name ?? '' }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
                             </td> --}}
-                            <td>{{ $key + 1 }}</td>
+                            <td class="row-index-cell">{{ $loop->iteration }}</td>
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-1">
                                     <strong class="text-primary">{{ $tour->display_id }}</strong>
@@ -1760,11 +1771,12 @@
                             </td>
                             <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    @if($tour->created_by)
+                                    @if(!empty($tour->created_by_name))
+                                        <span>{{ $tour->created_by_name }}</span>
+                                    @elseif($tour->created_by)
                                     @php
                                         $created_by = App\Models\User::where('userId', $tour->created_by)->first();
-                                        $created_by_name = $created_by->name;
-                                        // dd($created_by_name);
+                                        $created_by_name = $created_by->name ?? null;
                                     @endphp
                                         <span>{{ $created_by_name }}</span>
                                     @else
@@ -24448,9 +24460,9 @@ window.filterTable = function() {
         if (row.cells.length === 1) return;
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
-        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const createdBy = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
+        const destination = (row.getAttribute('data-destination') || '').trim();
+        const agent = (row.getAttribute('data-agent-name') || '').trim();
+        const createdBy = (row.getAttribute('data-created-by-name') || row.cells[7]?.textContent || '').trim().toLowerCase();
         const executionStatus = row.getAttribute('data-execution-status') || '';
         const updatedAt = row.getAttribute('data-updated-at');
         const createdAtAttr = row.getAttribute('data-created-at');
@@ -24472,9 +24484,7 @@ window.filterTable = function() {
         // Country filter - use LIKE operator logic (contains)
         // This works for multi-country destinations like "India, Singapore"
         if (destinationFilter) {
-            // Split destination by comma and trim spaces
-            const destinationCountries = destination.split(',').map(c => c.trim());
-            // Check if the selected country is in the destination list
+            const destinationCountries = destination.split(',').map(c => c.trim()).filter(Boolean);
             if (!destinationCountries.includes(destinationFilter)) {
                 show = false;
             }
@@ -24512,6 +24522,16 @@ window.filterTable = function() {
         
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
+    });
+
+    // Renumber visible rows so # column stays 1, 2, 3… after filters hide rows
+    let visibleRowNumber = 0;
+    rows.forEach(row => {
+        if (row.cells.length <= 1) return;
+        if (row.style.display === 'none') return;
+        visibleRowNumber++;
+        const indexCell = row.querySelector('.row-index-cell') || row.cells[0];
+        if (indexCell) indexCell.textContent = visibleRowNumber;
     });
     
     updateFilterResults(visibleCount, totalRows);
@@ -27495,6 +27515,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         // Initialize DataTable with export buttons
         table = $('.datatables-basic').DataTable({
             responsive: true,
+            autoWidth: false,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
                 'copy',
@@ -27522,6 +27543,12 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             pageLength: 25,
             //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
             columnDefs: [
+                {
+                    targets: 0,
+                    width: '2%',
+                    className: 'col-index',
+                    orderable: false
+                },
                 {
                     targets: [8], // Actions column (index 8)
                     orderable: false,
