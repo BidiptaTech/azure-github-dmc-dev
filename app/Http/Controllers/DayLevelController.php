@@ -1546,6 +1546,41 @@ class DayLevelController extends Controller
         return view('day-level.index', compact('dayLevels'));
     }
 
+    public function updateInclusion(Request $request, DayLevel $dayLevel)
+    {
+        $user = Auth::user();
+        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+
+        if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update inclusion.'], 403);
+        }
+
+        if (! $this->userCanAccessDayLevel($dayLevel)) {
+            return response()->json(['success' => false, 'message' => 'This package is not available for your account.'], 403);
+        }
+
+        $validated = $request->validate([
+            'is_inclusion' => ['required', 'boolean'],
+        ]);
+
+        $isInclusion = filter_var($validated['is_inclusion'], FILTER_VALIDATE_BOOLEAN);
+        $dayLevel->update(['is_inclusion' => $isInclusion]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $isInclusion ? 'Package marked as inclusion.' : 'Inclusion removed from package.',
+            'is_inclusion' => (bool) $dayLevel->is_inclusion,
+        ]);
+    }
+
+    private function userCanAccessDayLevel(DayLevel $dayLevel): bool
+    {
+        $ids = $this->resolveDmcIds();
+
+        return (int) $dayLevel->dmc_id === (int) $ids['dmc_id']
+            || (int) $dayLevel->master_dmc_id === (int) $ids['master_dmc_id'];
+    }
+
     // =========================================================================
     // API – combined JSON output for all/specific DMC rows
     // GET /api/v1/day-level/combined-json?master_dmc_id=3&dmc_id=4
@@ -1663,15 +1698,17 @@ class DayLevelController extends Controller
                     ->with('error', 'Package not found or cannot be edited individually.');
             }
             $editingPackageId = $packageId;
+            $editPayload = $dayLevel->filterStructuredPayloadToPackage($packageId);
         } elseif (count($packageSummaries) > 1) {
             return redirect()
                 ->route('day-level.index')
                 ->with('error', 'This DMC has multiple packages. Choose Edit on the package you want to change.');
         } elseif (count($packageSummaries) === 1 && $packageSummaries[0]['has_stable_id']) {
             $editingPackageId = $packageSummaries[0]['package_id'];
+            $editPayload = $dayLevel->filterStructuredPayloadToPackage($editingPackageId);
+        } else {
+            $editPayload = $dayLevel->structured_payload;
         }
-
-        $editPayload = $dayLevel->buildEditPayload($editingPackageId !== '' ? $editingPackageId : null);
 
         // Per-package day count for the edit form (row-level `days` is max across all packages).
         $editPackageDays = max(1, (int) ($dayLevel->days ?? 1));

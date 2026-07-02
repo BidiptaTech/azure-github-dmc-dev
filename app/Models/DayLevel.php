@@ -20,6 +20,7 @@ class DayLevel extends Model
         'hotels'     => 'array',
         'activities' => 'array',
         'inter_city' => 'array',
+        'is_inclusion' => 'boolean',
     ];
 
     protected $attributes = [
@@ -122,204 +123,16 @@ class DayLevel extends Model
     public function getStoredDestinations(): array
     {
         $ic = $this->inter_city;
-        if (is_array($ic)) {
-            if (isset($ic['destinations']) && is_array($ic['destinations']) && $ic['destinations'] !== []) {
-                return self::unwrapDestinationList($ic['destinations']);
-            }
-
-            if (isset($ic['Master_DMC']) && is_array($ic['Master_DMC'])) {
-                $destinations = [];
-                foreach ($ic['Master_DMC'] as $masterNode) {
-                    if (! is_array($masterNode)) {
-                        continue;
-                    }
-                    foreach ((array) ($masterNode['destinations'] ?? []) as $destNode) {
-                        $unwrapped = self::unwrapDestinationNode($destNode);
-                        if (is_array($unwrapped)) {
-                            $destinations[] = $unwrapped;
-                        }
-                    }
-                }
-                if ($destinations !== []) {
-                    return $destinations;
-                }
-            }
+        if (is_array($ic) && isset($ic['destinations']) && is_array($ic['destinations'])) {
+            return $ic['destinations'];
         }
 
         $activities = $this->activities;
         if (is_array($activities) && $this->looksLikeDestinationsList($activities)) {
-            return self::unwrapDestinationList($activities);
+            return $activities;
         }
 
         return [];
-    }
-
-    /**
-     * Raw edit payload for the create/edit form (never the normalized structured_payload accessor).
-     *
-     * @return array{Master_DMC: array<int, array<string, mixed>>}
-     */
-    public function buildEditPayload(?string $packageId = null): array
-    {
-        $packageId = $packageId !== null ? trim($packageId) : '';
-        $destinations = $this->resolveStoredDestinationsForEdit();
-
-        if ($packageId !== '') {
-            $filtered = [];
-            foreach ($destinations as $dest) {
-                if (! is_array($dest)) {
-                    continue;
-                }
-                $filteredDest = self::filterDestinationToPackage($dest, $packageId);
-                if ($filteredDest !== null) {
-                    $filtered[] = $filteredDest;
-                }
-            }
-            $destinations = $filtered;
-        }
-
-        return $this->buildEditPayloadFromStoredDestinations($destinations);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $destinations
-     * @param  list<array<string, mixed>>  $storedHotels
-     * @return array<int, array<string, mixed>>
-     */
-    public static function enrichDestinationsWithStoredHotels(array $destinations, array $storedHotels): array
-    {
-        if ($destinations === [] || $storedHotels === []) {
-            return $destinations;
-        }
-
-        $storedByKey = [];
-        foreach ($storedHotels as $stored) {
-            if (! is_array($stored)) {
-                continue;
-            }
-            $storedByKey[self::storedHotelLookupKey($stored)] = $stored;
-        }
-
-        if ($storedByKey === []) {
-            return $destinations;
-        }
-
-        return array_map(function ($dest) use ($storedByKey) {
-            if (! is_array($dest)) {
-                return $dest;
-            }
-            $cities = [];
-            foreach ((array) ($dest['cities'] ?? []) as $city) {
-                if (! is_array($city)) {
-                    $cities[] = $city;
-                    continue;
-                }
-                $packages = [];
-                foreach ((array) ($city['packages'] ?? []) as $package) {
-                    if (! is_array($package)) {
-                        $packages[] = $package;
-                        continue;
-                    }
-                    $days = (array) ($package['days'] ?? []);
-                    $enrichedDays = [];
-                    foreach ($days as $dayKey => $dayNode) {
-                        if (! is_array($dayNode)) {
-                            $enrichedDays[$dayKey] = $dayNode;
-                            continue;
-                        }
-                        $hotels = is_array($dayNode['hotels'] ?? null) ? $dayNode['hotels'] : [];
-                        if ($hotels !== []) {
-                            $mergedHotels = [];
-                            foreach ($hotels as $label => $hotel) {
-                                if (! is_array($hotel)) {
-                                    $mergedHotels[$label] = $hotel;
-                                    continue;
-                                }
-                                $lookupKey = self::storedHotelLookupKey($hotel);
-                                if (isset($storedByKey[$lookupKey])) {
-                                    $hotel = self::mergeStoredHotelPricingRow($hotel, $storedByKey[$lookupKey]);
-                                }
-                                $mergedHotels[$label] = $hotel;
-                            }
-                            $dayNode['hotels'] = $mergedHotels;
-                        }
-                        $enrichedDays[$dayKey] = $dayNode;
-                    }
-                    $package['days'] = $enrichedDays;
-                    $packages[] = $package;
-                }
-                $city['packages'] = $packages;
-                $cities[] = $city;
-            }
-            $dest['cities'] = $cities;
-
-            return $dest;
-        }, $destinations);
-    }
-
-    /**
-     * @param  array<string, mixed>  $hotel
-     * @param  array<string, mixed>  $stored
-     * @return array<string, mixed>
-     */
-    private static function mergeStoredHotelPricingRow(array $hotel, array $stored): array
-    {
-        $merged = array_replace($stored, $hotel);
-        foreach (['room_price', 'breakfast_price', 'lunch_price', 'dinner_price', 'price_per_night', 'total_price'] as $field) {
-            $hotelVal = $hotel[$field] ?? null;
-            $storedVal = $stored[$field] ?? null;
-            $hotelNum = is_numeric($hotelVal) ? (float) $hotelVal : 0.0;
-            $storedNum = is_numeric($storedVal) ? (float) $storedVal : 0.0;
-            if ($hotelNum <= 0.0 && $storedNum > 0.0) {
-                $merged[$field] = $storedNum;
-            }
-        }
-        if ((float) ($merged['price'] ?? 0) <= 0.0 && (float) ($stored['price'] ?? 0) > 0.0) {
-            $merged['price'] = (float) $stored['price'];
-        }
-
-        return $merged;
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private static function storedHotelLookupKey(array $row): string
-    {
-        return implode('|', [
-            (string) ($row['hotel_id'] ?? ''),
-            (string) ($row['booked_day'] ?? $row['checkin_day'] ?? $row['day'] ?? ''),
-            (string) ($row['room_id'] ?? ''),
-            (string) ($row['bed_id'] ?? ''),
-        ]);
-    }
-
-    /**
-     * @param  array<int, mixed>  $list
-     * @return array<int, array<string, mixed>>
-     */
-    private static function unwrapDestinationList(array $list): array
-    {
-        $out = [];
-        foreach ($list as $node) {
-            $unwrapped = self::unwrapDestinationNode($node);
-            if (is_array($unwrapped)) {
-                $out[] = $unwrapped;
-            }
-        }
-
-        return $out;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function resolveStoredDestinationsForEdit(): array
-    {
-        $destinations = $this->getStoredDestinations();
-        $storedHotels = is_array($this->hotels) ? $this->hotels : [];
-
-        return self::enrichDestinationsWithStoredHotels($destinations, $storedHotels);
     }
 
     /**
@@ -463,7 +276,25 @@ class DayLevel extends Model
 
     public function filterStructuredPayloadToPackage(string $packageId): array
     {
-        return $this->buildEditPayload(trim($packageId) !== '' ? trim($packageId) : null);
+        $packageId = trim($packageId);
+        $destinations = $this->getStoredDestinations();
+
+        if ($packageId === '') {
+            return $this->buildEditPayloadFromStoredDestinations($destinations);
+        }
+
+        $filtered = [];
+        foreach ($destinations as $dest) {
+            if (! is_array($dest)) {
+                continue;
+            }
+            $filteredDest = self::filterDestinationToPackage($dest, $packageId);
+            if ($filteredDest !== null) {
+                $filtered[] = $filteredDest;
+            }
+        }
+
+        return $this->buildEditPayloadFromStoredDestinations($filtered);
     }
 
     /**
@@ -1650,19 +1481,6 @@ class DayLevel extends Model
             ];
             if (array_key_exists('city', $row)) {
                 $entry['city'] = strip_tags((string) ($row['city'] ?? ''));
-            }
-            foreach (['ticket_id', 'ticket_name', 'booked_day'] as $field) {
-                if (array_key_exists($field, $row) && $row[$field] !== '' && $row[$field] !== null) {
-                    $entry[$field] = $row[$field];
-                }
-            }
-            foreach (['ticket_price', 'price', 'total_price'] as $field) {
-                if (array_key_exists($field, $row)) {
-                    $entry[$field] = (float) ($row[$field] ?? 0);
-                }
-            }
-            if (array_key_exists('is_inclusion', $row)) {
-                $entry['is_inclusion'] = filter_var($row['is_inclusion'], FILTER_VALIDATE_BOOLEAN);
             }
             if (array_key_exists('transfer', $row) && is_array($row['transfer'])) {
                 $entry['transfer'] = $this->sanitizeStructuredLeafValues($row['transfer']);
@@ -2885,16 +2703,6 @@ class DayLevel extends Model
         }
         if ($includePrice) {
             $entry['price'] = (float) ($row['price'] ?? 0);
-        }
-        foreach (['room_price', 'breakfast_price', 'lunch_price', 'dinner_price', 'price_per_night', 'total_price'] as $field) {
-            if (array_key_exists($field, $row)) {
-                $entry[$field] = (float) ($row[$field] ?? 0);
-            }
-        }
-        foreach (['checkin_day', 'checkout_day', 'stay_days'] as $field) {
-            if (array_key_exists($field, $row)) {
-                $entry[$field] = $row[$field];
-            }
         }
         $entry['night'] = (int) ($row['night'] ?? 1);
         $entry['meal_type'] = (string) ($row['meal_type'] ?? '');
