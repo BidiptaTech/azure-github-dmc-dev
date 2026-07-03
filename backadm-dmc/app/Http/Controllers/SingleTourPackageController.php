@@ -1140,31 +1140,62 @@ class SingleTourPackageController extends Controller
             $hotels = collect();
         }
 
-        // Load guides filtered by DMC and country (tour destination)
-        $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $guidesQuery->where('country', $tour->destination);
+        // The tour's `destination` field can hold a CITY name (e.g. "Batam"), not a country.
+        // Attractions store the city in `location`; restaurants/guides store it in `city`. Filtering these
+        // only by `country = destination` wrongly returns empty when destination is actually a city.
+        // Build the set of city values for this tour (from tour->city, plus destination) so we can match
+        // on the correct city column, while still keeping `country = destination` as a fallback.
+        $tourCityNames = collect(explode(',', (string) ($tour->city ?? '')))
+            ->map(fn ($c) => trim(preg_replace('/\s*\([^)]*\)\s*$/', '', (string) $c)))
+            ->filter()
+            ->values()
+            ->all();
+        $cityMatchValues = $tourCityNames;
+        if (!empty($tour->destination)) {
+            $cityMatchValues[] = trim((string) $tour->destination);
         }
+        $cityMatchValues = array_values(array_unique(array_filter($cityMatchValues)));
+
+        // Load guides filtered by DMC, matching the tour's city (or country as fallback)
+        $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
+        $guidesQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $guides = $guidesQuery->get();
 
-        // Load restaurants filtered by DMC and country (tour destination)
+        // Load restaurants filtered by DMC, matching the tour's city (or country as fallback)
         $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $restaurantsQuery->where('country', $tour->destination);
-        }
+        $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $restaurants = $restaurantsQuery->get();
 
-        // Load attractions filtered by DMC and country (tour destination)
+        // Load attractions filtered by DMC, matching the tour's city (attractions use `location`) or country
         $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $attractionsQuery->where('country', $tour->destination);
-        }
+        $attractionsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('location', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $attractions = $attractionsQuery->get();
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
