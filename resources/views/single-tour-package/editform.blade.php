@@ -6588,12 +6588,12 @@
                                     <label class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Selected Nights</label>
                                     <div id="nights_list" class="d-flex flex-wrap gap-1"></div>
                                 </div>
-                                <div class="alert alert-info py-1 px-2 mt-1 mb-1 border-0 text-start" id="no_nights_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
+                                <!-- <div class="alert alert-info py-1 px-2 mt-1 mb-1 border-0 text-start" id="no_nights_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
                                     <i class="ri-information-line me-1"></i>Select check-in/out dates.
                                 </div>
                                 <div class="alert alert-info py-1 px-2 mb-1 border-0 text-start" id="no_hotels_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
                                     <i class="ri-information-line me-1"></i>Select city & hotel.
-                                </div>
+                                </div> -->
                                 <div id="hotel_modal_price_grid" class="mt-2 rounded text-start" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.5rem 0.6rem; border-radius: 6px;">
                                     <label class="form-label fw-semibold mb-1 text-start d-block" style="color: #059669; font-size: 0.7rem;"><i class="ri-price-tag-3-line me-1"></i>Breakdown</label>
                                     <div id="hotel_modal_price_grid_content" style="color: #374151; font-size: 0.75rem; line-height: 1.4;"></div>
