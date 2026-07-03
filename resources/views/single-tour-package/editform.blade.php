@@ -23508,12 +23508,17 @@
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
                 
-                // Create autocomplete instance
-                const autocomplete = new google.maps.places.Autocomplete(input, {
+                // Create autocomplete instance. Only restrict by country when a valid ISO code exists,
+                // otherwise Google throws InvalidValueError and no suggestions appear.
+                const autocompleteOptions = {
                     types: ['establishment', 'geocode'],
-                    componentRestrictions: { country: getCountryCode(selectedCountry) },
                     fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                });
+                };
+                const countryCode = getCountryCode(selectedCountry);
+                if (countryCode) {
+                    autocompleteOptions.componentRestrictions = { country: countryCode };
+                }
+                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
                 
                 // Add place_changed event listener
                 autocomplete.addListener('place_changed', function() {
@@ -23690,8 +23695,31 @@
     window.initializeGoogleMapsAutocomplete = function() {
         console.log('Initializing Google Maps Autocomplete...');
         
-        // Get selected country and city for location bias
-        const selectedCountry = document.getElementById('user_country')?.value || '';
+        // Resolve the selected country. NOTE: #user_country holds the tour's `destination`, which is often a
+        // CITY name (e.g. "Batam"), not a country. Passing an unmapped value produced
+        // `componentRestrictions: { country: '' }`, which makes Google throw InvalidValueError and breaks
+        // autocomplete entirely (this is why edit failed but create worked). So resolve from real country
+        // sources and only apply the restriction when we have a valid ISO code.
+        const resolveSelectedCountryName = () => {
+            // A hardcoded tour country (most reliable when present)
+            const tourCountry = '{{ $tour->country ?? "" }}'.trim();
+            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
+
+            // Fall back to the data-country of any selected city dropdown
+            const citySelectIds = ['single_city', 'modal_city_select', 'modal_local_transfer_city', 'modal_entryport_transport_city', 'modal_exitport_transport_city'];
+            for (const id of citySelectIds) {
+                const sel = document.getElementById(id);
+                if (!sel) continue;
+                const opt = sel.options && sel.options[sel.selectedIndex];
+                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
+                if (dc && getCountryCode(dc)) return dc;
+            }
+
+            // Last resort: whatever is in #user_country (may be a city, may map to nothing)
+            return document.getElementById('user_country')?.value || '';
+        };
+
+        const selectedCountry = resolveSelectedCountryName();
         const selectedCity = document.getElementById('city')?.value || '';
         
         // Create location bias for better search results
@@ -23708,12 +23736,17 @@
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
                 
-                // Create autocomplete instance
-                const autocomplete = new google.maps.places.Autocomplete(input, {
+                // Create autocomplete instance. Only restrict by country when we have a valid ISO code,
+                // otherwise Google throws InvalidValueError and no suggestions appear.
+                const autocompleteOptions = {
                     types: ['establishment', 'geocode'],
-                    componentRestrictions: { country: getCountryCode(selectedCountry) },
                     fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                });
+                };
+                const countryCode = getCountryCode(selectedCountry);
+                if (countryCode) {
+                    autocompleteOptions.componentRestrictions = { country: countryCode };
+                }
+                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
                 
                 // Add place_changed event listener
                 autocomplete.addListener('place_changed', function() {
