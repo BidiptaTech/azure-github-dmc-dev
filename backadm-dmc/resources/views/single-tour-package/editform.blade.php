@@ -6545,12 +6545,12 @@
                                         <label for="number_of_rooms_modal" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Rooms</label>
                                         <input type="number" class="form-control form-control-sm" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" onchange="updateHotelModalPrice();">
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-12">
                                         <label for="total_price_modal" class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;">Total Price</label>
-                                        <div class="d-flex align-items-center text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.75rem; height: 38px;">
+                                        <div class="d-flex align-items-center flex-nowrap text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.5rem 0.375rem 0.75rem; height: 38px;">
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
-                                            <span class="fw-bold flex-grow-1" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
-                                            <button type="button" class="btn d-flex align-items-center" style="height: 26px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.65rem; font-weight: 500; padding: 0 8px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
+                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
+                                            <button type="button" class="btn d-flex align-items-center flex-shrink-0 ms-2" style="height: 28px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.7rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
                                                 <i class="ri-refresh-line me-1"></i> Get Price
                                             </button>
                                         </div>
