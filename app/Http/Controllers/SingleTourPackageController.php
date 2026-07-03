@@ -1722,10 +1722,22 @@ class SingleTourPackageController extends Controller
         }
 
         if ($countryName) {
-            if (!empty($dmcCountries) && !in_array($countryName, $dmcCountries, true)) {
-                return collect();
+            if (!empty($dmcCountries)) {
+                $countryAllowed = false;
+                foreach ($dmcCountries as $dmcCountry) {
+                    if (strcasecmp((string) $dmcCountry, (string) $countryName) === 0) {
+                        $countryAllowed = true;
+                        break;
+                    }
+                }
+                if (!$countryAllowed) {
+                    return collect();
+                }
             }
-            $query->where('country', $countryName);
+            $query->where(function ($q) use ($countryName) {
+                $q->where('country', $countryName)
+                    ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $countryName)]);
+            });
         }
 
         return $query->orderBy('port_name')->get();

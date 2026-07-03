@@ -12940,10 +12940,13 @@
         // For demo purposes, show sample attractions
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
-        console.log('All Attractions:', all_attractions);
-        const attractions = all_attractions.filter(attraction => attraction.location == city);
-        
-        console.log('Attractions:', attractions);
+        const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
+        const attractions = all_attractions.filter(function(attraction) {
+            const loc = (typeof normalizeCityText === 'function')
+                ? normalizeCityText(attraction.location)
+                : (attraction.location || '').trim();
+            return loc === normCity;
+        });
         // Add attraction options
         attractions.forEach(attraction => {
             const option = document.createElement('option');
@@ -13707,6 +13710,12 @@
                 ampmSelect.value = 'AM';
                 syncTransportModalPickupTime();
             }
+            // After Select2 init (~100ms) + city auto-fill (~150ms), refresh zone dropdowns again
+            setTimeout(() => {
+                if (typeof configureTransportPickupAndDropoffForType === 'function') {
+                    configureTransportPickupAndDropoffForType();
+                }
+            }, 250);
         }, 100);
     }
     
@@ -14088,6 +14097,19 @@
         if (searchBtn) {
             searchBtn.addEventListener('click', searchVehicles);
         }
+
+        const transportCitySelect = document.getElementById('modal_entryport_transport_city');
+        if (transportCitySelect && !transportCitySelect.dataset.cityChangeWired) {
+            transportCitySelect.dataset.cityChangeWired = '1';
+            transportCitySelect.addEventListener('change', function() {
+                configureTransportPickupAndDropoffForType();
+            });
+            if (typeof jQuery !== 'undefined') {
+                jQuery(transportCitySelect).on('select2:select select2:change', function() {
+                    configureTransportPickupAndDropoffForType();
+                });
+            }
+        }
     }
     
     // Function to enable Point-to-Point functionality for transport modal
@@ -14293,6 +14315,48 @@
         console.log('Point-to-Point functionality enabled successfully for dropoff transport modal');
     }
     
+    function refreshTransportModalZoneSelects() {
+        ['modal_transport_pickup_zone', 'modal_transport_dropoff_zone'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (typeof window.refreshSelect2 === 'function') {
+                window.refreshSelect2(el);
+            }
+        });
+    }
+
+    function getTransportModalCityContext() {
+        const citySelect = document.getElementById('modal_entryport_transport_city');
+        if (!citySelect || !citySelect.value) {
+            return { cityName: '', cityId: null };
+        }
+        const cityName = (typeof normalizeCityText === 'function')
+            ? normalizeCityText(citySelect.value)
+            : citySelect.value.trim();
+        let cityId = null;
+        const opt = citySelect.selectedOptions && citySelect.selectedOptions[0];
+        if (opt) {
+            try {
+                const cityData = JSON.parse(opt.getAttribute('data-city') || '{}');
+                cityId = cityData.city_id || cityData.id || null;
+            } catch (e) { /* ignore */ }
+        }
+        return { cityName, cityId };
+    }
+
+    function recordMatchesTransportCity(record, cityCtx) {
+        if (!cityCtx || (!cityCtx.cityName && cityCtx.cityId == null)) return true;
+        const norm = (typeof normalizeCityText === 'function')
+            ? normalizeCityText
+            : function(s) { return (s || '').toString().trim(); };
+        const loc = norm(record.location || record.city || record.city_name || '');
+        if (loc && cityCtx.cityName && loc === cityCtx.cityName) return true;
+        if (cityCtx.cityId != null && record.city_id != null && String(record.city_id) === String(cityCtx.cityId)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Configure pickup and dropoff options for the transport modal
      * - Arrival (entry_port): Pickup = Ports, Dropoff = Hotels + Attractions + Restaurants
@@ -14311,10 +14375,20 @@
         }
 
         // Backend data
-        const ports = @json($ports ?? []);
-        const hotels = @json($hotels ?? []);
-        const restaurants = @json($restaurants ?? []);
-        const attractions = @json($attractions ?? []);
+        const allPorts = @json($ports ?? []);
+        const allHotels = @json($hotels ?? []);
+        const allRestaurants = @json($restaurants ?? []);
+        const allAttractions = @json($attractions ?? []);
+        const cityCtx = getTransportModalCityContext();
+        const filterByCity = function(list) {
+            if (!cityCtx.cityName && cityCtx.cityId == null) return list;
+            const filtered = list.filter(function(item) { return recordMatchesTransportCity(item, cityCtx); });
+            return filtered.length ? filtered : list;
+        };
+        const ports = filterByCity(allPorts);
+        const hotels = filterByCity(allHotels);
+        const restaurants = filterByCity(allRestaurants);
+        const attractions = filterByCity(allAttractions);
 
         // Helper to build port options
         const buildPortOptions = () => {
@@ -14407,6 +14481,9 @@
         // Reset selects to default value
         pickupSelect.value = '';
         dropoffSelect.value = '';
+
+        // Select2 caches options on init; refresh after innerHTML changes (live server timing can init before this runs)
+        refreshTransportModalZoneSelects();
     }
     
     function loadZonesForPickup() {
@@ -23283,6 +23360,10 @@
             const h = modal.querySelector('#' + id);
             if (h) h.value = city;
         });
+
+        if (modal.querySelector('#modal_transport_pickup_zone') && typeof configureTransportPickupAndDropoffForType === 'function') {
+            configureTransportPickupAndDropoffForType();
+        }
     };
 
     window.lockSingleCityFieldIfNeeded = function() {
