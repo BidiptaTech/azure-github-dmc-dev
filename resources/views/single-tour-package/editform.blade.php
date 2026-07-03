@@ -1,4 +1,10 @@
 @extends('layouts.layout')
+{{-- jQuery loaded early: several inline scripts in this page's body call $(document).ready() while the
+     body is still parsing (before the footer loads jQuery). Without this, tours whose data renders those
+     inline blocks throw "Uncaught ReferenceError: $ is not defined", which breaks page initialization on
+     servers/tours where those rows exist. asset() is used so the local fallback survives config:cache. --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>window.jQuery || document.write('<script src="{{ rtrim(config('app.url'), '/') }}/assets/vendor/libs/jquery/jquery.js"><\/script>');</script>
 <!-- SweetAlert2 for remove service confirmation -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
@@ -1397,7 +1403,7 @@
                                     <label for="single_city" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-map-pin-line me-1" style="color: #667eea;"></i>City
                                     </label>
-                                    <select id="single_city" name="single_city" class="form-select modern-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;">
+                                    <select id="single_city" name="single_city" class="form-select modern-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" {{ (old('city_type', $tour->city_type ?? 'single') === 'single') ? 'disabled' : '' }}>
                                         <option value="">Select city...</option>
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}"
@@ -6545,12 +6551,12 @@
                                         <label for="number_of_rooms_modal" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Rooms</label>
                                         <input type="number" class="form-control form-control-sm" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" onchange="updateHotelModalPrice();">
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-12">
                                         <label for="total_price_modal" class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;">Total Price</label>
-                                        <div class="d-flex align-items-center text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.75rem; height: 38px;">
+                                        <div class="d-flex align-items-center flex-nowrap text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.5rem 0.375rem 0.75rem; height: 38px;">
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
-                                            <span class="fw-bold flex-grow-1" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
-                                            <button type="button" class="btn d-flex align-items-center" style="height: 26px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.65rem; font-weight: 500; padding: 0 8px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
+                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
+                                            <button type="button" class="btn d-flex align-items-center flex-shrink-0 ms-2" style="height: 28px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.7rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
                                                 <i class="ri-refresh-line me-1"></i> Get Price
                                             </button>
                                         </div>
@@ -11622,6 +11628,11 @@
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
+        setTimeout(function() {
+            if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
+                window.lockSingleCityFieldIfNeeded();
+            }
+        }, 50);
     });
 
     function initializeTravelDateRangePicker() {
@@ -11829,6 +11840,12 @@
         // Small delay to ensure content is fully rendered
         setTimeout(function() {
             initializeAllSelect2($modal);
+            // Auto-fill + lock city after Select2 init (native value alone is not enough for Select2 UI)
+            setTimeout(function() {
+                if (typeof window.applyModalCityAutoFill === 'function') {
+                    window.applyModalCityAutoFill($modal[0]);
+                }
+            }, 50);
         }, 100);
     });
 
@@ -12564,8 +12581,7 @@
         let effectiveEndDate = endDate;
         let effectiveCityText = '';
         try {
-            const modeEl = document.querySelector('input[name="city_type"]:checked');
-            const mode = modeEl && modeEl.value ? modeEl.value : 'single';
+            const mode = typeof getCurrentCityMode === 'function' ? getCurrentCityMode() : 'single';
             if (mode === 'multi') {
                 const bundle = document.getElementById('segmentServicesBundle');
                 const seg = bundle ? bundle.closest('.segment') : null;
@@ -12579,6 +12595,8 @@
                 effectiveCityText = citySel && citySel.selectedOptions && citySel.selectedOptions[0]
                     ? (citySel.selectedOptions[0].textContent || '').trim()
                     : (citySel && citySel.value ? citySel.value : '');
+            } else if (typeof getSingleCityValue === 'function') {
+                effectiveCityText = getSingleCityValue();
             }
         } catch (e) { /* ignore */ }
         
@@ -12616,14 +12634,14 @@
                 checkOutDate.value = effectiveEndDate;
             }
             
-        // Initialize modal functionality
-        initializeHotelModal();
-        
-            // Auto-load hotels for the tour destination
-        setTimeout(() => {
-                // Hotels will be loaded based on destination country
-            }, 300);
-    }, 100); // Small delay to ensure modal is rendered
+            initializeHotelModal();
+
+            setTimeout(() => {
+                if (typeof window.applyModalCityAutoFill === 'function') {
+                    window.applyModalCityAutoFill(document.getElementById('hotelBookingModal'));
+                }
+            }, 150);
+        }, 100); // Small delay to ensure modal is rendered
     }
     
     function addGuideService() {
@@ -12928,10 +12946,13 @@
         // For demo purposes, show sample attractions
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
-        console.log('All Attractions:', all_attractions);
-        const attractions = all_attractions.filter(attraction => attraction.location == city);
-        
-        console.log('Attractions:', attractions);
+        const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
+        const attractions = all_attractions.filter(function(attraction) {
+            const loc = (typeof normalizeCityText === 'function')
+                ? normalizeCityText(attraction.location)
+                : (attraction.location || '').trim();
+            return loc === normCity;
+        });
         // Add attraction options
         attractions.forEach(attraction => {
             const option = document.createElement('option');
@@ -13695,6 +13716,12 @@
                 ampmSelect.value = 'AM';
                 syncTransportModalPickupTime();
             }
+            // After Select2 init (~100ms) + city auto-fill (~150ms), refresh zone dropdowns again
+            setTimeout(() => {
+                if (typeof configureTransportPickupAndDropoffForType === 'function') {
+                    configureTransportPickupAndDropoffForType();
+                }
+            }, 250);
         }, 100);
     }
     
@@ -14076,6 +14103,19 @@
         if (searchBtn) {
             searchBtn.addEventListener('click', searchVehicles);
         }
+
+        const transportCitySelect = document.getElementById('modal_entryport_transport_city');
+        if (transportCitySelect && !transportCitySelect.dataset.cityChangeWired) {
+            transportCitySelect.dataset.cityChangeWired = '1';
+            transportCitySelect.addEventListener('change', function() {
+                configureTransportPickupAndDropoffForType();
+            });
+            if (typeof jQuery !== 'undefined') {
+                jQuery(transportCitySelect).on('select2:select select2:change', function() {
+                    configureTransportPickupAndDropoffForType();
+                });
+            }
+        }
     }
     
     // Function to enable Point-to-Point functionality for transport modal
@@ -14281,6 +14321,48 @@
         console.log('Point-to-Point functionality enabled successfully for dropoff transport modal');
     }
     
+    function refreshTransportModalZoneSelects() {
+        ['modal_transport_pickup_zone', 'modal_transport_dropoff_zone'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (typeof window.refreshSelect2 === 'function') {
+                window.refreshSelect2(el);
+            }
+        });
+    }
+
+    function getTransportModalCityContext() {
+        const citySelect = document.getElementById('modal_entryport_transport_city');
+        if (!citySelect || !citySelect.value) {
+            return { cityName: '', cityId: null };
+        }
+        const cityName = (typeof normalizeCityText === 'function')
+            ? normalizeCityText(citySelect.value)
+            : citySelect.value.trim();
+        let cityId = null;
+        const opt = citySelect.selectedOptions && citySelect.selectedOptions[0];
+        if (opt) {
+            try {
+                const cityData = JSON.parse(opt.getAttribute('data-city') || '{}');
+                cityId = cityData.city_id || cityData.id || null;
+            } catch (e) { /* ignore */ }
+        }
+        return { cityName, cityId };
+    }
+
+    function recordMatchesTransportCity(record, cityCtx) {
+        if (!cityCtx || (!cityCtx.cityName && cityCtx.cityId == null)) return true;
+        const norm = (typeof normalizeCityText === 'function')
+            ? normalizeCityText
+            : function(s) { return (s || '').toString().trim(); };
+        const loc = norm(record.location || record.city || record.city_name || '');
+        if (loc && cityCtx.cityName && loc === cityCtx.cityName) return true;
+        if (cityCtx.cityId != null && record.city_id != null && String(record.city_id) === String(cityCtx.cityId)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Configure pickup and dropoff options for the transport modal
      * - Arrival (entry_port): Pickup = Ports, Dropoff = Hotels + Attractions + Restaurants
@@ -14299,10 +14381,20 @@
         }
 
         // Backend data
-        const ports = @json($ports ?? []);
-        const hotels = @json($hotels ?? []);
-        const restaurants = @json($restaurants ?? []);
-        const attractions = @json($attractions ?? []);
+        const allPorts = @json($ports ?? []);
+        const allHotels = @json($hotels ?? []);
+        const allRestaurants = @json($restaurants ?? []);
+        const allAttractions = @json($attractions ?? []);
+        const cityCtx = getTransportModalCityContext();
+        const filterByCity = function(list) {
+            if (!cityCtx.cityName && cityCtx.cityId == null) return list;
+            const filtered = list.filter(function(item) { return recordMatchesTransportCity(item, cityCtx); });
+            return filtered.length ? filtered : list;
+        };
+        const ports = filterByCity(allPorts);
+        const hotels = filterByCity(allHotels);
+        const restaurants = filterByCity(allRestaurants);
+        const attractions = filterByCity(allAttractions);
 
         // Helper to build port options
         const buildPortOptions = () => {
@@ -14395,6 +14487,9 @@
         // Reset selects to default value
         pickupSelect.value = '';
         dropoffSelect.value = '';
+
+        // Select2 caches options on init; refresh after innerHTML changes (live server timing can init before this runs)
+        refreshTransportModalZoneSelects();
     }
     
     function loadZonesForPickup() {
@@ -23174,65 +23269,124 @@
         }, window.hasNegotiationHistory);
     }
     
+    // City mode helpers (used by modals + tour header)
+    function normalizeCityText(s) {
+        return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
+    }
+
+    function getCurrentCityMode() {
+        const el = document.querySelector('input[name="city_type"]:checked');
+        if (el && el.value) return el.value;
+        const hidden = document.querySelector('input[type="hidden"][name="city_type"]');
+        return hidden && hidden.value ? hidden.value : 'single';
+    }
+
+    function getActiveSegmentCityValue() {
+        try {
+            const bundle = document.getElementById('segmentServicesBundle');
+            const seg = bundle ? bundle.closest('.segment') : null;
+            const citySel = seg ? seg.querySelector('.city-select') : null;
+            return citySel && citySel.value ? citySel.value : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function getSingleCityValue() {
+        const sc = document.getElementById('single_city');
+        if (sc && sc.value) return sc.value;
+        const hidden = document.getElementById('city');
+        return hidden && hidden.value ? normalizeCityText(hidden.value.split(',')[0] || '') : '';
+    }
+
+    function getCityForModalAutoFill() {
+        const mode = getCurrentCityMode();
+        if (mode === 'multi') {
+            const active = getActiveSegmentCityValue();
+            if (active) return active;
+        }
+        return getSingleCityValue();
+    }
+
+    function setSelectToCity(selectEl, cityValue) {
+        if (!selectEl || !cityValue) return false;
+        const desired = normalizeCityText(cityValue);
+        const opts = Array.from(selectEl.options || []);
+        const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
+        const match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        if (!match) return false;
+
+        const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
+        if ($sel && $sel.length && $sel.data('select2')) {
+            $sel.val(match.value).trigger('change');
+        } else {
+            selectEl.value = match.value;
+            try {
+                selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch (e) { /* ignore */ }
+        }
+        return true;
+    }
+
+    function lockModalCitySelectIfSingle(selectEl) {
+        if (!selectEl || getCurrentCityMode() !== 'single') return;
+        selectEl.disabled = true;
+        const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
+        if ($sel && $sel.length && $sel.data('select2')) {
+            $sel.prop('disabled', true).trigger('change.select2');
+        }
+    }
+
+    window.applyModalCityAutoFill = function(modalEl) {
+        const modal = modalEl || null;
+        if (!modal) return;
+
+        const city = getCityForModalAutoFill();
+        if (!city) return;
+
+        const selectIds = [
+            'modal_city_select',
+            'modal_guide_city_select',
+            'modal_restaurant_city_select',
+            'modal_attraction_city_select',
+            'modal_entryport_transport_city',
+            'modal_local_transfer_city',
+            'modal_exitport_transport_city'
+        ];
+
+        selectIds.forEach(function(id) {
+            const sel = modal.querySelector('#' + id);
+            if (!sel) return;
+            setSelectToCity(sel, city);
+            lockModalCitySelectIfSingle(sel);
+        });
+
+        const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
+        hiddenIds.forEach(function(id) {
+            const h = modal.querySelector('#' + id);
+            if (h) h.value = city;
+        });
+
+        if (modal.querySelector('#modal_transport_pickup_zone') && typeof configureTransportPickupAndDropoffForType === 'function') {
+            configureTransportPickupAndDropoffForType();
+        }
+    };
+
+    window.lockSingleCityFieldIfNeeded = function() {
+        if (getCurrentCityMode() !== 'single') return;
+        const sc = document.getElementById('single_city');
+        if (!sc) return;
+        sc.disabled = true;
+        const $sc = (typeof jQuery !== 'undefined') ? jQuery(sc) : null;
+        if ($sc && $sc.length && $sc.data('select2')) {
+            $sc.prop('disabled', true).trigger('change.select2');
+        }
+    };
+
     // Initialize page functionality
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Edit page initialized');
-        
-        function normalizeCityText(s) {
-            return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
-        }
-
-        function getCurrentCityMode() {
-            const el = document.querySelector('input[name="city_type"]:checked');
-            return el && el.value ? el.value : 'single';
-        }
-
-        function getActiveSegmentCityValue() {
-            try {
-                const bundle = document.getElementById('segmentServicesBundle');
-                const seg = bundle ? bundle.closest('.segment') : null;
-                const citySel = seg ? seg.querySelector('.city-select') : null;
-                return citySel && citySel.value ? citySel.value : '';
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function getSingleCityValue() {
-            const sc = document.getElementById('single_city');
-            if (sc && sc.value) return sc.value;
-            const hidden = document.getElementById('city');
-            return hidden && hidden.value ? normalizeCityText(hidden.value.split(',')[0] || '') : '';
-        }
-
-        function getCityForModalAutoFill() {
-            const mode = getCurrentCityMode();
-            if (mode === 'multi') {
-                const active = getActiveSegmentCityValue();
-                if (active) return active;
-            }
-            return getSingleCityValue();
-        }
-
-        function setSelectToCity(selectEl, cityValue) {
-            if (!selectEl || !cityValue) return false;
-            const desired = normalizeCityText(cityValue);
-            const opts = Array.from(selectEl.options || []);
-            const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-            if (exact) {
-                selectEl.value = exact.value;
-                return true;
-            }
-            // fallback: prefix match
-            const pref = opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
-            if (pref) {
-                selectEl.value = pref.value;
-                return true;
-            }
-            return false;
-        }
-
-        // Check if Bootstrap is properly loaded
+        window.lockSingleCityFieldIfNeeded();
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap JS is not loaded properly!');
         } else {
@@ -23249,43 +23403,6 @@
             }
         });
 
-        // Auto-populate City in "Add More" modals (single-city or active multi-city stay)
-        document.addEventListener('shown.bs.modal', function (e) {
-            const modal = e && e.target ? e.target : null;
-            if (!modal) return;
-
-            const city = getCityForModalAutoFill();
-            if (!city) return;
-
-            const selectIds = [
-                'modal_city_select',                 // Hotel modal
-                'modal_guide_city_select',           // Guide modal
-                'modal_restaurant_city_select',      // Restaurant modal
-                'modal_attraction_city_select',      // Attraction modal
-                'modal_entryport_transport_city',    // Arrival transport modal
-                'modal_local_transfer_city',         // Local transfer modal
-                'modal_exitport_transport_city'      // Departure transport modal
-            ];
-
-            selectIds.forEach(function (id) {
-                const sel = modal.querySelector('#' + id);
-                if (!sel) return;
-                const changed = setSelectToCity(sel, city);
-                if (changed) {
-                    try {
-                        sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    } catch (e) { /* ignore */ }
-                }
-            });
-
-            // Keep hidden city inputs in sync (some modals use hidden fields too)
-            const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
-            hiddenIds.forEach(function (id) {
-                const h = modal.querySelector('#' + id);
-                if (h) h.value = city;
-            });
-        });
-        
         // Add passenger validation for local transfer
         const passengersInput = document.getElementById('local_transfer_passengers');
         if (passengersInput) {

@@ -1851,10 +1851,38 @@
                 <button class="btn btn-success btn-sm" onclick="saveEnquiryData()">
                     <i class="ri-save-line me-1"></i>{{ $isEditMode ? 'Update Enquiry' : 'Create Enquiry' }}
                 </button>
-                <button class="btn btn-danger btn-sm">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" id="enquiryProCancelBtn" onclick="cancelEnquiryProEdit()">Cancel</button>
             </div>
         </div>
     </div>
+
+    <script>
+        window.ENQUIRY_PRO_CANCEL_FALLBACK_URL = @json(route('bookings.new-enquiries'));
+
+        function cancelEnquiryProEdit() {
+            const fallback = window.ENQUIRY_PRO_CANCEL_FALLBACK_URL || '/';
+            const current = window.location.href.split('#')[0];
+            let referrer = '';
+
+            try {
+                referrer = (document.referrer || '').split('#')[0];
+            } catch (e) {
+                referrer = '';
+            }
+
+            if (referrer && referrer !== current) {
+                window.location.assign(referrer);
+                return;
+            }
+
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+
+            window.location.assign(fallback);
+        }
+    </script>
 
 </div>
 
