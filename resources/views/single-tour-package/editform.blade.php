@@ -6495,9 +6495,7 @@
                                         <select class="form-select modern-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
                                             <option value="">Select City</option>
                                             @foreach($cities as $city)
-                                                @if($city->country == $tour->destination)
-                                                    <option value="{{ $city->name }}">{{ $city->name }}</option>
-                                                @endif
+                                                <option value="{{ $city->name }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                             @endforeach
                                         </select>
                                         <small class="text-muted d-block text-start" style="font-size: 0.65rem;"><span id="hotel_count">0</span> in <span id="modal_city_display2">—</span></small>
@@ -23313,18 +23311,34 @@
         const desired = normalizeCityText(cityValue);
         const opts = Array.from(selectEl.options || []);
         const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-        const match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
-        if (!match) return false;
+        let match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        if (!match) {
+            // City not in the rendered option list (e.g. server filtered them out) — inject it so
+            // auto-fill still works instead of silently leaving the field empty.
+            match = document.createElement('option');
+            match.value = cityValue;
+            match.textContent = cityValue;
+            selectEl.appendChild(match);
+        }
+
+        // If the select was locked (disabled) on a previous open, a disabled Select2 ignores
+        // programmatic value changes and won't fire 'change' — so temporarily re-enable it while
+        // we set the value (the caller re-locks it afterwards). This fixes the city being empty
+        // on the 2nd+ time a modal is opened in single-city mode.
+        const wasDisabled = selectEl.disabled;
+        if (wasDisabled) selectEl.disabled = false;
 
         const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
+        selectEl.value = match.value;
         if ($sel && $sel.length && $sel.data('select2')) {
             $sel.val(match.value).trigger('change');
         } else {
-            selectEl.value = match.value;
             try {
                 selectEl.dispatchEvent(new Event('change', { bubbles: true }));
             } catch (e) { /* ignore */ }
         }
+
+        if (wasDisabled) selectEl.disabled = true;
         return true;
     }
 
