@@ -108,3 +108,5 @@ echo "🔒 HTTPS configuration applied to fix mixed content issues"
 echo "📁 Storage permissions: $(ls -la /home/site/wwwroot/backadm-dmc/storage | head -5)"
 echo "🔍 Debug URL: https://uat.travclicks.com/laravel-debug.php"
 
+
+

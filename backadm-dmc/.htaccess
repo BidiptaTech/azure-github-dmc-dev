@@ -1,31 +1,20 @@
-# Apache Configuration for Large File Uploads
-# Add these directives to your .htaccess file
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
 
-# Increase PHP limits via Apache (increased for multiple images)
-php_value post_max_size 120M
-php_value upload_max_filesize 25M
-php_value max_file_uploads 20
-php_value max_execution_time 300
-php_value max_input_time 300
-php_value memory_limit 512M
-php_value max_input_vars 3000
+  # ========================
+  # Laravel Backend Routing
+  # ========================
+  # Redirect /backadm-dmc to Laravel public directory
+  RewriteRule ^backadm-dmc/?(.*)$ backadm-dmc/public/$1 [L,QSA]
 
-# Additional PHP settings for better upload handling
-php_value output_buffering Off
-php_value max_input_nesting_level 128
-php_value auto_prepend_file none
-php_value auto_append_file none
+  # ========================
+  # React Frontend Routing
+  # ========================
+  # Ignore existing files and directories
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
 
-# Apache specific settings
-LimitRequestBody 125829120  # 120MB in bytes
-LimitRequestFields 1000
-LimitRequestFieldSize 8190
-
-# Enable compression for better performance
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json
+  # Redirect all other requests to index.html
+  RewriteRule . /index.html [L]
 </IfModule>
-
-# Increase timeout values
-TimeOut 300
-KeepAliveTimeout 300 
