@@ -19,34 +19,35 @@
 <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;ampdisplay=swap" rel="stylesheet">
 
+@php $assetBase = rtrim(config('app.url'), '/'); @endphp
 <!-- Icons -->
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/fonts/remixicon/remixicon.css' }}" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/fonts/flag-icons.css' }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/fonts/remixicon/remixicon.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/fonts/flag-icons.css" />
 <!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
 <!-- Menu waves for no-customizer fix -->
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/node-waves/node-waves.css' }}" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/fonts/remixicon/remixicon.css' }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/node-waves/node-waves.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/fonts/remixicon/remixicon.css" />
 <!-- Core CSS -->
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/rtl/core.css' }}" class="template-customizer-core-css" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/rtl/theme-bordered.css' }}" class="template-customizer-theme-css" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/css/demo.css' }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/css/rtl/core.css" class="template-customizer-core-css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/css/rtl/theme-bordered.css" class="template-customizer-theme-css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/css/demo.css" />
 <!-- Custom local styles -->
-<link rel="stylesheet" href="{{ asset('css/style.css') }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/css/style.css" />
 
 <!-- Vendors CSS -->
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' }}" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/typeahead-js/typeahead.css' }}" /> 
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/apex-charts/apex-charts.css' }}" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/swiper/swiper.css' }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/typeahead-js/typeahead.css" /> 
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/apex-charts/apex-charts.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/swiper/swiper.css" />
 
 <!-- Page CSS -->
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/pages/cards-statistics.css' }}" />
-<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/css/pages/cards-analytics.css' }}" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/css/pages/cards-statistics.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/css/pages/cards-analytics.css" />
 
 <!-- Helpers -->
-<script src="{{ env('APP_URL') . '/assets/vendor/js/helpers.js' }}"></script>
-<script src="{{ env('APP_URL') . '/assets/vendor/js/template-customizer.js' }}"></script>
-<script src="{{ env('APP_URL') . '/assets/js/config.js' }}"></script>
+<script src="{{ $assetBase }}/assets/vendor/js/helpers.js"></script>
+<script src="{{ $assetBase }}/assets/vendor/js/template-customizer.js"></script>
+<script src="{{ $assetBase }}/assets/js/config.js"></script>
 
