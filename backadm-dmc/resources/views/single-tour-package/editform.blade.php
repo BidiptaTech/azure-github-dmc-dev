@@ -1,4 +1,10 @@
 @extends('layouts.layout')
+{{-- jQuery loaded early: several inline scripts in this page's body call $(document).ready() while the
+     body is still parsing (before the footer loads jQuery). Without this, tours whose data renders those
+     inline blocks throw "Uncaught ReferenceError: $ is not defined", which breaks page initialization on
+     servers/tours where those rows exist. asset() is used so the local fallback survives config:cache. --}}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>window.jQuery || document.write('<script src="{{ asset('assets/vendor/libs/jquery/jquery.js') }}"><\/script>');</script>
 <!-- SweetAlert2 for remove service confirmation -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
