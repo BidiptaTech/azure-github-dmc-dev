@@ -1131,17 +1131,8 @@ class SingleTourPackageController extends Controller
         $userDmcId = CommonHelper::getDmcId(Auth::user());
         $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
 
-        if ($userDmcId) {
-            $hotels = Hotel::with(['rooms.bed'])
-                ->where('country', $tour->destination)
-                ->whereJsonContains('dmc_id', (int) $userDmcId)
-                ->get();
-        } else {
-            $hotels = collect();
-        }
-
         // The tour's `destination` field can hold a CITY name (e.g. "Batam"), not a country.
-        // Attractions store the city in `location`; restaurants/guides store it in `city`. Filtering these
+        // Hotels/restaurants/guides store the city in `city`; attractions in `location`. Filtering these
         // only by `country = destination` wrongly returns empty when destination is actually a city.
         // Build the set of city values for this tour (from tour->city, plus destination) so we can match
         // on the correct city column, while still keeping `country = destination` as a fallback.
@@ -1155,6 +1146,32 @@ class SingleTourPackageController extends Controller
             $cityMatchValues[] = trim((string) $tour->destination);
         }
         $cityMatchValues = array_values(array_unique(array_filter($cityMatchValues)));
+
+        // Resolve the real country for the tour: if `destination` is actually a city, look up its country.
+        // Used for ports (ports are scoped by country) so a city-valued destination doesn't return empty.
+        $portsCountry = $tour->destination;
+        if (!empty($tour->destination)) {
+            $destinationCity = City::where('name', $tour->destination)->first();
+            if ($destinationCity && !empty($destinationCity->country)) {
+                $portsCountry = $destinationCity->country;
+            }
+        }
+
+        if ($userDmcId) {
+            $hotels = Hotel::with(['rooms.bed'])
+                ->whereJsonContains('dmc_id', (int) $userDmcId)
+                ->where(function ($q) use ($cityMatchValues, $tour) {
+                    if (!empty($cityMatchValues)) {
+                        $q->whereIn('city', $cityMatchValues);
+                    }
+                    if (!empty($tour->destination)) {
+                        $q->orWhere('country', $tour->destination);
+                    }
+                })
+                ->get();
+        } else {
+            $hotels = collect();
+        }
 
         // Load guides filtered by DMC, matching the tour's city (or country as fallback)
         $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
@@ -1201,11 +1218,11 @@ class SingleTourPackageController extends Controller
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $cities = City::where('country', $tour->destination)->get();
+        $cities = City::where('country', $portsCountry)->get();
         if ($cities->isEmpty()) {
             $cities = City::orderBy('name')->get();
         }
-        $ports = $this->getPortsForDmc($tour->destination ?: null);
+        $ports = $this->getPortsForDmc($portsCountry ?: null);
 
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
