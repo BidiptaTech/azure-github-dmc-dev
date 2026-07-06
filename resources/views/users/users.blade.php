@@ -193,7 +193,7 @@
                   <div class="settings-header-grid fw-bold text-uppercase">
                     <span>Zone On</span>
                     <span>Price Hide</span>
-                    {{-- <span>Email On</span> --}}
+                    <span>Email On</span>
                     {{-- <span>Auto Cancel Status</span> --}}
                     <span>Auto Cancel</span>
                     {{-- <span>Guide Pax</span> --}}
@@ -314,7 +314,7 @@
                                     style="width: 25px; height: 15px;">
                             </div>
                         </div>
-                        {{-- <div class="settings-col">
+                        <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="email_on" value="0">
                                 <input {{$user->email_on == 1 ? 'checked' : ''}} 
@@ -325,7 +325,7 @@
                                     value="1" 
                                     style="width: 25px; height: 15px;">
                             </div>
-                        </div> --}}
+                        </div>  
                         {{-- <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="auto_cancel_on" value="0">
