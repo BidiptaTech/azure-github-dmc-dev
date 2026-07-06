@@ -186,7 +186,10 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Guide
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Guide
+                    <x-currency-price-note />
+                </span>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
