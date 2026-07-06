@@ -366,6 +366,16 @@
                     </div>
                 @endif
                
+                <!-- Currency (read-only, auto-filled from selected country) - only for DMC role -->
+                <div class="row" id="currency_container" style="display: none;">
+                    <div class="col-md-3 mb-3">
+                        <label for="currency" class="form-label"><strong>Currency</strong></label>
+                        <input type="text" class="form-control" id="currency" name="currency"
+                            value="{{ old('currency') }}" placeholder="Select a country first" readonly
+                            style="background-color: #f8f9fa;">
+                        <small class="text-muted">Auto-filled from the selected country</small>
+                    </div>
+                </div>
 
                 <!-- All -->
                 <div class="row">
@@ -539,6 +549,7 @@
     var inputSalespersonContainerAdmin = document.getElementById('inputSalespersonContainerAdmin');
     var markuptypes = document.getElementById('markuptypes');
     var mastercountryContainer = document.getElementById('mastercountryContainer');
+    var currency_container = document.getElementById('currency_container');
 
     function resetHiddenFieldValues() {
         document.querySelectorAll(
@@ -570,6 +581,7 @@
         if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'none';
         if (markuptypes) markuptypes.style.display = 'none';
         if (mastercountryContainer) mastercountryContainer.style.display = 'none';
+        if (currency_container) currency_container.style.display = 'none';
 
         resetHiddenFieldValues(); // Reset input fields
         if (user_code_container) user_code_container.style.display = 'block';
@@ -590,6 +602,7 @@
             if (company_name) company_name.style.display = 'block';
             if (company_reg_no_container) company_reg_no_container.style.display = 'block';
             if (licence_no_container) licence_no_container.style.display = 'block';
+            if (currency_container) currency_container.style.display = 'flex';
         } else if (userRole === 4) {
             if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {
@@ -1102,6 +1115,57 @@
                 $('#city').html('<option selected disabled value>Select country first...</option>').trigger('change');
             }
         });
+
+        // ----- Currency auto-fill based on the selected (assigned) country -----
+        // Note: currency depends on the "Country Name" field(s), NOT on "User Country".
+        function fetchCurrencyForCountry(country) {
+            if (!country) {
+                $('#currency').val('');
+                return;
+            }
+            $.ajax({
+                url: "{{ route('get.currency.by.country') }}",
+                type: "GET",
+                data: { country: country },
+                dataType: 'json',
+                success: function(response) {
+                    $('#currency').val(response.currency || '');
+                },
+                error: function() {
+                    $('#currency').val('');
+                }
+            });
+        }
+
+        // Single "Country Name" select (DMC / role-based single country)
+        $(document).on('change', 'select[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Multiple "Country Names" select (Master DMC): use the first selected country
+        $(document).on('change', 'select[name="country_names[]"]', function() {
+            var values = $(this).val();
+            fetchCurrencyForCountry(values && values.length ? values[0] : '');
+        });
+
+        // Read-only "Country Name" text input (role 28, prefilled with auth user's country)
+        $(document).on('change', 'input[name="country_name"]', function() {
+            fetchCurrencyForCountry($(this).val());
+        });
+
+        // Populate currency on load if a country is already set/preselected.
+        (function initCurrency() {
+            var single = $('select[name="country_name"]:visible').val();
+            var multi = $('select[name="country_names[]"]:visible').val();
+            var readonlyCountry = $('input[name="country_name"]').val();
+            var initialCountry = single
+                || (multi && multi.length ? multi[0] : '')
+                || readonlyCountry
+                || '';
+            if (initialCountry) {
+                fetchCurrencyForCountry(initialCountry);
+            }
+        })();
     });
 </script>
 <script>
