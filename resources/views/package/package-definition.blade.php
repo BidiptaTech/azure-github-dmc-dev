@@ -11,9 +11,12 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h4 class="fw-bold mb-1">
-                    <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
-                </h4>
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                    <h4 class="fw-bold mb-0">
+                        <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
+                    </h4>
+                    <x-currency-price-note />
+                </div>
                 <p class="text-muted mb-0">
                     {{ $isEdit ? 'Update package definition services and pricing' : 'Define package services without day-wise itinerary' }}
                 </p>

@@ -340,9 +340,13 @@
                               data-bs-title="Note: Vice-versa prices will be the same (Zone A → Zone B = Zone B → Zone A).">
                             <i class="fas fa-info-circle"></i>
                         </span>
+                        <x-currency-price-note />
                     </span>
                 @else
-                    Edit Vehicle Details
+                    <span class="d-flex align-items-center flex-wrap gap-2">
+                        Edit Vehicle Details
+                        <x-currency-price-note />
+                    </span>
                 @endif
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back

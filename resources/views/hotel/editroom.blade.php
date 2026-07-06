@@ -11,7 +11,10 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Edit Room Category
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Edit Room Category
+                    <x-currency-price-note />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>

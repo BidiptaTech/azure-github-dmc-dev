@@ -30,7 +30,10 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-header">
-                            <h4 class="card-title mb-0">Create New Ticket</h4>
+                            <div class="d-flex align-items-center flex-wrap gap-2">
+                                <h4 class="card-title mb-0">Create New Ticket</h4>
+                                <x-currency-price-note />
+                            </div>
                         </div>
                         <div class="card-body">
                             <form action="{{ route('tickets.store') }}" method="POST">
