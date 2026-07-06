@@ -1092,28 +1092,6 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
-                            <!-- Offline / Online hotel source (UI paused — radios kept for JS) -->
-                            <div class="col-12 mb-3 d-none">
-                                <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
-                                    <i class="ri-toggle-line me-1"></i>Hotel Source
-                                </label>
-                                <div class="d-flex flex-wrap gap-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOffline" value="offline" checked>
-                                        <label class="form-check-label" for="hotelSourceOffline" style="font-size: 0.85rem;">
-                                            <i class="ri-database-2-line me-1"></i> Offline Hotels
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOnline" value="online">
-                                        <label class="form-check-label" for="hotelSourceOnline" style="font-size: 0.85rem;">
-                                            <i class="ri-global-line me-1"></i> Online Hotels
-                                        </label>
-                                    </div>
-                                </div>
-                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC hotel inventory. Online opens a live API search popup.</small>
-                            </div>
-
                             <div id="offlineHotelPanel">
                             <!-- Hotel Selection Controls -->
                             <!-- Row 1: City, Select Hotel, Room Type, Bed Type -->
@@ -2871,11 +2849,7 @@
                                     }
                                     return !!(hotel.supplement_breakfast_included);
                                 })(),
-                                breakfast_included_room: hotel.breakfast_included_room ? 1 : 0,
-
-                                isOnlineHotel: hotel.isOnlineHotel === true,
-                                hotelSourceType: hotel.isOnlineHotel ? 'online' : 'offline',
-                                onlineHotelSource: hotel.onlineHotelSource || null
+                                breakfast_included_room: hotel.breakfast_included_room ? 1 : 0
                             };
                         });
                         
@@ -3142,12 +3116,6 @@
                                         
                                         // Remarks
                                         remarks: document.getElementById(`day${day}_attraction_${index}_remarks`)?.value || '',
-
-                                        isOnlineAttraction: selectedOption?.dataset?.isOnline === '1' ||
-                                            document.querySelector(`#day${day}_attractions_container .attraction-item[data-attraction-index="${index}"]`)?.dataset?.isOnlineAttraction === '1',
-                                        attractionSourceType: (selectedOption?.dataset?.isOnline === '1' ||
-                                            document.querySelector(`#day${day}_attractions_container .attraction-item[data-attraction-index="${index}"]`)?.dataset?.isOnlineAttraction === '1') ? 'online' : 'offline',
-                                        onlineAttractionSource: selectedOption?.dataset?.isOnline === '1' ? 'sg_attractions' : null,
                                         
                                         // supplement: true if checkbox checked OR if service adults < tour adults (stored as supplement in DB)
                                         supplement: (() => {
@@ -6429,8 +6397,6 @@
         </div>
     </div>
 </div>
-@include('single-tour-package.partials.online-hotel-modal')
-@include('single-tour-package.partials.online-attraction-modal')
 @endsection
 
 @section('scripts')
@@ -17648,21 +17614,6 @@
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
-                                    <div class="mb-3 attraction-slot-source-block d-none">
-                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #1</label>
-                                        <div class="d-flex flex-wrap gap-4">
-                                            <div class="form-check">
-                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOffline_day${day}_slot1" value="offline" data-day="${day}" data-index="1" checked>
-                                                <label class="form-check-label" for="attractionSourceOffline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-database-2-line me-1"></i> Offline Attractions</label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOnline_day${day}_slot1" value="online" data-day="${day}" data-index="1">
-                                                <label class="form-check-label" for="attractionSourceOnline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-global-line me-1"></i> Online Attractions</label>
-                                            </div>
-                                        </div>
-                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses DMC inventory. Online opens live API search for this slot.</small>
-                                    </div>
-                                    <div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day${day}_attraction_1_online_hint" style="font-size: 0.8rem;"><i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.</div>
                                     <div class="attraction-slot-offline-panel" id="day${day}_attraction_1_offline_panel">
                                     
                                     ${hasEnquiryLayout ? `
@@ -20126,9 +20077,6 @@
             const container = document.getElementById(`day${day}_attractions_container`);
             const existingAttractions = container.querySelectorAll('.attraction-item');
             const newIndex = existingAttractions.length + 1;
-            const slotSourceHtml = (typeof window.buildAttractionSlotSourceToggleHtml === 'function')
-                ? window.buildAttractionSlotSourceToggleHtml(day, newIndex)
-                : '';
             
             const newAttractionHTML = `
                 <div class="card border shadow-sm attraction-item mb-3" data-attraction-index="${newIndex}">
@@ -20149,7 +20097,6 @@
                         </div>
                     </div>
                     <div class="card-body bg-white">
-                        ${slotSourceHtml}
                         <div class="row g-3">
                             <div class="col-md-2">
                                 <label class="form-label fw-semibold">
@@ -26514,6 +26461,51 @@
             });
     }
 
+    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
+    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    window.loadEntryPickupPortsForCity = function(cityName) {
+        const pickupSelect = document.getElementById('entry_pickup_port_select');
+        if (!pickupSelect) return;
+
+        if (!cityName) {
+            pickupSelect.innerHTML = '<option value="">Select city first</option>';
+            return;
+        }
+
+        // Send country too when we can (harmless), but city is what matters.
+        const countrySelect = document.getElementById('user_country');
+        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
+        if (!country && countrySelect && countrySelect.value) {
+            const opt = countrySelect.options[countrySelect.selectedIndex];
+            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
+        }
+
+        pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
+        $.ajax({
+            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            type: "GET",
+            data: { country_id: country, city: cityName },
+            dataType: 'json'
+        }).done(function(response) {
+            const ports = (response && response.ports) ? response.ports : [];
+            pickupSelect.innerHTML = ports.length
+                ? '<option value="">Select pickup port</option>'
+                : '<option value="">No ports for this city</option>';
+            ports.forEach(function(port) {
+                const option = document.createElement('option');
+                option.value = port.port_id;
+                option.textContent = port.port_name;
+                pickupSelect.appendChild(option);
+            });
+            if (typeof jQuery !== 'undefined' && jQuery(pickupSelect).data('select2')) {
+                jQuery(pickupSelect).select2('destroy');
+                jQuery(pickupSelect).select2({ placeholder: 'Select pickup port', allowClear: true, width: '100%' });
+            }
+        }).fail(function() {
+            pickupSelect.innerHTML = '<option value="">Error loading ports</option>';
+        });
+    };
+
     // Function to load attractions, hotels and restaurants when city is selected
     function loadPortsForCity(cityName) {
         console.log('Loading locations for city:', cityName);
@@ -26529,6 +26521,9 @@
             }
             console.log('Pickup port select reset');
         }
+
+        // Populate pickup ports for the selected city (auto-selected or manual).
+        window.loadEntryPickupPortsForCity(cityName);
         
         if (!cityName) {
             console.log('No city selected, clearing dropoff options');
@@ -26561,19 +26556,21 @@
         Promise.all([
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
         ])
-        .then(([hotelsData, attractionsData, restaurantsData]) => {
+        .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
             console.log('Hotels:', hotelsData);
             console.log('Attractions:', attractionsData);
             console.log('Restaurants:', restaurantsData);
+            console.log('Ports:', portsData);
             
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first (use filtered ports from country selection if available, otherwise use static ports)
-            const ports = window.filteredPortsData || @json($ports ?? []);
+            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
                 portGroup.label = 'Ports';
@@ -26710,13 +26707,37 @@
         Promise.all([
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
         ])
-        .then(([hotelsData, attractionsData, restaurantsData]) => {
+        .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
             console.log('Hotels:', hotelsData);
             console.log('Attractions:', attractionsData);
             console.log('Restaurants:', restaurantsData);
+            console.log('Ports:', portsData);
+
+            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
+            if (exitDropoffSelect) {
+                const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
+                exitDropoffSelect.innerHTML = exitPorts.length
+                    ? '<option value="">Select dropoff port</option>'
+                    : '<option value="">No ports for this city</option>';
+                exitPorts.forEach(function(port) {
+                    const option = document.createElement('option');
+                    option.value = port.port_id;
+                    option.textContent = port.port_name;
+                    option.dataset.type = 'port';
+                    option.dataset.portId = port.port_id;
+                    exitDropoffSelect.appendChild(option);
+                });
+                if (typeof jQuery !== 'undefined' && jQuery(exitDropoffSelect).data('select2')) {
+                    jQuery(exitDropoffSelect).select2('destroy');
+                    jQuery(exitDropoffSelect).select2({ placeholder: 'Select dropoff port', allowClear: true, width: '100%' });
+                }
+                console.log(`Added ${exitPorts.length} ports to exit dropoff`);
+            }
             
             // Clear the dropdown
             pickupSelect.innerHTML = '<option value="">Select pickup location</option>';
@@ -27100,12 +27121,10 @@
                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
-            // Dropoff field (ports - where customer needs to go)
-            const ports = @json($ports ?? []);
+            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
             dropoffContainer.innerHTML = `
                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;" id="exit_dropoff_port_select">
-                    <option value="">Select dropoff port</option>
-                    ${ports.map(port => `<option value="${port.port_id}">${port.port_name}</option>`).join('')}
+                    <option value="">Select city first</option>
                 </select>
                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
@@ -34793,10 +34812,6 @@
         </div>
     </div>
 </div>
-@endsection 
-
-
-
-
+@endsection
 
 

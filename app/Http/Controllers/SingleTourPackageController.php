@@ -1131,50 +1131,98 @@ class SingleTourPackageController extends Controller
         $userDmcId = CommonHelper::getDmcId(Auth::user());
         $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
 
+        // The tour's `destination` field can hold a CITY name (e.g. "Batam"), not a country.
+        // Hotels/restaurants/guides store the city in `city`; attractions in `location`. Filtering these
+        // only by `country = destination` wrongly returns empty when destination is actually a city.
+        // Build the set of city values for this tour (from tour->city, plus destination) so we can match
+        // on the correct city column, while still keeping `country = destination` as a fallback.
+        $tourCityNames = collect(explode(',', (string) ($tour->city ?? '')))
+            ->map(fn ($c) => trim(preg_replace('/\s*\([^)]*\)\s*$/', '', (string) $c)))
+            ->filter()
+            ->values()
+            ->all();
+        $cityMatchValues = $tourCityNames;
+        if (!empty($tour->destination)) {
+            $cityMatchValues[] = trim((string) $tour->destination);
+        }
+        $cityMatchValues = array_values(array_unique(array_filter($cityMatchValues)));
+
+        // Resolve the real country for the tour: if `destination` is actually a city, look up its country.
+        // Used for ports (ports are scoped by country) so a city-valued destination doesn't return empty.
+        $portsCountry = $tour->destination;
+        if (!empty($tour->destination)) {
+            $destinationCity = City::where('name', $tour->destination)->first();
+            if ($destinationCity && !empty($destinationCity->country)) {
+                $portsCountry = $destinationCity->country;
+            }
+        }
+
         if ($userDmcId) {
             $hotels = Hotel::with(['rooms.bed'])
-                ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int) $userDmcId)
+                ->where(function ($q) use ($cityMatchValues, $tour) {
+                    if (!empty($cityMatchValues)) {
+                        $q->whereIn('city', $cityMatchValues);
+                    }
+                    if (!empty($tour->destination)) {
+                        $q->orWhere('country', $tour->destination);
+                    }
+                })
                 ->get();
         } else {
             $hotels = collect();
         }
 
-        // Load guides filtered by DMC and country (tour destination)
+        // Load guides filtered by DMC, matching the tour's city (or country as fallback)
         $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $guidesQuery->where('country', $tour->destination);
-        }
+        $guidesQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $guides = $guidesQuery->get();
 
-        // Load restaurants filtered by DMC and country (tour destination)
+        // Load restaurants filtered by DMC, matching the tour's city (or country as fallback)
         $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $restaurantsQuery->where('country', $tour->destination);
-        }
+        $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $restaurants = $restaurantsQuery->get();
 
-        // Load attractions filtered by DMC and country (tour destination)
+        // Load attractions filtered by DMC, matching the tour's city (attractions use `location`) or country
         $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $attractionsQuery->where('country', $tour->destination);
-        }
+        $attractionsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('location', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $attractions = $attractionsQuery->get();
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $cities = City::where('country', $tour->destination)->get();
+        $cities = City::where('country', $portsCountry)->get();
         if ($cities->isEmpty()) {
             $cities = City::orderBy('name')->get();
         }
-        $ports = $this->getPortsForDmc($tour->destination ?: null);
+        $ports = $this->getPortsForDmc($portsCountry ?: null);
 
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
@@ -1482,22 +1530,39 @@ class SingleTourPackageController extends Controller
     public function fetchPortsByCountry(Request $request) 
     {
         $countryId = $request->input('country_id');
-        
-        if (!$countryId) {
-            return response()->json(['ports' => []]);
-        }
-        
-        $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
-        if (!$country) {
-            return response()->json(['ports' => []]);
+        $cityName = $request->input('city');
+
+        // A city is enough on its own: it determines both cities.city_id (for ports.city_id)
+        // and its own country, so the country field is optional on city-driven pages.
+        $cityId = null;
+        $portsCountryName = null;
+        if (!empty($cityName)) {
+            $cityRow = City::where('name', $cityName)->first(['city_id', 'country']);
+            if ($cityRow) {
+                $cityId = $cityRow->city_id;
+                $portsCountryName = $cityRow->country ?: null;
+            }
         }
 
-        $ports = $this->getPortsForDmc($country->name)
+        // Fall back to the country field when no city was supplied (original behaviour).
+        if ($portsCountryName === null) {
+            if (!$countryId) {
+                return response()->json(['ports' => []]);
+            }
+            $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
+            if (!$country) {
+                return response()->json(['ports' => []]);
+            }
+            $portsCountryName = $country->name;
+        }
+
+        $ports = $this->getPortsForDmc($portsCountryName, $cityId !== null ? (int) $cityId : null)
             ->map(fn ($port) => [
                 'id' => $port->id,
                 'port_id' => $port->port_id,
                 'port_name' => $port->port_name,
                 'country' => $port->country,
+                'city_id' => $port->city_id ?? null,
             ])
             ->values();
                  
@@ -1708,12 +1773,20 @@ class SingleTourPackageController extends Controller
     /**
      * Ports limited to DMC-accessible countries; optionally narrowed to one country.
      */
-    private function getPortsForDmc(?string $countryName = null)
+    private function getPortsForDmc(?string $countryName = null, ?int $cityId = null)
     {
         $query = Port::query();
 
         if (Schema::hasColumn('ports', 'status')) {
             $query->where('status', 1);
+        }
+
+        // Filter ports by city: ports.city_id = cities.city_id
+        // When a specific city is chosen, it already scopes the location (the city
+        // dropdown is DMC-restricted), so filter purely by city_id and skip the
+        // country narrowing that could exclude cross-border cities (e.g. Batam).
+        if ($cityId !== null) {
+            return $query->where('city_id', $cityId)->orderBy('port_name')->get();
         }
 
         $dmcCountries = $this->getDmcCountryNames();
@@ -1722,10 +1795,22 @@ class SingleTourPackageController extends Controller
         }
 
         if ($countryName) {
-            if (!empty($dmcCountries) && !in_array($countryName, $dmcCountries, true)) {
-                return collect();
+            if (!empty($dmcCountries)) {
+                $countryAllowed = false;
+                foreach ($dmcCountries as $dmcCountry) {
+                    if (strcasecmp((string) $dmcCountry, (string) $countryName) === 0) {
+                        $countryAllowed = true;
+                        break;
+                    }
+                }
+                if (!$countryAllowed) {
+                    return collect();
+                }
             }
-            $query->where('country', $countryName);
+            $query->where(function ($q) use ($countryName) {
+                $q->where('country', $countryName)
+                    ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $countryName)]);
+            });
         }
 
         return $query->orderBy('port_name')->get();
