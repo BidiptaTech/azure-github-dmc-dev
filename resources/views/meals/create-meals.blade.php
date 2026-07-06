@@ -38,7 +38,10 @@
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Meal
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Meal
+                    <x-currency-price-note />
+                </span>
                 <div class="d-flex gap-2">
                     {{-- @if(auth()->user()->role_id == '11')
                         <a href="{{ route('meals.bulk_upload_for_restaurant', $current_restaurant->restaurant_id) }}" 

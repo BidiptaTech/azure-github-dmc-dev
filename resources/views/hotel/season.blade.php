@@ -165,7 +165,10 @@
         @if($canManageHotelRates ?? true)
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-            Add Seasons
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add Seasons
+                    <x-currency-price-note />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
