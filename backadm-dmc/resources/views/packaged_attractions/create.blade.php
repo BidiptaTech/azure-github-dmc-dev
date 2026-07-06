@@ -197,7 +197,10 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Create Packaged Attraction
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Create Packaged Attraction
+                    <x-currency-price-note />
+                </span>
                 <a href="{{ route('packaged-attractions.index') }}" class="btn btn-sm btn-outline-light">
                     <i class="mdi mdi-arrow-left me-1"></i> Back
                 </a>

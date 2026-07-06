@@ -97,7 +97,10 @@
         @else
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Meal
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Meal
+                    <x-currency-price-note />
+                </span>
                 @if($userDMC)
                 <span class="badge bg-info">DMC: {{ $userDMC->company_name }}</span>
                 @endif
