@@ -85,7 +85,10 @@
 
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Vehicle
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Vehicle
+                    <x-currency-price-note />
+                </span>
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>

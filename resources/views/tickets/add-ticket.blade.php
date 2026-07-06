@@ -32,7 +32,10 @@
                     <div class="card">
                         <div class="card-header">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h4 class="card-title mb-0">Create New Ticket</h4>
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <h4 class="card-title mb-0">Create New Ticket</h4>
+                                    <x-currency-price-note />
+                                </div>
                                 {{-- @if(auth()->user()->role_id == '11')
                                     <a href="{{ route('tickets.bulk_upload_for_attraction', $attraction->attraction_id) }}" 
                                        class="btn btn-warning btn-sm">

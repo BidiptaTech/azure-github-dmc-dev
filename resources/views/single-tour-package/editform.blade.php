@@ -6495,9 +6495,7 @@
                                         <select class="form-select modern-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
                                             <option value="">Select City</option>
                                             @foreach($cities as $city)
-                                                @if($city->country == $tour->destination)
-                                                    <option value="{{ $city->name }}">{{ $city->name }}</option>
-                                                @endif
+                                                <option value="{{ $city->name }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                             @endforeach
                                         </select>
                                         <small class="text-muted d-block text-start" style="font-size: 0.65rem;"><span id="hotel_count">0</span> in <span id="modal_city_display2">—</span></small>
@@ -6588,12 +6586,12 @@
                                     <label class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Selected Nights</label>
                                     <div id="nights_list" class="d-flex flex-wrap gap-1"></div>
                                 </div>
-                                <div class="alert alert-info py-1 px-2 mt-1 mb-1 border-0 text-start" id="no_nights_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
+                                <!-- <div class="alert alert-info py-1 px-2 mt-1 mb-1 border-0 text-start" id="no_nights_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
                                     <i class="ri-information-line me-1"></i>Select check-in/out dates.
                                 </div>
                                 <div class="alert alert-info py-1 px-2 mb-1 border-0 text-start" id="no_hotels_alert" style="font-size: 0.65rem; background: #e3f2fd; color: #0277bd; border-radius: 4px;">
                                     <i class="ri-information-line me-1"></i>Select city & hotel.
-                                </div>
+                                </div> -->
                                 <div id="hotel_modal_price_grid" class="mt-2 rounded text-start" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.5rem 0.6rem; border-radius: 6px;">
                                     <label class="form-label fw-semibold mb-1 text-start d-block" style="color: #059669; font-size: 0.7rem;"><i class="ri-price-tag-3-line me-1"></i>Breakdown</label>
                                     <div id="hotel_modal_price_grid_content" style="color: #374151; font-size: 0.75rem; line-height: 1.4;"></div>
@@ -23313,18 +23311,34 @@
         const desired = normalizeCityText(cityValue);
         const opts = Array.from(selectEl.options || []);
         const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-        const match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
-        if (!match) return false;
+        let match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        if (!match) {
+            // City not in the rendered option list (e.g. server filtered them out) — inject it so
+            // auto-fill still works instead of silently leaving the field empty.
+            match = document.createElement('option');
+            match.value = cityValue;
+            match.textContent = cityValue;
+            selectEl.appendChild(match);
+        }
+
+        // If the select was locked (disabled) on a previous open, a disabled Select2 ignores
+        // programmatic value changes and won't fire 'change' — so temporarily re-enable it while
+        // we set the value (the caller re-locks it afterwards). This fixes the city being empty
+        // on the 2nd+ time a modal is opened in single-city mode.
+        const wasDisabled = selectEl.disabled;
+        if (wasDisabled) selectEl.disabled = false;
 
         const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
+        selectEl.value = match.value;
         if ($sel && $sel.length && $sel.data('select2')) {
             $sel.val(match.value).trigger('change');
         } else {
-            selectEl.value = match.value;
             try {
                 selectEl.dispatchEvent(new Event('change', { bubbles: true }));
             } catch (e) { /* ignore */ }
         }
+
+        if (wasDisabled) selectEl.disabled = true;
         return true;
     }
 
@@ -23494,12 +23508,17 @@
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
                 
-                // Create autocomplete instance
-                const autocomplete = new google.maps.places.Autocomplete(input, {
+                // Create autocomplete instance. Only restrict by country when a valid ISO code exists,
+                // otherwise Google throws InvalidValueError and no suggestions appear.
+                const autocompleteOptions = {
                     types: ['establishment', 'geocode'],
-                    componentRestrictions: { country: getCountryCode(selectedCountry) },
                     fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                });
+                };
+                const countryCode = getCountryCode(selectedCountry);
+                if (countryCode) {
+                    autocompleteOptions.componentRestrictions = { country: countryCode };
+                }
+                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
                 
                 // Add place_changed event listener
                 autocomplete.addListener('place_changed', function() {
@@ -23676,8 +23695,31 @@
     window.initializeGoogleMapsAutocomplete = function() {
         console.log('Initializing Google Maps Autocomplete...');
         
-        // Get selected country and city for location bias
-        const selectedCountry = document.getElementById('user_country')?.value || '';
+        // Resolve the selected country. NOTE: #user_country holds the tour's `destination`, which is often a
+        // CITY name (e.g. "Batam"), not a country. Passing an unmapped value produced
+        // `componentRestrictions: { country: '' }`, which makes Google throw InvalidValueError and breaks
+        // autocomplete entirely (this is why edit failed but create worked). So resolve from real country
+        // sources and only apply the restriction when we have a valid ISO code.
+        const resolveSelectedCountryName = () => {
+            // A hardcoded tour country (most reliable when present)
+            const tourCountry = '{{ $tour->country ?? "" }}'.trim();
+            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
+
+            // Fall back to the data-country of any selected city dropdown
+            const citySelectIds = ['single_city', 'modal_city_select', 'modal_local_transfer_city', 'modal_entryport_transport_city', 'modal_exitport_transport_city'];
+            for (const id of citySelectIds) {
+                const sel = document.getElementById(id);
+                if (!sel) continue;
+                const opt = sel.options && sel.options[sel.selectedIndex];
+                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
+                if (dc && getCountryCode(dc)) return dc;
+            }
+
+            // Last resort: whatever is in #user_country (may be a city, may map to nothing)
+            return document.getElementById('user_country')?.value || '';
+        };
+
+        const selectedCountry = resolveSelectedCountryName();
         const selectedCity = document.getElementById('city')?.value || '';
         
         // Create location bias for better search results
@@ -23694,12 +23736,17 @@
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
                 
-                // Create autocomplete instance
-                const autocomplete = new google.maps.places.Autocomplete(input, {
+                // Create autocomplete instance. Only restrict by country when we have a valid ISO code,
+                // otherwise Google throws InvalidValueError and no suggestions appear.
+                const autocompleteOptions = {
                     types: ['establishment', 'geocode'],
-                    componentRestrictions: { country: getCountryCode(selectedCountry) },
                     fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                });
+                };
+                const countryCode = getCountryCode(selectedCountry);
+                if (countryCode) {
+                    autocompleteOptions.componentRestrictions = { country: countryCode };
+                }
+                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
                 
                 // Add place_changed event listener
                 autocomplete.addListener('place_changed', function() {
