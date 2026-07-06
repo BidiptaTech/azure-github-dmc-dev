@@ -1022,20 +1022,60 @@ class SingleTourPackageController extends Controller
                     'child' => $tour->child,
                     'infant' => $tour->infant,
                 ];
-                
-                $emailResult = CommonHelper::sendTourProposalEmail(
-                    $tour->agent_id,
-                    $tour->tour_id,
-                    $tour->display_id,
-                    $tourData
-                );
-                
-                if ($emailResult !== true) {
-                    \Log::warning("Tour proposal email not sent", [
-                        'tour_id' => $tour->tour_id,
-                        'agent_id' => $tour->agent_id,
-                        'reason' => $emailResult
-                    ]);
+
+                if ($request->input('tour_booking_from') === 'manual_single_form') {
+                    // Tour created from the manual single tour package form → send via CommonHelper::sendEmail
+                    $agent = Agent::where('agent_id', $tour->agent_id)->first();
+
+                    if ($agent && !empty($agent->email)) {
+                        $subject = 'Tour Package Created - ' . $display_id;
+                        $emailData = [
+                            'booking_id' => $display_id,
+                            'reference_number' => $display_id,
+                            'customer_name' => $agent->name ?? 'Valued Partner',
+                            'location' => $tour->destination,
+                            'city' => $tour->city,
+                            'check_in_date' => $tour->check_in_time,
+                            'check_out_date' => $tour->check_out_time,
+                            'guests' => ($tour->adult ?? 0) . ' Adults, ' . ($tour->child ?? 0) . ' Children, ' . ($tour->infant ?? 0) . ' Infants',
+                        ];
+
+                        $emailResult = CommonHelper::sendEmail(
+                            $agent->email,
+                            'booking_confirmation',
+                            $subject,
+                            'Your tour package has been created successfully.',
+                            $emailData
+                        );
+
+                        if ($emailResult !== true) {
+                            \Log::warning("Manual single form email not sent", [
+                                'tour_id' => $tour->tour_id,
+                                'agent_id' => $tour->agent_id,
+                                'reason' => $emailResult
+                            ]);
+                        }
+                    } else {
+                        \Log::warning("Manual single form email skipped - agent email missing", [
+                            'tour_id' => $tour->tour_id,
+                            'agent_id' => $tour->agent_id,
+                        ]);
+                    }
+                } else {
+                    $emailResult = CommonHelper::sendTourProposalEmail(
+                        $tour->agent_id,
+                        $tour->tour_id,
+                        $tour->display_id,
+                        $tourData
+                    );
+
+                    if ($emailResult !== true) {
+                        \Log::warning("Tour proposal email not sent", [
+                            'tour_id' => $tour->tour_id,
+                            'agent_id' => $tour->agent_id,
+                            'reason' => $emailResult
+                        ]);
+                    }
                 }
             } catch (\Exception $e) {
                 \Log::error("Exception while sending tour proposal email", [

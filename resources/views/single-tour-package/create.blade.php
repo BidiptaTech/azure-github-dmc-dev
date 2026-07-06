@@ -5661,6 +5661,8 @@
                         fd.append('discount_price', String(Math.ceil(discountRaw)));
                         // Persist Single/Multi city selection to DB column `city_type`
                         fd.append('city_type', (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single');
+                        // Identify the source of this tour creation (manual single tour package form)
+                        fd.append('tour_booking_from', 'manual_single_form');
                         return fd;
                     };
 
