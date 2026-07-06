@@ -1530,22 +1530,39 @@ class SingleTourPackageController extends Controller
     public function fetchPortsByCountry(Request $request) 
     {
         $countryId = $request->input('country_id');
-        
-        if (!$countryId) {
-            return response()->json(['ports' => []]);
-        }
-        
-        $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
-        if (!$country) {
-            return response()->json(['ports' => []]);
+        $cityName = $request->input('city');
+
+        // A city is enough on its own: it determines both cities.city_id (for ports.city_id)
+        // and its own country, so the country field is optional on city-driven pages.
+        $cityId = null;
+        $portsCountryName = null;
+        if (!empty($cityName)) {
+            $cityRow = City::where('name', $cityName)->first(['city_id', 'country']);
+            if ($cityRow) {
+                $cityId = $cityRow->city_id;
+                $portsCountryName = $cityRow->country ?: null;
+            }
         }
 
-        $ports = $this->getPortsForDmc($country->name)
+        // Fall back to the country field when no city was supplied (original behaviour).
+        if ($portsCountryName === null) {
+            if (!$countryId) {
+                return response()->json(['ports' => []]);
+            }
+            $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
+            if (!$country) {
+                return response()->json(['ports' => []]);
+            }
+            $portsCountryName = $country->name;
+        }
+
+        $ports = $this->getPortsForDmc($portsCountryName, $cityId !== null ? (int) $cityId : null)
             ->map(fn ($port) => [
                 'id' => $port->id,
                 'port_id' => $port->port_id,
                 'port_name' => $port->port_name,
                 'country' => $port->country,
+                'city_id' => $port->city_id ?? null,
             ])
             ->values();
                  
@@ -1756,12 +1773,20 @@ class SingleTourPackageController extends Controller
     /**
      * Ports limited to DMC-accessible countries; optionally narrowed to one country.
      */
-    private function getPortsForDmc(?string $countryName = null)
+    private function getPortsForDmc(?string $countryName = null, ?int $cityId = null)
     {
         $query = Port::query();
 
         if (Schema::hasColumn('ports', 'status')) {
             $query->where('status', 1);
+        }
+
+        // Filter ports by city: ports.city_id = cities.city_id
+        // When a specific city is chosen, it already scopes the location (the city
+        // dropdown is DMC-restricted), so filter purely by city_id and skip the
+        // country narrowing that could exclude cross-border cities (e.g. Batam).
+        if ($cityId !== null) {
+            return $query->where('city_id', $cityId)->orderBy('port_name')->get();
         }
 
         $dmcCountries = $this->getDmcCountryNames();

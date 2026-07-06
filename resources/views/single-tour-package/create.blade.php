@@ -26461,6 +26461,51 @@
             });
     }
 
+    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
+    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    window.loadEntryPickupPortsForCity = function(cityName) {
+        const pickupSelect = document.getElementById('entry_pickup_port_select');
+        if (!pickupSelect) return;
+
+        if (!cityName) {
+            pickupSelect.innerHTML = '<option value="">Select city first</option>';
+            return;
+        }
+
+        // Send country too when we can (harmless), but city is what matters.
+        const countrySelect = document.getElementById('user_country');
+        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
+        if (!country && countrySelect && countrySelect.value) {
+            const opt = countrySelect.options[countrySelect.selectedIndex];
+            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
+        }
+
+        pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
+        $.ajax({
+            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            type: "GET",
+            data: { country_id: country, city: cityName },
+            dataType: 'json'
+        }).done(function(response) {
+            const ports = (response && response.ports) ? response.ports : [];
+            pickupSelect.innerHTML = ports.length
+                ? '<option value="">Select pickup port</option>'
+                : '<option value="">No ports for this city</option>';
+            ports.forEach(function(port) {
+                const option = document.createElement('option');
+                option.value = port.port_id;
+                option.textContent = port.port_name;
+                pickupSelect.appendChild(option);
+            });
+            if (typeof jQuery !== 'undefined' && jQuery(pickupSelect).data('select2')) {
+                jQuery(pickupSelect).select2('destroy');
+                jQuery(pickupSelect).select2({ placeholder: 'Select pickup port', allowClear: true, width: '100%' });
+            }
+        }).fail(function() {
+            pickupSelect.innerHTML = '<option value="">Error loading ports</option>';
+        });
+    };
+
     // Function to load attractions, hotels and restaurants when city is selected
     function loadPortsForCity(cityName) {
         console.log('Loading locations for city:', cityName);
@@ -26476,6 +26521,9 @@
             }
             console.log('Pickup port select reset');
         }
+
+        // Populate pickup ports for the selected city (auto-selected or manual).
+        window.loadEntryPickupPortsForCity(cityName);
         
         if (!cityName) {
             console.log('No city selected, clearing dropoff options');
@@ -26508,19 +26556,21 @@
         Promise.all([
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
         ])
-        .then(([hotelsData, attractionsData, restaurantsData]) => {
+        .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
             console.log('Hotels:', hotelsData);
             console.log('Attractions:', attractionsData);
             console.log('Restaurants:', restaurantsData);
+            console.log('Ports:', portsData);
             
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first (use filtered ports from country selection if available, otherwise use static ports)
-            const ports = window.filteredPortsData || @json($ports ?? []);
+            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
                 portGroup.label = 'Ports';
@@ -26657,13 +26707,37 @@
         Promise.all([
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`)
+            window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
+            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
         ])
-        .then(([hotelsData, attractionsData, restaurantsData]) => {
+        .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
             console.log('Hotels:', hotelsData);
             console.log('Attractions:', attractionsData);
             console.log('Restaurants:', restaurantsData);
+            console.log('Ports:', portsData);
+
+            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
+            if (exitDropoffSelect) {
+                const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
+                exitDropoffSelect.innerHTML = exitPorts.length
+                    ? '<option value="">Select dropoff port</option>'
+                    : '<option value="">No ports for this city</option>';
+                exitPorts.forEach(function(port) {
+                    const option = document.createElement('option');
+                    option.value = port.port_id;
+                    option.textContent = port.port_name;
+                    option.dataset.type = 'port';
+                    option.dataset.portId = port.port_id;
+                    exitDropoffSelect.appendChild(option);
+                });
+                if (typeof jQuery !== 'undefined' && jQuery(exitDropoffSelect).data('select2')) {
+                    jQuery(exitDropoffSelect).select2('destroy');
+                    jQuery(exitDropoffSelect).select2({ placeholder: 'Select dropoff port', allowClear: true, width: '100%' });
+                }
+                console.log(`Added ${exitPorts.length} ports to exit dropoff`);
+            }
             
             // Clear the dropdown
             pickupSelect.innerHTML = '<option value="">Select pickup location</option>';
@@ -27047,12 +27121,10 @@
                 <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
-            // Dropoff field (ports - where customer needs to go)
-            const ports = @json($ports ?? []);
+            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
             dropoffContainer.innerHTML = `
                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;" id="exit_dropoff_port_select">
-                    <option value="">Select dropoff port</option>
-                    ${ports.map(port => `<option value="${port.port_id}">${port.port_name}</option>`).join('')}
+                    <option value="">Select city first</option>
                 </select>
                 <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;

@@ -12,6 +12,27 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
+    .meal-price-list {
+        font-size: 0.78rem;
+        line-height: 1.45;
+        min-width: 170px;
+    }
+    .meal-price-list__title {
+        font-weight: 700;
+        color: #566a7f;
+        margin-bottom: 0.2rem;
+    }
+    .meal-price-list__row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        color: #697a8d;
+    }
+    .meal-price-list__row span:last-child {
+        font-weight: 600;
+        color: #384551;
+        white-space: nowrap;
+    }
 </style>
 
 <!-- Start of the form -->
@@ -38,7 +59,10 @@
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Meal
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Meal
+                    <x-currency-price-note />
+                </span>
                 <div class="d-flex gap-2">
                     {{-- @if(auth()->user()->role_id == '11')
                         <a href="{{ route('meals.bulk_upload_for_restaurant', $current_restaurant->restaurant_id) }}" 
@@ -332,6 +356,7 @@
                                 {{-- <th>Item Name</th> --}}
                                 <th>Beverage</th>
                                 <th>Type</th>
+                                <th>Price</th>
                                 {{-- <th>Item Description</th> --}}
                                 <th>Status</th>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
@@ -340,6 +365,14 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $formatMealPrice = function ($value) {
+                                    if ($value === null || $value === '') {
+                                        return '—';
+                                    }
+                                    return is_numeric($value) ? number_format((float) $value, 2) : $value;
+                                };
+                            @endphp
                             @foreach($meals as $key => $meal)
                                 <tr>
                                     <td>{{ ++$key }}</td>
@@ -389,6 +422,22 @@
                                         @else
                                             Unknown
                                         @endif
+                                    </td>
+                                    <td>
+                                        <div class="meal-price-list">
+                                            <div class="meal-price-list__title">Price:</div>
+                                            @if((int) $meal->type === 1)
+                                                <div class="meal-price-list__row"><span>Adult cost price-</span><span>{{ $formatMealPrice($meal->adult_cost_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Adult sell price-</span><span>{{ $formatMealPrice($meal->adult_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Child cost price-</span><span>{{ $formatMealPrice($meal->child_cost_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Child sell price-</span><span>{{ $formatMealPrice($meal->child_price) }}</span></div>
+                                            @elseif((int) $meal->type === 2)
+                                                <div class="meal-price-list__row"><span>Item cost price-</span><span>{{ $formatMealPrice($meal->item_cost_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Item sell price-</span><span>{{ $formatMealPrice($meal->price) }}</span></div>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </div>
                                     </td>
                                     {{-- <td>
                                         {{$meal->item_description}}
