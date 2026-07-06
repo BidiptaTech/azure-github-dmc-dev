@@ -13,6 +13,7 @@ use App\Models\Meal;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Room;
 use App\Models\City;
+use App\Models\Country;
 use App\Models\Vehicle;
 use App\Models\Driver;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,54 @@ class VehicleController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Country names from the DMC's master DMC record (comma-separated on users.country).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
     }
 
     /*
@@ -276,7 +325,10 @@ class VehicleController extends Controller
         if ($resolvedDmcId) {
             $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
         }
-        $cities = City::where('country', $resolvedDmcCountry ?: $authuser->country)->get();
+        $selectedCountry = $resolvedDmcCountry ?: $authuser->country;
+        $cities = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
 
         if($authuser->role_id == 4){
             $dmcs = User::where('role_id', 11)->where('country', $authuser->country)->get();
@@ -641,8 +693,35 @@ class VehicleController extends Controller
         $id = Crypt::decrypt($id);
         $vehicle = Vehicle::where('vehicle_id',$id)->first();
         $drivers = Driver::where('is_active', 1)->where('dmc_id', $vehicle->dmc_id)->get();
-        $dmc_country = User::where('userId', $vehicle->dmc_id)->first()->country;
-        $city = City::where('country', $dmc_country)->get();
+        $dmcUser = User::where('userId', $vehicle->dmc_id)->first();
+        $dmc_country = $dmcUser?->country ?? '';
+        $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!empty($masterDmcCountryNames)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
+        }
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $fallbackDmcCountry = '';
+        if ($dmc_country) {
+            $dmcCountryParts = array_values(array_filter(array_map('trim', explode(',', (string) $dmc_country))));
+            $fallbackDmcCountry = $dmcCountryParts[0] ?? '';
+        }
+
+        $selectedCountry = $vehicle->country ?: $fallbackDmcCountry;
+        if (!$selectedCountry && !empty($masterDmcCountryNames)) {
+            $selectedCountry = $masterDmcCountryNames[0];
+        }
+        if (!empty($masterDmcCountryNames) && $selectedCountry && !in_array($selectedCountry, $masterDmcCountryNames, true)) {
+            $selectedCountry = in_array($fallbackDmcCountry, $masterDmcCountryNames, true)
+                ? $fallbackDmcCountry
+                : $masterDmcCountryNames[0];
+        }
+
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
         $cityIds = $city->pluck('city_id')->toArray();
         $authuser = auth()->user();
         if($authuser->role_id == 4){
@@ -655,11 +734,19 @@ class VehicleController extends Controller
 
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
-            // Get zones based on the vehicle's DMC
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orwhere('dmc_id',null)->whereIn('city', $cityIds)->get();
-            
-            // Get ports for the DMC country
-            $ports = Port::where('country', $dmc_country)->get();
+            // Zone mapping filters default to "All Countries" / "All Cities"
+            $zoneMappingFilterCountry = '';
+            $defaultFilterCityId = null;
+
+            // Zones for this DMC (city filter applied client-side in zone mapping UI)
+            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id')->get();
+
+            // Ports scoped to master DMC countries (city filter applied client-side)
+            $portsQuery = Port::where('status', 1);
+            if (!empty($masterDmcCountryNames)) {
+                $portsQuery->whereIn('country', $masterDmcCountryNames);
+            }
+            $ports = $portsQuery->orderBy('port_name')->get();
             
             // Get existing mappings
             $mappings = VehicleZoneMapping::with(['fromZone', 'toZone'])
@@ -689,10 +776,10 @@ class VehicleController extends Controller
                 ];
             }
             
-            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'zones', 'ports', 'mappings', 'mappingZoneItems'));
+            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems'));
         }
         
-        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
+        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
 
         // return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
     }
@@ -863,6 +950,7 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
+        $vehicle->country = $request->input('country');
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
