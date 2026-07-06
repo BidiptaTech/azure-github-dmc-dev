@@ -3,12 +3,32 @@
 @extends('layouts.layout')
 @section('content')
 <style>
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
     }
-    .select2-container .select2-results__option {
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-results__option {
         padding: 12px 10px;
     }
     .zone-option-wrapper[title] {
@@ -400,6 +420,38 @@
                                     @endforeach
                                 </select>
                             </div>
+
+                            <!-- Country -->
+                            <div class="col-md-3 mb-3">
+                                <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
+                                <select name="country" id="country" class="form-select" required>
+                                    @php $scopedCountries = $countries ?? collect(); @endphp
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach($scopedCountries as $c)
+                                        <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('country')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- City Name -->
+                            <div class="col-md-3 mb-3">
+                                <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
+                                <select name="city_name" id="city_name" class="form-select" required>
+                                    <option value="">Select a city</option>
+                                    @foreach($city as $c)
+                                        <option {{ $c->name == $vehicle->city ? 'selected' : '' }} value="{{ $c->name }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('city_name')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Vehicle Name -->
                                 <input type="hidden" name="vehicle_id", value="{{$vehicle->vehicle_id}}">
                             <div class="col-md-3 mb-3">
@@ -512,20 +564,6 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div> --}}
-
-                            <!-- City Name -->
-                            <div class="col-md-3 mb-3">
-                                <label for="cities" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
-                                <select name="city_name" id="cities" class="form-control">
-                                    <option value="">Select a city</option>
-                                    @foreach($city as $c)
-                                        <option {{$c->name == $vehicle->city ? 'selected' : ''}} value="{{$c->name}}">{{$c->name}}</option>
-                                    @endforeach
-                                </select>
-                                @error('city_name')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
 
                             <!-- Sharable -->
                             <!-- <div class="col-md-3 mb-3">
@@ -871,6 +909,7 @@
                             'zone_id' => $zoneId,
                             'zone_name' => (string) ($zone->zone_name ?? ''),
                             'zone_type' => $zoneType,
+                            'city' => (string) ($zone->city ?? ''),
                             'description' => (string) ($zone->description ?? ''),
                             'items' => $items,
                         ];
@@ -917,6 +956,197 @@
                     };
                 })();
                 </script>
+
+                @if(in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
+                <script>
+                (function () {
+                    window.VehicleZoneMappingFilters = {
+                        ports: [],
+                        country: '',
+                        cityId: '',
+                        cityIdsForCountry: [],
+                        _inited: false,
+                        citiesUrl: '',
+
+                        normalize(value) {
+                            return String(value ?? '').trim().toLowerCase();
+                        },
+
+                        matchesPort(port) {
+                            if (!port) return false;
+                            if (this.country && this.normalize(port.country) !== this.normalize(this.country)) {
+                                return false;
+                            }
+                            if (this.cityId && String(port.city_id ?? '') !== String(this.cityId)) {
+                                return false;
+                            }
+                            return true;
+                        },
+
+                        init(config) {
+                            this.ports = config.ports || [];
+                            this.country = config.selectedCountry || '';
+                            this.cityId = config.defaultCityId ? String(config.defaultCityId) : '';
+                            this.citiesUrl = config.citiesUrl || '';
+                            this._inited = true;
+
+                            const countryEl = document.getElementById('mapping_filter_country');
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!countryEl || !cityEl) return;
+
+                            const self = this;
+                            const onCountryChange = function () {
+                                self.country = this.value || '';
+                                self.cityId = '';
+                                cityEl.value = '';
+                                self.loadCitiesForCountry(self.country, function () {
+                                    self.applyToFromZoneSelect();
+                                });
+                            };
+                            const onCityChange = function () {
+                                self.cityId = this.value || '';
+                                self.applyToFromZoneSelect();
+                            };
+
+                            countryEl.addEventListener('change', onCountryChange);
+                            cityEl.addEventListener('change', onCityChange);
+
+                            if (this.country) {
+                                countryEl.value = this.country;
+                                this.loadCitiesForCountry(this.country, function () {
+                                    if (self.cityId) {
+                                        cityEl.value = self.cityId;
+                                    }
+                                    self.applyToFromZoneSelect();
+                                    document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
+                                });
+                            } else {
+                                this.applyToFromZoneSelect();
+                                document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
+                            }
+                        },
+
+                        loadCitiesForCountry(countryName, done) {
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!cityEl) {
+                                if (typeof done === 'function') done();
+                                return;
+                            }
+
+                            if (!countryName) {
+                                this.cityIdsForCountry = [];
+                                cityEl.innerHTML = '<option value="">All Cities</option>';
+                                if (typeof done === 'function') done();
+                                return;
+                            }
+
+                            cityEl.innerHTML = '<option value="">Loading cities...</option>';
+
+                            const self = this;
+                            fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
+                                headers: { 'Accept': 'application/json' }
+                            })
+                                .then(r => r.json())
+                                .then(function (response) {
+                                    const cities = response.cities || [];
+                                    self.cityIdsForCountry = cities.map(c => String(c.city_id));
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    cities.forEach(function (city) {
+                                        const opt = document.createElement('option');
+                                        opt.value = city.city_id;
+                                        opt.textContent = city.name;
+                                        cityEl.appendChild(opt);
+                                    });
+                                    if (typeof done === 'function') done();
+                                })
+                                .catch(function () {
+                                    self.cityIdsForCountry = [];
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    if (typeof done === 'function') done();
+                                });
+                        },
+
+                        getFilteredPorts() {
+                            const ports = this.ports || [];
+                            if (!this._inited) return ports;
+                            return ports.filter(p => this.matchesPort(p));
+                        },
+
+                        getFilteredZones(zones) {
+                            const list = zones || [];
+                            if (!this._inited) return list;
+
+                            return list.filter(z => {
+                                if (this.cityId) {
+                                    return String(z.city || '') === String(this.cityId);
+                                }
+                                if (this.country && this.cityIdsForCountry.length) {
+                                    return this.cityIdsForCountry.includes(String(z.city || ''));
+                                }
+                                return true;
+                            });
+                        },
+
+                        isPortInFilter(portId) {
+                            return this.getFilteredPorts().some(p => String(p.port_id) === String(portId));
+                        },
+
+                        isZoneInFilter(zoneId, zones) {
+                            return this.getFilteredZones(zones).some(z => String(z.zone_id) === String(zoneId));
+                        },
+
+                        filterExistingPortMappings(existing) {
+                            return (existing || []).filter(m =>
+                                this.isPortInFilter(m.from) && this.isPortInFilter(m.to)
+                            );
+                        },
+
+                        filterExistingPortZoneMappings(existing, toZones) {
+                            return (existing || []).filter(m =>
+                                this.isPortInFilter(m.from) && this.isZoneInFilter(m.to, toZones)
+                            );
+                        },
+
+                        applyToFromZoneSelect() {
+                            const fromEl = document.getElementById('from_zone');
+                            if (!fromEl) return;
+
+                            const current = fromEl.value;
+                            const filtered = this.getFilteredPorts();
+                            const $from = window.jQuery ? window.jQuery(fromEl) : null;
+
+                            if ($from) {
+                                $from.empty().append(new Option('-- Select From Port --', '', true, false));
+                                filtered.forEach(p => {
+                                    const text = `${p.port_name ?? p.port_id} - ${p.type ?? 'Unknown Type'}`.trim();
+                                    const opt = new Option(text, p.port_id, false, false);
+                                    opt.dataset.type = 'Port';
+                                    opt.dataset.description = p.type ?? 'No Type Available';
+                                    $from.append(opt);
+                                });
+                                const stillValid = filtered.some(p => String(p.port_id) === String(current));
+                                $from.val(stillValid ? current : '').trigger('change');
+                            } else {
+                                fromEl.innerHTML = '<option value="">-- Select From Port --</option>';
+                                filtered.forEach(p => {
+                                    const opt = document.createElement('option');
+                                    opt.value = p.port_id;
+                                    opt.textContent = `${p.port_name ?? p.port_id} - ${p.type ?? 'Unknown Type'}`.trim();
+                                    opt.dataset.type = 'Port';
+                                    opt.dataset.description = p.type ?? 'No Type Available';
+                                    fromEl.appendChild(opt);
+                                });
+                                const stillValid = filtered.some(p => String(p.port_id) === String(current));
+                                fromEl.value = stillValid ? current : '';
+                                fromEl.dispatchEvent(new Event('change'));
+                            }
+
+                            document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                        }
+                    };
+                })();
+                </script>
+                @endif
                 
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -942,6 +1172,61 @@
                         <p class="text-muted">Select zones to create transportation mapping between locations.</p>
                     </div>
                 </div>
+
+                @if(in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
+                <div class="row mb-3 align-items-end" id="zone-mapping-filters"
+                     data-ports='@json($portsSorted ?? [])'
+                     data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
+                     data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
+                     data-cities-url="{{ route('fetch-cities-by-country') }}">
+                    <div class="col-md-3">
+                        <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
+                        <select id="mapping_filter_country" class="form-select">
+                            @php $scopedCountries = $countries ?? collect(); @endphp
+                            <option value="" selected>All Countries</option>
+                            @foreach($scopedCountries as $c)
+                                <option value="{{ $c->name }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
+                        <select id="mapping_filter_city" class="form-select">
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                </div>
+                <script>
+                (function () {
+                    function bootstrapZoneMappingFilters() {
+                        const holder = document.getElementById('zone-mapping-filters');
+                        if (!holder || !window.VehicleZoneMappingFilters || window.VehicleZoneMappingFilters._inited) {
+                            return;
+                        }
+
+                        let ports = [];
+                        try {
+                            ports = JSON.parse(holder.dataset.ports || '[]');
+                        } catch (e) {
+                            ports = [];
+                        }
+
+                        window.VehicleZoneMappingFilters.init({
+                            ports: ports,
+                            selectedCountry: holder.dataset.selectedCountry || '',
+                            defaultCityId: holder.dataset.defaultCityId || '',
+                            citiesUrl: holder.dataset.citiesUrl || ''
+                        });
+                    }
+
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', bootstrapZoneMappingFilters);
+                    } else {
+                        bootstrapZoneMappingFilters();
+                    }
+                })();
+                </script>
+                @endif
                 
                 <!-- Zone Selection Fields with Enhanced UI -->
                 <div class="row mb-3">
@@ -1219,6 +1504,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="mappingsTableBody">
+                                    @if(!in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
                                     @if(isset($mappings) && count($mappings) > 0)
                                         @foreach($mappings as $mapping)
                                             @php
@@ -1347,6 +1633,7 @@
                                             @endif
                                         @endforeach
                                     @endif
+                                    @endif
                                 </tbody>
                             </table>
                         </div>
@@ -1459,14 +1746,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortMappings(rows);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate all destination ports.</td>`;
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1480,15 +1770,39 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            (ports || [])
+                            const filteredPorts = (F ? F.getFilteredPorts() : (ports || []));
+
+                            const destinations = filteredPorts
                                 .slice()
-                                .filter(p => String(p.port_id) && String(p.port_id) !== fromStr)
+                                .filter(p => String(p.port_id) && String(p.port_id) !== fromStr);
+
+                            if (!destinations.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            destinations
                                 .sort((a, b) => {
                                     const at = `${a?.port_name ?? a?.port_id ?? ''} - ${a?.type ?? ''}`.trim();
                                     const bt = `${b?.port_name ?? b?.port_id ?? ''} - ${b?.type ?? ''}`.trim();
@@ -1499,12 +1813,12 @@
                                 });
                         }
 
-                        // Bind in a way that works with Select2 too
                         function getFromValue() {
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
 
+                        function startPortPortMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFromPort(getFromValue());
@@ -1517,9 +1831,15 @@
                             });
                         }
 
-                        // Select2 can apply the selected value after init, so render twice (immediate + next tick)
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+
                         renderForFromPort(getFromValue());
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+                        }
+
+                        document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
                     });
                 </script>
             @endif
@@ -1635,14 +1955,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate all attractions.</td>`;
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1654,13 +1977,35 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
@@ -1674,6 +2019,7 @@
                             return el ? el.value : '';
                         }
 
+                        function bootPortAttractionMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFromPort(getFromValue());
@@ -1688,6 +2034,13 @@
 
                         renderForFromPort(getFromValue());
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
                     });
                 </script>
             @endif
@@ -1803,14 +2156,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate all restaurants.</td>`;
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1822,13 +2178,35 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
@@ -1840,6 +2218,7 @@
                             return el ? el.value : '';
                         }
 
+                        function bootPortRestaurantMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFromPort(getFromValue());
@@ -1854,6 +2233,13 @@
 
                         renderForFromPort(getFromValue());
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
                     });
                 </script>
             @endif
@@ -1969,14 +2355,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate all hotels.</td>`;
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1988,13 +2377,35 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
@@ -2006,6 +2417,7 @@
                             return el ? el.value : '';
                         }
 
+                        function bootPortHotelMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFromPort(getFromValue());
@@ -2020,6 +2432,13 @@
 
                         renderForFromPort(getFromValue());
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
                     });
                 </script>
             @endif
@@ -2159,7 +2578,11 @@
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (window.VehicleZoneMappingFilters
+                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
+                                : (toZones || []));
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
@@ -2324,7 +2747,11 @@
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (window.VehicleZoneMappingFilters
+                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
+                                : (toZones || []));
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
@@ -2489,7 +2916,11 @@
                             }
 
                             const fromStr = String(fromId);
-                            (toZones || [])
+                            const filteredZones = (window.VehicleZoneMappingFilters
+                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
+                                : (toZones || []));
+
+                            filteredZones
                                 .slice()
                                 .filter(z => String(z.zone_id))
                                 .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
@@ -2546,6 +2977,12 @@
         // Driver dropdown (search + select)
         $('#driver').select2({
             placeholder: "Search and Select Driver",
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('#country').select2({
+            placeholder: "Search and Select Country",
             allowClear: true,
             width: '100%'
         });
@@ -2821,39 +3258,73 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     $(document).ready(function () {
         const dmcId = "{{ $resolvedDmcId }}";
+        const currentCity = @json($vehicle->city ?? '');
 
         // Auto-load drivers if user role resolves DMC directly
         if (dmcId) {
             loadDriversForDmc(dmcId);
         }
 
-        // If DMC dropdown is visible, load drivers and cities on change
+        // If DMC dropdown is visible, reload drivers on change
         $('#dmc').change(function () {
             const selectedDmcId = $(this).val();
-            console.log(selectedDmcId);
-            $('#city_name').html('<option value="">Loading...</option>');
             $('#driver').html('<option value="">Loading drivers...</option>');
 
             if (selectedDmcId) {
-                // Load cities
-                $.ajax({
-                    url: "{{ route('fetch.dmc_cities') }}",
-                    type: "GET",
-                    data: { country_name: selectedDmcId },
-                    success: function (response) {
-                        $('#city_name').html('<option value="">Select City</option>');
-                        $.each(response, function (key, city) {
-                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
-                        });
-                    }
-                });
-
-                // Load drivers
                 loadDriversForDmc(selectedDmcId);
             } else {
-                $('#city_name').html('<option value="">Select a DMC first</option>');
                 $('#driver').html('<option value="">Select a DMC first</option>');
             }
+        });
+
+        function loadCitiesByCountry(countryName, preserveCity) {
+            if (!countryName) {
+                $('#city_name').prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Select Country First</option>')
+                    .trigger('change');
+                return;
+            }
+
+            $('#city_name').prop('disabled', true)
+                .empty()
+                .append('<option value="">Loading cities...</option>')
+                .trigger('change');
+
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function (response) {
+                    $('#city_name').empty().append('<option value="">Select a City</option>');
+
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function (idx, city) {
+                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                        $('#city_name').prop('disabled', false);
+
+                        if (preserveCity && currentCity) {
+                            $('#city_name').val(currentCity);
+                        }
+                    } else {
+                        $('#city_name').append('<option value="">No cities available</option>');
+                    }
+
+                    $('#city_name').trigger('change');
+                },
+                error: function () {
+                    $('#city_name').prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Error loading cities</option>')
+                        .trigger('change');
+                }
+            });
+        }
+
+        $('#country').on('change', function () {
+            loadCitiesByCountry($(this).val(), false);
         });
 
         function loadDriversForDmc(dmcId) {
