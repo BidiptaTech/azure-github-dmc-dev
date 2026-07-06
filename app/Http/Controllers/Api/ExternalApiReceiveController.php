@@ -30,6 +30,8 @@ class ExternalApiReceiveController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $payload = $this->normalizeToArray($request->input('payload', $request->all()));
+        // print_r($payload);
+        // die();
         if ($payload === [] && trim((string) $request->getContent()) !== '') {
             $payload = $this->normalizeToArray($request->getContent());
         }
@@ -39,6 +41,8 @@ class ExternalApiReceiveController extends Controller
             $reparsed = $this->unwrapPayload($this->normalizeToArray($payload['raw_body']));
             if (! empty($reparsed['destinations'])) {
                 $payload = $reparsed;
+            } elseif ($reparsed !== []) {
+                $payload = array_merge($payload, $reparsed);
             }
         }
 
@@ -51,17 +55,15 @@ class ExternalApiReceiveController extends Controller
                 'status' => false,
             ]);
 
-            $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+            $matchingZeroNotify = $this->handleMatchingZeroNotification($payload, $record->id);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Incomplete travel details. A notification email has been sent to the sender.',
+                'message' => $matchingZeroNotify['message'],
                 'received_id' => $record->id,
-                'result' => [
+                'result' => array_merge([
                     'matching' => 0,
-                    'sender_email_sent' => $senderNotify['sent'],
-                    'sender_email' => $senderNotify['email'],
-                ],
+                ], $matchingZeroNotify['result']),
             ], 422);
         }
 
@@ -74,13 +76,88 @@ class ExternalApiReceiveController extends Controller
                 'status' => false,
             ]);
 
+            $senderNotify = ['sent' => false, 'email' => null];
+            $matchingZeroResult = [];
+            $matchingZeroNotify = null;
+            if ($this->payloadMatchingIsZero($payload)) {
+                $matchingZeroNotify = $this->handleMatchingZeroNotification($payload, $record->id);
+                $senderNotify = [
+                    'sent' => (bool) ($matchingZeroNotify['result']['notification_email_sent'] ?? false),
+                    'email' => $matchingZeroNotify['result']['notification_email'] ?? null,
+                ];
+                $matchingZeroResult = $matchingZeroNotify['result'];
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
+                'message' => $this->payloadMatchingIsZero($payload)
+                    ? ($matchingZeroNotify['message'] ?? 'Incomplete travel details. A notification email has been sent to the sender.')
+                    : 'Invalid payload: destinations missing. Send valid JSON (double quotes) or a Python dict with a response.destinations block.',
                 'received_id' => $record->id,
-                'hint' => 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
+                'result' => array_merge([
+                    'matching' => $this->payloadMatchingValue($payload),
+                    'sender_email_sent' => $senderNotify['sent'],
+                    'sender_email' => $senderNotify['email'],
+                ], $matchingZeroResult),
+                'hint' => $this->payloadMatchingIsZero($payload)
+                    ? null
+                    : 'Use Content-Type: application/json and json.dumps(data) in Python, not str(dict).',
             ], 422);
         }
+
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+        $requestedCountry = $this->resolveRequestedDestinationCountry($payload);
+
+        if ($dmcUser && $requestedCountry !== '') {
+            $countrySupport = CommonHelper::validateDmcDestinationCountrySupport($dmcUser, $requestedCountry);
+
+            if (! $countrySupport['supported']) {
+                $record = ExternalApiReceive::create([
+                    'source_ip' => $request->ip(),
+                    'source_server' => (string) ($request->header('X-Source-Server') ?? ''),
+                    'headers' => $request->headers->all(),
+                    'payload' => $payload,
+                    'status' => false,
+                ]);
+
+                $agentNotify = $this->notifyUnsupportedDestinationCountry(
+                    $payload,
+                    $dmcUser,
+                    $primaryDmc,
+                    $countrySupport
+                );
+
+                Log::warning('External API: destination country not supported by selected DMC', [
+                    'received_id' => $record->id,
+                    'matching' => $this->payloadMatchingValue($payload),
+                    'dmc_id' => $dmcUser->userId,
+                    'dmc_name' => trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: '')),
+                    'requested_country' => $countrySupport['requested_country'],
+                    'supported_countries' => $countrySupport['supported_countries'],
+                    'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                    'agent_email' => $agentNotify['email'],
+                    'agent_email_sent' => $agentNotify['sent'],
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected DMC does not provide services for the requested destination country. An informational email has been sent to the agent.',
+                    'received_id' => $record->id,
+                    'result' => [
+                        'destination_country_supported' => false,
+                        'requested_country' => $countrySupport['requested_country'],
+                        'supported_countries' => $countrySupport['supported_countries'],
+                        'selected_dmc_id' => $dmcUser->userId,
+                        'selected_dmc_name' => trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC')),
+                        'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                        'agent_email_sent' => $agentNotify['sent'],
+                        'agent_email' => $agentNotify['email'],
+                    ],
+                ], 422);
+            }
+        }
+
         // Always persist the received payload first (audit trail). The index()
         // endpoint reads status=false rows as "pending", so keeping the record
         // even when conversion fails lets the payload be retried/inspected later.
@@ -131,7 +208,7 @@ class ExternalApiReceiveController extends Controller
             $result['agency_id'] = Agent::where('agent_id', $tour->agent_id)->value('agency_id');
 
             // Notify the agent (non-fatal: never roll back a committed tour for an email).
-            $result['email_sent'] = $this->notifyAgent($tour);
+            $result['email_sent'] = $this->notifyAgent($tour, $payload);
 
             // Notify sender_email from payload (non-fatal).
             $senderNotify = $this->notifySender($tour, $payload, $orders);
@@ -162,6 +239,7 @@ class ExternalApiReceiveController extends Controller
         }
     }
 
+
     /**
      * Build and persist a Tour from the received payload, mirroring the business
      * logic in SingleTourPackageController::store() (adapted for an unauthenticated
@@ -183,12 +261,12 @@ class ExternalApiReceiveController extends Controller
             $this->payloadValue($payload, ['start_date', 'check_in', 'check_in_date']),
             Carbon::today()
         );
-        $nights = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
-        $checkOutTime = $nights > 0
-            ? (clone $checkInTime)->addDays($nights)
-            : (clone $checkInTime)->addDay();
-        if ($checkOutTime->lte($checkInTime)) {
-            $checkOutTime = (clone $checkInTime)->addDay();
+        $requestedDays = (int) ($this->payloadValue($payload, ['requested_days', 'total_days', 'nights'], 0) ?: 0);
+        $checkOutTime = $requestedDays > 0
+            ? (clone $checkInTime)->addDays($requestedDays - 1)
+            : (clone $checkInTime);
+        if ($checkOutTime->lt($checkInTime)) {
+            $checkOutTime = clone $checkInTime;
         }
         $autoCancelDay = (int) ($dmcUser->auto_cancel_date ?? 0);
         $autoCancelDate = (clone $checkInTime)->subDays($autoCancelDay)->toDateString();
@@ -1275,12 +1353,8 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Send the tour proposal email to the agent. Non-fatal by design.
-     * Temporarily authenticates the agent so CommonHelper::getDmcId() (which
-     * reads Auth::user() internally) works on this unauthenticated endpoint.
-     */
-    /**
-     * Email the sender using sender_email from the external payload.
+     * Email the sender (sender_email) using the DMC ai_response setting (QTN / ITN).
+     * Non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
@@ -1289,7 +1363,7 @@ class ExternalApiReceiveController extends Controller
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
-            Log::info('External API: skipping sender auto-book email, no valid sender_email', [
+            Log::info('External API: skipping sender itinerary email, no valid sender_email', [
                 'tour_id' => $tour->tour_id,
             ]);
 
@@ -1298,56 +1372,129 @@ class ExternalApiReceiveController extends Controller
 
         $primaryDmc = $this->resolvePrimaryDmc($payload);
         $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+
+        if (CommonHelper::resolveDmcAiResponse($dmcUser) === null) {
+            Log::info('External API: skipping sender email, DMC ai_response not set to QTN or ITN', [
+                'tour_id' => $tour->tour_id,
+                'dmc_id' => $dmcUser?->userId,
+            ]);
+
+            return ['sent' => false, 'email' => $senderEmail];
+        }
+
         $agent = $tour->agent_id ? Agent::where('agent_id', $tour->agent_id)->first() : null;
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
-        $senderName = ucfirst(explode('@', $senderEmail)[0]);
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
             : 'DMC';
 
         try {
             $availability = $this->resolvePackageAvailability($payload);
-            $bookedServices = $this->buildBookedServicesForEmail($orders);
-            $totalEstimation = round(array_sum(array_map(
-                static fn (array $service): float => (float) ($service['price_value'] ?? 0),
-                $bookedServices
-            )), 2);
+            $aiResponse = CommonHelper::resolveDmcAiResponse($dmcUser);
+            $emailUuid = $this->resolveEmailUuidFromPayload($payload);
+            $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
+            $threadFields = $this->resolveEmailThreadPayloadFields($payload);
 
-            $sent = CommonHelper::sendTourAutoBookedDmcEmail($senderEmail, [
-                'dmc_name' => $senderName,
-                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
-                'tour_display_id' => $tour->display_id,
-                'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
-                'diff' => $availability['diff'],
-                'requested_days' => $availability['requested_days'],
-                'available_days' => $availability['available_days'],
-                'is_partial_package' => $availability['is_partial'],
-                'partial_package_message' => $availability['partial_message'],
-                'cities' => $this->resolveDayLevelCities($payload),
-                'destination' => $tour->destination,
-                'city' => $tour->city,
-                'check_in_time' => $tour->check_in_time,
-                'check_out_time' => $tour->check_out_time,
-                'adult' => $tour->adult,
-                'child' => $tour->child,
-                'infant' => $tour->infant,
-                'agent_name' => $agent->name ?? '',
-                'agency_name' => $agency->agency_name ?? '',
-                'dmc_label' => $dmcName,
-                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-                'booked_at' => now()->format('M d, Y H:i'),
-                'booked_services' => $bookedServices,
-                'total_estimation' => $totalEstimation,
-                'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
-            ]);
+            if ($aiResponse === 'QTN') {
+                $emailData = null;
+                try {
+                    $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+                } catch (Throwable $buildEx) {
+                    Log::warning('External API: quotation email data build failed, using fallback', [
+                        'tour_id' => $tour->tour_id,
+                        'error' => $buildEx->getMessage(),
+                    ]);
+                }
+
+                if (!$emailData) {
+                    $bookedServices = $this->buildBookedServicesForEmail($orders);
+                    $totalEstimation = round(array_sum(array_map(
+                        static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+                        $bookedServices
+                    )), 2);
+                    $timestamp = now()->format('M d, Y H:i');
+                    $emailData = CommonHelper::normalizeQuotationEmailData([
+                        'dmc_name' => $dmcName,
+                        'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                        'tour_display_id' => $tour->display_id,
+                        'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
+                        'destination' => $tour->destination,
+                        'city' => $tour->city,
+                        'check_in_time' => $tour->check_in_time,
+                        'check_out_time' => $tour->check_out_time,
+                        'adult' => $tour->adult,
+                        'child' => $tour->child,
+                        'infant' => $tour->infant,
+                        'agent_name' => $agent->name ?? '',
+                        'agency_name' => $agency->agency_name ?? '',
+                        'dmc_label' => $dmcName,
+                        'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                        'booked_at' => $timestamp,
+                        'quoted_at' => $timestamp,
+                        'booked_services' => $bookedServices,
+                        'total_estimation' => $totalEstimation,
+                        'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                    ]);
+                }
+
+                if ($emailData) {
+                    $emailData['email_uuid'] = $emailUuid;
+                    $emailData['subject'] = $emailSubject;
+                    $emailData = array_merge($emailData, $threadFields);
+                }
+
+                $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: array_merge([
+                    'email_uuid' => $emailUuid,
+                    'subject' => $emailSubject,
+                ], $threadFields));
+            } else {
+                $bookedServices = $this->buildBookedServicesForEmail($orders);
+                $totalEstimation = round(array_sum(array_map(
+                    static fn (array $service): float => (float) ($service['price_value'] ?? 0),
+                    $bookedServices
+                )), 2);
+
+                $timestamp = now()->format('M d, Y H:i');
+                $sent = CommonHelper::sendTourItineraryEmailByAiResponse($senderEmail, array_merge([
+                    'email_uuid' => $emailUuid,
+                    'subject' => $emailSubject,
+                    'dmc_name' => $dmcName,
+                    'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                    'tour_display_id' => $tour->display_id,
+                    'country' => $this->resolveDayLevelCountry($payload, $primaryDmc),
+                    'diff' => $availability['diff'],
+                    'requested_days' => $availability['requested_days'],
+                    'available_days' => $availability['available_days'],
+                    'is_partial_package' => $availability['is_partial'],
+                    'partial_package_message' => $availability['partial_message'],
+                    'cities' => $this->resolveDayLevelCities($payload),
+                    'destination' => $tour->destination,
+                    'city' => $tour->city,
+                    'check_in_time' => $tour->check_in_time,
+                    'check_out_time' => $tour->check_out_time,
+                    'adult' => $tour->adult,
+                    'child' => $tour->child,
+                    'infant' => $tour->infant,
+                    'agent_name' => $agent->name ?? '',
+                    'agency_name' => $agency->agency_name ?? '',
+                    'dmc_label' => $dmcName,
+                    'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                    'booked_at' => $timestamp,
+                    'quoted_at' => $timestamp,
+                    'booked_services' => $bookedServices,
+                    'total_estimation' => $totalEstimation,
+                    'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
+                ], $threadFields), $dmcUser);
+            }
 
             if ($sent !== true) {
-                Log::warning('External API sender auto-book email not sent', [
+                Log::warning('External API sender itinerary email not sent', [
                     'tour_id' => $tour->tour_id,
                     'sender_email' => $senderEmail,
+                    'ai_response' => CommonHelper::resolveDmcAiResponse($dmcUser),
                     'reason' => $sent,
                 ]);
 
@@ -1356,7 +1503,7 @@ class ExternalApiReceiveController extends Controller
 
             return ['sent' => true, 'email' => $senderEmail];
         } catch (Throwable $e) {
-            Log::error('External API sender auto-book email failed', [
+            Log::error('External API sender itinerary email failed', [
                 'tour_id' => $tour->tour_id,
                 'sender_email' => $senderEmail,
                 'error' => $e->getMessage(),
@@ -1368,22 +1515,363 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveSenderNotificationEmail(array $payload): ?string
     {
-        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'email'], ''));
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
         }
 
+        $mainGuest = $this->extractMainGuest($payload);
+        if (is_array($mainGuest) && ! empty($mainGuest['email'])) {
+            $guestEmail = trim((string) $mainGuest['email']);
+            if ($guestEmail !== '' && filter_var($guestEmail, FILTER_VALIDATE_EMAIL)) {
+                return $guestEmail;
+            }
+        }
+
         return null;
+    }
+
+    protected function resolveEmailUuidFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailUuidFromContext([
+            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+        ]);
+    }
+
+    protected function resolveEmailSubjectFromPayload(array $payload): ?string
+    {
+        return CommonHelper::resolveEmailSubjectFromContext([
+            'subject' => $this->payloadValue($payload, ['subject'], ''),
+            'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
+        ]);
+    }
+
+    /**
+     * @return array{references: mixed, cc: list<string>, bcc: list<string>}
+     */
+    protected function resolveEmailThreadPayloadFields(array $payload): array
+    {
+        return [
+            'references' => $this->payloadValue($payload, [
+                'references',
+                'email_references',
+                'References',
+            ], ''),
+            'cc' => $this->resolvePayloadEmailList($payload, [
+                'cc',
+                'cc_list',
+                'cc_emails',
+                'cc_email',
+                'CC',
+            ]),
+            'bcc' => $this->resolvePayloadEmailList($payload, [
+                'bcc',
+                'bcc_list',
+                'bcc_emails',
+                'bcc_email',
+                'BCC',
+            ]),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    protected function resolvePayloadEmailList(array $payload, array $keys): array
+    {
+        $layers = [$payload];
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (isset($payload[$wrapper]) && is_array($payload[$wrapper])) {
+                $layers[] = $payload[$wrapper];
+            }
+        }
+
+        $emails = [];
+        foreach ($layers as $layer) {
+            $emails = array_merge($emails, CommonHelper::resolveEmailListFromContext($layer, $keys));
+        }
+
+        return array_values(array_unique($emails));
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveEmailReferencesFromPayload(array $payload): array
+    {
+        return CommonHelper::resolveEmailReferencesFromContext([
+            'references' => $this->payloadValue($payload, [
+                'references',
+                'email_references',
+                'References',
+            ], ''),
+        ]);
+    }
+
+    protected function payloadMatchingValue(array $payload): ?int
+    {
+        $value = $this->payloadValue($payload, ['matching', 'Matching']);
+
+        if ($value === null || $value === '') {
+            foreach (['response', 'data', 'body'] as $wrapper) {
+                if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                    continue;
+                }
+                if (array_key_exists('matching', $payload[$wrapper])) {
+                    $value = $payload[$wrapper]['matching'];
+                    break;
+                }
+            }
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     protected function payloadMatchingIsZero(array $payload): bool
     {
-        if (! array_key_exists('matching', $payload)) {
-            return false;
+        return $this->payloadMatchingValue($payload) === 0;
+    }
+
+    /**
+     * matching == 0: validate secondary_country against Master DMC countries.
+     * Supported → incomplete-travel-details email. Not supported → mismatch email.
+     *
+     * @return array{message: string, result: array<string, mixed>}
+     */
+    protected function handleMatchingZeroNotification(array $payload, ?int $receivedId = null): array
+    {
+        $requestedCountry = $this->resolveRequestedDestinationCountry($payload, true);
+        $primaryDmc = $this->resolvePrimaryDmc($payload);
+        $dmcUser = $this->resolveDmcUser($payload, $primaryDmc);
+        $masterDmc = $this->resolveMasterDmcUser($dmcUser, $payload);
+
+        if ($requestedCountry !== '' && $masterDmc) {
+            $masterSupported = CommonHelper::dmcSupportsDestinationCountry($masterDmc, $requestedCountry);
+
+            if (! $masterSupported) {
+                $countrySupport = [
+                    'supported' => false,
+                    'requested_country' => $requestedCountry,
+                    'supported_countries' => CommonHelper::resolveSupportedCountriesForDmc($masterDmc),
+                    'alternate_dmcs' => CommonHelper::findAlternateDmcsForCountry(
+                        $dmcUser ?? $masterDmc,
+                        $requestedCountry
+                    ),
+                ];
+
+                $agentNotify = $this->notifyUnsupportedDestinationCountry(
+                    $payload,
+                    $dmcUser ?? $masterDmc,
+                    $primaryDmc,
+                    $countrySupport
+                );
+
+                Log::warning('External API: matching=0 destination country not supported by Master DMC', [
+                    'received_id' => $receivedId,
+                    'matching' => 0,
+                    'requested_country' => $requestedCountry,
+                    'secondary_country' => $this->payloadValue($payload, ['secondary_country', 'secondaryCountry'], ''),
+                    'master_dmc_id' => $masterDmc->userId,
+                    'master_dmc_name' => trim((string) ($masterDmc->company_name ?: $masterDmc->name ?: '')),
+                    'supported_countries' => $countrySupport['supported_countries'],
+                    'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                    'agent_email' => $agentNotify['email'],
+                    'agent_email_sent' => $agentNotify['sent'],
+                ]);
+
+                return [
+                    'message' => 'The requested destination country is not supported by this Master DMC. An informational email has been sent to the agent.',
+                    'result' => [
+                        'notification_type' => 'destination_country_mismatch',
+                        'destination_country_supported' => false,
+                        'validated_against' => 'master_dmc',
+                        'requested_country' => $requestedCountry,
+                        'supported_countries' => $countrySupport['supported_countries'],
+                        'master_dmc_id' => $masterDmc->userId,
+                        'master_dmc_name' => trim((string) ($masterDmc->company_name ?: $masterDmc->name ?: 'Master DMC')),
+                        'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                        'notification_email_sent' => $agentNotify['sent'],
+                        'notification_email' => $agentNotify['email'],
+                        'sender_email_sent' => $agentNotify['sent'],
+                        'sender_email' => $agentNotify['email'],
+                    ],
+                ];
+            }
+
+            Log::info('External API: matching=0 destination country supported by Master DMC', [
+                'received_id' => $receivedId,
+                'matching' => 0,
+                'requested_country' => $requestedCountry,
+                'master_dmc_id' => $masterDmc->userId,
+                'supported_countries' => CommonHelper::resolveSupportedCountriesForDmc($masterDmc),
+            ]);
         }
 
-        return (int) $payload['matching'] === 0;
+        $senderNotify = $this->notifyIncompleteTravelDetails($payload);
+
+        return [
+            'message' => 'Incomplete travel details. A notification email has been sent to the sender.',
+            'result' => [
+                'notification_type' => 'incomplete_travel_details',
+                'destination_country_supported' => $requestedCountry === '' || ! $masterDmc
+                    ? null
+                    : true,
+                'requested_country' => $requestedCountry !== '' ? $requestedCountry : null,
+                'validated_against' => $masterDmc ? 'master_dmc' : null,
+                'notification_email_sent' => $senderNotify['sent'],
+                'notification_email' => $senderNotify['email'],
+                'sender_email_sent' => $senderNotify['sent'],
+                'sender_email' => $senderNotify['email'],
+            ],
+        ];
+    }
+
+    /**
+     * Travel destination from payload. When $preferSecondaryCountry is true (matching == 0),
+     * secondary_country is checked before country.
+     */
+    protected function resolveRequestedDestinationCountry(array $payload, bool $preferSecondaryCountry = false): string
+    {
+        $keys = $preferSecondaryCountry
+            ? ['secondary_country', 'secondaryCountry', 'country', 'destination_country', 'destinationCountry', 'requested_country', 'requestedCountry']
+            : ['country', 'destination_country', 'destinationCountry', 'secondary_country', 'secondaryCountry', 'requested_country', 'requestedCountry'];
+
+        $explicit = trim((string) $this->payloadValue($payload, $keys, ''));
+        if ($explicit !== '') {
+            return CommonHelper::normalizeCountryName($explicit);
+        }
+
+        foreach ($payload['destinations'] ?? [] as $destination) {
+            if (! is_array($destination)) {
+                continue;
+            }
+
+            $destinationCountry = trim((string) (
+                $destination['country']
+                ?? $destination['destination_country']
+                ?? $destination['destinationCountry']
+                ?? ''
+            ));
+
+            if ($destinationCountry !== '') {
+                return CommonHelper::normalizeCountryName($destinationCountry);
+            }
+        }
+
+        return '';
+    }
+
+    protected function resolveMasterDmcUser(?User $dmcUser, array $payload): ?User
+    {
+        $masterId = (int) $this->payloadValue($payload, ['Master_DMC_id', 'master_dmc_id', 'masterDmcId'], 0);
+
+        if ($dmcUser) {
+            if (CommonHelper::isMasterDmcUser($dmcUser)) {
+                return $dmcUser;
+            }
+
+            if ((int) ($dmcUser->master_dmc_id ?? 0) > 0) {
+                $masterId = (int) $dmcUser->master_dmc_id;
+            }
+        }
+
+        if ($masterId > 0) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                return $master;
+            }
+        }
+
+        if ($dmcUser && ! empty($dmcUser->created_by)) {
+            $parent = User::where('userId', $dmcUser->created_by)->first();
+            if ($parent && CommonHelper::isMasterDmcUser($parent)) {
+                return $parent;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{
+     *   supported: bool,
+     *   requested_country: string,
+     *   supported_countries: list<string>,
+     *   alternate_dmcs: list<array{name: string, email: string, country: string}>
+     * }  $countrySupport
+     * @return array{sent: bool, email: ?string}
+     */
+    protected function notifyUnsupportedDestinationCountry(
+        array $payload,
+        User $dmcUser,
+        array $primaryDmc,
+        array $countrySupport
+    ): array {
+        $agentEmail = $this->resolveAgentNotificationEmail($payload, $dmcUser);
+
+        if ($agentEmail === null) {
+            Log::info('External API: skipping unsupported destination email, no valid agent email', [
+                'dmc_id' => $dmcUser->userId,
+                'requested_country' => $countrySupport['requested_country'],
+            ]);
+
+            return ['sent' => false, 'email' => null];
+        }
+
+        $agent = $this->resolveAgent($payload);
+        $agentName = $agent?->name;
+        if ($agentName === null || trim((string) $agentName) === '') {
+            $agentName = ucfirst(explode('@', $agentEmail)[0]);
+        }
+
+        $selectedDmcName = trim((string) (
+            $primaryDmc['DMC_name']
+            ?? $primaryDmc['dmc_name']
+            ?? $dmcUser->company_name
+            ?? $dmcUser->name
+            ?? 'DMC'
+        ));
+
+        $dmcLabel = trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: $selectedDmcName));
+
+        try {
+            $sent = CommonHelper::sendUnsupportedDestinationCountryEmail($agentEmail, array_merge([
+                'recipient_name' => $agentName,
+                'selected_dmc_name' => $selectedDmcName,
+                'requested_country' => $countrySupport['requested_country'],
+                'alternate_dmcs' => $countrySupport['alternate_dmcs'],
+                'dmc_name' => $dmcLabel,
+                'dmc_label' => $dmcLabel,
+                'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
+                'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                'subject' => $this->resolveEmailSubjectFromPayload($payload),
+            ], $this->resolveEmailThreadPayloadFields($payload)), $dmcUser);
+
+            if ($sent !== true) {
+                Log::warning('External API unsupported destination email not sent', [
+                    'agent_email' => $agentEmail,
+                    'reason' => $sent,
+                ]);
+
+                return ['sent' => false, 'email' => $agentEmail];
+            }
+
+            return ['sent' => true, 'email' => $agentEmail];
+        } catch (Throwable $e) {
+            Log::error('External API unsupported destination email failed', [
+                'agent_email' => $agentEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['sent' => false, 'email' => $agentEmail];
+        }
     }
 
     /**
@@ -1409,15 +1897,19 @@ class ExternalApiReceiveController extends Controller
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
             : 'DMC';
         $senderName = ucfirst(explode('@', $senderEmail)[0]);
+        $missingItems = $this->resolveMissingTravelDetailItems($payload);
 
         try {
-            $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, [
+            $sent = CommonHelper::sendIncompleteTravelDetailsEmail($senderEmail, array_merge([
+                'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                'subject' => $this->resolveEmailSubjectFromPayload($payload),
                 'recipient_name' => $senderName,
                 'dmc_name' => $dmcName,
                 'dmc_label' => $dmcName,
                 'dmc_logo' => $this->resolveDmcLogoForEmail($dmcUser, $payload),
                 'dmc_contact_email' => $this->resolveDmcContactEmail($payload, $primaryDmc, $dmcUser),
-            ]);
+                'missing_items' => $missingItems,
+            ], $this->resolveEmailThreadPayloadFields($payload)), $dmcUser);
 
             if ($sent !== true) {
                 Log::warning('External API incomplete travel details email not sent', [
@@ -1437,6 +1929,26 @@ class ExternalApiReceiveController extends Controller
 
             return ['sent' => false, 'email' => $senderEmail];
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function resolveMissingTravelDetailItems(array $payload): array
+    {
+        $fromPayload = $this->payloadValue($payload, ['missing_fields', 'missingFields', 'missing_items', 'missingItems']);
+        if (is_string($fromPayload) && $fromPayload !== '') {
+            $fromPayload = array_map('trim', explode(',', $fromPayload));
+        }
+        if (is_array($fromPayload) && $fromPayload !== []) {
+            return array_values(array_filter(array_map(static fn ($item) => trim((string) $item), $fromPayload)));
+        }
+
+        return [
+            'Destination country',
+            'Number of nights/days of stay',
+            'Travel dates',
+        ];
     }
 
     protected function resolveDmcContactEmail(array $payload, array $primaryDmc, ?User $dmcUser): ?string
@@ -2291,7 +2803,11 @@ class ExternalApiReceiveController extends Controller
         return '';
     }
 
-    protected function notifyAgent(Tour $tour): bool
+    /**
+     * Send tour proposal email to the agent using DMC ai_response (QTN / ITN).
+     * Non-fatal by design.
+     */
+    protected function notifyAgent(Tour $tour, array $payload = []): bool
     {
         if (empty($tour->agent_id)) {
             Log::info('External API: skipping proposal email, no agent linked to tour', [
@@ -2306,6 +2822,19 @@ class ExternalApiReceiveController extends Controller
                 return false;
             }
 
+            $dmcUser = !empty($tour->dmc_id)
+                ? User::where('userId', $tour->dmc_id)->first()
+                : null;
+
+            if (CommonHelper::resolveDmcAiResponse($dmcUser) === null) {
+                Log::info('External API: skipping agent email, DMC ai_response not set to QTN or ITN', [
+                    'tour_id' => $tour->tour_id,
+                    'dmc_id' => $dmcUser?->userId,
+                ]);
+
+                return false;
+            }
+
             $previousUser = Auth::user();
             Auth::setUser($agent);
 
@@ -2314,7 +2843,7 @@ class ExternalApiReceiveController extends Controller
                     $tour->agent_id,
                     $tour->tour_id,
                     $tour->display_id,
-                    [
+                    array_merge([
                         'destination' => $tour->destination,
                         'city' => $tour->city,
                         'check_in_time' => $tour->check_in_time,
@@ -2322,19 +2851,22 @@ class ExternalApiReceiveController extends Controller
                         'adult' => $tour->adult,
                         'child' => $tour->child,
                         'infant' => $tour->infant,
-                    ]
+                        'email_uuid' => $this->resolveEmailUuidFromPayload($payload),
+                        'subject' => $this->resolveEmailSubjectFromPayload($payload),
+                    ], $this->resolveEmailThreadPayloadFields($payload)),
+                    $dmcUser
                 );
             } finally {
-                // Restore prior auth state (request ends right after, but stay clean).
                 if ($previousUser) {
                     Auth::setUser($previousUser);
                 }
             }
 
             if ($emailResult !== true) {
-                Log::warning('External API tour proposal email not sent', [
+                Log::warning('External API tour itinerary email not sent to agent', [
                     'tour_id' => $tour->tour_id,
                     'agent_id' => $tour->agent_id,
+                    'ai_response' => CommonHelper::resolveDmcAiResponse($dmcUser),
                     'reason' => $emailResult,
                 ]);
                 return false;
@@ -2555,6 +3087,28 @@ class ExternalApiReceiveController extends Controller
         $email = $this->payloadValue($payload, ['agent_email', 'agentEmail', 'sender_email']);
         if (!empty($email)) {
             return Agent::where('email', $email)->first();
+        }
+
+        return null;
+    }
+
+    protected function resolveAgentNotificationEmail(array $payload, User $dmcUser): ?string
+    {
+        $agent = $this->resolveAgent($payload);
+        if ($agent && ! empty($agent->email) && filter_var($agent->email, FILTER_VALIDATE_EMAIL)) {
+            return trim((string) $agent->email);
+        }
+
+        $senderEmail = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'agent_email', 'agentEmail'], ''));
+        if ($senderEmail !== '' && filter_var($senderEmail, FILTER_VALIDATE_EMAIL)) {
+            return $senderEmail;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?: (CommonHelper::isMasterDmcUser($dmcUser) ? $dmcUser->userId : 0));
+        $agents = $this->findAgentsForDmc($masterId > 0 ? $masterId : (int) $dmcUser->userId, $dmcUser);
+        $firstAgent = $agents->first();
+        if ($firstAgent && ! empty($firstAgent->email) && filter_var($firstAgent->email, FILTER_VALIDATE_EMAIL)) {
+            return trim((string) $firstAgent->email);
         }
 
         return null;
@@ -2840,6 +3394,21 @@ class ExternalApiReceiveController extends Controller
         foreach ($keys as $key) {
             if (array_key_exists($key, $payload) && $payload[$key] !== null && $payload[$key] !== '') {
                 return $payload[$key];
+            }
+        }
+
+        foreach (['response', 'data', 'body', 'booking', 'result'] as $wrapper) {
+            if (! isset($payload[$wrapper]) || ! is_array($payload[$wrapper])) {
+                continue;
+            }
+            foreach ($keys as $key) {
+                if (
+                    array_key_exists($key, $payload[$wrapper])
+                    && $payload[$wrapper][$key] !== null
+                    && $payload[$wrapper][$key] !== ''
+                ) {
+                    return $payload[$wrapper][$key];
+                }
             }
         }
 

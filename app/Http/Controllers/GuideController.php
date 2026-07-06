@@ -156,6 +156,7 @@ class GuideController extends Controller
         'service_type' => 'required|integer',
         'guide_age' => 'required',
         'day_rate' => 'required|numeric',
+        'minimum_cost_price' => 'required|numeric',
         'night_surcharge' => 'required|numeric',
         'night_start_time' => 'required',
         'night_end_time' => 'required',
@@ -166,6 +167,13 @@ class GuideController extends Controller
         'eight_hour_price' => 'required|numeric',
         'ten_hour_price' => 'required|numeric',
         'twelve_hour_price' => 'required|numeric',
+        'hourly_cost_price' => 'required|numeric',
+        'two_hour_cost_price' => 'required|numeric',
+        'four_hour_cost_price' => 'required|numeric',
+        'six_hour_cost_price' => 'required|numeric',
+        'eight_hour_cost_price' => 'required|numeric',
+        'ten_hour_cost_price' => 'required|numeric',
+        'twelve_hour_cost_price' => 'required|numeric',
     ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
     ]);
@@ -215,6 +223,7 @@ class GuideController extends Controller
         'service_type' => $validated['service_type'],
         'guide_age' => $validated['guide_age'],
         'day_rate' => $validated['day_rate'],
+        'minimum_cost_price' => $validated['minimum_cost_price'],
         'night_surcharge' => $validated['night_surcharge'],
         'night_start_time' => $validated['night_start_time'],
         'night_end_time' => $validated['night_end_time'],
@@ -225,6 +234,13 @@ class GuideController extends Controller
         'eight_hour_price' => $validated['eight_hour_price'],
         'ten_hour_price' => $validated['ten_hour_price'],
         'twelve_hour_price' => $validated['twelve_hour_price'],
+        'hourly_cost_price' => $validated['hourly_cost_price'],
+        'two_hour_cost_price' => $validated['two_hour_cost_price'],
+        'four_hour_cost_price' => $validated['four_hour_cost_price'],
+        'six_hour_cost_price' => $validated['six_hour_cost_price'],
+        'eight_hour_cost_price' => $validated['eight_hour_cost_price'],
+        'ten_hour_cost_price' => $validated['ten_hour_cost_price'],
+        'twelve_hour_cost_price' => $validated['twelve_hour_cost_price'],
         'status' => $status
     ]);
 
@@ -396,6 +412,7 @@ class GuideController extends Controller
                 'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'day_rate' => 'nullable|numeric',
+                'minimum_cost_price' => 'nullable|numeric',
                 'night_surcharge' => 'nullable|numeric',
                 'night_start_time' => 'nullable|date_format:H:i',
                 'night_end_time' => 'nullable|date_format:H:i',
@@ -406,6 +423,13 @@ class GuideController extends Controller
                 'eight_hour_price' => 'nullable|numeric',
                 'ten_hour_price' => 'nullable|numeric',
                 'twelve_hour_price' => 'nullable|numeric',
+                'hourly_cost_price' => 'nullable|numeric',
+                'two_hour_cost_price' => 'nullable|numeric',
+                'four_hour_cost_price' => 'nullable|numeric',
+                'six_hour_cost_price' => 'nullable|numeric',
+                'eight_hour_cost_price' => 'nullable|numeric',
+                'ten_hour_cost_price' => 'nullable|numeric',
+                'twelve_hour_cost_price' => 'nullable|numeric',
                 'languages' => 'required|array',
                 'language_proficiency' => 'required|array',
             ]);
@@ -514,6 +538,7 @@ class GuideController extends Controller
                 'country' => $request->country,
                 'image' => $guideImage,
                 'day_rate' => $validated['day_rate'],
+                'minimum_cost_price' => $validated['minimum_cost_price'],
                 'night_surcharge' => $validated['night_surcharge'],
                 'night_start_time' => $validated['night_start_time'],
                 'night_end_time' => $validated['night_end_time'],
@@ -524,6 +549,13 @@ class GuideController extends Controller
                 'eight_hour_price' => $validated['eight_hour_price'],
                 'ten_hour_price' => $validated['ten_hour_price'],
                 'twelve_hour_price' => $validated['twelve_hour_price'],
+                'hourly_cost_price' => $validated['hourly_cost_price'],
+                'two_hour_cost_price' => $validated['two_hour_cost_price'],
+                'four_hour_cost_price' => $validated['four_hour_cost_price'],
+                'six_hour_cost_price' => $validated['six_hour_cost_price'],
+                'eight_hour_cost_price' => $validated['eight_hour_cost_price'],
+                'ten_hour_cost_price' => $validated['ten_hour_cost_price'],
+                'twelve_hour_cost_price' => $validated['twelve_hour_cost_price'],
                 'status' => $status,
                 'dmc_id' => $dmc_id ?? 0,
                 'is_active' => $request->input('guide_status') == 1 ? 1 : 0,
@@ -587,6 +619,7 @@ class GuideController extends Controller
         $guide->country = $request->country;
         $guide->image = $guideImage;
         $guide->day_rate = $validated['day_rate'];
+        $guide->minimum_cost_price = $validated['minimum_cost_price'];
         $guide->night_surcharge = $validated['night_surcharge'];
         $guide->night_start_time = $validated['night_start_time'];
         $guide->night_end_time = $validated['night_end_time'];
@@ -597,6 +630,13 @@ class GuideController extends Controller
         $guide->eight_hour_price = $validated['eight_hour_price'];
         $guide->ten_hour_price = $validated['ten_hour_price'];
         $guide->twelve_hour_price = $validated['twelve_hour_price'];
+        $guide->hourly_cost_price = $validated['hourly_cost_price'];
+        $guide->two_hour_cost_price = $validated['two_hour_cost_price'];
+        $guide->four_hour_cost_price = $validated['four_hour_cost_price'];
+        $guide->six_hour_cost_price = $validated['six_hour_cost_price'];
+        $guide->eight_hour_cost_price = $validated['eight_hour_cost_price'];
+        $guide->ten_hour_cost_price = $validated['ten_hour_cost_price'];
+        $guide->twelve_hour_cost_price = $validated['twelve_hour_cost_price'];
         $guide->status = $status;
         $guide->dmc_id = $dmc_id;
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
@@ -760,6 +800,7 @@ class GuideController extends Controller
             'guide_age' => 'required',
             'wp_number' => 'required|numeric',
             'day_rate' => 'required|numeric',
+            'minimum_cost_price' => 'required|numeric',
             'night_surcharge' => 'required|numeric',
             'night_start_time' => 'required',
             'night_end_time' => 'required',
@@ -770,6 +811,13 @@ class GuideController extends Controller
             'eight_hour_price' => 'required|numeric',
             'ten_hour_price' => 'required|numeric',
             'twelve_hour_price' => 'required|numeric',
+            'hourly_cost_price' => 'required|numeric',
+            'two_hour_cost_price' => 'required|numeric',
+            'four_hour_cost_price' => 'required|numeric',
+            'six_hour_cost_price' => 'required|numeric',
+            'eight_hour_cost_price' => 'required|numeric',
+            'ten_hour_cost_price' => 'required|numeric',
+            'twelve_hour_cost_price' => 'required|numeric',
         ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
         ]);
@@ -811,6 +859,7 @@ class GuideController extends Controller
         $guide->guide_age = $validated['guide_age'];
         $guide->wp_number = $validated['wp_number'];
         $guide->day_rate = $validated['day_rate'];
+        $guide->minimum_cost_price = $validated['minimum_cost_price'];
         $guide->night_surcharge = $validated['night_surcharge'];
         $guide->night_start_time = $validated['night_start_time'];
         $guide->night_end_time = $validated['night_end_time'];
@@ -821,6 +870,13 @@ class GuideController extends Controller
         $guide->eight_hour_price = $validated['eight_hour_price'];
         $guide->ten_hour_price = $validated['ten_hour_price'];
         $guide->twelve_hour_price = $validated['twelve_hour_price'];
+        $guide->hourly_cost_price = $validated['hourly_cost_price'];
+        $guide->two_hour_cost_price = $validated['two_hour_cost_price'];
+        $guide->four_hour_cost_price = $validated['four_hour_cost_price'];
+        $guide->six_hour_cost_price = $validated['six_hour_cost_price'];
+        $guide->eight_hour_cost_price = $validated['eight_hour_cost_price'];
+        $guide->ten_hour_cost_price = $validated['ten_hour_cost_price'];
+        $guide->twelve_hour_cost_price = $validated['twelve_hour_cost_price'];
 
         //Get all existing languages for the guide
         $existingLanguages = GuideLanguage::where('guide_id', $id)

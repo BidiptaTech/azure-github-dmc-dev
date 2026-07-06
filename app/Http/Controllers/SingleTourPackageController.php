@@ -21,7 +21,9 @@ use App\Models\Order;
 use App\Models\Vehicle;
 use App\Models\VehicleZoneMapping;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Helpers\CommonHelper;
 use App\Helpers\HotelPriceHelper;
@@ -33,9 +35,22 @@ use App\Models\Agency;
 use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
+use App\Services\HotelSuppliers\OnlineHotelAggregator;
+use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 
 class SingleTourPackageController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('lite')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
     /**
      * Display a listing of single tour packages.
      */
@@ -1116,50 +1131,98 @@ class SingleTourPackageController extends Controller
         $userDmcId = CommonHelper::getDmcId(Auth::user());
         $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
 
+        // The tour's `destination` field can hold a CITY name (e.g. "Batam"), not a country.
+        // Hotels/restaurants/guides store the city in `city`; attractions in `location`. Filtering these
+        // only by `country = destination` wrongly returns empty when destination is actually a city.
+        // Build the set of city values for this tour (from tour->city, plus destination) so we can match
+        // on the correct city column, while still keeping `country = destination` as a fallback.
+        $tourCityNames = collect(explode(',', (string) ($tour->city ?? '')))
+            ->map(fn ($c) => trim(preg_replace('/\s*\([^)]*\)\s*$/', '', (string) $c)))
+            ->filter()
+            ->values()
+            ->all();
+        $cityMatchValues = $tourCityNames;
+        if (!empty($tour->destination)) {
+            $cityMatchValues[] = trim((string) $tour->destination);
+        }
+        $cityMatchValues = array_values(array_unique(array_filter($cityMatchValues)));
+
+        // Resolve the real country for the tour: if `destination` is actually a city, look up its country.
+        // Used for ports (ports are scoped by country) so a city-valued destination doesn't return empty.
+        $portsCountry = $tour->destination;
+        if (!empty($tour->destination)) {
+            $destinationCity = City::where('name', $tour->destination)->first();
+            if ($destinationCity && !empty($destinationCity->country)) {
+                $portsCountry = $destinationCity->country;
+            }
+        }
+
         if ($userDmcId) {
             $hotels = Hotel::with(['rooms.bed'])
-                ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int) $userDmcId)
+                ->where(function ($q) use ($cityMatchValues, $tour) {
+                    if (!empty($cityMatchValues)) {
+                        $q->whereIn('city', $cityMatchValues);
+                    }
+                    if (!empty($tour->destination)) {
+                        $q->orWhere('country', $tour->destination);
+                    }
+                })
                 ->get();
         } else {
             $hotels = collect();
         }
 
-        // Load guides filtered by DMC and country (tour destination)
+        // Load guides filtered by DMC, matching the tour's city (or country as fallback)
         $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $guidesQuery->where('country', $tour->destination);
-        }
+        $guidesQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $guides = $guidesQuery->get();
 
-        // Load restaurants filtered by DMC and country (tour destination)
+        // Load restaurants filtered by DMC, matching the tour's city (or country as fallback)
         $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $restaurantsQuery->where('country', $tour->destination);
-        }
+        $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('city', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $restaurants = $restaurantsQuery->get();
 
-        // Load attractions filtered by DMC and country (tour destination)
+        // Load attractions filtered by DMC, matching the tour's city (attractions use `location`) or country
         $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
             ->whereJsonContains('dmc_id', $userDmcId);
-        if ($tour->destination) {
-            $attractionsQuery->where('country', $tour->destination);
-        }
+        $attractionsQuery->where(function ($q) use ($cityMatchValues, $tour) {
+            if (!empty($cityMatchValues)) {
+                $q->whereIn('location', $cityMatchValues);
+            }
+            if (!empty($tour->destination)) {
+                $q->orWhere('country', $tour->destination);
+            }
+        });
         $attractions = $attractionsQuery->get();
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        $cities = City::where('country', $tour->destination)->get();
+        $cities = City::where('country', $portsCountry)->get();
         if ($cities->isEmpty()) {
             $cities = City::orderBy('name')->get();
         }
-        $ports = $this->getPortsForDmc($tour->destination ?: null);
+        $ports = $this->getPortsForDmc($portsCountry ?: null);
 
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
         $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
@@ -1707,10 +1770,22 @@ class SingleTourPackageController extends Controller
         }
 
         if ($countryName) {
-            if (!empty($dmcCountries) && !in_array($countryName, $dmcCountries, true)) {
-                return collect();
+            if (!empty($dmcCountries)) {
+                $countryAllowed = false;
+                foreach ($dmcCountries as $dmcCountry) {
+                    if (strcasecmp((string) $dmcCountry, (string) $countryName) === 0) {
+                        $countryAllowed = true;
+                        break;
+                    }
+                }
+                if (!$countryAllowed) {
+                    return collect();
+                }
             }
-            $query->where('country', $countryName);
+            $query->where(function ($q) use ($countryName) {
+                $q->where('country', $countryName)
+                    ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $countryName)]);
+            });
         }
 
         return $query->orderBy('port_name')->get();
@@ -2151,6 +2226,96 @@ class SingleTourPackageController extends Controller
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile()
                 ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Proxy: fetch hotels from country-mapped online hotel supplier (adapter layer).
+     */
+    public function fetchOnlineHotels(Request $request, OnlineHotelAggregator $aggregator)
+    {
+        $request->validate([
+            'checkIn' => 'required|date',
+            'checkOut' => 'required|date|after:checkIn',
+            'city' => 'required|string|max:255',
+            'paxInfo' => 'required|string|max:50',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->search(
+                    $request->input('city'),
+                    $request->input('checkIn'),
+                    $request->input('checkOut'),
+                    $request->input('paxInfo'),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online hotel search failed', [
+                'city' => $request->input('city'),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online hotel search exception', [
+                'city' => $request->input('city'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching online hotels: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Proxy: fetch attractions from country-mapped online attraction supplier (adapter layer).
+     */
+    public function fetchOnlineAttractions(Request $request, OnlineAttractionAggregator $aggregator)
+    {
+        $request->validate([
+            'visitDate' => 'nullable|date',
+            'city' => 'nullable|string|max:255',
+            'paxInfo' => 'nullable|string|max:50',
+            'display_limit' => 'nullable|integer|min:1|max:500',
+            'current_page' => 'nullable|integer|min:1',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->search(
+                    $request->input('visitDate'),
+                    $request->input('city'),
+                    $request->input('paxInfo'),
+                    $request->input('display_limit') !== null ? (int) $request->input('display_limit') : null,
+                    $request->input('current_page') !== null ? (int) $request->input('current_page') : null,
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online attraction search failed', [
+                'city' => $request->input('city'),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online attraction search exception', [
+                'city' => $request->input('city'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching online attractions: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -3721,7 +3886,11 @@ class SingleTourPackageController extends Controller
                                         'remarks' => $hotelBooking['remarks'] ?? null,
                                         
                                         // supplement: true if supplement checkbox or service for fewer adults than tour (stored as supplement in DB)
-                                        'supplement' => $hotelBooking['supplement'] ?? $hotelBooking['is_supplement'] ?? false
+                                        'supplement' => $hotelBooking['supplement'] ?? $hotelBooking['is_supplement'] ?? false,
+
+                                        'isOnlineHotel' => (bool) ($hotelBooking['isOnlineHotel'] ?? false),
+                                        'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
+                                        'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
                                     ];
                                     
                                     // Log transfer options for debugging
@@ -3749,6 +3918,8 @@ class SingleTourPackageController extends Controller
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
                                         'remarks' => $hotelBooking['remarks'] ?? null,
+                                        'order_type' => $this->resolveServiceOrderType($hotelBooking, 'hotel'),
+                                        'order_ref_no' => '1111111',
                                     ]);
                                     $order->refresh();
 
@@ -3784,6 +3955,10 @@ class SingleTourPackageController extends Controller
                             foreach ($decodedData as $attraction) {
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
+
+                                $attraction['isOnlineAttraction'] = (bool) ($attraction['isOnlineAttraction'] ?? false);
+                                $attraction['attractionSourceType'] = $attraction['attractionSourceType']
+                                    ?? (! empty($attraction['isOnlineAttraction']) ? 'online' : 'offline');
                                 
                                 // Process transfer_options if it exists
                                 if (isset($attraction['transfer_options']) && is_array($attraction['transfer_options']) && !empty($attraction['transfer_options'])) {
@@ -3841,6 +4016,8 @@ class SingleTourPackageController extends Controller
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $attraction['remarks'] ?? null,
+                                    'order_type' => $this->resolveServiceOrderType($attraction, 'attraction'),
+                                    'order_ref_no' => '1111111',
                                 ]);
                                 $order->refresh();
 
@@ -5488,6 +5665,32 @@ class SingleTourPackageController extends Controller
                 'message' => 'An error occurred while fetching pricing: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Resolve whether a hotel/attraction order was booked online or offline.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveServiceOrderType(array $item, string $serviceType): string
+    {
+        if ($serviceType === 'hotel') {
+            if (! empty($item['isOnlineHotel']) || ($item['hotelSourceType'] ?? '') === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        if ($serviceType === 'attraction') {
+            if (! empty($item['isOnlineAttraction']) || ($item['attractionSourceType'] ?? '') === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        return 'offline';
     }
 
     /**

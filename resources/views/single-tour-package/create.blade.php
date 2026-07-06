@@ -404,6 +404,11 @@
             white-space: nowrap;
         }
 
+        .add-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         
         .enquiry-sidebar .card-header {
             background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
@@ -1087,6 +1092,7 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
+                            <div id="offlineHotelPanel">
                             <!-- Hotel Selection Controls -->
                             <!-- Row 1: City, Select Hotel, Room Type, Bed Type -->
                             <div class="row g-2 mb-2">
@@ -1279,12 +1285,12 @@
                                     </div>
                                 
                                     <div class="d-flex align-items-end" style="gap: 8px;">
-                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn get-price-btn" id="getPriceBtn" onclick="getHotelPrice()" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <span class="get-price-spinner spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
                                             <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                         </button>
 
-                                        <button type="button" class="btn add-btn" onclick="addHotel()" style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                        <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
                                     </div>
@@ -1298,8 +1304,7 @@
                                     </div>
                                 </div>
                             </div>
-
-                            
+                            </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
                             <div id="selectedHotels">
@@ -1362,7 +1367,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
             <!-- Transports and Other Services Section -->
@@ -1624,9 +1628,16 @@
                                             </span>
                                         </div>
                                     </div>
-                                    <button type="button" class="btn px-5" id="savePackageBtn" onclick="handleSavePackage(this)" style="height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none; font-size: 1rem; font-weight: 500; border-radius: 8px;">
-                                        <i class="ri-save-line me-2"></i>Save Tour Package
-                                    </button>
+                                    <span class="d-inline-block tour-submit-wrap tour-submit-wrap--disabled"
+                                          id="tour-submit-btn-wrap"
+                                          tabindex="0"
+                                          data-bs-toggle="tooltip"
+                                          data-bs-placement="top"
+                                          title="Please book at least one service (hotel, attraction, restaurant, guide, or transport) before saving the tour package.">
+                                        <button type="button" class="btn px-5" id="savePackageBtn" onclick="handleSavePackage(this)" disabled style="height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; border: none; font-size: 1rem; font-weight: 500; border-radius: 8px;">
+                                            <i class="ri-save-line me-2"></i>Save Tour Package
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -2886,6 +2897,7 @@
                         
                         // Update package total price display
                         updatePackageTotalPriceDisplay();
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     };
 
                     // Function to fetch attraction details dynamically
@@ -3173,6 +3185,7 @@
                         
                         // Update package total price display
                         updatePackageTotalPriceDisplay();
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
 
                     // Function to collect guide data
@@ -3339,6 +3352,7 @@
                         
                         // Update package total price display
                         updatePackageTotalPriceDisplay();
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
 
                     // Function to collect restaurant data
@@ -3553,6 +3567,7 @@
                         
                         // Update package total price display
                         updatePackageTotalPriceDisplay();
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
 
                     // Function to collect transport data (including entry/exit ports)
@@ -5132,6 +5147,7 @@
                         
                         // Update package total price display
                         updatePackageTotalPriceDisplay();
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
 
                     // Helper function to parse guest summary text
@@ -5484,13 +5500,17 @@
                     function resetSaveButton() {
                         const saveBtn = document.getElementById('savePackageBtn');
                         if (saveBtn) {
-                            saveBtn.disabled = false;
                             saveBtn.innerHTML = '<i class="ri-save-line me-2"></i>Save Tour Package';
                         }
+                        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
                     }
                     
                     // Handle save package button click - show loader and disable
                     async function handleSavePackage(button) {
+                        if (typeof window.countBookedTourServices === 'function' && window.countBookedTourServices() === 0) {
+                            try { window.updateTourSubmitButton && window.updateTourSubmitButton(true); } catch (e) { /* ignore */ }
+                            return;
+                        }
                         // Disable button
                         button.disabled = true;
                         
@@ -8036,32 +8056,55 @@
                 const focSize = Math.max(0, safeInt(getElVal('foc_size')));
                 const totalPax = Math.max(0, groupSize + focSize);
 
-                // Auto-populate Adults from Total Pax (Male gets all by default)
                 const adultsInput = document.getElementById('adults');
                 const maleInput = document.getElementById('male');
                 const femaleInput = document.getElementById('female');
                 const childrenInput = document.getElementById('children');
                 const infantsInput = document.getElementById('infants');
-
-                if (adultsInput) adultsInput.value = String(totalPax);
-                if (maleInput) maleInput.value = String(totalPax);
-                if (femaleInput) femaleInput.value = '0';
+                const infants = safeInt(infantsInput?.value || 0);
+                const children = 0;
                 if (childrenInput) childrenInput.value = '0';
-                // keep infants as-is (do not auto-change)
 
-                renderMainGuestSummary(totalPax, 0, 0, safeInt(infantsInput?.value || 0));
+                const adults = Math.max(0, totalPax - children);
+                let male = safeInt(maleInput?.value || 0);
+                let female = safeInt(femaleInput?.value || 0);
+                const currentAdults = male + female;
 
-                // If modal is open, reflect values there too
+                if (currentAdults === adults && adults > 0) {
+                    // Preserve user's male/female split (e.g. after Apply Selection)
+                } else if (adults <= 0) {
+                    male = 0;
+                    female = 0;
+                } else {
+                    // Adjust to required adult count; keep female count when possible, remainder to male
+                    female = Math.min(female, adults);
+                    male = Math.max(0, adults - female);
+                    if (male + female !== adults) {
+                        male = adults;
+                        female = 0;
+                    }
+                    if (male + female === 0) {
+                        male = adults;
+                        female = 0;
+                    }
+                }
+
+                if (adultsInput) adultsInput.value = String(adults);
+                if (maleInput) maleInput.value = String(male);
+                if (femaleInput) femaleInput.value = String(female);
+
+                renderMainGuestSummary(male, female, children, infants);
+
                 const maleEl = document.getElementById('mainModalMale');
                 const femaleEl = document.getElementById('mainModalFemale');
                 const adultsEl = document.getElementById('mainModalAdults');
                 const childrenEl = document.getElementById('mainModalChildren');
-                if (maleEl) maleEl.textContent = String(totalPax);
-                if (femaleEl) femaleEl.textContent = '0';
-                if (adultsEl) adultsEl.textContent = String(totalPax);
-                if (childrenEl) childrenEl.textContent = '0';
+                if (maleEl) maleEl.textContent = String(male);
+                if (femaleEl) femaleEl.textContent = String(female);
+                if (adultsEl) adultsEl.textContent = String(adults);
+                if (childrenEl) childrenEl.textContent = String(children);
 
-                try { window.updateAllServiceGuestFields && window.updateAllServiceGuestFields(totalPax, 0, 0, safeInt(infantsInput?.value || 0)); } catch (e) {}
+                try { window.updateAllServiceGuestFields && window.updateAllServiceGuestFields(male, female, children, infants); } catch (e) {}
             }
 
             function setGroupDetailsVisible(isVisible) {
@@ -9278,7 +9321,201 @@
 
         document.getElementById('bookingsSummary').textContent = summary.length > 0 ? 
             summary.join(', ') : 'No bookings added yet';
+
+        try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
     }
+
+    @php
+        $tourServiceRequiredMsg = 'Please book at least one service (hotel, attraction, restaurant, guide, or transport) before saving the tour package.';
+    @endphp
+    (function initTourSubmitGuard() {
+        const tourServiceRequiredMsg = @json($tourServiceRequiredMsg);
+
+        function countJsonStringItems(jsonStr) {
+            if (!jsonStr || !String(jsonStr).trim()) return 0;
+            try {
+                const parsed = JSON.parse(jsonStr);
+                return Array.isArray(parsed) ? parsed.length : (parsed ? 1 : 0);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function countJsonFieldItems(fieldId) {
+            const el = document.getElementById(fieldId);
+            return countJsonStringItems(el ? el.value : '');
+        }
+
+        function countDomBookedServices() {
+            let count = 0;
+            const hasVal = function (el) {
+                return el && String(el.value || '').trim() !== '';
+            };
+
+            document.querySelectorAll('.attraction-select').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+            document.querySelectorAll('.restaurant-select').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+            document.querySelectorAll('.guide-select').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+            document.querySelectorAll('select[name*="_entry_"][name*="_vehicle_id"], select[name*="_exit_"][name*="_vehicle_id"]').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+            document.querySelectorAll('select[name*="_transport_"][name*="_vehicle_id"]').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+            document.querySelectorAll('select[name*="_pickup_zone_id"]').forEach(function (select) {
+                if (hasVal(select)) count++;
+            });
+
+            return count;
+        }
+
+        function countActiveTourServices() {
+            let count = 0;
+            count += Array.isArray(selectedHotels) ? selectedHotels.length : 0;
+            count += Array.isArray(selectedAttractions) ? selectedAttractions.length : 0;
+            count += Array.isArray(selectedRestaurants) ? selectedRestaurants.length : 0;
+            count += Array.isArray(selectedGuides) ? selectedGuides.length : 0;
+            count += countJsonFieldItems('transport_data');
+            count += countJsonFieldItems('entry_port_data');
+            count += countJsonFieldItems('exit_port_data');
+            count += countJsonFieldItems('hotel_data');
+            count += countJsonFieldItems('attraction_data');
+            count += countJsonFieldItems('restaurant_data');
+            count += countJsonFieldItems('guide_data');
+            count += countDomBookedServices();
+            return count;
+        }
+
+        function countFromSegmentState(st) {
+            if (!st) return 0;
+            let count = 0;
+            count += Array.isArray(st.selectedHotels) ? st.selectedHotels.length : 0;
+            count += Array.isArray(st.selectedAttractions) ? st.selectedAttractions.length : 0;
+            count += Array.isArray(st.selectedRestaurants) ? st.selectedRestaurants.length : 0;
+            count += Array.isArray(st.selectedGuides) ? st.selectedGuides.length : 0;
+            count += countJsonStringItems(st.transportDataField);
+            count += countJsonStringItems(st.entryPortDataField);
+            count += countJsonStringItems(st.exitPortDataField);
+            if (count === 0) {
+                count += countJsonStringItems(st.hotelDataField);
+                count += countJsonStringItems(st.attractionDataField);
+                count += countJsonStringItems(st.restaurantDataField);
+                count += countJsonStringItems(st.guideDataField);
+            }
+            return count;
+        }
+
+        window.countBookedTourServices = function () {
+            const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+            if (cityMode !== 'multi') {
+                return countActiveTourServices();
+            }
+
+            let total = 0;
+            const activeSeg = document.querySelector('#segmentServicesBundle')?.closest('.segment');
+            const activeKey = activeSeg ? String(activeSeg.getAttribute('data-index') || '') : '';
+
+            if (activeKey) {
+                total += countActiveTourServices();
+            }
+
+            if (window.__segmentServiceState) {
+                Object.entries(window.__segmentServiceState).forEach(function (entry) {
+                    const key = entry[0];
+                    const st = entry[1];
+                    if (activeKey && String(key) === activeKey) return;
+                    total += countFromSegmentState(st);
+                });
+            }
+
+            return total;
+        };
+
+        let tourSubmitButtonUpdateTimer = null;
+        let tourSubmitButtonUpdating = false;
+
+        window.scheduleTourSubmitButtonUpdate = function () {
+            if (tourSubmitButtonUpdateTimer) {
+                clearTimeout(tourSubmitButtonUpdateTimer);
+            }
+            tourSubmitButtonUpdateTimer = setTimeout(function () {
+                tourSubmitButtonUpdateTimer = null;
+                window.updateTourSubmitButton();
+            }, 150);
+        };
+
+        let tourSubmitTooltip = null;
+
+        function setTourSubmitTooltip(enabled) {
+            const wrap = document.getElementById('tour-submit-btn-wrap');
+            if (!wrap || !window.bootstrap || !bootstrap.Tooltip) return;
+            if (tourSubmitTooltip) {
+                tourSubmitTooltip.dispose();
+                tourSubmitTooltip = null;
+            }
+            if (enabled) {
+                tourSubmitTooltip = new bootstrap.Tooltip(wrap);
+            }
+        }
+
+        window.updateTourSubmitButton = function (showTooltip) {
+            if (tourSubmitButtonUpdating) return;
+            tourSubmitButtonUpdating = true;
+            try {
+            const btn = document.getElementById('savePackageBtn');
+            const wrap = document.getElementById('tour-submit-btn-wrap');
+            if (!btn) return;
+
+            const hasServices = window.countBookedTourServices() > 0;
+            btn.disabled = !hasServices;
+
+            if (!wrap) return;
+
+            if (hasServices) {
+                wrap.classList.remove('tour-submit-wrap--disabled');
+                wrap.removeAttribute('data-bs-toggle');
+                wrap.removeAttribute('tabindex');
+                wrap.removeAttribute('title');
+                setTourSubmitTooltip(false);
+            } else {
+                wrap.classList.add('tour-submit-wrap--disabled');
+                wrap.setAttribute('data-bs-toggle', 'tooltip');
+                wrap.setAttribute('data-bs-placement', 'top');
+                wrap.setAttribute('tabindex', '0');
+                wrap.setAttribute('title', tourServiceRequiredMsg);
+                setTourSubmitTooltip(true);
+                if (showTooltip && tourSubmitTooltip) {
+                    tourSubmitTooltip.show();
+                }
+            }
+            } finally {
+                tourSubmitButtonUpdating = false;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            window.scheduleTourSubmitButtonUpdate();
+
+            const bundle = document.getElementById('segmentServicesBundle');
+            if (bundle) {
+                bundle.addEventListener('change', function (e) {
+                    const t = e && e.target ? e.target : null;
+                    if (!t) return;
+                    const cls = String(t.className || '');
+                    const name = String(t.getAttribute('name') || '');
+                    if (/attraction-select|restaurant-select|guide-select|transport-select/i.test(cls)
+                        || /_attraction_|_restaurant_|_guide_|_transport_|_entry_|_exit_|_pickup_zone_id/i.test(name)) {
+                        window.scheduleTourSubmitButtonUpdate();
+                    }
+                }, true);
+            }
+        });
+    })();
 
     // Helper function to get customer data
     function getCustomerData() {
@@ -13614,6 +13851,9 @@
             return tourNights;
         }
 
+        window.getHotelNightPlanStart = getHotelNightPlanStart;
+        window.getHotelNightPlanNightCount = getHotelNightPlanNightCount;
+
         function generateNightSelection() {
             const nightSelectionDiv = document.getElementById('nightSelection');
             nightSelectionDiv.innerHTML = '';
@@ -15693,6 +15933,8 @@
 
             // Toggle spinner / disabled state on the button.
             const spinner = getPriceBtn ? getPriceBtn.querySelector('.get-price-spinner') : null;
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             if (spinner) spinner.classList.remove('d-none');
             if (getPriceBtn) getPriceBtn.disabled = true;
 
@@ -15744,6 +15986,7 @@
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
+                    if (addHotelBtn) addHotelBtn.disabled = false;
                 } else {
                     showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
                 }
@@ -16234,6 +16477,9 @@
                     roomPriceDisplay.dataset.manuallyEdited = 'false';
                 }
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             // Clear selected bed info
             window.selectedBedInfo = null;
@@ -16647,7 +16893,15 @@
                     headerSummaryEl.textContent = `– ${hotelNames} • SGD ${formattedPrice}`;
                 }
             }
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
         }
+
+        window.displaySelectedHotels = displaySelectedHotels;
+        window.pushSelectedHotel = function (hotelData) {
+            selectedHotels.push(hotelData);
+            lastSelectedHotelId = hotelData.id;
+            displaySelectedHotels();
+        };
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
@@ -17360,6 +17614,7 @@
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
+                                    <div class="attraction-slot-offline-panel" id="day${day}_attraction_1_offline_panel">
                                     
                                     ${hasEnquiryLayout ? `
                                     <div class="row g-3">
@@ -17778,11 +18033,12 @@
                                         </div>
                                     </div>
                                     
-                                    </div>
+                                    </div><!-- /attraction-slot-offline-panel slot 1 -->
                                 </div>
                             </div>
-                            
-                                                    <div class="mt-4 text-center">
+                                        </div><!-- /attractions-container -->
+
+                                        <div class="mt-4 text-center" id="day${day}_attractions_add_more_wrap">
                                             <button type="button" class="btn btn-lg rounded-pill px-5 py-3 shadow-sm" onclick="addMoreAttractions(${day})" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); border: none; color: white; font-weight: 600;">
                                                 <i class="ri-add-line me-2 fs-5"></i>Add More Attraction
                                             </button>
@@ -19232,6 +19488,7 @@
             
             // Update attraction pricing display
             updateAttractionPricing(day, index);
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
         };
         
         // Generate time slots between open and close time at 30-minute intervals
@@ -19527,6 +19784,8 @@
             if (typeof updateAttractionSectionSummary === 'function') {
                 updateAttractionSectionSummary(day);
             }
+
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
         }
 
         // Overall attraction section summary (names + total incl. guide + vehicle)
@@ -20168,9 +20427,9 @@
                                             <textarea class="form-control" name="day${day}_attraction_${newIndex}_remarks" id="day${day}_attraction_${newIndex}_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
+                                </div><!-- /offline panel -->
+                    </div>
+                </div>
             `;
             
             container.insertAdjacentHTML('beforeend', newAttractionHTML);
@@ -25076,6 +25335,9 @@
             if (hasHotelSelections && typeof showNotification === 'function') {
                 showNotification('Hotel room settings have been updated for the new guest count', 'info');
             }
+
+            const addHotelBtn = document.getElementById('addHotelBtn');
+            if (addHotelBtn) addHotelBtn.disabled = true;
             
             console.log('Hotel section reset completed');
         };
@@ -33889,6 +34151,13 @@
 
 @section('styles')
 <style>
+    #tour-submit-btn-wrap.tour-submit-wrap--disabled .btn {
+        pointer-events: none;
+    }
+    #tour-submit-btn-wrap.tour-submit-wrap--disabled {
+        cursor: not-allowed;
+    }
+
     .bg-gradient-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
@@ -34471,10 +34740,6 @@
         </div>
     </div>
 </div>
-@endsection 
-
-
-
-
+@endsection
 
 

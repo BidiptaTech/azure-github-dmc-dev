@@ -567,12 +567,12 @@
                             <fieldset id="rate" class="border p-4 rounded mb-4">
                                 <h5 class="card-title mb-3">Rates</h5>
                                 <div class="row">
-                                    <!-- Minimum Base Price -->
+                                    <!-- Minimum Sell Price -->
                                     <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Base Price</strong><span
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
                                                 class="text-danger">*</span></label>
                                         <input value="{{$guide->day_rate}}" type="text" id="day_rate"
-                                            class="form-control" name="day_rate" placeholder="Enter Day Rate" required
+                                            class="form-control" name="day_rate" placeholder="Enter Minimum Sell Price" required
                                             oninput="validateNumericPrice(this); calculateEditHourlyRates();">
                                         <small class="validation-message text-danger" id="day_rate-validation-message"></small>
                                         <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
@@ -580,6 +580,20 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
+
+                                    <!-- Minimum Cost Price -->
+                                    <div class="col-md-3">
+                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="text" id="minimum_cost_price"
+                                            class="form-control" name="minimum_cost_price" placeholder="Enter Minimum Cost Price" required
+                                            oninput="validateNumericPrice(this); calculateEditHourlyCostRates();">
+                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
+                                        @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+
                                     <!-- night_surcharge -->
                                     <div class="col-md-3">
                                         <label for="night_surcharge" class="form-label"><strong>Night
@@ -642,101 +656,130 @@
                                         </p>
                                     </div> --}}
 
-                                    <!-- Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="hourly_price" class="form-label"><strong>Hourly Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input value="{{$guide->hourly_price}}" type="text" id="hourly_price"
-                                            class="form-control" name="hourly_price" placeholder="Enter hourly_price"
+                                    <!-- Hourly Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="text" id="hourly_price"
+                                            class="form-control" name="hourly_price" placeholder="Enter Hourly Sell Price"
                                             required oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
-                                        @error('hourly_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text" id="hourly_cost_price"
+                                            class="form-control" name="hourly_cost_price" placeholder="Enter Hourly Cost Price"
+                                            required oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Two Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="two_hour_price" class="form-label"><strong>Two Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->two_hour_price}}" type="text" id="two_hour_price"
-                                            class="form-control" name="two_hour_price"
-                                            placeholder="Enter two_hourly_price" required
+                                    <!-- Two Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="text" id="two_hour_price"
+                                            class="form-control" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
-                                        @error('two_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text" id="two_hour_cost_price"
+                                            class="form-control" name="two_hour_cost_price" placeholder="Enter Two Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Four Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="four_hour_price" class="form-label"><strong>Four Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->four_hour_price}}" type="text" id="four_hour_price"
-                                            class="form-control" name="four_hour_price"
-                                            placeholder="Enter four_hour_price" required
+                                    <!-- Four Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="text" id="four_hour_price"
+                                            class="form-control" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
-                                        @error('four_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text" id="four_hour_cost_price"
+                                            class="form-control" name="four_hour_cost_price" placeholder="Enter Four Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Six Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="six_hour_price" class="form-label"><strong>Six Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->six_hour_price}}" type="text" id="six_hour_price"
-                                            class="form-control" name="six_hour_price"
-                                            placeholder="Enter six_hour_price" required
+                                    <!-- Six Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="text" id="six_hour_price"
+                                            class="form-control" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
-                                        @error('six_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text" id="six_hour_cost_price"
+                                            class="form-control" name="six_hour_cost_price" placeholder="Enter Six Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Eight Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->eight_hour_price}}" type="text" id="eight_hour_price"
-                                            class="form-control" name="eight_hour_price"
-                                            placeholder="Enter eight_hour_price" required
+                                    <!-- Eight Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="text" id="eight_hour_price"
+                                            class="form-control" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
-                                        @error('eight_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text" id="eight_hour_cost_price"
+                                            class="form-control" name="eight_hour_cost_price" placeholder="Enter Eight Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Ten Hour Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->ten_hour_price}}" type="text" id="ten_hour_price"
-                                            class="form-control" name="ten_hour_price"
-                                            placeholder="Enter ten_hour_price" required
+                                    <!-- Ten Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="text" id="ten_hour_price"
+                                            class="form-control" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
-                                        @error('ten_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text" id="ten_hour_cost_price"
+                                            class="form-control" name="ten_hour_cost_price" placeholder="Enter Ten Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Twelve Hourly Price -->
-                                    <div class="col-md-2 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour
-                                                Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->twelve_hour_price}}" type="text" id="twelve_hour_price"
-                                            class="form-control" name="twelve_hour_price"
-                                            placeholder="Enter twelve_hour_price" required
+                                    <!-- Twelve Hour Sell / Cost Price -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text" id="twelve_hour_price"
+                                            class="form-control" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
-                                        @error('twelve_hour_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="text" id="twelve_hour_cost_price"
+                                            class="form-control" name="twelve_hour_cost_price" placeholder="Enter Twelve Hour Cost Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
+                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>
@@ -1693,61 +1736,76 @@
         const basePrice = parseFloat(basePriceInput.value) || 0;
         
         if (basePrice <= 0) {
-            // If base price is 0 or empty, clear all fields
-            clearAllHourlyFields();
+            clearEditHourlyFields('sell');
             return;
         }
         
-        // The base price IS the hourly rate (no division needed)
-        const hourlyRate = basePrice;
-        
-        // Define the hour multipliers
         const hourMultipliers = {
-            'hourly_price': 1,     // 1 hour = base price × 1
-            'two_hour_price': 2,   // 2 hours = base price × 2
-            'four_hour_price': 4,  // 4 hours = base price × 4
-            'six_hour_price': 6,   // 6 hours = base price × 6
-            'eight_hour_price': 8, // 8 hours = base price × 8
-            'ten_hour_price': 10,  // 10 hours = base price × 10
-            'twelve_hour_price': 12 // 12 hours = base price × 12
+            'hourly_price': 1,
+            'two_hour_price': 2,
+            'four_hour_price': 4,
+            'six_hour_price': 6,
+            'eight_hour_price': 8,
+            'ten_hour_price': 10,
+            'twelve_hour_price': 12
         };
         
-        // Calculate and update ALL hourly rate fields
+        updateEditCalculatedRates(hourMultipliers, basePrice);
+    }
+
+    function calculateEditHourlyCostRates() {
+        const baseCostInput = document.getElementById('minimum_cost_price');
+        const baseCost = parseFloat(baseCostInput.value) || 0;
+        
+        if (baseCost <= 0) {
+            clearEditHourlyFields('cost');
+            return;
+        }
+        
+        const hourMultipliers = {
+            'hourly_cost_price': 1,
+            'two_hour_cost_price': 2,
+            'four_hour_cost_price': 4,
+            'six_hour_cost_price': 6,
+            'eight_hour_cost_price': 8,
+            'ten_hour_cost_price': 10,
+            'twelve_hour_cost_price': 12
+        };
+        
+        updateEditCalculatedRates(hourMultipliers, baseCost);
+    }
+
+    function updateEditCalculatedRates(hourMultipliers, baseRate) {
         Object.keys(hourMultipliers).forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
-                const calculatedValue = Math.round((hourlyRate * hourMultipliers[fieldId]) * 100) / 100;
+                const calculatedValue = Math.round((baseRate * hourMultipliers[fieldId]) * 100) / 100;
                 field.value = calculatedValue.toFixed(2);
-                
-                // Add visual feedback animation
                 field.classList.add('zero-value-updated');
-                setTimeout(() => {
-                    field.classList.remove('zero-value-updated');
-                }, 1000);
-                
-                // Trigger validation for the updated field
+                setTimeout(() => field.classList.remove('zero-value-updated'), 1000);
                 validateNumericPrice(field);
             }
         });
     }
     
-    // Function to clear all hourly rate fields
-    function clearAllHourlyFields() {
-        const hourlyFields = [
-            'hourly_price', 'two_hour_price', 'four_hour_price', 
+    function clearEditHourlyFields(type) {
+        const sellFields = [
+            'hourly_price', 'two_hour_price', 'four_hour_price',
             'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price'
         ];
+        const costFields = [
+            'hourly_cost_price', 'two_hour_cost_price', 'four_hour_cost_price',
+            'six_hour_cost_price', 'eight_hour_cost_price', 'ten_hour_cost_price', 'twelve_hour_cost_price'
+        ];
+        const fields = type === 'cost' ? costFields : sellFields;
         
-        hourlyFields.forEach(fieldId => {
+        fields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
                 field.value = '';
-                // Clear any validation states
                 field.classList.remove('is-valid', 'is-invalid', 'zero-value-updated');
                 const messageElement = document.getElementById(`${fieldId}-validation-message`);
-                if (messageElement) {
-                    messageElement.innerHTML = '';
-                }
+                if (messageElement) messageElement.innerHTML = '';
             }
         });
     }

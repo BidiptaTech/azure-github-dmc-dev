@@ -231,7 +231,6 @@
                                 <th>Adult</th>
                                 <th>Child</th>
                                 <th>Infant</th>
-                                <th>Pickup Location</th>
                                 <th>Tour Type</th>
                                 <th>Remarks</th>
                                 <th>Guide</th>
@@ -391,7 +390,6 @@ $(document).ready(function() {
                         <td>${normalizeCount(item.tour?.adult)}</td>
                         <td>${normalizeCount(item.tour?.child)}</td>
                         <td>${normalizeCount(item.tour?.infant)}</td>
-                        <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                         <td>${item.remarks || 'N/A'}</td>
                         <td>${(function() {
@@ -456,7 +454,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -467,13 +465,13 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
 
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
@@ -518,7 +516,6 @@ $(document).ready(function() {
                                     <td>${normalizeCount(item.tour?.adult)}</td>
                                     <td>${normalizeCount(item.tour?.child)}</td>
                                     <td>${normalizeCount(item.tour?.infant)}</td>
-                                    <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
                                     <td>${item.remarks || 'N/A'}</td>
                                     <td>${(function() {
@@ -583,14 +580,14 @@ $(document).ready(function() {
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
-                        $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">No orders found for this date</td></tr>');
+                        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
                         $('#exportOrdersBtn').hide();
                     }
                 } else {
                     const errorMessage = response.message || 'Error loading orders';
                     console.error('Error:', errorMessage);
                     showAlert('error', errorMessage);
-                    $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
         })
@@ -598,7 +595,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="12" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -664,7 +661,7 @@ $(document).ready(function() {
                     scrollX: true,
                     autoWidth: false,
                     columnDefs: [
-                        { orderable: false, targets: [11] } // Disable sorting on assign guide column
+                        { orderable: false, targets: [10] } // Disable sorting on assign guide column
                     ],
                     drawCallback: function() {
                         // Recalculate widths so scroll header aligns with body
@@ -917,7 +914,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 12) {
+            if (cells.length < 11) {
                 return; // Skip incomplete rows
             }
             
@@ -929,13 +926,12 @@ $(document).ready(function() {
             const adult = $(cells[4]).text().trim();
             const child = $(cells[5]).text().trim();
             const infant = $(cells[6]).text().trim();
-            const pickupLocation = $(cells[7]).text().trim();
-            const tourType = $(cells[8]).text().trim();
-            const remarks = $(cells[9]).text().trim();
-            const guide = $(cells[10]).text().trim();
+            const tourType = $(cells[7]).text().trim();
+            const remarks = $(cells[8]).text().trim();
+            const guide = $(cells[9]).text().trim();
             
             // Get selected guide from the dropdown
-            const guideSelect = $(cells[11]).find('.guide-select');
+            const guideSelect = $(cells[10]).find('.guide-select');
             const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
@@ -947,7 +943,6 @@ $(document).ready(function() {
                 'Adult': adult,
                 'Child': child,
                 'Infant': infant,
-                'Pickup Location': pickupLocation,
                 'Tour Type': tourType,
                 'Remarks': remarks,
                 'Guide': guide,

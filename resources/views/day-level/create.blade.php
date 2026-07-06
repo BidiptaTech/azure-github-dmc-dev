@@ -866,6 +866,21 @@
             color: #435971;
             margin-top: 0.2rem;
         }
+        .form-actions-bar {
+            position: relative;
+        }
+        .package-submit-hint {
+            width: 100%;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #b45309;
+            margin-top: 0.35rem;
+        }
+        #mainSubmitBtn:disabled,
+        #previewConfirmBtn:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
         .preview-hotel-continuation {
             font-size: 0.78rem;
             color: #8592a3;
@@ -1229,9 +1244,10 @@
                     <div class="col-12">
                         <div class="d-flex justify-content-center gap-2 flex-wrap form-actions-bar">
                             <button type="button" class="btn btn-outline-primary btn-lg px-4" id="packagePreviewBtn" onclick="openPackagePreview()">Preview Package</button>
-                            <button type="submit" class="btn btn-primary btn-lg px-5" id="mainSubmitBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}">{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="submit" class="btn btn-primary btn-lg px-5" id="mainSubmitBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" disabled>{{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                             <button type="reset" class="btn btn-outline-secondary btn-lg px-4" onclick="resetAll()">Reset</button>
                         </div>
+                        <div id="packageSubmitHint" class="package-submit-hint">Add at least one hotel or day service before submitting.</div>
                     </div>
                 </div>
             </form>
@@ -1246,7 +1262,7 @@
                         <div class="modal-body" id="packagePreviewBody"></div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" id="previewConfirmBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" onclick="submitFromPreview()">Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
+                            <button type="button" class="btn btn-primary" id="previewConfirmBtn" data-loading-text="{{ isset($dayLevel) ? 'Updating...' : 'Submitting...' }}" onclick="submitFromPreview()" disabled>Confirm &amp; {{ isset($dayLevel) ? 'Update' : 'Submit' }}</button>
                         </div>
                     </div>
                 </div>
@@ -5557,6 +5573,7 @@
             for (let d = 1; d <= daysCount; d++) {
                 populateServiceTransferSelectsForDay(d);
             }
+            syncPackageSubmitButtonsState();
         }
 
         function isTransferOnlyPlaceholderItem(item) {
@@ -6149,6 +6166,7 @@
 
             const outEl = document.getElementById('activities_json');
             if (outEl) outEl.value = JSON.stringify(dayItems);
+            syncPackageSubmitButtonsState();
         }
 
         function toggleRestaurantTransferConfig() {}
@@ -6201,6 +6219,7 @@
                 }).join('');
             }
             document.getElementById('inter_json').value = JSON.stringify(inter);
+            syncPackageSubmitButtonsState();
         }
 
         function normalizeFormStateBeforeBuild() {
@@ -6717,6 +6736,47 @@
             return REQUIRE_MASTER_DMC_CITY ? null : payload;
         }
 
+        function hasPackageBookedServices() {
+            const hasHotels = (Array.isArray(hotels) ? hotels : []).length > 0;
+            const hasDayServices = (Array.isArray(dayItems) ? dayItems : []).some((x) => {
+                if (x.type === 'restaurant') return true;
+                if (x.type !== 'attraction') return false;
+                if (String(x.id || '').trim()) return true;
+                const label = String(x.label || '').trim().toLowerCase();
+                return label.includes('transfer') || label.includes('arrival') || label.includes('departure');
+            });
+            const hasInterCity = (Array.isArray(inter) ? inter : []).length > 0;
+            return hasHotels || hasDayServices || hasInterCity;
+        }
+
+        function showPackageSubmitRequiredMessage() {
+            const message = 'Add at least one hotel or day service before submitting.';
+            if (typeof toastr !== 'undefined') {
+                toastr.warning(message);
+            } else {
+                alert(message);
+            }
+        }
+
+        function syncPackageSubmitButtonsState() {
+            const enabled = hasPackageBookedServices();
+            const mainBtn = document.getElementById('mainSubmitBtn');
+            const previewBtn = document.getElementById('previewConfirmBtn');
+            const hintEl = document.getElementById('packageSubmitHint');
+
+            if (mainBtn && mainBtn.dataset.loading !== '1') {
+                mainBtn.disabled = !enabled;
+                mainBtn.title = enabled ? '' : 'Add at least one hotel or day service first';
+            }
+            if (previewBtn && previewBtn.dataset.loading !== '1') {
+                previewBtn.disabled = !enabled;
+                previewBtn.title = enabled ? '' : 'Add at least one hotel or day service first';
+            }
+            if (hintEl) {
+                hintEl.style.display = enabled ? 'none' : 'block';
+            }
+        }
+
         function getPreviewWarnings(payload) {
             const warnings = [];
             if (!multiCityPlans.length) {
@@ -6731,6 +6791,9 @@
             );
             if (!hasActivities) {
                 warnings.push('No attractions or restaurants added for any day.');
+            }
+            if (!hasPackageBookedServices()) {
+                warnings.push('Add at least one hotel or day service before submitting this package.');
             }
             if (Array.isArray(inter) && inter.length) {
                 warnings.push('Inter-city rows are stored separately and may not appear in the structured payload preview.');
@@ -7039,6 +7102,7 @@
                 return;
             }
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            syncPackageSubmitButtonsState();
         }
 
         function setButtonLoading(btn) {
@@ -7054,16 +7118,20 @@
         function clearButtonLoading(btn) {
             if (!btn || btn.dataset.loading !== '1') return;
             btn.dataset.loading = '';
-            btn.disabled = false;
             btn.classList.remove('is-loading');
             if (btn.dataset.originalHtml) {
                 btn.innerHTML = btn.dataset.originalHtml;
             }
+            syncPackageSubmitButtonsState();
         }
 
         function submitFromPreview() {
             const confirmBtn = document.getElementById('previewConfirmBtn');
             if (confirmBtn?.dataset.loading === '1') return;
+            if (!hasPackageBookedServices()) {
+                showPackageSubmitRequiredMessage();
+                return;
+            }
             const payload = preparePayloadForSubmit();
             if (REQUIRE_MASTER_DMC_CITY && !payload) {
                 alert('Master DMC, DMC and city are required.');
@@ -7303,9 +7371,17 @@
             toggleHotelMealTypeVisibility();
             toggleHotelTransferFields();
             hydrateAllDayTransferCityOptions();
+            syncPackageSubmitButtonsState();
 
             document.getElementById('dayForm').addEventListener('submit', function (e) {
                 const submitBtn = document.getElementById('mainSubmitBtn');
+                if (!hasPackageBookedServices()) {
+                    e.preventDefault();
+                    clearButtonLoading(submitBtn);
+                    clearButtonLoading(document.getElementById('previewConfirmBtn'));
+                    showPackageSubmitRequiredMessage();
+                    return;
+                }
                 let payload = null;
                 try {
                     payload = preparePayloadForSubmit();

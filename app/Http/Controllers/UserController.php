@@ -1458,6 +1458,9 @@ class UserController extends Controller
         
             $deletedUser = User::withTrashed()->where('email', $email)->first();
             if ($deletedUser && $deletedUser->trashed()) {
+                $restoredCountry = is_array($request->country_names)
+                    ? implode(',', $request->country_names)
+                    : ($request->country_name ?? $deletedUser->country);
                 $deletedUser->restore();
                 // Optional: Update user details after restore
                 $deletedUser->update([
@@ -1465,6 +1468,9 @@ class UserController extends Controller
                     'phone' => $request->phone,
                     'role_id' => $request->role,
                     'password' => bcrypt($request->password),
+                    'is_active' => 1,
+                    'country' => $restoredCountry,
+                    'currency' => $this->resolveCurrencyForCountry($restoredCountry),
                 ]);
                 return redirect()->route('users.index')->with('success', 'User restored successfully.');
             }
@@ -1534,13 +1540,19 @@ class UserController extends Controller
         }
 
         $dmc_id = CommonHelper::getDmcId($this->auth_user);
+
+        $userCountry = is_array($request->country_names)
+            ? implode(',', $request->country_names)
+            : ($get_country_name ?? null);
+        $userCurrency = $this->resolveCurrencyForCountry($userCountry);
         
         $user = User::create([
             'salutation' => $request->input('salutation'),
             'name' => $request->input('yourname'),
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
-            'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
+            'country' => $userCountry,
+            'currency' => $userCurrency,
             // 'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
             'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
@@ -1566,6 +1578,7 @@ class UserController extends Controller
             'company_reg_no' => $request->input('company_reg_no') ?: null,
             'licence_no' => $request->input('licence_no') ?: null,
             'timezone' => $request->timezone ?? 'UTC',
+            'is_active' => 1,
         ]);
         
         $role = Role::where('role_id', $request->input('role'))->first();
@@ -2109,6 +2122,10 @@ class UserController extends Controller
                 $validationRules['master_dmc'] = 'required|exists:users,userId';
             }
             $validationRules['company_name'] = 'required|string|max:255';
+            $validationRules['markup_type_attraction'] = 'nullable|in:0,1';
+            $validationRules['markup_price_attraction'] = 'nullable|numeric|min:0';
+            $validationRules['markup_type_flight'] = 'nullable|in:0,1';
+            $validationRules['markup_price_flight'] = 'nullable|numeric|min:0';
             // Only require country_name if it's being sent (created by Master DMC)
             if ($request->has('country_name')) {
                 $validationRules['country_name'] = 'required|string';
@@ -2211,6 +2228,21 @@ class UserController extends Controller
             'markup_type' => $request->has('markup_type') && $request->markup_type !== '' ? (int) $request->markup_type : $user->markup_type,
             'markup_price' => $request->filled('markup_price') ? (int) $request->markup_price : $user->markup_price,
         ];
+
+        if (in_array((int) $userRole, [11, 20], true)) {
+            $updateData['markup_type_attraction'] = $request->has('markup_type_attraction') && $request->markup_type_attraction !== ''
+                ? (int) $request->markup_type_attraction
+                : (int) ($user->markup_type_attraction ?? 1);
+            $updateData['markup_price_attraction'] = $request->filled('markup_price_attraction')
+                ? (float) $request->markup_price_attraction
+                : (float) ($user->markup_price_attraction ?? 0);
+            $updateData['markup_type_flight'] = $request->has('markup_type_flight') && $request->markup_type_flight !== ''
+                ? (int) $request->markup_type_flight
+                : (int) ($user->markup_type_flight ?? 1);
+            $updateData['markup_price_flight'] = $request->filled('markup_price_flight')
+                ? (float) $request->markup_price_flight
+                : (float) ($user->markup_price_flight ?? 0);
+        }
 
         // Optional codes / registration fields (update only when present in request)
         if ($request->has('company_code')) {
@@ -2372,6 +2404,14 @@ class UserController extends Controller
     {
         $currentUser = Auth::user();
         $targetUser = User::where('userId', $userId)->first();
+
+        if (!$targetUser) {
+            return redirect()->route('users.index')->with('error', 'User not found.');
+        }
+
+        if (!$targetUser->isAccountActive()) {
+            return redirect()->route('users.index')->with('error', 'This user account is not active. Auto login is not allowed.');
+        }
 
         // Role hierarchy: lower value = higher privilege
         $roleHierarchy = [
@@ -2569,6 +2609,46 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
     }
 
+    /**
+     * Toggle user account active / inactive (is_active).
+     */
+    public function updateActive(Request $request)
+    {
+        if (!hasPermission('edit users')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update user status.'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'is_active' => 'required|in:0,1',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if ((int) $user->userId === (int) $this->auth_user->userId && (int) $request->is_active === 0) {
+            return response()->json(['success' => false, 'message' => 'You cannot deactivate your own account.'], 422);
+        }
+
+        $user->is_active = (int) $request->is_active;
+        $user->save();
+
+        if ((int) $request->is_active === 0 && method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
+
+        $label = $user->is_active ? 'activated' : 'deactivated';
+
+        return response()->json([
+            'success' => true,
+            'message' => "User account {$label} successfully.",
+            'user_id' => $user->userId,
+            'is_active' => (int) $user->is_active,
+        ]);
+    }
+
     public function updateAutoCancel(Request $request){
         $user = User::where('userId', $request->user_id)->first();
         
@@ -2618,6 +2698,48 @@ class UserController extends Controller
             'message' => 'Guide pax updated successfully',
             'user_id' => $request->user_id,
             'guide_pax' => $guidePax,
+            'previous_value' => $previousValue,
+        ]);
+    }
+
+    /**
+     * Update AI response type (QTN / ITN) for a DMC user. Master DMC only.
+     */
+    public function updateAiResponse(Request $request)
+    {
+        if ((int) $this->auth_user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Master DMC can update AI Response settings.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'ai_response' => 'nullable|in:QTN,ITN',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        $previousValue = $user->ai_response;
+        $aiResponse = $request->filled('ai_response') ? strtoupper((string) $request->ai_response) : null;
+
+        $user->ai_response = $aiResponse;
+        $user->save();
+
+        $message = $aiResponse
+            ? "AI Response updated to {$aiResponse} successfully"
+            : 'AI Response cleared successfully';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
+            'ai_response' => $aiResponse,
             'previous_value' => $previousValue,
         ]);
     }
@@ -2824,5 +2946,29 @@ class UserController extends Controller
 
         return redirect()->route('user.profile')
             ->with('success', 'Password changed successfully.');
+    }
+
+    /**
+     * Resolve ISO currency code from countries table using a country name or comma-separated list.
+     */
+    private function resolveCurrencyForCountry(?string $countryValue): ?string
+    {
+        if ($countryValue === null || trim($countryValue) === '') {
+            return null;
+        }
+
+        $countryNames = array_values(array_filter(array_map('trim', preg_split('/,/', $countryValue))));
+        if (empty($countryNames)) {
+            return null;
+        }
+
+        $currency = Country::where('name', $countryNames[0])->value('currency');
+        if ($currency) {
+            return $currency;
+        }
+
+        return Country::whereIn('name', $countryNames)
+            ->whereNotNull('currency')
+            ->value('currency');
     }
 }

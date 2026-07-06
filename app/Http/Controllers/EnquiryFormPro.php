@@ -31,6 +31,17 @@ use Illuminate\Support\Facades\Auth;
 
 class EnquiryFormPro extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('pro')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
     /**
      * Resolve operating DMC user id from logged-in user role chain.
      */
@@ -1029,6 +1040,13 @@ class EnquiryFormPro extends Controller
                 // Remove the beds relation to keep response clean
                 unset($room->beds);
             });
+
+            $hotel->check_in_time = $hotel->check_in_time
+                ? Carbon::parse($hotel->check_in_time)->format('H:i')
+                : null;
+            $hotel->check_out_time = $hotel->check_out_time
+                ? Carbon::parse($hotel->check_out_time)->format('H:i')
+                : null;
         });
         
         return response()->json([

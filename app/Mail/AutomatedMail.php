@@ -7,44 +7,107 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
-class DmcMail extends Mailable
+class AutomatedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $htmlContent;
-    public $emailSubject;
-    public $emailUuid;
 
+    public $emailSubject;
+
+    public ?string $emailUuid;
+
+    /** @var list<string> */
+    public array $referenceMessageIds;
+
+    /** @var list<string> */
+    public array $ccEmails;
+
+    /** @var list<string> */
+    public array $bccEmails;
+
+    public ?string $fromEmail;
+
+    public ?string $fromName;
+
+    public ?string $replyToEmail;
+
+    /**
+     * @param  list<string>  $referenceMessageIds
+     * @param  list<string>  $ccEmails
+     * @param  list<string>  $bccEmails
+     */
     public function __construct(
         $htmlContent,
         $subject = null,
-        $emailUuid = null
+        ?string $emailUuid = null,
+        ?string $fromEmail = null,
+        ?string $fromName = null,
+        ?string $replyToEmail = null,
+        array $referenceMessageIds = [],
+        array $ccEmails = [],
+        array $bccEmails = []
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
         $this->emailUuid = $emailUuid;
+        $this->fromEmail = $fromEmail;
+        $this->fromName = $fromName;
+        $this->replyToEmail = $replyToEmail;
+        $this->referenceMessageIds = $referenceMessageIds;
+        $this->ccEmails = $ccEmails;
+        $this->bccEmails = $bccEmails;
     }
 
-    /**
-     * Email Threading Headers
-     */
     public function headers(): Headers
     {
         if (empty($this->emailUuid)) {
-            return new Headers();
+            return new Headers;
+        }
+
+        $parentId = trim($this->emailUuid, '<>');
+        $references = [];
+
+        foreach (array_merge($this->referenceMessageIds, [$parentId]) as $messageId) {
+            $id = trim((string) $messageId, '<>');
+            if ($id !== '' && ! in_array($id, $references, true)) {
+                $references[] = $id;
+            }
         }
 
         return new Headers(
+            references: $references,
             text: [
-                'In-Reply-To' => $this->emailUuid,
-                'References'  => $this->emailUuid,
-            ]
+                'In-Reply-To' => '<'.$parentId.'>',
+            ],
         );
     }
 
     public function build()
     {
-        return $this->subject($this->emailSubject)
-                    ->html($this->htmlContent);
+        $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
+
+        if ($this->fromEmail && filter_var($this->fromEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->from($this->fromEmail, (string) ($this->fromName ?? ''));
+        }
+
+        $replyTo = $this->replyToEmail ?: $this->fromEmail;
+        if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+            $mail->replyTo($replyTo, (string) ($this->fromName ?? ''));
+        }
+
+        foreach ($this->ccEmails as $ccEmail) {
+            if (filter_var($ccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->cc($ccEmail);
+            }
+        }
+
+        foreach ($this->bccEmails as $bccEmail) {
+            if (filter_var($bccEmail, FILTER_VALIDATE_EMAIL)) {
+                $mail->bcc($bccEmail);
+            }
+        }
+
+        return $mail;
     }
 }

@@ -727,7 +727,7 @@ class HotelBookingController extends Controller
                         'check_out_time' => $tour->check_out_time ?? null
                     ],
                     'restaurant_booking' => [
-                        'booking_id' => $restaurantOrder->id,
+                        'booking_id' => $restaurantOrder->booking_id,
                         'restaurant_name' => $booking['restaurantName'] ?? 'Unknown Restaurant',
                         'meal_type' => $booking['mealType'] ?? 'N/A',
                         'meal_specific_type' => $booking['mealSpecificType'] ?? 'N/A',

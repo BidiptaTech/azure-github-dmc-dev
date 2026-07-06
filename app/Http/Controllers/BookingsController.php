@@ -1081,6 +1081,7 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+
             $tours = Tour::with([
                 'booking' => function ($query) {
                     $query->where('bookingType', 'booking');
@@ -1134,7 +1135,9 @@ class BookingsController extends Controller
                     // ->orWhereDate('tours.updated_at', $today);
             })
             ->orderBy('tours.created_at', 'desc')
-            ->get();
+            ->get()
+            ->unique('tour_id')
+            ->values();
             $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }
@@ -1151,7 +1154,6 @@ class BookingsController extends Controller
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
         }
-
         if($dmc_id){
             $tours = Tour::with([
                 'booking' => function ($query) {
@@ -1201,12 +1203,15 @@ class BookingsController extends Controller
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
                 'dmc_user.company_code as dmc_company_code',
                 'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
                 'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->get();
+            ->get()
+            ->unique('tour_id')
+            ->values();
             $this->hydrateTourNegotiationDiscounts($tours);
             $this->formatToursDisplayId($tours);
         }

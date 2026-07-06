@@ -1000,6 +1000,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 @include('enquiryform_pro.partials.remove-form-selection-alert-js')
+@include('enquiryform_pro.partials.hotel-check-times-js')
+@include('enquiryform_pro.partials.stay-rate-full-calendar')
 <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
 @php
     // DMC information for cost sheet print (same pattern as invoices/pdf/final.blade.php)
@@ -1849,10 +1851,38 @@
                 <button class="btn btn-success btn-sm" onclick="saveEnquiryData()">
                     <i class="ri-save-line me-1"></i>{{ $isEditMode ? 'Update Enquiry' : 'Create Enquiry' }}
                 </button>
-                <button class="btn btn-danger btn-sm">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" id="enquiryProCancelBtn" onclick="cancelEnquiryProEdit()">Cancel</button>
             </div>
         </div>
     </div>
+
+    <script>
+        window.ENQUIRY_PRO_CANCEL_FALLBACK_URL = @json(route('bookings.new-enquiries'));
+
+        function cancelEnquiryProEdit() {
+            const fallback = window.ENQUIRY_PRO_CANCEL_FALLBACK_URL || '/';
+            const current = window.location.href.split('#')[0];
+            let referrer = '';
+
+            try {
+                referrer = (document.referrer || '').split('#')[0];
+            } catch (e) {
+                referrer = '';
+            }
+
+            if (referrer && referrer !== current) {
+                window.location.assign(referrer);
+                return;
+            }
+
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+
+            window.location.assign(fallback);
+        }
+    </script>
 
 </div>
 
@@ -6662,7 +6692,12 @@
         const firstStayFmt = enquiryProFormatNoticeDate(stayDates[0]);
         const lastStayFmt = enquiryProFormatNoticeDate(stayDates[stayDates.length - 1]);
 
-        let html = `<div class="ep-legend-title">Stay rate calendar <span class="text-muted fw-normal">(blackout → fair → season)</span></div>`;
+        let html = `<div class="ep-legend-header-row">
+            <div class="ep-legend-title mb-0">Stay rate calendar <span class="text-muted fw-normal">(blackout → fair → season)</span></div>
+            <button type="button" class="btn btn-outline-primary btn-sm ep-view-full-calendar-btn" onclick="enquiryProOpenFullStayCalendar()" title="Open monthly stay calendar">
+                <i class="ri-calendar-line me-1"></i> View Full Calendar
+            </button>
+        </div>`;
         html += `<div class="ep-legend-title text-muted fw-normal" style="font-size:10px;margin-top:-3px;margin-bottom:5px;">${firstStayFmt} → ${lastStayFmt} · ${stayDates.length} night${stayDates.length > 1 ? 's' : ''}</div>`;
 
         html += '<div class="ep-stay-summary">';
@@ -10815,25 +10850,30 @@
         checkInInput.removeAttribute('max');
         
         // Populate from header dates if available and not already set
+        const selectedHotelData = typeof enquiryProGetSelectedHotelDataFromDropdown === 'function'
+            ? enquiryProGetSelectedHotelDataFromDropdown()
+            : null;
+        const hotelTimes = typeof enquiryProGetHotelCheckTimes === 'function'
+            ? enquiryProGetHotelCheckTimes(selectedHotelData)
+            : { checkIn: '11:00', checkOut: '10:00' };
+
         if (tourStart && tourStart.value && !checkInInput.value) {
-            // Set check-in to header start date with 11:00 AM time
-            checkInInput.value = tourStart.value + 'T11:00';
-            
-            // Set check-out to header end date with 10:00 AM time
+            checkInInput.value = tourStart.value + 'T' + hotelTimes.checkIn;
+
             if (tourEnd && tourEnd.value && !checkOutInput.value) {
-                checkOutInput.value = tourEnd.value + 'T10:00';
+                checkOutInput.value = tourEnd.value + 'T' + hotelTimes.checkOut;
             } else if (!checkOutInput.value) {
-                // If no end date, set check-out to start date + 1 day with 10:00 AM
                 const checkInDate = new Date(tourStart.value);
                 checkInDate.setDate(checkInDate.getDate() + 1);
-                checkOutInput.value = checkInDate.toISOString().split('T')[0] + 'T10:00';
+                checkOutInput.value = checkInDate.toISOString().split('T')[0] + 'T' + hotelTimes.checkOut;
             }
         } else if (!checkInInput.value && !checkOutInput.value) {
-            // If no header dates, set check-in to today 11:00 AM and check-out to tomorrow 10:00 AM
-            checkInInput.value = todayStr + 'T11:00';
+            checkInInput.value = todayStr + 'T' + hotelTimes.checkIn;
             const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
-            checkOutInput.value = tomorrow.toISOString().split('T')[0] + 'T10:00';
+            checkOutInput.value = tomorrow.toISOString().split('T')[0] + 'T' + hotelTimes.checkOut;
+        } else if (selectedHotelData && typeof enquiryProApplyHotelCheckTimesToInputs === 'function') {
+            enquiryProApplyHotelCheckTimesToInputs(selectedHotelData, { preserveDates: true });
         }
         
         // Calculate nights when dates are set
@@ -11083,7 +11123,9 @@
                         bed_types: room.bed_types
                     })) : [],
                     weekend_days: hotel.weekend_days || hotel.weekend || hotel.weekendDays || [],
-                    rates: hotel.rates || [] // Include rates for blackout/fair date calculations
+                    rates: hotel.rates || [], // Include rates for blackout/fair date calculations
+                    check_in_time: hotel.check_in_time || null,
+                    check_out_time: hotel.check_out_time || null
                 };
                 option.setAttribute('data-hotel-data', JSON.stringify(hotelData));
                 option.textContent = hotel.name;
@@ -11234,6 +11276,10 @@
             setAccommodationRatePanelLoading(true);
             enquiryProSetCurrentHotelData(JSON.parse(hotelDataStr));
             clearHotelPriceFetchCache();
+
+            if (typeof enquiryProApplyHotelCheckTimesToInputs === 'function') {
+                enquiryProApplyHotelCheckTimesToInputs(currentHotelData, { preserveDates: true });
+            }
             
             if (!currentHotelData.rooms || currentHotelData.rooms.length === 0) {
                 alert('No rooms available for this hotel');
@@ -12520,6 +12566,8 @@
             hotel_unique_id: hotel_unique_id, // Unique ID for API calls
             hotelName: hotelName,
             destination: destination,
+            check_in_time: hotelData.check_in_time || null,
+            check_out_time: hotelData.check_out_time || null,
             roomId: combo.roomId, // This is bed_id (for backward compatibility)
             bedId: combo.bedId || combo.roomId, // Actual bed_id from database
             databaseRoomId: combo.roomData?.room_id || combo.roomData?.id || '', // Actual database room_id
@@ -15624,12 +15672,16 @@
             let checkInValue = hotel.checkIn;
             let checkOutValue = hotel.checkOut;
             
-            // If no time component, add default times (11:00 for check-in, 10:00 for check-out)
+            // If no time component, use hotel policy times from hotels table
             if (checkInValue && !checkInValue.includes('T')) {
-                checkInValue = checkInValue + 'T11:00';
+                checkInValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                    ? enquiryProAppendHotelTimeToDateValue(checkInValue, 'checkIn', hotel)
+                    : checkInValue + 'T11:00';
             }
             if (checkOutValue && !checkOutValue.includes('T')) {
-                checkOutValue = checkOutValue + 'T10:00';
+                checkOutValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                    ? enquiryProAppendHotelTimeToDateValue(checkOutValue, 'checkOut', hotel)
+                    : checkOutValue + 'T10:00';
             }
             
             // Determine displayed prices - show actual price only if checkbox is checked, otherwise show 0
@@ -15943,12 +15995,20 @@
             const numNights = document.getElementById('numNights');
             if (checkInDate && hotel.checkIn) {
                 let checkInValue = hotel.checkIn;
-                if (checkInValue && !checkInValue.includes('T')) checkInValue = checkInValue + 'T11:00';
+                if (checkInValue && !checkInValue.includes('T')) {
+                    checkInValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                        ? enquiryProAppendHotelTimeToDateValue(checkInValue, 'checkIn', hotel)
+                        : checkInValue + 'T11:00';
+                }
                 checkInDate.value = checkInValue;
             }
             if (checkOutDate && hotel.checkOut) {
                 let checkOutValue = hotel.checkOut;
-                if (checkOutValue && !checkOutValue.includes('T')) checkOutValue = checkOutValue + 'T10:00';
+                if (checkOutValue && !checkOutValue.includes('T')) {
+                    checkOutValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                        ? enquiryProAppendHotelTimeToDateValue(checkOutValue, 'checkOut', hotel)
+                        : checkOutValue + 'T10:00';
+                }
                 checkOutDate.value = checkOutValue;
             }
             if (numNights && hotel.nights) numNights.value = hotel.nights;
@@ -31599,12 +31659,15 @@
         let checkOut = Array.isArray(bookingDate) && bookingDate.length > 1 ? bookingDate[1] : (data.checkOut || '');
         
         // Ensure dates have time component for datetime-local inputs
-        // If no time component, add default times (11:00 for check-in, 10:00 for check-out)
         if (checkIn && !checkIn.includes('T')) {
-            checkIn = checkIn + 'T11:00';
+            checkIn = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                ? enquiryProAppendHotelTimeToDateValue(checkIn, 'checkIn', data)
+                : checkIn + 'T11:00';
         }
         if (checkOut && !checkOut.includes('T')) {
-            checkOut = checkOut + 'T10:00';
+            checkOut = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                ? enquiryProAppendHotelTimeToDateValue(checkOut, 'checkOut', data)
+                : checkOut + 'T10:00';
         }
         
         // Calculate nights

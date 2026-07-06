@@ -22,12 +22,14 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Crypt;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1627,6 +1629,505 @@ class CommonHelper
     }
 
     /**
+     * DMC booking form type from users.is_pro (set on users listing).
+     * 1 = Lite only, 2 = Pro only, 3 = Both.
+     */
+    public static function getDmcBookingType($user = null): int
+    {
+        $user = $user ?? Auth::user();
+        if (!$user) {
+            return 1;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+
+        if (!$dmcId) {
+            $own = (int) ($user->is_pro ?? 1);
+            return in_array($own, [1, 2, 3], true) ? $own : 1;
+        }
+
+        $dmc = User::where('userId', $dmcId)->first();
+        $bookingType = (int) ($dmc->is_pro ?? 1);
+
+        return in_array($bookingType, [1, 2, 3], true) ? $bookingType : 1;
+    }
+
+    public static function dmcCanAccessLiteForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [1, 3], true);
+    }
+
+    public static function dmcCanAccessProForm($user = null): bool
+    {
+        return in_array(self::getDmcBookingType($user), [2, 3], true);
+    }
+
+    /**
+     * Redirect/JSON denial when the current user's DMC cannot access a booking form.
+     * Returns null when access is allowed.
+     */
+    public static function bookingFormAccessDeniedResponse(string $formType, $user = null)
+    {
+        $formType = strtolower($formType);
+        $allowed = $formType === 'pro'
+            ? self::dmcCanAccessProForm($user)
+            : self::dmcCanAccessLiteForm($user);
+
+        if ($allowed) {
+            return null;
+        }
+
+        $label = $formType === 'pro' ? 'Pro' : 'Lite';
+        $message = "Your DMC account does not have access to the {$label} booking form.";
+
+        if (request()->expectsJson() || request()->ajax()) {
+            return response()->json(['success' => false, 'message' => $message], 403);
+        }
+
+        return redirect()->route('dashboard')->with('error', $message);
+    }
+
+    /**
+     * Resolve QTN (quotation) or ITN (itinerary) email type from DMC user settings.
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponse(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtoupper(trim((string) ($dmcUser->ai_response ?? '')));
+        if (in_array($type, ['QTN', 'ITN'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtoupper(trim((string) ($master->ai_response ?? '')));
+                if (in_array($masterType, ['QTN', 'ITN'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static function normalizeEmailMessageId(?string $messageId): ?string
+    {
+        $messageId = trim((string) $messageId);
+        if ($messageId === '') {
+            return null;
+        }
+
+        $messageId = preg_replace('/^message-id:\s*/i', '', $messageId) ?? $messageId;
+        $messageId = trim($messageId, " \t\n\r\0\x0B\"'");
+
+        if ($messageId === '') {
+            return null;
+        }
+
+        if (! str_starts_with($messageId, '<')) {
+            $messageId = '<'.$messageId;
+        }
+        if (! str_ends_with($messageId, '>')) {
+            $messageId = rtrim($messageId, '>').'>';
+        }
+
+        return $messageId;
+    }
+
+    public static function isUsableEmailUuid(?string $emailUuid): bool
+    {
+        $emailUuid = trim((string) $emailUuid);
+        if ($emailUuid === '') {
+            return false;
+        }
+
+        $normalized = strtolower(trim($emailUuid, '<>'));
+
+        return ! in_array($normalized, [
+            'no-uuid-provided',
+            'none',
+            'null',
+            'n/a',
+            'na',
+            'undefined',
+        ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    public static function resolveEmailUuidFromContext(array $context): ?string
+    {
+        $raw = trim((string) ($context['email_uuid'] ?? ''));
+        if (! self::isUsableEmailUuid($raw)) {
+            return null;
+        }
+
+        return self::normalizeEmailMessageId($raw);
+    }
+
+    public static function resolveEmailSubjectFromContext(array $context): ?string
+    {
+        $candidates = [
+            $context['subject'] ?? null,
+            $context['mail_received'] ?? null,
+        ];
+
+        foreach ($candidates as $subject) {
+            $subject = trim((string) $subject);
+            if ($subject === '' || self::looksLikeEmailReceivedTimestamp($subject)) {
+                continue;
+            }
+
+            return $subject;
+        }
+
+        return null;
+    }
+
+    public static function looksLikeEmailReceivedTimestamp(string $value): bool
+    {
+        return (bool) preg_match(
+            '/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/',
+            $value
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function normalizeEmailList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $value = preg_split('/[,;]+/', $value) ?: [];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $emails = [];
+        foreach ($value as $item) {
+            if (is_array($item)) {
+                $email = trim((string) ($item['email'] ?? $item['address'] ?? ''));
+            } else {
+                $email = trim((string) $item);
+            }
+
+            $email = trim($email, " \t\n\r\0\x0B<>\"'");
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && ! in_array($email, $emails, true)) {
+                $emails[] = $email;
+            }
+        }
+
+        return $emails;
+    }
+
+    /**
+     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     *
+     * @param  array<string, mixed>  $context
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    public static function resolveEmailListFromContext(array $context, array $keys): array
+    {
+        $emails = [];
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $context)) {
+                continue;
+            }
+            $emails = array_merge($emails, self::normalizeEmailList($context[$key]));
+        }
+
+        return array_values(array_unique($emails));
+    }
+
+    public static function looksLikeEmailMessageId(string $value): bool
+    {
+        $bare = trim($value, '<>');
+        if ($bare === '' || ! str_contains($bare, '@')) {
+            return false;
+        }
+
+        $local = strstr($bare, '@', true) ?: '';
+        if ($local === '') {
+            return false;
+        }
+
+        if (preg_match('/[+=%]/', $local) || strlen($local) > 40) {
+            return true;
+        }
+
+        return ! filter_var($bare, FILTER_VALIDATE_EMAIL);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function extractReferenceTokens(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        if (is_array($raw)) {
+            $tokens = [];
+            foreach ($raw as $item) {
+                $tokens = array_merge($tokens, self::extractReferenceTokens($item));
+            }
+
+            return $tokens;
+        }
+
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        if (preg_match_all('/<[^>]+>/', $raw, $matches)) {
+            return $matches[0];
+        }
+
+        $tokens = [];
+        foreach (preg_split('/[\s,;]+/', $raw) ?: [] as $part) {
+            $part = trim((string) $part);
+            if ($part !== '') {
+                $tokens[] = $part;
+            }
+        }
+
+        return $tokens !== [] ? $tokens : [$raw];
+    }
+
+    /**
+     * Split payload references into Message-IDs (threading) and CC mailbox addresses.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array{message_ids: list<string>, cc_emails: list<string>}
+     */
+    public static function partitionEmailReferencesContext(array $context): array
+    {
+        $raw = $context['references'] ?? $context['email_references'] ?? $context['References'] ?? null;
+        $messageIds = [];
+        $ccFromReferences = [];
+
+        foreach (self::extractReferenceTokens($raw) as $token) {
+            if (self::looksLikeEmailMessageId($token)) {
+                $normalized = self::normalizeEmailMessageId($token);
+                if ($normalized !== null) {
+                    $messageIds[] = $normalized;
+                }
+
+                continue;
+            }
+
+            $email = trim($token, " \t\n\r\0\x0B<>\"'");
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $ccFromReferences[] = $email;
+            }
+        }
+
+        $ccEmails = array_values(array_unique(array_merge(
+            self::resolveEmailListFromContext($context, ['cc', 'cc_list', 'cc_emails', 'cc_email', 'CC']),
+            $ccFromReferences
+        )));
+
+        return [
+            'message_ids' => array_values(array_unique($messageIds)),
+            'cc_emails' => $ccEmails,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveBccEmailsFromContext(array $context, ?string $primaryRecipient = null): array
+    {
+        $bccEmails = self::resolveEmailListFromContext($context, [
+            'bcc', 'bcc_list', 'bcc_emails', 'bcc_email', 'BCC',
+        ]);
+        $exclude = array_map(
+            'strtolower',
+            array_values(array_filter(array_unique(array_merge(
+                [trim((string) $primaryRecipient)],
+                self::resolveCcEmailsFromContext($context, $primaryRecipient)
+            ))))
+        );
+
+        return array_values(array_filter(
+            $bccEmails,
+            static fn (string $email): bool => ! in_array(strtolower($email), $exclude, true)
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveCcEmailsFromContext(array $context, ?string $primaryRecipient = null): array
+    {
+        $ccEmails = self::partitionEmailReferencesContext($context)['cc_emails'];
+        $exclude = strtolower(trim((string) $primaryRecipient));
+
+        if ($exclude === '') {
+            return $ccEmails;
+        }
+
+        return array_values(array_filter(
+            $ccEmails,
+            static fn (string $email): bool => strtolower($email) !== $exclude
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return list<string>
+     */
+    public static function resolveEmailReferencesFromContext(array $context): array
+    {
+        return self::partitionEmailReferencesContext($context)['message_ids'];
+    }
+
+    /**
+     * @param  list<string>  $additionalReferences
+     * @return list<string>
+     */
+    public static function buildEmailReferenceChain(?string $parentMessageId, array $additionalReferences = []): array
+    {
+        $normalizedParent = self::normalizeEmailMessageId($parentMessageId);
+        if ($normalizedParent === null) {
+            return [];
+        }
+
+        $chain = [];
+        foreach ($additionalReferences as $reference) {
+            $normalized = self::normalizeEmailMessageId((string) $reference);
+            if ($normalized === null) {
+                continue;
+            }
+            $id = trim($normalized, '<>');
+            if ($id !== '' && ! in_array($id, $chain, true)) {
+                $chain[] = $id;
+            }
+        }
+
+        $parentId = trim($normalizedParent, '<>');
+        if ($parentId !== '' && ! in_array($parentId, $chain, true)) {
+            $chain[] = $parentId;
+        }
+
+        return $chain;
+    }
+
+    public static function applyThreadReplySubject(string $subject, ?string $originalSubject = null): string
+    {
+        $originalSubject = trim((string) $originalSubject);
+        if ($originalSubject === '') {
+            return trim($subject);
+        }
+
+        if (preg_match('/^re:\s/i', $originalSubject)) {
+            return $originalSubject;
+        }
+
+        return 'Re: '.$originalSubject;
+    }
+
+    public static function sendHtmlEmail(
+        string $recipientEmail,
+        string $html,
+        string $subject,
+        ?string $fromEmail = null,
+        ?string $fromName = null,
+        ?string $replyToEmail = null,
+        ?string $emailUuid = null,
+        ?string $threadSubject = null,
+        array $referenceMessageIds = [],
+        array $ccEmails = [],
+        array $bccEmails = []
+    ): void {
+        if ($emailUuid !== null && $emailUuid !== '') {
+            $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+            $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+
+            Mail::to($recipientEmail)->send(new AutomatedMail(
+                $html,
+                $finalSubject,
+                $emailUuid,
+                $fromEmail,
+                $fromName,
+                $replyToEmail,
+                $referenceChain,
+                $ccEmails,
+                $bccEmails
+            ));
+
+            Log::info('Threaded email sent', [
+                'to' => $recipientEmail,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
+                'in_reply_to' => $emailUuid,
+                'references' => $referenceChain,
+                'subject' => $finalSubject,
+                'thread_subject' => $threadSubject,
+            ]);
+
+            return;
+        }
+
+        Mail::to($recipientEmail)->send(new DmcMail(
+            $html,
+            $subject,
+            $fromEmail,
+            $fromName,
+            $replyToEmail,
+            $ccEmails,
+            $bccEmails
+        ));
+    }
+
+    /**
+     * Send itinerary-style email using the DMC's ai_response setting (QTN or ITN).
+     *
+     * @param  array<string, mixed>  $tourData
+     * @return bool|string
+     */
+    public static function sendTourItineraryEmailByAiResponse(string $recipientEmail, array $tourData = [], ?User $dmcUser = null)
+    {
+        $aiResponse = self::resolveDmcAiResponse($dmcUser);
+
+        if ($aiResponse === null) {
+            Log::info('Skipping itinerary email: DMC ai_response is not QTN or ITN', [
+                'dmc_id' => $dmcUser?->userId,
+                'email' => $recipientEmail,
+            ]);
+
+            return 'AI response type not configured (select QTN or ITN in user settings)';
+        }
+
+        if ($aiResponse === 'QTN') {
+            return self::sendTourQuotationEmail($recipientEmail, $tourData);
+        }
+
+        return self::sendTourAutoBookedDmcEmail($recipientEmail, $tourData);
+    }
+
+    /**
      * Send tour proposal email to agent
      * Date: Current
      * 
@@ -1636,7 +2137,7 @@ class CommonHelper
      * @param array $tourData - Tour details (destination, dates, guests, etc.)
      * @return bool|string - true on success, error message on failure
      */
-    public static function sendTourProposalEmail($agentId, $tourId, $tourDisplayId, $tourData = [])
+    public static function sendTourProposalEmail($agentId, $tourId, $tourDisplayId, $tourData = [], ?User $dmcUser = null)
     {
         try {
             // Get agent details
@@ -1650,76 +2151,89 @@ class CommonHelper
             $agency = \App\Models\Agency::where('agency_id', $agent->agency_id)->first();
             $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
 
-            // Get DMC details
-            $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
-            if (!$dmcId) {
-                // Try to get DMC from agent's sales_manager_dmc
-                $dmcId = $agent->sales_manager_dmc;
+            $tour = Tour::where('tour_id', $tourId)->first();
+
+            if ($dmcUser === null && $tour && !empty($tour->dmc_id)) {
+                $dmcUser = User::where('userId', $tour->dmc_id)->first();
             }
-            
-            $dmc = User::where('userId', $dmcId)->first();
-            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
-            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
-            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
-            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
-
-            // Prepare email data
-            $emailData = [
-                'agent_name' => $agent->name ?? 'Valued Partner',
-                'agency_name' => $agencyName,
-                'dmc_name' => $dmcName,
-                'dmc_logo' => $dmcLogo,
-                'dmc_email' => $dmcEmail,
-                'dmc_phone' => $dmcPhone,
-                'tour_display_id' => $tourDisplayId,
-                'destination' => $tourData['destination'] ?? 'N/A',
-                'city' => $tourData['city'] ?? null,
-                'check_in_date' => isset($tourData['check_in_time']) ? Carbon::parse($tourData['check_in_time'])->format('M d, Y') : 'N/A',
-                'check_out_date' => isset($tourData['check_out_time']) ? Carbon::parse($tourData['check_out_time'])->format('M d, Y') : 'N/A',
-                'adults' => $tourData['adult'] ?? 0,
-                'children' => $tourData['child'] ?? 0,
-                'infants' => $tourData['infant'] ?? 0,
-                'total_guests' => ($tourData['adult'] ?? 0) + ($tourData['child'] ?? 0) + ($tourData['infant'] ?? 0),
-                'query_date' => now()->format('M d, Y'),
-                'dashboard_link' => self::url(),
-            ];
-
-            // Email subject
-            $subject = "✈️ New Travel Proposal from {$dmcName} via Travclicks";
-
-            // Render the email template
-            try {
-                $html = view('mails.tour_proposal_agent', $emailData)->render();
-            } catch (\Exception $e) {
-                Log::error("Error rendering tour proposal email template", [
-                    'error' => $e->getMessage(),
-                    'tour_id' => $tourId
-                ]);
-                return "Error rendering email template: " . $e->getMessage();
+            if ($dmcUser === null) {
+                $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
+                if (!$dmcId) {
+                    $dmcId = $agent->sales_manager_dmc;
+                }
+                if ($dmcId) {
+                    $dmcUser = User::where('userId', $dmcId)->first();
+                }
             }
 
-            // Send the email
-            try {
-                Mail::to($agent->email)->send(new DmcMail($html, $subject));
-                
-                // Log successful email sending
-                Log::info("Tour proposal email sent successfully", [
-                    'agent_id' => $agentId,
-                    'agent_email' => $agent->email,
-                    'tour_id' => $tourId,
-                    'tour_display_id' => $tourDisplayId
-                ]);
-                
-                return true;
-            } catch (\Exception $e) {
-                Log::error("Failed to send tour proposal email", [
-                    'error' => $e->getMessage(),
-                    'agent_id' => $agentId,
-                    'agent_email' => $agent->email,
-                    'tour_id' => $tourId
-                ]);
-                return "Failed to send email: " . $e->getMessage();
+            $aiResponse = self::resolveDmcAiResponse($dmcUser);
+            if ($aiResponse === null) {
+                return 'AI response type not configured (select QTN or ITN in user settings)';
             }
+
+            $emailData = null;
+            if ($tour) {
+                $emailData = $aiResponse === 'QTN'
+                    ? self::buildQuotationConfirmationEmailDataFromTour($tour)
+                    : self::buildBookingConfirmationEmailDataFromTour($tour);
+            }
+
+            if (!$emailData) {
+                $dmcName = $dmcUser
+                    ? trim((string) ($dmcUser->company_name ?? $dmcUser->name ?? 'DMC'))
+                    : 'DMC';
+
+                $fallbackPayload = [
+                    'dmc_name' => $dmcName,
+                    'dmc_logo' => $dmcUser?->logo ?? null,
+                    'dmc_label' => $dmcName,
+                    'dmc_contact_email' => (string) ($dmcUser?->email ?? ''),
+                    'tour_display_id' => $tourDisplayId,
+                    'destination' => $tourData['destination'] ?? 'N/A',
+                    'city' => $tourData['city'] ?? null,
+                    'check_in_time' => $tourData['check_in_time'] ?? null,
+                    'check_out_time' => $tourData['check_out_time'] ?? null,
+                    'adult' => $tourData['adult'] ?? 0,
+                    'child' => $tourData['child'] ?? 0,
+                    'infant' => $tourData['infant'] ?? 0,
+                    'agent_name' => $agent->name ?? 'Valued Partner',
+                    'agency_name' => $agencyName,
+                    'dashboard_link' => self::url(),
+                    'booked_at' => now()->format('M d, Y H:i'),
+                    'quoted_at' => now()->format('M d, Y H:i'),
+                ];
+
+                $emailData = $aiResponse === 'QTN'
+                    ? self::normalizeQuotationEmailData($fallbackPayload)
+                    : self::normalizeTourAutoBookedEmailData($fallbackPayload);
+            }
+
+            $emailData['agent_name'] = $agent->name ?? 'Valued Partner';
+            $emailData['agency_name'] = $agencyName;
+            $emailData['query_date'] = now()->format('M d, Y');
+
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $agent->email);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $agent->email);
+            if ($emailUuid !== null) {
+                $emailData['email_uuid'] = $emailUuid;
+            }
+            if ($threadSubject !== null) {
+                $emailData['subject'] = $threadSubject;
+            }
+            if ($referenceMessageIds !== []) {
+                $emailData['references'] = $referenceMessageIds;
+            }
+            if ($ccEmails !== []) {
+                $emailData['cc'] = $ccEmails;
+            }
+            if ($bccEmails !== []) {
+                $emailData['bcc'] = $bccEmails;
+            }
+
+            return self::sendTourItineraryEmailByAiResponse($agent->email, $emailData, $dmcUser);
 
         } catch (\Exception $e) {
             Log::error('Tour proposal email sending failed', [
@@ -1780,6 +2294,8 @@ class CommonHelper
             'diff' => (int) ($tourData['diff'] ?? 0),
             'requested_days' => (int) ($tourData['requested_days'] ?? 0),
             'available_days' => (int) ($tourData['available_days'] ?? 0),
+            'requested_nights' => max(0, (int) ($tourData['requested_days'] ?? 0) - 1),
+            'available_nights' => max(0, (int) ($tourData['available_days'] ?? 0) - 1),
             'is_partial_package' => (bool) ($tourData['is_partial_package'] ?? false),
             'partial_package_message' => (string) ($tourData['partial_package_message'] ?? ''),
             'country' => (string) ($tourData['country'] ?? ''),
@@ -1817,15 +2333,45 @@ class CommonHelper
         }
 
         try {
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $dmcEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
-            Mail::to($dmcEmail)->send(new DmcMail($html, trim($subject)));
+            $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            $dmcLabel = trim((string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? ''));
+            if ($dmcLabel !== '' && $dmcLabel !== 'DMC') {
+                $fromName = $dmcLabel.' via '.$fromName;
+            }
+            $replyTo = ($dmcContactEmail !== '' && filter_var($dmcContactEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcContactEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $dmcEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails,
+                $bccEmails
+            );
 
             Log::info('Booking confirmation email sent', [
                 'email' => $dmcEmail,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
                 'tour_display_id' => $emailData['tour_display_id'],
             ]);
 
@@ -1841,13 +2387,13 @@ class CommonHelper
     }
 
     /**
-     * Notify sender when external payload matching is 0 (incomplete travel details).
+     * Send quotation email with full itinerary (email/quotation-confirmation.blade.php).
      *
      * @param  string  $recipientEmail
-     * @param  array<string, mixed>  $emailData
+     * @param  array<string, mixed>  $tourData
      * @return bool|string
      */
-    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [])
+    public static function sendTourQuotationEmail(string $recipientEmail, array $tourData = [])
     {
         $recipientEmail = trim($recipientEmail);
         if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
@@ -1855,20 +2401,360 @@ class CommonHelper
         }
 
         try {
+            $emailUuid = self::resolveEmailUuidFromContext($tourData);
+            $threadSubject = self::resolveEmailSubjectFromContext($tourData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($tourData);
+            $ccEmails = self::resolveCcEmailsFromContext($tourData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($tourData, $recipientEmail);
+            $emailData = self::normalizeQuotationEmailData($tourData);
+
+            $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
+            $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
+
+            $html = view('email.quotation-confirmation', $emailData)->render();
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                null,
+                null,
+                null,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails,
+                $bccEmails
+            );
+
+            Log::info('Quotation email sent', [
+                'email' => $recipientEmail,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
+                'tour_display_id' => $emailData['tour_display_id'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Tour quotation email failed', [
+                'email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: ' . $e->getMessage();
+        }
+    }
+
+    /** @var list<int> */
+    public const MASTER_DMC_ROLE_IDS = [10, 19];
+
+    /** @var list<int> */
+    public const NORMAL_DMC_ROLE_IDS = [11, 20];
+
+    /**
+     * @return list<string>
+     */
+    public static function parseUserCountryList(?string $rawCountry): array
+    {
+        if (! is_string($rawCountry) || trim($rawCountry) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($rawCountry, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $parts = $decoded;
+        } else {
+            $parts = preg_split('/[,|]/', $rawCountry) ?: [];
+        }
+
+        $countries = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '' && ! in_array($name, $countries, true)) {
+                $countries[] = $name;
+            }
+        }
+
+        return $countries;
+    }
+
+    public static function normalizeCountryName(string $country): string
+    {
+        $trimmed = trim($country);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $match = Country::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($trimmed)])
+            ->value('name');
+
+        return is_string($match) && $match !== '' ? $match : $trimmed;
+    }
+
+    public static function countriesMatch(string $left, string $right): bool
+    {
+        $left = strtolower(trim(self::normalizeCountryName($left)));
+        $right = strtolower(trim(self::normalizeCountryName($right)));
+
+        return $left !== '' && $right !== '' && $left === $right;
+    }
+
+    public static function isMasterDmcUser(?User $user): bool
+    {
+        return $user !== null && in_array((int) $user->role_id, self::MASTER_DMC_ROLE_IDS, true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function resolveSupportedCountriesForDmc(User $dmcUser): array
+    {
+        return array_map(
+            static fn (string $country): string => self::normalizeCountryName($country),
+            self::parseUserCountryList($dmcUser->country ?? null)
+        );
+    }
+
+    public static function dmcSupportsDestinationCountry(User $dmcUser, string $requestedCountry): bool
+    {
+        $requestedCountry = trim($requestedCountry);
+        if ($requestedCountry === '') {
+            return true;
+        }
+
+        $supported = self::resolveSupportedCountriesForDmc($dmcUser);
+        if ($supported === []) {
+            return false;
+        }
+
+        foreach ($supported as $country) {
+            if (self::countriesMatch($country, $requestedCountry)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<array{name: string, email: string, country: string}>
+     */
+    public static function findAlternateDmcsForCountry(User $selectedDmc, string $requestedCountry): array
+    {
+        $requestedCountry = trim($requestedCountry);
+        if ($requestedCountry === '') {
+            return [];
+        }
+
+        $masterId = (int) ($selectedDmc->master_dmc_id ?? 0);
+        if ($masterId <= 0 && self::isMasterDmcUser($selectedDmc)) {
+            $masterId = (int) $selectedDmc->userId;
+        }
+
+        if ($masterId <= 0) {
+            return [];
+        }
+
+        $alternates = [];
+        foreach (User::query()
+            ->whereIn('role_id', self::NORMAL_DMC_ROLE_IDS)
+            ->where('master_dmc_id', $masterId)
+            ->where('userId', '!=', $selectedDmc->userId)
+            ->get() as $dmc) {
+            if (! self::dmcSupportsDestinationCountry($dmc, $requestedCountry)) {
+                continue;
+            }
+
+            $alternates[] = [
+                'name' => trim((string) ($dmc->company_name ?: $dmc->name ?: 'DMC')),
+                'email' => trim((string) ($dmc->email ?? '')),
+                'country' => self::normalizeCountryName(
+                    self::resolveSupportedCountriesForDmc($dmc)[0] ?? $requestedCountry
+                ),
+            ];
+        }
+
+        return $alternates;
+    }
+
+    /**
+     * @return array{
+     *   supported: bool,
+     *   requested_country: string,
+     *   supported_countries: list<string>,
+     *   alternate_dmcs: list<array{name: string, email: string, country: string}>
+     * }
+     */
+    public static function validateDmcDestinationCountrySupport(User $dmcUser, string $requestedCountry): array
+    {
+        $requestedCountry = self::normalizeCountryName(trim($requestedCountry));
+
+        return [
+            'supported' => self::dmcSupportsDestinationCountry($dmcUser, $requestedCountry),
+            'requested_country' => $requestedCountry,
+            'supported_countries' => self::resolveSupportedCountriesForDmc($dmcUser),
+            'alternate_dmcs' => self::findAlternateDmcsForCountry($dmcUser, $requestedCountry),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $emailData
+     * @return bool|string
+     */
+    public static function sendUnsupportedDestinationCountryEmail(
+        string $recipientEmail,
+        array $emailData = [],
+        ?User $dmcUser = null
+    ) {
+        $recipientEmail = trim($recipientEmail);
+        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid recipient email address';
+        }
+
+        try {
+            $emailUuid = self::resolveEmailUuidFromContext($emailData);
+            $threadSubject = self::resolveEmailSubjectFromContext($emailData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($emailData);
+            $ccEmails = self::resolveCcEmailsFromContext($emailData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($emailData, $recipientEmail);
+
+            $selectedDmcName = (string) ($emailData['selected_dmc_name'] ?? $emailData['dmc_name'] ?? 'DMC');
+            $requestedCountry = (string) ($emailData['requested_country'] ?? '');
+            $alternateDmcs = is_array($emailData['alternate_dmcs'] ?? null) ? $emailData['alternate_dmcs'] : [];
+
+            $viewData = [
+                'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Partner'),
+                'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
+                'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
+                'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
+                'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+                'selected_dmc_name' => $selectedDmcName,
+                'requested_country' => $requestedCountry,
+                'alternate_dmcs' => $alternateDmcs,
+            ];
+
+            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: $selectedDmcName;
+            $subject = 'Destination not supported — '.$requestedCountry.' — '.$dmcName;
+            $html = view('email.unsupported-destination-country', $viewData)->render();
+
+            $dmcEmail = trim($viewData['dmc_contact_email']);
+            if ($dmcEmail === '' && $dmcUser) {
+                $dmcEmail = trim((string) ($dmcUser->email ?? ''));
+            }
+
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            if ($dmcName !== '' && $dmcName !== 'DMC') {
+                $fromName = $dmcName.' via '.$fromName;
+            }
+            $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails,
+                $bccEmails
+            );
+
+            Log::info('Unsupported destination country email sent', [
+                'email' => $recipientEmail,
+                'selected_dmc' => $selectedDmcName,
+                'requested_country' => $requestedCountry,
+                'alternate_dmcs' => $alternateDmcs,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Unsupported destination country email failed', [
+                'email' => $recipientEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Failed to send email: '.$e->getMessage();
+        }
+    }
+
+    /**
+     * Notify sender when external payload matching is 0 (incomplete travel details).
+     *
+     * @param  string  $recipientEmail
+     * @param  array<string, mixed>  $emailData
+     * @return bool|string
+     */
+
+    public static function sendIncompleteTravelDetailsEmail(string $recipientEmail, array $emailData = [], ?User $dmcUser = null)
+    {
+        $recipientEmail = trim($recipientEmail);
+        if ($recipientEmail === '' || ! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            return 'Invalid recipient email address';
+        }
+
+        try {
+            $emailUuid = self::resolveEmailUuidFromContext($emailData);
+            $threadSubject = self::resolveEmailSubjectFromContext($emailData);
+            $referenceMessageIds = self::resolveEmailReferencesFromContext($emailData);
+            $ccEmails = self::resolveCcEmailsFromContext($emailData, $recipientEmail);
+            $bccEmails = self::resolveBccEmailsFromContext($emailData, $recipientEmail);
             $viewData = [
                 'recipient_name' => (string) ($emailData['recipient_name'] ?? 'Valued Customer'),
                 'dmc_name' => (string) ($emailData['dmc_name'] ?? ''),
                 'dmc_label' => (string) ($emailData['dmc_label'] ?? ''),
                 'dmc_logo' => self::resolveEmailLogoUrl($emailData['dmc_logo'] ?? null),
                 'dmc_contact_email' => (string) ($emailData['dmc_contact_email'] ?? ''),
+                'missing_items' => is_array($emailData['missing_items'] ?? null) ? $emailData['missing_items'] : [],
             ];
 
-            $subject = 'Additional Information Required for Your Travel Inquiry — Travclicks';
+            $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
+            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
-            Mail::to($recipientEmail)->send(new DmcMail($html, trim($subject)));
+
+            $dmcEmail = trim($viewData['dmc_contact_email']);
+            if ($dmcEmail === '' && $dmcUser) {
+                $dmcEmail = trim((string) ($dmcUser->email ?? ''));
+            }
+
+            // SMTP auth is tied to MAIL_FROM; use DMC email only as Reply-To.
+            $fromEmail = (string) config('mail.from.address');
+            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            if ($dmcName !== '' && $dmcName !== 'DMC') {
+                $fromName = $dmcName.' via '.$fromName;
+            }
+            $replyTo = ($dmcEmail !== '' && filter_var($dmcEmail, FILTER_VALIDATE_EMAIL))
+                ? $dmcEmail
+                : $fromEmail;
+
+            self::sendHtmlEmail(
+                $recipientEmail,
+                $html,
+                trim($subject),
+                $fromEmail,
+                $fromName,
+                $replyTo,
+                $emailUuid,
+                $threadSubject,
+                $referenceMessageIds,
+                $ccEmails,
+                $bccEmails
+            );
 
             Log::info('Incomplete travel details email sent', [
                 'email' => $recipientEmail,
+                'cc' => $ccEmails,
+                'bcc' => $bccEmails,
+                'from' => $fromEmail,
+                'reply_to' => $replyTo,
             ]);
 
             return true;
@@ -1878,7 +2764,7 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
 
-            return 'Failed to send email: ' . $e->getMessage();
+            return 'Failed to send email: '.$e->getMessage();
         }
     }
 
@@ -1904,19 +2790,17 @@ class CommonHelper
             $bookedServices
         )), 2);
 
-        $agent = $tour->agent;
-        if (!$agent && $tour->agent_id) {
-            $agent = Agent::where('agent_id', $tour->agent_id)->first();
-        }
+        $agent = $tour->agent_id
+            ? Agent::where('agent_id', $tour->agent_id)->first()
+            : null;
 
         $agency = $agent && $agent->agency_id
             ? Agency::where('agency_id', $agent->agency_id)->first()
             : null;
 
-        $dmcUser = $tour->dmc;
-        if (!$dmcUser && $tour->dmc_id) {
-            $dmcUser = User::where('userId', $tour->dmc_id)->first();
-        }
+        $dmcUser = $tour->dmc_id
+            ? User::where('userId', $tour->dmc_id)->first()
+            : null;
 
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
@@ -1952,6 +2836,95 @@ class CommonHelper
             'requested_days' => 0,
             'available_days' => 0,
         ]);
+    }
+
+    /**
+     * Normalize quotation email payload for email/quotation-confirmation.blade.php.
+     *
+     * @param  array<string, mixed>  $tourData
+     * @return array<string, mixed>
+     */
+    public static function normalizeQuotationEmailData(array $tourData = []): array
+    {
+        // Full quotation layout (same data as single-tour-package/quotation.blade.php)
+        if (isset($tourData['tour']) && is_object($tourData['tour'])) {
+            $emailData = $tourData;
+        } else {
+            $emailData = self::normalizeTourAutoBookedEmailData($tourData);
+        }
+
+        $emailData['statusLabel'] = (string) ($tourData['statusLabel'] ?? 'TRAVEL QUOTATION');
+        $emailData['heroText'] = (string) ($tourData['heroText']
+            ?? "We've prepared a personalized travel quotation based on your request.");
+        $emailData['quoted_at'] = (string) ($tourData['quoted_at'] ?? $emailData['booked_at'] ?? now()->format('M d, Y H:i'));
+
+        return $emailData;
+    }
+
+    /**
+     * Build quotation-confirmation email view data from a persisted tour + its orders.
+     * Uses the same pricing / inclusions source as the PDF quotation blade.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function buildQuotationConfirmationEmailDataFromTour(Tour $tour): ?array
+    {
+        $pdfData = self::prepareEmailTemplateData($tour->tour_id);
+        if (!$pdfData || empty($pdfData['tour'])) {
+            return null;
+        }
+
+        $agent = $tour->agent_id
+            ? Agent::where('agent_id', $tour->agent_id)->first()
+            : null;
+
+        $agency = $agent && $agent->agency_id
+            ? Agency::where('agency_id', $agent->agency_id)->first()
+            : null;
+
+        $dmcUser = $tour->dmc_id
+            ? User::where('userId', $tour->dmc_id)->first()
+            : null;
+
+        $dmcName = $dmcUser
+            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+            : 'DMC';
+
+        try {
+            $encryptedTourId = Crypt::encrypt($tour->tour_id);
+            $quotationPreviewUrl = route('tour.itinerary.preview', ['encryptedTourId' => $encryptedTourId]);
+            $quotationDownloadUrl = route('tour.itinerary.pdf', [
+                'tourId' => $tour->tour_id,
+                'preview' => 0,
+            ]);
+        } catch (\Throwable $e) {
+            $quotationPreviewUrl = self::url();
+            $quotationDownloadUrl = self::url();
+        }
+
+        $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
+
+        return self::normalizeQuotationEmailData(array_merge($pdfData, [
+            'dmc_name' => $dmcName,
+            'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
+            'dmc_label' => $dmcName,
+            'dmc_contact_email' => (string) ($dmcUser?->email ?? ''),
+            'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
+            'agent_name' => (string) ($agent->name ?? ''),
+            'agency_name' => (string) ($agency->agency_name ?? ''),
+            'quoted_at' => $tour->created_at
+                ? Carbon::parse($tour->created_at)->format('M d, Y H:i')
+                : now()->format('M d, Y H:i'),
+            'dashboard_link' => $quotationPreviewUrl,
+            'itineraryUrl' => $quotationPreviewUrl,
+            'downloadUrl' => $quotationDownloadUrl,
+            'detailsUrl' => $quotationPreviewUrl,
+            'baseCurrency' => $baseCurrency,
+            'selectedCurrency' => $baseCurrency,
+            'exchangeRate' => 1.0,
+            'logoType' => 'dmc',
+            'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
+        ]));
     }
 
     /**
