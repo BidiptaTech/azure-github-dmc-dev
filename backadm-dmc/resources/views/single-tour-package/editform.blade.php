@@ -1462,6 +1462,9 @@
                                 </div>
 
                                 <!-- Discount Amount -->
+                                @php
+                                    $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
+                                @endphp
                                 <div class="col-md-2" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
@@ -1477,11 +1480,15 @@
                                             value="{{ old('discount_price', $tour->discount_amount ?? 0) }}"
                                             placeholder="0.00"
                                             style="height: 40px; border-radius: 8px 0 0 8px; font-size: 0.9rem; border: 1px solid #dee2e6;"
+                                            @unless($isNewEnquiry) disabled title="Discount can only be edited when the tour status is New Enquiry" @endunless
                                         >
                                         <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
                                             {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
                                         </span>
                                     </div>
+                                    @unless($isNewEnquiry)
+                                        <input type="hidden" name="discount_price" value="{{ old('discount_price', $tour->discount_amount ?? 0) }}">
+                                    @endunless
                                 </div>
                             </div>
 
