@@ -431,6 +431,16 @@ class EditTourController extends Controller
             $tour->destination = $validated['user_country'];
             $tour->check_in_time = $checkIn;
             $tour->check_out_time = $checkOut;
+
+            // Recalculate auto_cancel_date when the start date changes (reference: SingleTourPackageController::store()).
+            $startDateChanged = !$oldCheckIn || !$checkIn->equalTo($oldCheckIn);
+            if ($startDateChanged) {
+                $userDmcId = CommonHelper::getDmcId(Auth::user());
+                $userDMC = $userDmcId ? User::where('userId', $userDmcId)->first() : null;
+                $auto_cancel_day = (int) ($userDMC->auto_cancel_date ?? 0);
+                $tour->auto_cancel_date = $checkIn->copy()->subDays($auto_cancel_day)->toDateString();
+            }
+
             $tour->adult = $validated['adults'];
             $tour->child = $validated['children'];
             $tour->infant = $validated['infants'];

@@ -2258,7 +2258,21 @@ class UserController extends Controller
             $updateData['licence_no'] = $request->input('licence_no') ?: null;
         }
 
+        // Capture the company name before the update so we can detect a change below.
+        $originalCompanyName = $user->company_name;
+
         $user->update($updateData);
+
+        // If the edited user is a DMC (role_id 11) and its company name changed,
+        // cascade the new company name to every user that belongs to this DMC.
+        if ((int) $user->role_id === 11) {
+            $newCompanyName = $updateData['company_name'] ?? $user->company_name;
+            if ($newCompanyName !== null && $newCompanyName !== $originalCompanyName) {
+                User::where('dmcId', $user->userId)
+                    ->where('userId', '!=', $user->userId)
+                    ->update(['company_name' => $newCompanyName]);
+            }
+        }
 
         // Update role
         $role = Role::where('role_id', $request->role)->first();
