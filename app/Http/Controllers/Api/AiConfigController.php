@@ -14,6 +14,7 @@ class AiConfigController extends Controller
      */
     public function keywords(Request $request)
     {
+        
         $rows = AiKeyword::all();
         return response()->json($rows);
     }

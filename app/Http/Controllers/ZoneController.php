@@ -73,20 +73,51 @@ class ZoneController extends Controller
     }
 
     /**
-     * City name from the DMC profile used to scope zone lists (e.g. Singapore DMC only sees Singapore zones).
-     * Uses the resolved parent DMC when the current user is team/staff; otherwise the logged-in user's city.
+     * Country names from the master DMC profile (comma-separated on user.country).
      */
-    private function dmcHomeCityName(User $user): ?string
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
     {
-        $dmcId = $this->resolveDmcIdForUser($user);
-        if ($dmcId) {
-            $dmcUser = User::where('userId', $dmcId)->first();
-            $name = $dmcUser->country ?? null;
-        } else {
-            $name = $user->country ?? null;
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
         }
-        $name = is_string($name) ? trim($name) : '';
-        return $name !== '' ? $name : null;
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
     }
 
     /**
@@ -200,22 +231,36 @@ class ZoneController extends Controller
             });
         }
 
-        // Non-admin: only list zones in the DMC's home city (zone.city is city_id; user.city is city name).
-        if ((int) ($user->userId ?? 0) !== 1) {
-            $homeCityName = $this->dmcHomeCityName($user);
-            
-            if ($homeCityName !== null) {
-                $cityIds = City::query()
-                    ->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($homeCityName, 'UTF-8')])
-                    ->pluck('city_id');
+        $isAdmin = (int) ($user->userId ?? 0) === 1;
+        $dmcId = $this->resolveDmcIdForUser($user);
+        $masterDmcCountryNames = (!$isAdmin && $dmcId)
+            ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId)
+            : [];
 
-                if ($cityIds->isNotEmpty()) {
-                    $zonesQuery->whereIn('city', $cityIds);
-                } else {
-                    // Profile city set but not found in cities master — do not show other regions' zones.
-                    $zonesQuery->whereRaw('0 = 1');
-                }
+        // Non-admin: scope zones to master DMC countries.
+        if (!$isAdmin && !empty($masterDmcCountryNames)) {
+            $scopedCityIds = City::whereIn('country', $masterDmcCountryNames)->pluck('city_id');
+            if ($scopedCityIds->isNotEmpty()) {
+                $zonesQuery->whereIn('city', $scopedCityIds);
+            } else {
+                $zonesQuery->whereRaw('0 = 1');
             }
+        }
+
+        $filterCountry = trim((string) $request->query('country', ''));
+        $filterCityId = trim((string) $request->query('city', ''));
+
+        if ($filterCountry !== '') {
+            $countryCityIds = City::where('country', $filterCountry)->pluck('city_id');
+            if ($countryCityIds->isNotEmpty()) {
+                $zonesQuery->whereIn('city', $countryCityIds);
+            } else {
+                $zonesQuery->whereRaw('0 = 1');
+            }
+        }
+
+        if ($filterCityId !== '') {
+            $zonesQuery->where('city', $filterCityId);
         }
 
         // Optional filter by zone type (used by UI tabs: Hotel/Restaurant/Attraction/All).
@@ -232,19 +277,39 @@ class ZoneController extends Controller
         if (!in_array($sort, $allowedSorts, true)) {
             $sort = 'updated_at';
         }
-        $zones = $zonesQuery->orderBy($sort, $direction)->get();
+        $zones = $zonesQuery->with('cities')->orderBy($sort, $direction)->get();
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!$isAdmin && !empty($masterDmcCountryNames)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
+        }
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $filterCities = $filterCountry !== ''
+            ? City::where('country', $filterCountry)->orderBy('name')->get()
+            : collect();
 
         $hotels = Hotel::all();
         $attractions = Attraction::all();
         $restaurants = Restaurant::all();
-        $dmcId = $this->resolveDmcIdForUser($user);
 
         // Precompute zone items (hotels/attractions/restaurants) per zone using zone_assignments - same logic as edit-vehicle
         $zoneItemsMap = [];
         foreach ($zones as $zone) {
             $zoneItemsMap[$zone->zone_id] = $this->getZoneItemsForZone($zone, $dmcId, $hotels, $attractions, $restaurants);
         }
-        return view('zones.index', compact('zones', 'hotels', 'attractions', 'restaurants', 'dmcId', 'zoneItemsMap'));
+        return view('zones.index', compact(
+            'zones',
+            'hotels',
+            'attractions',
+            'restaurants',
+            'dmcId',
+            'zoneItemsMap',
+            'countries',
+            'filterCountry',
+            'filterCityId',
+            'filterCities'
+        ));
     }
 
     /**
