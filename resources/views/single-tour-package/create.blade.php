@@ -680,6 +680,63 @@
     <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
             @csrf
+
+            @php
+                // Hierarchy: DMC -> Sales Head -> Sales Manager -> Assistant Manager (created_by chain)
+                $currentUser = auth()->user();
+                $currentUserId = $currentUser->userId;
+                $currentUserRole = $currentUser->role_id;
+                $createdBy = null;
+                $dmcUser = null;
+                $isPointToPoint = false;
+
+                // Use same DMC resolution as controller (CommonHelper) - single source of truth for rooms, hotels, etc.
+                $finalDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+
+                // Determine created_by and DMC user for zone_on (point-to-point) and form fields
+                $salesHeadRoleIds = [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+                $salesManagerRoleIds = [37, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139];
+                $assistantManagerRoleIds = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140];
+
+                if ($currentUserRole == 11) {
+                    $createdBy = $currentUserId;
+                    $dmcUser = $currentUser;
+                } elseif (in_array($currentUserRole, $salesHeadRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $dmcUser = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                } elseif (in_array($currentUserRole, $salesManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $salesHead = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
+                } elseif (in_array($currentUserRole, $assistantManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $sm = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $salesHead = $sm ? \App\Models\User::where('userId', $sm->created_by)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
+                }
+
+                if ($finalDmcId === null && $dmcUser) {
+                    $finalDmcId = $dmcUser->userId;
+                }
+                if ($finalDmcId === null) {
+                    $finalDmcId = $currentUser->created_by;
+                }
+
+                if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
+                    $isPointToPoint = true;
+                }
+
+                if (!$dmcUser && $finalDmcId) {
+                    $dmcUser = \App\Models\User::where('userId', $finalDmcId)->first();
+                }
+
+                $dmcCurrency = strtoupper(trim((string) (
+                    optional($dmcUser)->currency
+                    ?? auth()->user()->currency
+                    ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
+                    ?? 'SGD'
+                ))) ?: 'SGD';
+            @endphp
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -1133,7 +1190,7 @@
                                         <option value="">Bed Type</option>
                                     </select>
                                     <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;flex-wrap: nowrap;">
-                                        Price: <span class="fw-bold">$0.00</span>
+                                        Price: <span class="fw-bold">0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -1168,7 +1225,8 @@
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
                                     <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
+                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
+
                                         <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
                                 </div>
@@ -1354,7 +1412,7 @@
                                                     <small class="text-white-50">Total cost for all selected services</small>
                                                 </div>
                                                 <div class="text-end">
-                                                    <div class="h4 mb-0" id="packageTotalPrice">$0.00</div>
+                                                    <div class="h4 mb-0" id="packageTotalPrice">{{ $dmcCurrency }} 0.00</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1401,58 +1459,13 @@
             <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
-            @php
-                // Hierarchy: DMC -> Sales Head -> Sales Manager -> Assistant Manager (created_by chain)
-                $currentUser = auth()->user();
-                $currentUserId = $currentUser->userId;
-                $currentUserRole = $currentUser->role_id;
-                $createdBy = null;
-                $dmcUser = null;
-                $isPointToPoint = false;
-
-                // Use same DMC resolution as controller (CommonHelper) - single source of truth for rooms, hotels, etc.
-                $finalDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-
-                // Determine created_by and DMC user for zone_on (point-to-point) and form fields
-                $salesHeadRoleIds = [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
-                $salesManagerRoleIds = [37, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139];
-                $assistantManagerRoleIds = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140];
-
-                if ($currentUserRole == 11) {
-                    $createdBy = $currentUserId;
-                    $dmcUser = $currentUser;
-                } elseif (in_array($currentUserRole, $salesHeadRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $dmcUser = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                } elseif (in_array($currentUserRole, $salesManagerRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $salesHead = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
-                } elseif (in_array($currentUserRole, $assistantManagerRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $sm = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                    $salesHead = $sm ? \App\Models\User::where('userId', $sm->created_by)->first() : null;
-                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
-                }
-
-                if ($finalDmcId === null && $dmcUser) {
-                    $finalDmcId = $dmcUser->userId;
-                }
-                if ($finalDmcId === null) {
-                    $finalDmcId = $currentUser->created_by;
-                }
-
-                if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
-                    $isPointToPoint = true;
-                }
-            @endphp
-            
             <!-- DMC Information -->
             <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
             <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
             <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
             <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
             <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
+            <input type="hidden" id="tour_package_currency" value="{{ $dmcCurrency }}">
             
             <!-- JSON Data Fields for Service Orders -->
             <input type="hidden" id="hotel_data" name="hotel_data" value="">
@@ -1624,7 +1637,7 @@
                                                 style="height: 48px; border-radius: 8px 0 0 8px; font-size: 0.95rem;"
                                             >
                                             <span class="input-group-text fw-semibold" style="height: 48px; border-radius: 0 8px 8px 0; font-size: 0.85rem; background:#f8f9fa; color:#495057;">
-                                                {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                                {{ $dmcCurrency }}
                                             </span>
                                         </div>
                                     </div>
@@ -1650,6 +1663,18 @@
                     
                     // DMC User data for zone handling
                     const UserDmc = @json($dmcUser);
+
+                    window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+                    window.getTourCurrency = function () {
+                        const el = document.getElementById('tour_package_currency');
+                        return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+                    };
+                    window.formatTourPrice = function (amount) {
+                        return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
+                    };
+                    window.formatTourPriceParen = function (amount) {
+                        return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+                    };
 
                     // ==============================
                     // Additional Guests Management
@@ -1855,7 +1880,7 @@
                             helperTotal += (parseFloat(opts.helperMeals.lunch) || 0);
                             helperTotal += (parseFloat(opts.helperMeals.dinner) || 0);
                             const helperMealCost = helperTotal * rooms;
-                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: $${helperMealCost}`);
+                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: ${getTourCurrency()} ${helperMealCost}`);
                             return helperMealCost;
                         }
 
@@ -2242,7 +2267,7 @@
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
                                     totalMealCost += breakfastPrice * totalGuests * numNights;
-                                    console.log(`Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = $${breakfastPrice * totalGuests * numNights}`);
+                                    console.log(`Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${breakfastPrice * totalGuests * numNights}`);
                                 }
                             }
                             
@@ -2250,7 +2275,7 @@
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
                                     totalMealCost += lunchPrice * totalGuests * numNights;
-                                    console.log(`Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights = $${lunchPrice * totalGuests * numNights}`);
+                                    console.log(`Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${lunchPrice * totalGuests * numNights}`);
                                 }
                             }
                             
@@ -2258,7 +2283,7 @@
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
                                     totalMealCost += dinnerPrice * totalGuests * numNights;
-                                    console.log(`Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = $${dinnerPrice * totalGuests * numNights}`);
+                                    console.log(`Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${dinnerPrice * totalGuests * numNights}`);
                                 }
                             }
                         } else {
@@ -2267,7 +2292,7 @@
                             return 0;
                         }
                         
-                        console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: $${totalMealCost}`);
+                        console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     }
 
@@ -2439,7 +2464,7 @@
                                         dinner_price: parseFloat(matchingRoom.dinner_price) || 0
                                     };
                                     console.log('✅ Fallback meal prices from room data:', fallbackMealPrices);
-                                    showNotification(`Fallback meal prices found: Breakfast: $${fallbackMealPrices.breakfast_price}, Lunch: $${fallbackMealPrices.lunch_price}, Dinner: $${fallbackMealPrices.dinner_price}`, 'success');
+                                    showNotification(`Fallback meal prices found: Breakfast: ${getTourCurrency()} ${fallbackMealPrices.breakfast_price}, Lunch: ${getTourCurrency()} ${fallbackMealPrices.lunch_price}, Dinner: ${getTourCurrency()} ${fallbackMealPrices.dinner_price}`, 'success');
                                     return fallbackMealPrices;
                                 } else {
                                     console.log('❌ No matching room found in global room data for:', selectedRoomType);
@@ -2454,7 +2479,7 @@
                             console.log('Breakfast: $' + mealPrices.breakfast_price);
                             console.log('Lunch: $' + mealPrices.lunch_price);
                             console.log('Dinner: $' + mealPrices.dinner_price);
-                            showNotification(`Meal prices found: Breakfast: $${mealPrices.breakfast_price}, Lunch: $${mealPrices.lunch_price}, Dinner: $${mealPrices.dinner_price}`, 'success');
+                            showNotification(`Meal prices found: Breakfast: ${getTourCurrency()} ${mealPrices.breakfast_price}, Lunch: ${getTourCurrency()} ${mealPrices.lunch_price}, Dinner: ${getTourCurrency()} ${mealPrices.dinner_price}`, 'success');
                         }
                         
                         return mealPrices;
@@ -2481,7 +2506,7 @@
                             helperTotal += (parseFloat(opts.helperMeals.lunch) || 0);
                             helperTotal += (parseFloat(opts.helperMeals.dinner) || 0);
                             const helperMealCost = helperTotal * rooms;
-                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: $${helperMealCost}`);
+                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: ${getTourCurrency()} ${helperMealCost}`);
                             return helperMealCost;
                         }
 
@@ -2491,7 +2516,7 @@
                                 if (breakfastPrice > 0) {
                                     const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += breakfastCost;
-                                    console.log(`CORRECTED Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${breakfastCost}`);
+                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
                                 }
                             }
                             
@@ -2500,7 +2525,7 @@
                                 if (lunchPrice > 0) {
                                     const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += lunchCost;
-                                    console.log(`CORRECTED Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${lunchCost}`);
+                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
                                 }
                             }
                             
@@ -2509,12 +2534,12 @@
                                 if (dinnerPrice > 0) {
                                     const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += dinnerCost;
-                                    console.log(`CORRECTED Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${dinnerCost}`);
+                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
                                 }
                             }
                         }
                         
-                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
+                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     };
 
@@ -2776,7 +2801,7 @@
                                     if (totalRoomPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
                                         // Sum up the per-night prices
                                         totalRoomPrice = hotel.priceBreakdown.reduce((sum, night) => sum + night.price, 0);
-                                        console.log(`Calculated room price from breakdown: $${totalRoomPrice}`);
+                                        console.log(`Calculated room price from breakdown: ${getTourCurrency()} ${totalRoomPrice}`);
                                     }
                                     
                                     const numRooms = parseInt(hotel.numberOfRooms) || 1;
@@ -2817,7 +2842,7 @@
                                     const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
                                     
                                     const total = roomAndExtraBedCost + mealCost + cwbCost + cnbCost;
-                                    console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: $${roomAndExtraBedCost}, Meal cost: $${mealCost}, Extra bed (in room line): $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
+                                    console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): ${getTourCurrency()} ${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: ${getTourCurrency()} ${roomAndExtraBedCost}, Meal cost: ${getTourCurrency()} ${mealCost}, Extra bed (in room line): ${getTourCurrency()} ${extraBedCost}, Child with bed: ${getTourCurrency()} ${cwbCost}, Child without bed: ${getTourCurrency()} ${cnbCost}, Total: ${getTourCurrency()} ${total}`);
                                     
                                     // Log weekday/weekend breakdown if available
                                     if (hotel.weekdayNights || hotel.weekendNights) {
@@ -2863,9 +2888,9 @@
                             console.log('=== FINAL HOTEL PRICING SUMMARY ===');
                             hotelDataArray.forEach((hotel, index) => {
                                 console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
-                                console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
-                                if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
-                                if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
+                                console.log(`  - Calculated totalPrice: ${getTourCurrency()} ${hotel.totalPrice}`);
+                                if (hotel.child_with_bed) console.log(`  - Child with bed: ${getTourCurrency()} ${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ ${getTourCurrency()} ${hotel.child_with_bed.price})`);
+                                if (hotel.child_without_bed) console.log(`  - Child without bed: ${getTourCurrency()} ${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ ${getTourCurrency()} ${hotel.child_without_bed.price})`);
                                 console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
                                 console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
                                 console.log(`  - Tour ID: ${hotel.tour_id}`);
@@ -3055,7 +3080,7 @@
                                                     (guestInfo.children * finalChildPrice) + 
                                                     (guestInfo.seniors * finalSeniorPrice);
                                     
-                                    console.log(`Attraction pricing: ${selectedOption.text} - Adult: $${finalAdultPrice} × ${guestInfo.adults}, Child: $${finalChildPrice} × ${guestInfo.children}, Senior: $${finalSeniorPrice} × ${guestInfo.seniors}, Total: $${totalPrice}`);
+                                    console.log(`Attraction pricing: ${selectedOption.text} - Adult: ${getTourCurrency()} ${finalAdultPrice} × ${guestInfo.adults}, Child: ${getTourCurrency()} ${finalChildPrice} × ${guestInfo.children}, Senior: ${getTourCurrency()} ${finalSeniorPrice} × ${guestInfo.seniors}, Total: ${getTourCurrency()} ${totalPrice}`);
                                     
                                     attractionDataArray.push({
                                         // Customer Information (from Customer Information form)
@@ -3460,7 +3485,7 @@
                                     }
                                     
                                     console.log(`Restaurant pricing for day ${day}, index ${index}:`);
-                                    console.log(`- Total Price: $${totalPrice}`);
+                                    console.log(`- Total Price: ${getTourCurrency()} ${totalPrice}`);
                                     console.log(`- Meal ID: ${mealId}`);
                                     console.log(`- Dish Name: ${dishName}`);
                                     console.log(`- Selected Dish: ${selectedDishText}`);
@@ -5142,7 +5167,7 @@
                         
                         // Log details of each transport
                         transportDataArray.forEach((transport, index) => {
-                            console.log(`Transport ${index + 1}: ${transport.vehicles_name} - $${transport.totalPrice}`);
+                            console.log(`Transport ${index + 1}: ${transport.vehicles_name} - ${getTourCurrency()} ${transport.totalPrice}`);
                         });
                         
                         // Update package total price display
@@ -5235,7 +5260,7 @@
                                     if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
                                         const hotelPrice = parseFloat(hotel.totalPrice);
                                         totalPrice += hotelPrice;
-                                        console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): $${hotelPrice} added to total`);
+                                        console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): ${getTourCurrency()} ${hotelPrice} added to total`);
                                     } else {
                                         console.warn(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): Invalid or missing totalPrice:`, hotel.totalPrice);
                                     }
@@ -5323,7 +5348,7 @@
                         const totalPrice = calculateTotalPackagePrice();
                         const totalPriceElement = document.getElementById('packageTotalPrice');
                         if (totalPriceElement) {
-                            totalPriceElement.textContent = `$${totalPrice}`;
+                            totalPriceElement.textContent = `${getTourCurrency()} ${totalPrice}`;
                             console.log('Package total price display updated:', totalPrice);
                         }
                         
@@ -5350,7 +5375,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-hotel-bed-line me-2"></i>Hotel ${index + 1}: ${hotel.hotel_name || 'Hotel'}</span>
-                                                <span class="badge bg-primary">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-primary">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${roomInfo}</small>
                                         `;
@@ -5371,7 +5396,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-camera-3-line me-2"></i>Attraction ${index + 1}: ${attraction.AttractionName || 'Attraction'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${ticketInfo}</small>
                                         `;
@@ -5392,7 +5417,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-restaurant-2-line me-2"></i>Restaurant ${index + 1}: ${restaurant.restaurantName || 'Restaurant'}</span>
-                                                <span class="badge bg-warning text-dark">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-warning text-dark">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${mealInfo}</small>
                                         `;
@@ -5411,7 +5436,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-user-line me-2"></i>Guide ${index + 1}: ${guide.guide_name || 'Guide'}</span>
-                                                <span class="badge bg-success">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-success">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5429,7 +5454,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-car-line me-2"></i>Transport ${index + 1}: ${transport.vehicles_name || 'Transport'}</span>
-                                                <span class="badge bg-secondary">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-secondary">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5447,7 +5472,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-line me-2"></i>Entry Port ${index + 1}: ${entryPort.vehicles_name || 'Entry Transport'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5465,7 +5490,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-line me-2"></i>Exit Port ${index + 1}: ${exitPort.vehicles_name || 'Exit Transport'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5478,7 +5503,7 @@
                                     <hr class="my-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold"><i class="ri-money-dollar-circle-line me-2"></i>Total Package Price:</span>
-                                        <span class="h5 text-success mb-0">$${totalCalculated.toFixed(2)}</span>
+                                        <span class="h5 text-success mb-0">${getTourCurrency()} ${totalCalculated.toFixed(2)}</span>
                                     </div>
                                 `;
                             } else {
@@ -6413,6 +6438,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
     <script>
+        window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+        window.getTourCurrency = function () {
+            const el = document.getElementById('tour_package_currency');
+            return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+        };
+        window.formatTourPrice = function (amount) {
+            return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
+        };
+        window.formatTourPriceParen = function (amount) {
+            return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+        };
+
         // Global function to reinitialize Select2 on a specific element
         window.reinitializeSelect2 = function(elementId, placeholder) {
             const $element = $('#' + elementId);
@@ -10147,7 +10184,7 @@
                         el.value = '0';
                     });
                     root.querySelectorAll('span[id$="_total_price_display"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
 
                     // Reset common header display spans for transport sections.
@@ -10155,13 +10192,13 @@
                         el.textContent = 'No vehicle selected';
                     });
                     root.querySelectorAll('div[id$="_other_transport_total_price"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
                     root.querySelectorAll('span[id$="_arrival_vehicle_name"], span[id$="_departure_vehicle_name"]').forEach(function (el) {
                         el.textContent = 'No vehicle selected';
                     });
                     root.querySelectorAll('div[id$="_arrival_total_price"], div[id$="_departure_total_price"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
 
                     // Clear day-scoped section header summaries/prices (ids are day${day}_* after template fix).
@@ -10169,7 +10206,7 @@
                         el.textContent = '';
                     });
                     root.querySelectorAll('[id$="_guideTotalPrice"], [id$="_attractionTotalPrice"], [id$="_restaurantTotalPrice"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
                 })();
 
@@ -11228,7 +11265,7 @@
                 if (pkg.price > 0) {
                     const option = document.createElement('option');
                     option.value = pkg.hours;
-                    option.textContent = `${pkg.label} - $${pkg.price.toFixed(2)}`;
+                    option.textContent = `${pkg.label} - ${getTourCurrency()} ${pkg.price.toFixed(2)}`;
                     option.dataset.hours = pkg.hours;
                     option.dataset.price = pkg.price;
                     option.dataset.basePrice = pkg.price;
@@ -11346,17 +11383,17 @@
                 let guideHtml = `
                     <div class="small">
                         <div class="mb-2"><strong>${selectedGuide.text}</strong></div>
-                        <div class="mb-1">Package: $${totalPackagePrice.toFixed(2)}</div>
+                        <div class="mb-1">Package: ${getTourCurrency()} ${totalPackagePrice.toFixed(2)}</div>
                         <div class="mb-1">Duration: ${hours} hours</div>
                 `;
                 
                 if (surcharge > 0) {
-                    guideHtml += `<div class="mb-1 text-warning">Night Surcharge: $${surcharge.toFixed(2)}</div>`;
+                    guideHtml += `<div class="mb-1 text-warning">Night Surcharge: ${getTourCurrency()} ${surcharge.toFixed(2)}</div>`;
                 }
                 
                 guideHtml += `
                         <hr class="my-2">
-                        <div class="fw-bold text-primary">Total: $${(totalPackagePrice + surcharge).toFixed(2)}</div>
+                        <div class="fw-bold text-primary">Total: ${getTourCurrency()} ${(totalPackagePrice + surcharge).toFixed(2)}</div>
                     </div>
                 `;
                 
@@ -11549,7 +11586,7 @@
                     // Mark this as temporary vehicle base price (not AJAX)
                     costField.removeAttribute('data-ajax-base-price');
                     costField.removeAttribute('data-ajax-final-price');
-                    console.log(`⚠️ Prepopulated transport cost for day ${day}, index ${index}: $${totalCost.toFixed(2)} (TEMPORARY vehicle base price - will be replaced by AJAX when pickup location is selected)`);
+                    console.log(`⚠️ Prepopulated transport cost for day ${day}, index ${index}: ${getTourCurrency()} ${totalCost.toFixed(2)} (TEMPORARY vehicle base price - will be replaced by AJAX when pickup location is selected)`);
                 }
             } else {
                 // Clear cost if no vehicle selected
@@ -11708,7 +11745,7 @@
                         costField.value = finalPrice.toFixed(2);
                         costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
                         costField.setAttribute('data-ajax-transfer-way', transferWay.value);
-                        console.log(`Way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                        console.log(`Way changed, recalculated from stored AJAX base price: ${getTourCurrency()} ${finalPrice.toFixed(2)} (base: ${getTourCurrency()} ${basePrice.toFixed(2)}, way: ${transferWay.value})`);
                         updateAttractionTransportPricing(day, index);
                         return;
                     }
@@ -11904,7 +11941,7 @@
                         costField.removeAttribute('data-pricing-fetch-failed');
                         costField.removeAttribute('data-pricing-error-message');
                         costField.removeAttribute('data-failed-pickup-location-id');
-                        console.log(`✅ Transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                        console.log(`✅ Transfer pricing set from AJAX: ${getTourCurrency()} ${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: ${getTourCurrency()} ${basePrice.toFixed(2)})`);
                     }
                     
                     // Update transport pricing display
@@ -12114,7 +12151,7 @@
                         costField.value = finalPrice.toFixed(2);
                         costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
                         costField.setAttribute('data-ajax-transfer-way', transferWay.value);
-                        console.log(`Restaurant way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                        console.log(`Restaurant way changed, recalculated from stored AJAX base price: ${getTourCurrency()} ${finalPrice.toFixed(2)} (base: ${getTourCurrency()} ${basePrice.toFixed(2)}, way: ${transferWay.value})`);
                         updateRestaurantTransportPricing(day, index);
                         return;
                     }
@@ -12311,7 +12348,7 @@
                         costField.removeAttribute('data-pricing-fetch-failed');
                         costField.removeAttribute('data-pricing-error-message');
                         costField.removeAttribute('data-failed-pickup-location-id');
-                        console.log(`✅ Restaurant transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                        console.log(`✅ Restaurant transfer pricing set from AJAX: ${getTourCurrency()} ${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: ${getTourCurrency()} ${basePrice.toFixed(2)})`);
                     }
                     
                     // Update transport pricing display
@@ -12410,8 +12447,8 @@
                         <div><strong>Way:</strong> ${way || 'N/A'}</div>
                         <div><strong>Vehicle:</strong> ${vehicleName}</div>
                         ${isAjaxPrice ? '<div class="text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
-                        ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
-                        <div class="mt-2"><strong class="text-success">$${cost.toFixed(2)}${priceSource}</strong></div>
+                        ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: ${getTourCurrency()} ${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
+                        <div class="mt-2"><strong class="text-success">${getTourCurrency()} ${cost.toFixed(2)}${priceSource}</strong></div>
                     </div>
                 `;
                 transportPricingContent.innerHTML = transportHtml;
@@ -12475,7 +12512,7 @@
             
             // Calculate and display total
             const grandTotal = restaurantTotal + transportTotal;
-            totalDisplay.textContent = grandTotal.toFixed(2);
+            totalDisplay.textContent = formatTourPrice(grandTotal);
 
             // Also refresh restaurant header summary (all restaurants)
             if (typeof window.updateRestaurantSectionSummary === 'function') {
@@ -12494,7 +12531,7 @@
                 const items = container.querySelectorAll('.restaurant-item');
                 if (!items.length) {
                     headerSpan.textContent = '';
-                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -12523,7 +12560,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -12550,7 +12587,7 @@
                 
                 // Update right side price display
                 if (restaurantTotalPriceEl) {
-                    restaurantTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    restaurantTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating restaurant section summary:', e);
@@ -14563,18 +14600,18 @@
                                     if (isSingleOccupancy) {
                                         if (isWeekend) {
                                             price = parseFloat(sampleRoom.weekend_price) || 0;
-                                            priceText = ` - Weekend: $${price}`;
+                                            priceText = ` - Weekend: ${getTourCurrency()} ${price}`;
                                         } else {
                                             price = parseFloat(sampleRoom.weekday_price) || 0;
-                                            priceText = ` - Weekday: $${price}`;
+                                            priceText = ` - Weekday: ${getTourCurrency()} ${price}`;
                                         }
                                     } else {
                                         if (isWeekend) {
                                             price = parseFloat(sampleRoom.double_weekend_price) || 0;
-                                            priceText = ` - Double Weekend: $${price}`;
+                                            priceText = ` - Double Weekend: ${getTourCurrency()} ${price}`;
                                         } else {
                                             price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                            priceText = ` - Double Weekday: $${price}`;
+                                            priceText = ` - Double Weekday: ${getTourCurrency()} ${price}`;
                                         }
                                     }
                                     
@@ -14602,8 +14639,8 @@
                                     option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
                                     roomTypeSelect.appendChild(option);
                                     
-                                    console.log(`Added room type option: ${roomType} with price $${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
-                                    console.log(`Meal prices: Breakfast: $${sampleRoom.breakfast_price || 0}, Lunch: $${sampleRoom.lunch_price || 0}, Dinner: $${sampleRoom.dinner_price || 0}`);
+                                    console.log(`Added room type option: ${roomType} with price ${getTourCurrency()} ${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
+                                    console.log(`Meal prices: Breakfast: ${getTourCurrency()} ${sampleRoom.breakfast_price || 0}, Lunch: ${getTourCurrency()} ${sampleRoom.lunch_price || 0}, Dinner: ${getTourCurrency()} ${sampleRoom.dinner_price || 0}`);
                                     console.log(`Sample room data for ${roomType}:`, sampleRoom);
                                     console.log(`Dataset stored for ${roomType}:`, {
                                         breakfastPrice: option.dataset.breakfastPrice,
@@ -14822,8 +14859,8 @@
             section.style.display = (cwbPrice > 0 || cnbPrice > 0) ? 'flex' : 'none';
             if (chkCwb) chkCwb.checked = false;
             if (chkCnb) chkCnb.checked = false;
-            if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
-            if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+            if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? formatTourPriceParen(cwbPrice) : '';
+            if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? formatTourPriceParen(cnbPrice) : '';
         };
 
         // Update bed types for selected room type
@@ -14913,7 +14950,7 @@
                                 if (bed.extra_bed) {
                                     bedTypeText += ` + Extra Bed`;
                                     if (bed.extra_bed_price) {
-                                        bedTypeText += ` ($${bed.extra_bed_price})`;
+                                        bedTypeText += ` (${getTourCurrency()} ${bed.extra_bed_price})`;
                                     }
                                 }
                                 
@@ -14921,7 +14958,7 @@
                                 if (bed.baby_cot) {
                                     bedTypeText += ` + Baby Cot`;
                                     if (bed.baby_cot_price) {
-                                        bedTypeText += ` ($${bed.baby_cot_price})`;
+                                        bedTypeText += ` (${getTourCurrency()} ${bed.baby_cot_price})`;
                                     }
                                 }
                                 console.log('Bed type in beds table===:', bed.room_type);
@@ -15119,13 +15156,13 @@
                 let totalPrice = 0;
                 
                 if (extraBedPrice > 0) {
-                    priceText += `Extra Bed: $${extraBedPrice.toFixed(2)}`;
+                    priceText += `Extra Bed: ${getTourCurrency()} ${extraBedPrice.toFixed(2)}`;
                     totalPrice += extraBedPrice;
                 }
                 
                 if (babyCotPrice > 0) {
                     if (priceText) priceText += ' | ';
-                    priceText += `Baby Cot: $${babyCotPrice.toFixed(2)}`;
+                    priceText += `Baby Cot: ${getTourCurrency()} ${babyCotPrice.toFixed(2)}`;
                     totalPrice += babyCotPrice;
                 }
                 
@@ -15480,26 +15517,26 @@
             costSummary.innerHTML = `
                 <div class="cost-item">
                     <span>Base Room Price:</span>
-                    <span>$${baseRoomPrice.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${baseRoomPrice.toFixed(2)}</span>
                 </div>
                 <div class="cost-item">
                     <span>Meal Plan (${numPersons} guest${numPersons > 1 ? 's' : ''}):</span>
-                    <span>$${totalMealCost.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${totalMealCost.toFixed(2)}</span>
                 </div>
                 ${extraBedCost > 0 ? `
                     <div class="cost-item">
                         <span>Extra Bed Cost:</span>
-                        <span>$${extraBedCost.toFixed(2)}</span>
+                        <span>${getTourCurrency()} ${extraBedCost.toFixed(2)}</span>
                     </div>
                 ` : ''}
                 <hr class="my-1">
                 <div class="cost-item fw-bold">
                     <span>Total per Room:</span>
-                    <span>$${totalCost.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${totalCost.toFixed(2)}</span>
                 </div>
             `;
             
-            console.log(`Room cost calculation: Base Room: $${baseRoomPrice}, Meal (${numPersons} guests): $${totalMealCost}, Total per Room: $${totalCost}`);
+            console.log(`Room cost calculation: Base Room: ${getTourCurrency()} ${baseRoomPrice}, Meal (${numPersons} guests): ${getTourCurrency()} ${totalMealCost}, Total per Room: ${getTourCurrency()} ${totalCost}`);
         }
 
         // Calculate meal cost per person
@@ -15984,7 +16021,7 @@
                     );
                     console.log('Hotel price result:', data);
                     showNotification(
-                        `Price calculated: SGD ${Number(data.grand_total).toFixed(2)} ` +
+                        `Price calculated: ${getTourCurrency()} ${Number(data.grand_total).toFixed(2)} ` +
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
@@ -16107,16 +16144,16 @@
                     
                     console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
                     console.log(`Total nights: ${nightNumbers.length}`);
-                    console.log(`Weekday nights: ${weekdayNights} @ $${weekdayPrice} each`);
-                    console.log(`Weekend nights: ${weekendNights} @ $${weekendPrice} each`);
-                    console.log(`Total room price: $${totalRoomPrice}`);
+                    console.log(`Weekday nights: ${weekdayNights} @ ${getTourCurrency()} ${weekdayPrice} each`);
+                    console.log(`Weekend nights: ${weekendNights} @ ${getTourCurrency()} ${weekendPrice} each`);
+                    console.log(`Total room price: ${getTourCurrency()} ${totalRoomPrice}`);
                     console.log('Per-night breakdown:', priceBreakdown);
                 }
             }
             
             // Validate that we have a valid price
             if (totalRoomPrice <= 0) {
-                showNotification('Warning: Room price is $0.00. Please check room type selection.', 'warning');
+                showNotification('Warning: Room price is ' + formatTourPrice(0) + '. Please check room type selection.', 'warning');
                 console.warn('Room price is 0 or invalid:', totalRoomPrice);
             }
             
@@ -16455,7 +16492,7 @@
                 bedPriceDisplay.style.display = 'none';
                 const priceSpan = bedPriceDisplay.querySelector('span');
                 if (priceSpan) {
-                    priceSpan.textContent = '$0.00';
+                    priceSpan.textContent = formatTourPrice(0);
                 }
             }
             
@@ -16627,19 +16664,19 @@
                                                         ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
                                                             <div class="d-flex justify-content-between mb-1">
                                                                 <span style="color: #495057;">Breakfast:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : (hotel.helperMeals ? `$${((hotel.helperMeals.breakfast || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`)}</span>
+                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : (hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.breakfast || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`)}</span>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('lunch') ? `
                                                             <div class="d-flex justify-content-between mb-1">
                                                                 <span style="color: #495057;">Lunch:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `$${((hotel.helperMeals.lunch || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.lunch || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('dinner') ? `
                                                             <div class="d-flex justify-content-between mb-1">
                                                                 <span style="color: #495057;">Dinner:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `$${((hotel.helperMeals.dinner || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.dinner || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
                                                             </div>
                                                         ` : ''}
                                                     </div>
@@ -16671,32 +16708,32 @@
                                                             
                                                             let breakdown = '';
                                                             if (hotel.weekdayNights && weekdayPrice > 0) {
-                                                                breakdown += `${hotel.weekdayNights} weekday @ $${weekdayPrice.toFixed(2)}/night`;
+                                                                breakdown += `${hotel.weekdayNights} weekday @ ${getTourCurrency()} ${weekdayPrice.toFixed(2)}/night`;
                                                             }
                                                             if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
                                                                 breakdown += ' + ';
                                                             }
                                                             if (hotel.weekendNights && weekendPrice > 0) {
-                                                                breakdown += `${hotel.weekendNights} weekend @ $${weekendPrice.toFixed(2)}/night`;
+                                                                breakdown += `${hotel.weekendNights} weekend @ ${getTourCurrency()} ${weekendPrice.toFixed(2)}/night`;
                                                             }
                                                             if (breakdown) {
                                                                 breakdown += ` × ${hotel.numberOfRooms} room(s) = `;
                                                             }
                                                             return breakdown;
                                                         })() : ''}
-                                                        $${(hotel.price || 0) * hotel.numberOfRooms}
+                                                        ${getTourCurrency()} ${(hotel.price || 0) * hotel.numberOfRooms}
                                                     </span>
                                                 </div>
                                                 ${hotel.roomPriceManuallyEdited && hotel.customRoomPrice ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Custom Room Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${parseFloat(hotel.customRoomPrice).toFixed(2)}</span>
+                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${parseFloat(hotel.customRoomPrice).toFixed(2)}</span>
                                                     </div>
                                                 ` : ''}
                                                 ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Meal Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${(() => {
+                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(() => {
                                                             if (typeof window.calculateCorrectMealCosts === 'function') {
                                                                 return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
                                                             }
@@ -16721,25 +16758,25 @@
                                                 ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy && !hotel.roomPriceManuallyEdited ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Extra Bed Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${(parseFloat(hotel.extraBedCost) || (hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights)).toFixed(2)}</span>
+                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(parseFloat(hotel.extraBedCost) || (hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights)).toFixed(2)}</span>
                                                     </div>
                                                 ` : ''}
                                                 ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Child with Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
+                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
                                                     </div>
                                                 ` : ''}
                                                 ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Child without Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
+                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
                                                     </div>
                                                 ` : ''}
                                                 <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
                                                 <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
                                                     <span>Total:</span>
-                                                    <span>$${(() => {
+                                                    <span>${getTourCurrency()} ${(() => {
                                                         const maxOcc = parseInt(hotel.maxOccupancy) || 0;
                                                         let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
                                                         if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
@@ -16892,7 +16929,7 @@
                         maximumFractionDigits: 2
                     });
                     
-                    headerSummaryEl.textContent = `– ${hotelNames} • SGD ${formattedPrice}`;
+                    headerSummaryEl.textContent = `– ${hotelNames} • ${getTourCurrency()} ${formattedPrice}`;
                 }
             }
             try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
@@ -16933,6 +16970,7 @@
             
             let servicesHTML = '';
             window.multiRestaurants = @json($multiRestaurants ?? []);
+            const tourCurrencyLabel = @json($dmcCurrency);
             
             // Only show Day 1 and last day with exit port (if more than 1 day)
             const daysToShow = totalDays > 1 ? [1, totalDays] : [1];
@@ -16965,7 +17003,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
@@ -17202,7 +17240,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">$0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -17220,7 +17258,7 @@
                                                             <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                                         </label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">SGD</span>
+                                                            <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
                                                             <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
                                                             <span class="input-group-text">.00</span>
                                                         </div>
@@ -17278,7 +17316,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">${tourCurrencyLabel} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
@@ -17521,7 +17559,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">SGD 0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">${tourCurrencyLabel} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -17538,7 +17576,7 @@
                                                                 <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                                             </label>
                                                             <div class="input-group">
-                                                                <span class="input-group-text">SGD</span>
+                                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
                                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
                                                                 <span class="input-group-text">.00</span>
                                                             </div>
@@ -17605,7 +17643,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_attractionTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_attractionTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #a855f7; font-size: 0.9rem;"></i>
@@ -18025,7 +18063,7 @@
                                                                         </div>
                                                                         Total Price
                                                                     </h6>
-                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_1_total_price_display">$0.00</span>
+                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_1_total_price_display">${getTourCurrency()} 0.00</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -18068,7 +18106,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_guideTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_guideTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #10b981; font-size: 0.9rem;"></i>
@@ -18287,7 +18325,7 @@
                                                                                 <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                                                 Package Price:
                                                                             </span>
-                                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                         
                                                                         <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
@@ -18303,7 +18341,7 @@
                                                                                 <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
                                                                                 Night Surcharge:
                                                                             </span>
-                                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -18322,7 +18360,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -18373,7 +18411,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_restaurantTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_restaurantTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #f59e0b; font-size: 0.9rem;"></i>
@@ -18664,7 +18702,7 @@
                                                                                         </div>
                                                                                         Total Price
                                                                                     </h6>
-                                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
+                                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_restaurant_1_total_display">${getTourCurrency()} 0.00</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -18704,7 +18742,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">${tourCurrencyLabel} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #14b8a6; font-size: 0.9rem;"></i>
@@ -19123,7 +19161,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">SGD 0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">${tourCurrencyLabel} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -19168,6 +19206,23 @@
             }
             
             container.innerHTML = servicesHTML;
+
+            // Ensure transport section headers use DMC currency (not stale/hardcoded prefix)
+            daysToShow.forEach(function (d) {
+                ['_departure_total_price', '_other_transport_total_price', '_arrival_total_price'].forEach(function (suffix) {
+                    const el = document.getElementById('day' + d + suffix);
+                    if (!el) return;
+                    const amountMatch = (el.textContent || '').trim().match(/[\d,.]+$/);
+                    const amount = amountMatch ? amountMatch[0] : '0.00';
+                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : tourCurrencyLabel) + ' ' + amount;
+                });
+                if (typeof window.updateDepartureHeader === 'function') {
+                    window.updateDepartureHeader(d);
+                }
+                if (typeof window.updateOtherTransportHeader === 'function') {
+                    window.updateOtherTransportHeader(d);
+                }
+            });
             
             // After HTML is rendered, populate entry and exit port fields for each day
             let day = 1;
@@ -19691,11 +19746,11 @@
                         <div class="small">
                             <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
                             <div class="mb-1"><strong>Calculation:</strong></div>
-                            <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
-                            <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
-                            <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
+                            <div class="mb-1">Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${guestInfo.adults} = ${getTourCurrency()} ${(adultPrice * guestInfo.adults).toFixed(2)}</div>
+                            <div class="mb-1">Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${guestInfo.children} = ${getTourCurrency()} ${(childPrice * guestInfo.children).toFixed(2)}</div>
+                            <div class="mb-2">Senior: ${getTourCurrency()} ${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = ${getTourCurrency()} ${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
                             <hr class="my-2">
-                            <div class="fw-bold text-info">Total: $${totalPrice.toFixed(2)}</div>
+                            <div class="fw-bold text-info">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</div>
                         </div>
                     `;
                 } else {
@@ -19716,7 +19771,7 @@
             // Update total price
             updateAttractionTotalPrice(day, index);
             
-            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: ${getTourCurrency()} ${totalPrice}`);
         }
         
         // Function to update total price (attraction + guide + transport)
@@ -19725,7 +19780,7 @@
             let ticketPrice = 0;
             const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
             if (ticketPricingContent) {
-                const ticketTotalMatch = ticketPricingContent.textContent.match(/Total:\s*\$([\d.]+)/);
+                const ticketTotalMatch = ticketPricingContent.textContent.match(/Total:\s*(?:[A-Z]{2,4}\s+)?([\d,.]+)/);
                 if (ticketTotalMatch) {
                     ticketPrice = parseFloat(ticketTotalMatch[1]) || 0;
                 }
@@ -19771,7 +19826,7 @@
             const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
             
             if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+                totalPriceDisplay.textContent = formatTourPrice(totalPrice);
             }
             
             if (totalPriceRow && totalPrice > 0) {
@@ -19780,7 +19835,7 @@
                 totalPriceRow.style.display = 'none';
             }
             
-            console.log(`Total price updated for day ${day}, index ${index}: Ticket: $${ticketPrice}, Guide: $${guidePrice}, Transport: $${transportPrice}, Total: $${totalPrice}`);
+            console.log(`Total price updated for day ${day}, index ${index}: Ticket: ${getTourCurrency()} ${ticketPrice}, Guide: ${getTourCurrency()} ${guidePrice}, Transport: ${getTourCurrency()} ${transportPrice}, Total: ${getTourCurrency()} ${totalPrice}`);
 
             // After updating this attraction row, refresh header + section totals
             if (typeof updateAttractionSectionSummary === 'function') {
@@ -19798,14 +19853,14 @@
                 const container = document.getElementById(`day${day}_attractions_container`);
                 if (!container) {
                     if (headerSpan) headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
                 const items = container.querySelectorAll('.attraction-item');
                 if (!items.length) {
                     if (headerSpan) headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -19837,7 +19892,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -19865,7 +19920,7 @@
                 
                 // Update right side price display
                 if (attractionTotalPriceEl) {
-                    attractionTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    attractionTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating attraction section summary:', e);
@@ -19929,9 +19984,9 @@
                         <div class="mb-1"><strong>Way:</strong> ${way || 'N/A'}</div>
                         <div class="mb-1"><strong>Vehicle:</strong> ${vehicleName}</div>
                         ${isAjaxPrice ? '<div class="mb-1 text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
-                        ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
+                        ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: ${getTourCurrency()} ${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
                         <hr class="my-2">
-                        <div class="fw-bold text-success">Total: $${cost.toFixed(2)}${priceSource}</div>
+                        <div class="fw-bold text-success">Total: ${getTourCurrency()} ${cost.toFixed(2)}${priceSource}</div>
                     </div>
                 `;
                 transportPricingContent.innerHTML = transportHtml;
@@ -20404,7 +20459,7 @@
                                                             </div>
                                                             Total Price
                                                         </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_${newIndex}_total_price_display">$0.00</span>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -20902,8 +20957,8 @@
                             <div>
                                 <h6 class="mb-1">${mealName}</h6>
                                 <small class="text-muted">
-                                    Adult: $${adultPrice.toFixed(2)} × ${adultCount} = $${(adultPrice * adultCount).toFixed(2)}
-                                    ${childCount > 0 ? `<br>Child: $${childPrice.toFixed(2)} × ${childCount} = $${(childPrice * childCount).toFixed(2)}` : ''}
+                                    Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultCount} = ${getTourCurrency()} ${(adultPrice * adultCount).toFixed(2)}
+                                    ${childCount > 0 ? `<br>Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${childCount} = ${getTourCurrency()} ${(childPrice * childCount).toFixed(2)}` : ''}
                                 </small>
                             </div>
                         </div>
@@ -20923,7 +20978,7 @@
             }
             
             if (modalTotalPrice) {
-                modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+                modalTotalPrice.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
             } else {
                 console.error('Modal total price element not found!');
             }
@@ -20952,7 +21007,7 @@
                 const confirmButton = document.getElementById('confirmDishSelection');
                 
                 if (modalTotalPrice) {
-                    modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+                    modalTotalPrice.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
                 }
                 if (modalGuestInfo) {
                     modalGuestInfo.textContent = `Quantity: ${quantity}`;
@@ -20970,14 +21025,14 @@
                                 <input type="radio" class="form-check-input me-3" checked disabled>
                                 <div>
                                     <h6 class="mb-1">${mealName}</h6>
-                                    <small class="text-muted">$${unitPrice.toFixed(2)}</small>
+                                    <small class="text-muted">${getTourCurrency()} ${unitPrice.toFixed(2)}</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="decreaseQty">-</button>
                                 <span class="mx-3 fw-bold" id="quantityDisplay">${quantity}</span>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="increaseQty">+</button>
-                                <span class="ms-3 text-success fw-bold">= $${(unitPrice * quantity).toFixed(2)}</span>
+                                <span class="ms-3 text-success fw-bold">= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -20997,7 +21052,7 @@
                 if (quantity > 0) {
                     quantity--;
                     document.getElementById('quantityDisplay').textContent = quantity;
-                    document.querySelector('.text-success.fw-bold').textContent = `= $${(unitPrice * quantity).toFixed(2)}`;
+                    document.querySelector('.text-success.fw-bold').textContent = `= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}`;
                     window.currentDishSelection.quantity = quantity;
                     updateSetMenuPrice();
                 }
@@ -21006,7 +21061,7 @@
             document.getElementById('increaseQty').addEventListener('click', function() {
                 quantity++;
                 document.getElementById('quantityDisplay').textContent = quantity;
-                document.querySelector('.text-success.fw-bold').textContent = `= $${(unitPrice * quantity).toFixed(2)}`;
+                document.querySelector('.text-success.fw-bold').textContent = `= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}`;
                 window.currentDishSelection.quantity = quantity;
                 updateSetMenuPrice();
             });
@@ -21067,8 +21122,8 @@
                                                 <div>
                                                     <h6 class="mb-1">${meal.name}</h6>
                                                     <small class="text-muted">
-                                                        Adult: $${adultPrice.toFixed(2)} × ${adultCount} = $${(adultPrice * adultCount).toFixed(2)}
-                                                        ${childCount > 0 ? `<br>Child: $${childPrice.toFixed(2)} × ${childCount} = $${(childPrice * childCount).toFixed(2)}` : ''}
+                                                        Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultCount} = ${getTourCurrency()} ${(adultPrice * adultCount).toFixed(2)}
+                                                        ${childCount > 0 ? `<br>Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${childCount} = ${getTourCurrency()} ${(childPrice * childCount).toFixed(2)}` : ''}
                                                     </small>
                                                 </div>
                                             </div>
@@ -21082,7 +21137,7 @@
                                             </div>
                                         </div>
                                         <div class="col-md-6 text-end">
-                                            <span class="h4 text-success">$${totalPrice.toFixed(2)}</span>
+                                            <span class="h4 text-success">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
                                             <br>
                                             <small class="text-muted">${adultCount} Adults${childCount > 0 ? `, ${childCount} Children` : ''}</small>
                                         </div>
@@ -21118,14 +21173,14 @@
                                                     <input type="radio" class="form-check-input me-3" checked disabled>
                                                     <div>
                                                         <h6 class="mb-1">${meal.name}</h6>
-                                                        <small class="text-muted">$${unitPrice.toFixed(2)}</small>
+                                                        <small class="text-muted">${getTourCurrency()} ${unitPrice.toFixed(2)}</small>
                                                     </div>
                                                 </div>
                                                 <div class="d-flex align-items-center">
                                                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(-1)">-</button>
                                                     <span class="mx-3 fw-bold" id="quantityDisplay">1</span>
                                                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(1)">+</button>
-                                                    <span class="ms-3 text-success fw-bold" id="priceDisplay">= $${unitPrice.toFixed(2)}</span>
+                                                    <span class="ms-3 text-success fw-bold" id="priceDisplay">= ${getTourCurrency()} ${unitPrice.toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -21138,7 +21193,7 @@
                                             </div>
                                         </div>
                                         <div class="col-md-6 text-end">
-                                            <span class="h4 text-success" id="totalPriceDisplay">$${totalPrice.toFixed(2)}</span>
+                                            <span class="h4 text-success" id="totalPriceDisplay">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
                                             <br>
                                             <small class="text-muted" id="quantityInfo">Quantity: 1</small>
                                         </div>
@@ -21195,8 +21250,8 @@
             const totalPrice = currentData.unitPrice * currentData.quantity;
             
             if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
-            if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
-            if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+            if (priceDisplay) priceDisplay.textContent = `= ${getTourCurrency()} ${totalPrice.toFixed(2)}`;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
             if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
             
             // Enable/disable confirm button based on quantity
@@ -21221,7 +21276,7 @@
             if (dishNameField) dishNameField.value = dishName;
             
             console.log(`Restaurant pricing stored for day ${day}, index ${index}:`);
-            console.log(`- Total Price: $${totalPrice}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPrice}`);
             console.log(`- Meal ID: ${mealId}`);
             console.log(`- Dish Name: ${dishName}`);
             
@@ -21234,7 +21289,7 @@
                         btn.classList.add('selected');
                         // Update button text to show price
                         const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
-                        btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
+                        btn.innerHTML = `${icon} ${dishName} - ${getTourCurrency()} ${totalPrice}`;
                     }
                 });
             }
@@ -21623,19 +21678,19 @@
                     let pricingHTML = '<div class="small"><strong>Buffet</strong></div>';
                     pricingHTML += '<div class="mt-2 border-top pt-2">';
                     pricingHTML += '<div><strong>Rates:</strong></div>';
-                    pricingHTML += `<div class="ms-3">Adult: SGD ${adultPrice.toFixed(2)}</div>`;
-                    pricingHTML += `<div class="ms-3">Child: SGD ${childPrice.toFixed(2)}</div>`;
+                    pricingHTML += `<div class="ms-3">Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)}</div>`;
+                    pricingHTML += `<div class="ms-3">Child: ${getTourCurrency()} ${childPrice.toFixed(2)}</div>`;
                     pricingHTML += '</div>';
                     if (adults > 0 || children > 0) {
                         pricingHTML += '<div class="mt-2 border-top pt-2">';
                         pricingHTML += '<div><strong>Calculation:</strong></div>';
                         if (adults > 0) {
-                            pricingHTML += `<div class="ms-3">${adults} Adults × SGD ${adultPrice.toFixed(2)} = <strong>SGD ${adultTotal.toFixed(2)}</strong></div>`;
+                            pricingHTML += `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>`;
                         }
                         if (children > 0) {
-                            pricingHTML += `<div class="ms-3">${children} Children × SGD ${childPrice.toFixed(2)} = <strong>SGD ${childTotal.toFixed(2)}</strong></div>`;
+                            pricingHTML += `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>`;
                         }
-                        pricingHTML += `<div class="mt-2"><strong class="text-success">Total: SGD ${total.toFixed(2)}</strong></div>`;
+                        pricingHTML += `<div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${total.toFixed(2)}</strong></div>`;
                         pricingHTML += '</div>';
                     } else {
                         pricingHTML += '<div class="mt-2 text-muted" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Select guests to calculate total price</div>';
@@ -21649,7 +21704,7 @@
                     totalPriceField.value = String(total.toFixed(2));
                 }
                 if (totalDisplay && totalPriceField) {
-                    totalDisplay.textContent = (parseFloat(totalPriceField.value) || 0).toFixed(2);
+                    totalDisplay.textContent = formatTourPrice(parseFloat(totalPriceField.value) || 0);
                 }
                 priceDisplay.style.display = 'block';
                 if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
@@ -21723,8 +21778,8 @@
                     pricingHTML = `
                         <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
                         <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        <div>Set Menu Price: $${setMenuPrice.toFixed(2)}</div>
-                        <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
+                        <div>Set Menu Price: ${getTourCurrency()} ${setMenuPrice.toFixed(2)}</div>
+                        <div class="mt-2"><strong class="text-success">${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
                     `;
                     pricingDetailsDisplay.innerHTML = pricingHTML;
                 }
@@ -21743,9 +21798,9 @@
                         ${adults > 0 || children > 0 ? `
                             <div class="mt-2 border-top pt-2">
                                 <div><strong>Calculation:</strong></div>
-                                ${adults > 0 ? `<div class="ms-3">${adults} Adults × $${adultPrice.toFixed(2)} = <strong>$${adultTotal.toFixed(2)}</strong></div>` : ''}
-                                ${children > 0 ? `<div class="ms-3">${children} Children × $${childPrice.toFixed(2)} = <strong>$${childTotal.toFixed(2)}</strong></div>` : ''}
-                                <div class="mt-2"><strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong></div>
+                                ${adults > 0 ? `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>` : ''}
+                                ${children > 0 ? `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>` : ''}
+                                <div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
                             </div>
                         ` : `
                             <div class="mt-2 text-muted" style="font-size: 0.85rem;">
@@ -21766,7 +21821,7 @@
             // Update total display (restaurant + transport)
             updateRestaurantTotalDisplay(day, index);
             
-            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
+            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: ${getTourCurrency()} ${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
         }
         
         // Toggle between dish display modes (buttons/dropdown)
@@ -22208,7 +22263,7 @@
                                                             </div>
                                                             Total Price
                                                         </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_restaurant_${newIndex}_total_display">${getTourCurrency()} 0.00</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -22382,7 +22437,7 @@
             let optionsHTML = '<option value="">Select Duration Package</option>';
             
             packages.forEach(pkg => {
-                const priceDisplay = pkg.price > 0 ? ` - ${pkg.price.toFixed(2)} SGD` : '';
+                const priceDisplay = pkg.price > 0 ? ` - ${getTourCurrency()} ${pkg.price.toFixed(2)}` : '';
                 optionsHTML += `<option value="${pkg.value}" data-price="${pkg.price}" data-hours="${pkg.hours}" data-base-price="${pkg.basePrice}">${pkg.label}${priceDisplay}</option>`;
             });
             
@@ -22499,10 +22554,10 @@
                 const totalPriceDisplay = document.getElementById(`day${day}_guide_${index}_total_price_display`);
                 const surchargeRow = document.getElementById(`day${day}_guide_${index}_surcharge_row`);
                 
-                if (packagePriceDisplay) packagePriceDisplay.textContent = `$${totalPackagePrice.toFixed(2)}`;
+                if (packagePriceDisplay) packagePriceDisplay.textContent = formatTourPrice(totalPackagePrice);
                 if (hoursDisplay) hoursDisplay.textContent = `${hours} hours`;
-                if (surchargeDisplay) surchargeDisplay.textContent = `$${surcharge.toFixed(2)}`;
-                if (totalPriceDisplay) totalPriceDisplay.textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+                if (surchargeDisplay) surchargeDisplay.textContent = formatTourPrice(surcharge);
+                if (totalPriceDisplay) totalPriceDisplay.textContent = formatTourPrice(totalPackagePrice + surcharge);
                 
                 // Show/hide surcharge row based on whether there's a surcharge
                 if (surchargeRow) {
@@ -22539,7 +22594,7 @@
                 const items = container.querySelectorAll('.guide-item');
                 if (!items.length) {
                     headerSpan.textContent = '';
-                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = 'SGD 0.00';
+                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -22564,7 +22619,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = 'SGD 0.00';
+                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -22591,7 +22646,7 @@
                 
                 // Update right side price display
                 if (guideTotalPriceEl) {
-                    guideTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    guideTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating guide section summary:', e);
@@ -23069,7 +23124,7 @@
                                                                     <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                                     Package Price:
                                                                 </span>
-                                                                <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                                                <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                             
                                                             <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
@@ -23085,7 +23140,7 @@
                                                                     <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
                                                                     Night Surcharge:
                                                                 </span>
-                                                                <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                                                <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -23104,7 +23159,7 @@
                                                                     </div>
                                                                     Total Price
                                                                 </h6>
-                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -23515,7 +23570,7 @@
                                     <div class="col-md-2 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
                                         <label class="form-label fw-semibold text-dark mb-1">Custom Price <span class="text-danger">*</span></label>
                                         <div class="input-group" style="height: 42px;">
-                                            <span class="input-group-text d-flex align-items-center" style="height: 42px; font-size: 0.735rem;">SGD</span>
+                                            <span class="input-group-text d-flex align-items-center" style="height: 42px; font-size: 0.735rem;">{{ $dmcCurrency }}</span>
                                             <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" style="height: 42px; font-size: 0.735rem;" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         </div>
                                         <small class="form-text text-muted" style="font-size: 0.7rem;">Point-to-point custom price</small>
@@ -23574,7 +23629,7 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -24297,7 +24352,7 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -24315,7 +24370,7 @@
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group" style="max-width: 200px;">
-                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
+                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">{{ $dmcCurrency }}</span>
                                             <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
                                         </div>
                                         <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
@@ -24662,7 +24717,7 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -24679,7 +24734,7 @@
                                                 <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
                                             </label>
                                             <div class="input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
                                                 <span class="input-group-text">.00</span>
                                             </div>
@@ -28853,7 +28908,7 @@
                                                     <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                     Custom Price:
                                                 </span>
-                                                <span class="fw-semibold" style="color: #495057;">$${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
+                                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
                                             </div>
                                             <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                                                 <i class="ri-information-line me-1" style="color: #667eea;"></i>Point-to-point service with custom pricing
@@ -28875,7 +28930,7 @@
                                                     </div>
                                                     Total Price
                                                 </h6>
-                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${customPrice.toFixed(2)}</span>
+                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -28911,7 +28966,7 @@
                 if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
                 if (guestCountField) guestCountField.value = totalGuests;
                 
-                console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+                console.log(`Point-to-point service pricing: Custom price ${getTourCurrency()} ${customPrice} for ${totalGuests} passengers`);
                 
                 // Update other transport header for point-to-point services
                 if (section.startsWith('transport')) {
@@ -29157,11 +29212,11 @@
                         pricingDescription = `
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Base (vehicle):</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly rate:</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} per hour</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
@@ -29169,11 +29224,11 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-calculator-line" style="color: #667eea; margin-right: 5px;"></i>Hours charge:</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} × ${selectedHours} = ${getTourCurrency()} ${hourlyCost.toFixed(2)}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                                 <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
-                                <span class="fw-bold" style="color: #495057;">SGD ${displayPrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalHourlyPrice.toFixed(2)}</span>
+                                <span class="fw-bold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} + ${getTourCurrency()} ${hourlyCost.toFixed(2)} = ${getTourCurrency()} ${totalHourlyPrice.toFixed(2)}</span>
                             </div>
                             <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                                 <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).
@@ -29183,11 +29238,11 @@
                         pricingDescription = `
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                                <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                                <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
@@ -29206,7 +29261,7 @@
                 pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
@@ -29256,11 +29311,11 @@
                     pricingDescription = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly rate (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = SGD ${sharedHourlyCost.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = ${getTourCurrency()} ${sharedHourlyCost.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total guests:</span>
@@ -29268,7 +29323,7 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.85rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
-                            <span class="fw-semibold" style="color: #495057;">(SGD ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = SGD ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">(${getTourCurrency()} ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = ${getTourCurrency()} ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                             <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.
@@ -29282,7 +29337,7 @@
                 pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
@@ -29343,15 +29398,15 @@
                     pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Total adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultsCount} = ${getTourCurrency()} ${adultTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Total child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${childPrice.toFixed(2)} × ${childrenCount} = ${getTourCurrency()} ${childTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Total infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${infantPrice.toFixed(2)} × ${infantsCount} = ${getTourCurrency()} ${infantTotal.toFixed(2)}</span>
                     </div>
                 `;
                 } else {
@@ -29359,15 +29414,15 @@
                     pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                         <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
@@ -29440,7 +29495,7 @@
                                                 </div>
                                                 Total Price
                                             </h6>
-                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${totalPrice.toFixed(2)}</span>
+                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -29450,7 +29505,7 @@
                 </div>
             `;
             
-            console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+            console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: ${getTourCurrency()} ${totalPrice}`);
             
             // Add event listener to hours dropdown for hourly transport to update pricing when hours change
             if (isHourlyTransport) {
@@ -29499,8 +29554,8 @@
             if (guestCountField) guestCountField.value = totalGuests;
             
             console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
-            console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
-            console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
+            console.log(`- Base Price: ${getTourCurrency()} ${displayPrice.toFixed(2)}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPrice.toFixed(2)}`);
             console.log(`- Guest Count: ${totalGuests}`);
             
             // Update arrival header if this is an entry section
@@ -29606,7 +29661,7 @@
                                 <div class="card-body" style="padding: 1rem;">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>Custom Price:</span>
-                                        <span class="fw-semibold" style="color: #495057;">SGD ${customPrice.toFixed(2)}</span>
+                                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span style="color: #6c757d;"><i class="ri-map-pin-line" style="color: #667eea; margin-right: 5px;"></i>Service Type:</span>
@@ -29636,7 +29691,7 @@
                                             </div>
                                             Total Price
                                         </h6>
-                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">SGD ${customPrice.toFixed(2)}</span>
+                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -29663,7 +29718,7 @@
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
             
-            console.log(`Custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
+            console.log(`Custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
             
             // Update other transport header after custom pricing change
             if (section.startsWith('transport')) {
@@ -29728,7 +29783,7 @@
                     <div>
                         <strong>Hourly Custom Pricing</strong>
                         <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
                             <strong>Service Type:</strong> Hourly<br>
                             <small class="text-info">Fixed price for hourly service regardless of guest count.</small>
                         </div>
@@ -29807,7 +29862,7 @@
                     <div>
                         <strong>Entry Port Custom Pricing</strong>
                         <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
                             <strong>Service Type:</strong> Private<br>
                             <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
                             <small class="text-info">Fixed price for entry port service in zone 0 mode.</small>
@@ -29825,7 +29880,7 @@
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
             
-            console.log(`Entry port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
+            console.log(`Entry port custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
             
         } else {
             // Hide price display if no custom price
@@ -29891,7 +29946,7 @@
                 }
                 
                 if (arrivalTotalPriceEl) {
-                    arrivalTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+                    arrivalTotalPriceEl.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
                 }
                 return;
             }
@@ -29969,7 +30024,7 @@
         }
         
         if (arrivalTotalPriceEl) {
-            arrivalTotalPriceEl.textContent = `SGD ${totalArrivalPrice.toFixed(2)}`;
+            arrivalTotalPriceEl.textContent = `${getTourCurrency()} ${totalArrivalPrice.toFixed(2)}`;
         }
     }
 
@@ -30017,7 +30072,11 @@
                 }
                 
                 if (departureTotalPriceEl) {
-                    departureTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+                    const formattedTotal = totalPrice.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    departureTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
                 }
                 return;
             }
@@ -30095,7 +30154,11 @@
         }
         
         if (departureTotalPriceEl) {
-            departureTotalPriceEl.textContent = `SGD ${totalDeparturePrice.toFixed(2)}`;
+            const formattedTotal = totalDeparturePrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            departureTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
         }
     }
 
@@ -30174,7 +30237,11 @@
         }
         
         if (otherTransportTotalPriceEl) {
-            otherTransportTotalPriceEl.textContent = `SGD ${totalTransportPrice.toFixed(2)}`;
+            const formattedTotal = totalTransportPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            otherTransportTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
         }
     }
 
@@ -30207,7 +30274,7 @@
                     <div>
                         <strong>Exit Port Custom Pricing</strong>
                         <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
                             <strong>Service Type:</strong> Private<br>
                             <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
                             <small class="text-info">Fixed price for exit port service in zone 0 mode.</small>
@@ -30225,7 +30292,7 @@
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
             
-            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
+            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
             
             // Update departure header after custom pricing change
             if (section.startsWith('exit')) {
@@ -31759,7 +31826,7 @@
                 const dishNameField = document.getElementById(`day1_restaurant_${restaurantIndex}_dish_name`);
                 
                 console.log(`Restaurant ${restaurantIndex} hidden fields:`);
-                console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+                console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField?.value || 'Not found'}`);
                 console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
                 console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
             });
@@ -31779,9 +31846,9 @@
                 // Check if all restaurants have correct pricing
                 parsedData.forEach((restaurant, index) => {
                     console.log(`Restaurant ${index + 1}:`);
-                    console.log(`- Total Price: $${restaurant.totalPrice}`);
-                    console.log(`- Meal Price: $${restaurant.mealPrice}`);
-                    console.log(`- Meal Description Price: $${restaurant.MealDescription[0]?.price || 'N/A'}`);
+                    console.log(`- Total Price: ${getTourCurrency()} ${restaurant.totalPrice}`);
+                    console.log(`- Meal Price: ${getTourCurrency()} ${restaurant.mealPrice}`);
+                    console.log(`- Meal Description Price: ${getTourCurrency()} ${restaurant.MealDescription[0]?.price || 'N/A'}`);
                 });
             } else {
                 console.log('No restaurant data found');
@@ -31798,7 +31865,7 @@
             const dishNameField = document.getElementById('day1_restaurant_1_dish_name');
             
             console.log('Restaurant hidden fields:');
-            console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField?.value || 'Not found'}`);
             console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
             console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
             
@@ -31831,8 +31898,8 @@
                 
                 if (basePriceField && totalPriceField && serviceTypeField) {
                     console.log(`${section.toUpperCase()} PORT - Hidden fields:`);
-                    console.log(`- Base Price: $${basePriceField.value}`);
-                    console.log(`- Total Price: $${totalPriceField.value}`);
+                    console.log(`- Base Price: ${getTourCurrency()} ${basePriceField.value}`);
+                    console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField.value}`);
                     console.log(`- Service Type: ${serviceTypeField.value}`);
                 } else {
                     console.log(`${section.toUpperCase()} PORT - Hidden fields not found`);
@@ -31967,8 +32034,8 @@
             
             if (basePriceField && totalPriceField && serviceTypeField && guestCountField) {
                 console.log('Current hidden field values:');
-                console.log(`- Base Price: $${basePriceField.value}`);
-                console.log(`- Total Price: $${totalPriceField.value}`);
+                console.log(`- Base Price: ${getTourCurrency()} ${basePriceField.value}`);
+                console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField.value}`);
                 console.log(`- Service Type: ${serviceTypeField.value}`);
                 console.log(`- Guest Count: ${guestCountField.value}`);
             }
@@ -34799,7 +34866,7 @@
                         </div>
                     </div>
                     <div class="col-md-6 text-end">
-                        <span id="modalTotalPrice" class="h4 text-success">$0.00</span>
+                        <span id="modalTotalPrice" class="h4 text-success">{{ $dmcCurrency }} 0.00</span>
                         <br>
                         <small id="modalGuestInfo" class="text-muted"></small>
                     </div>

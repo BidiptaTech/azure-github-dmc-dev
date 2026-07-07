@@ -1022,7 +1022,7 @@ class SingleTourPackageController extends Controller
                     'child' => $tour->child,
                     'infant' => $tour->infant,
                 ];
-
+                
                 if ($request->input('tour_booking_from') === 'manual_single_form') {
                     // Tour created from the manual single tour package form → send via CommonHelper::sendEmail
                     $agent = Agent::where('agent_id', $tour->agent_id)->first();
