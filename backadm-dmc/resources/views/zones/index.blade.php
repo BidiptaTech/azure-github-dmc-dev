@@ -86,38 +86,6 @@
             <a href="{{ route('zones.create') }}" class="btn btn-primary">Add New Zone</a>
         </div>
         <div class="card-body">
-            <form method="GET" id="zone-location-filter-form" class="row mb-4 align-items-end g-3">
-                @if($currentZoneType)
-                    <input type="hidden" name="zone_type" value="{{ $currentZoneType }}">
-                @endif
-                @if($currentSort)
-                    <input type="hidden" name="sort" value="{{ $currentSort }}">
-                @endif
-                @if($currentDir)
-                    <input type="hidden" name="direction" value="{{ $currentDir }}">
-                @endif
-                <div class="col-md-3">
-                    <label for="zone_filter_country" class="form-label"><strong>Country</strong></label>
-                    <select id="zone_filter_country" name="country" class="form-select">
-                        <option value="" {{ empty($filterCountry ?? '') ? 'selected' : '' }}>All Countries</option>
-                        @foreach(($countries ?? collect()) as $c)
-                            <option value="{{ $c->name }}" {{ ($filterCountry ?? '') === $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="zone_filter_city" class="form-label"><strong>City</strong></label>
-                    <select id="zone_filter_city" name="city" class="form-select" {{ empty($filterCountry ?? '') ? 'disabled' : '' }}>
-                        <option value="" {{ empty($filterCityId ?? '') ? 'selected' : '' }}>All Cities</option>
-                        @foreach(($filterCities ?? collect()) as $cityOption)
-                            <option value="{{ $cityOption->city_id }}" {{ (string) ($filterCityId ?? '') === (string) $cityOption->city_id ? 'selected' : '' }}>
-                                {{ $cityOption->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-            </form>
-
             <div class="table-responsive text-nowrap">
                 <table class="table table-bordered">
                     <thead>
@@ -167,21 +135,6 @@
                             };
                         @endphp
                         @forelse($zones as $key => $zone)
-                        @php
-                            $serviceMatchesZone = function ($item, string $cityField) use ($zone) {
-                                $zoneCity = trim((string) (optional($zone->cities)->name ?? ''));
-                                $zoneCountry = trim((string) (optional($zone->cities)->country ?? ''));
-                                $itemCountry = trim((string) ($item->country ?? ''));
-                                $itemCity = trim((string) ($item->{$cityField} ?? ''));
-                                if ($zoneCountry !== '' && strcasecmp($itemCountry, $zoneCountry) !== 0) {
-                                    return false;
-                                }
-                                if ($zoneCity !== '' && strcasecmp($itemCity, $zoneCity) !== 0) {
-                                    return false;
-                                }
-                                return true;
-                            };
-                        @endphp
                         <tr>
                             <td>{{ ++$key }}</td>
                             <td style="max-width: 200px;">
@@ -264,14 +217,11 @@
                                                             <hr class="my-2 border-success-subtle">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                    $activeHotels = $hotels->filter(function ($hotel) use ($itemBelongsToDmc) {
                                                                         if (($hotel->status ?? 0) != 1) {
                                                                             return false;
                                                                         }
-                                                                        if (!$itemBelongsToDmc($hotel)) {
-                                                                            return false;
-                                                                        }
-                                                                        return $serviceMatchesZone($hotel, 'city');
+                                                                        return $itemBelongsToDmc($hotel);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeHotels as $hotel)
@@ -326,14 +276,11 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                    $activeAttractions = $attractions->filter(function ($attraction) use ($itemBelongsToDmc) {
                                                                         if (($attraction->status ?? 0) != 1) {
                                                                             return false;
                                                                         }
-                                                                        if (!$itemBelongsToDmc($attraction)) {
-                                                                            return false;
-                                                                        }
-                                                                        return $serviceMatchesZone($attraction, 'location');
+                                                                        return $itemBelongsToDmc($attraction);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeAttractions as $attraction)
@@ -388,14 +335,11 @@
                                                             <hr class="my-2">
                                                             <div class="row g-3 mt-3">
                                                                 @php
-                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($itemBelongsToDmc, $serviceMatchesZone) {
+                                                                    $activeRestaurants = $restaurants->filter(function ($restaurant) use ($itemBelongsToDmc) {
                                                                         if (($restaurant->status ?? 0) != 1) {
                                                                             return false;
                                                                         }
-                                                                        if (!$itemBelongsToDmc($restaurant)) {
-                                                                            return false;
-                                                                        }
-                                                                        return $serviceMatchesZone($restaurant, 'city');
+                                                                        return $itemBelongsToDmc($restaurant);
                                                                     });
                                                                 @endphp
                                                                 @foreach($activeRestaurants as $restaurant)
@@ -517,52 +461,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.getElementById('zone-location-filter-form');
-    const countrySelect = document.getElementById('zone_filter_country');
-    const citySelect = document.getElementById('zone_filter_city');
-    const citiesUrl = @json(route('fetch-cities-by-country'));
-
-    if (countrySelect && citySelect && filterForm) {
-        countrySelect.addEventListener('change', function () {
-            const country = this.value;
-            citySelect.innerHTML = '<option value="">All Cities</option>';
-            citySelect.disabled = !country;
-
-            if (!country) {
-                filterForm.submit();
-                return;
-            }
-
-            citySelect.innerHTML = '<option value="">Loading cities...</option>';
-            fetch(citiesUrl + '?country=' + encodeURIComponent(country), {
-                headers: { 'Accept': 'application/json' }
-            })
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    citySelect.innerHTML = '<option value="">All Cities</option>';
-                    (data.cities || []).forEach(function (city) {
-                        const opt = document.createElement('option');
-                        opt.value = city.city_id;
-                        opt.textContent = city.name;
-                        citySelect.appendChild(opt);
-                    });
-                    citySelect.disabled = false;
-                    filterForm.submit();
-                })
-                .catch(function () {
-                    citySelect.innerHTML = '<option value="">All Cities</option>';
-                    citySelect.disabled = false;
-                    filterForm.submit();
-                });
-        });
-
-        citySelect.addEventListener('change', function () {
-            if (!this.disabled) {
-                filterForm.submit();
-            }
-        });
-    }
-
     document.querySelectorAll('.btn-delete-zone').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const form = this.closest('.zone-delete-form');

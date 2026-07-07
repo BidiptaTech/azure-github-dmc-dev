@@ -2891,19 +2891,6 @@ class UserController extends Controller
         ], 404);
     }
 
-    /*
-    * Get ISO currency code for a country name from the countries table.
-    * Used by the Add User form to show a read-only currency based on the selected country.
-    */
-    public function getCurrencyByCountry(Request $request) {
-        $currency = $this->resolveCurrencyForCountry($request->input('country'));
-
-        return response()->json([
-            'success' => $currency !== null,
-            'currency' => $currency,
-        ]);
-    }
-
     public function profile()
     {
         $user = Auth::user();
