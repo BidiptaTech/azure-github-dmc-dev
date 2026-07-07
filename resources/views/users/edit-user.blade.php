@@ -408,15 +408,6 @@
                     </div>
                 </div>
 
-                <!-- Currency (read-only, derived from the country) -->
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label"><strong>Currency</strong></label>
-                        <input type="text" class="form-control" value="{{ $users->currency }}" readonly style="background-color: #f8f9fa;">
-                        <small class="text-muted">Currency is derived from the country and cannot be edited</small>
-                    </div>
-                </div>
-
                 <div class="row">
                     <!-- Country Code -->
                     <div class="col-md-3 mb-3">
