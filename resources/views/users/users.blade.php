@@ -413,7 +413,7 @@
                                     disabled>
                             </div>
                         </div>
-                        {{-- <div class="settings-col">
+                        <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input type="hidden" name="email_on" value="0">
                                 <input {{$user->email_on == 1 ? 'checked' : ''}} 
@@ -425,14 +425,14 @@
                                     style="width: 25px; height: 15px;" 
                                     disabled>
                             </div>
-                        </div> --}}
-                        <div class="settings-col">
+                        </div>
+                        {{-- <div class="settings-col">
                             <div class="form-check form-switch mb-0">
                                 <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
                                     class="form-check-input" type="checkbox" value="1"
                                     style="width: 25px; height: 15px;" disabled>
                             </div>
-                        </div>
+                        </div> --}}
                         <div class="settings-col">
                             <div class="form-group mb-0" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
                                 <select class="form-select" id="auto_cancel_disabled"
@@ -444,9 +444,9 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="settings-col">
+                        {{-- <div class="settings-col">
                             <span class="text-muted small">—</span>
-                        </div>
+                        </div> --}}
                         <div class="settings-col">
                             <div class="form-group mb-0">
                                 <select class="form-select ai-response-dropdown"

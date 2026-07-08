@@ -974,6 +974,14 @@
 
             <form id="dayForm" method="POST" action="{{ isset($dayLevel) ? route('day-level.update', $dayLevel->id) : route('day-level.store') }}">
                 @csrf
+                @php
+                    $dmcCurrency = strtoupper(trim((string) (
+                        optional(\App\Models\User::where('userId', (int) ($defaultDmcId ?? 0))->first())->currency
+                        ?? auth()->user()->currency
+                        ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
+                        ?? 'SGD'
+                    ))) ?: 'SGD';
+                @endphp
                 @if(isset($dayLevel))
                     @method('PUT')
                 @endif
@@ -985,6 +993,7 @@
                 <input type="hidden" name="hotels_json" id="hotels_json">
                 <input type="hidden" name="activities_json" id="activities_json">
                 <input type="hidden" name="inter_json" id="inter_json">
+                <input type="hidden" id="day_level_currency" value="{{ $dmcCurrency }}">
 
                 <div class="row g-3">
                     <div class="col-12">
@@ -1153,34 +1162,34 @@
                                 <div class="hotels-form-panel pricing-panel" id="hotel_pricing_panel">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                                         <div class="pricing-panel-title mb-0">Pricing (editable)</div>
-                                        <span class="pricing-total-badge" id="hotel_price_total_badge">Total: SGD 0.00</span>
+                                        <span class="pricing-total-badge" id="hotel_price_total_badge">Total: {{ $dmcCurrency }} 0.00</span>
                                     </div>
                                     <div class="row g-3 align-items-end">
                                         <div class="col-lg-3 col-md-6">
                                             <label class="form-label" for="hotel_room_price">Room Price <small class="text-muted">(double weekday)</small></label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_room_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
                                             <label class="form-label" for="hotel_breakfast_price">Breakfast</label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_breakfast_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
                                             <label class="form-label" for="hotel_lunch_price">Lunch</label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_lunch_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
                                             </div>
                                         </div>
                                         <div class="col-lg-3 col-md-6">
                                             <label class="form-label" for="hotel_dinner_price">Dinner</label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
                                             </div>
                                         </div>
@@ -1306,6 +1315,15 @@
             transferZonePrice: @json(route('day-level.transfer-zone-price')),
             ticketsByAttraction: @json(route('day-level.tickets-by-attraction')),
             citiesByCountry: @json(route('day-level.cities-by-country')),
+        };
+
+        window.DAY_LEVEL_CURRENCY = @json($dmcCurrency);
+        window.getDayCurrency = function () {
+            const el = document.getElementById('day_level_currency');
+            return (el && el.value) ? el.value : (window.DAY_LEVEL_CURRENCY || 'SGD');
+        };
+        window.formatDayPrice = function (amount) {
+            return window.getDayCurrency() + ' ' + Number(amount || 0).toFixed(2);
         };
 
         function packageMatchesEditFilter(pkg) {
@@ -2930,7 +2948,7 @@
                                     <div class="col-md-2">
                                         <label class="form-label" for="attraction_price_${d}">Ticket Price</label>
                                         <div class="input-group price-input-group">
-                                            <span class="input-group-text">SGD</span>
+                                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                                             <input type="number" class="form-control" id="attraction_price_${d}" min="0" step="0.01" placeholder="0.00">
                                         </div>
                                     </div>
@@ -2962,7 +2980,7 @@
                                         <div class="col-md-2">
                                             <label class="form-label" for="attraction_transfer_price_${d}">Transfer Price</label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="attraction_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
@@ -3005,7 +3023,7 @@
                                     <div class="col-md-2">
                                         <label class="form-label" for="restaurant_price_${d}">Meal Price</label>
                                         <div class="input-group price-input-group">
-                                            <span class="input-group-text">SGD</span>
+                                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                                             <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
                                         </div>
                                     </div>
@@ -3037,7 +3055,7 @@
                                         <div class="col-md-2">
                                             <label class="form-label" for="restaurant_transfer_price_${d}">Transfer Price</label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="restaurant_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
@@ -3076,7 +3094,7 @@
                                         <div class="col-md-2">
                                             <label class="form-label" for="arrival_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control transfer-leg-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
@@ -3109,7 +3127,7 @@
                                         <div class="col-md-2">
                                             <label class="form-label" for="departure_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
-                                                <span class="input-group-text">SGD</span>
+                                                <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control transfer-leg-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
@@ -4800,7 +4818,7 @@
                     const labelParts = [periodLabel, typeLabel, name].filter(Boolean);
                     return {
                         value: String(meal.meal_id ?? ''),
-                        label: `${labelParts.join(' · ') || `Meal ${meal.meal_id}`}${mealPrice > 0 ? ` — SGD ${mealPrice.toFixed(2)}` : ''}`,
+                        label: `${labelParts.join(' · ') || `Meal ${meal.meal_id}`}${mealPrice > 0 ? ` — ${getDayCurrency()} ${mealPrice.toFixed(2)}` : ''}`,
                         price: mealPrice,
                         adult_price: parseFloat(meal.adult_price) || 0,
                         child_price: parseFloat(meal.child_price) || 0,
@@ -4834,7 +4852,7 @@
                     const adult = parseFloat(t.adult_price) || 0;
                     return {
                         value: t.ticket_id,
-                        label: `${t.name || `Ticket ${t.ticket_id}`}${adult > 0 ? ` — SGD ${adult.toFixed(2)}` : ''}`,
+                        label: `${t.name || `Ticket ${t.ticket_id}`}${adult > 0 ? ` — ${getDayCurrency()} ${adult.toFixed(2)}` : ''}`,
                         adult_price: adult,
                         child_price: parseFloat(t.child_price) || 0,
                         senior_price: parseFloat(t.senior_adult_price) || 0,
@@ -4880,7 +4898,7 @@
                     const adult = parseFloat(x.adult_price) || 0;
                     return {
                         value: x.attraction_id,
-                        label: `${x.name}${x.location ? ` - ${x.location}` : ''}${adult > 0 ? ` — from SGD ${adult.toFixed(2)}` : ''}`,
+                        label: `${x.name}${x.location ? ` - ${x.location}` : ''}${adult > 0 ? ` — from ${getDayCurrency()} ${adult.toFixed(2)}` : ''}`,
                         price: adult,
                         adult_price: adult,
                     };
@@ -5002,7 +5020,7 @@
                     const roomPrice = parseFloat(room.double_weekday_price) || parseFloat(room.weekday_price) || 0;
                     return {
                         value: String(room.room_id ?? ''),
-                        label: `${room.room_type || `Room ${room.room_id}`} — SGD ${roomPrice.toFixed(2)}`,
+                        label: `${room.room_type || `Room ${room.room_id}`} — ${getDayCurrency()} ${roomPrice.toFixed(2)}`,
                         double_weekday_price: room.double_weekday_price,
                         breakfast_price: room.breakfast_price,
                         lunch_price: room.lunch_price,
@@ -5151,7 +5169,7 @@
                 + parsePriceInput('hotel_dinner_price');
             const badge = document.getElementById('hotel_price_total_badge');
             if (badge) {
-                badge.textContent = `Total: SGD ${total.toFixed(2)}`;
+                badge.textContent = `Total: ${getDayCurrency()} ${total.toFixed(2)}`;
             }
         }
 
@@ -5250,7 +5268,7 @@
         }
 
         function formatHotelRoomMealSummary(row) {
-            const room = String(row?.room_type || row?.room_id || '-').replace(/\s*—\s*SGD.*$/i, '').trim();
+            const room = String(row?.room_type || row?.room_id || '-').replace(/\s*—\s*[A-Z]{2,4}.*$/i, '').trim();
             const meal = [row?.meal_plan, row?.meal_type].filter(Boolean).join(' · ');
             return meal ? `${room} · ${meal}` : room;
         }
@@ -5551,11 +5569,11 @@
                                 ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}</div>` : ''}
                             </td>
                             <td class="text-end">
-                                <div class="hotel-price-night">SGD ${perNight.toFixed(2)}</div>
+                                <div class="hotel-price-night">${getDayCurrency()} ${perNight.toFixed(2)}</div>
                                 <div class="hotel-price-breakdown">${escapeHtml(formatHotelPriceBreakdown(x))}</div>
                             </td>
                             <td class="text-end">
-                                <div class="hotel-price-total">SGD ${stayTotal.toFixed(2)}</div>
+                                <div class="hotel-price-total">${getDayCurrency()} ${stayTotal.toFixed(2)}</div>
                                 <div class="hotel-price-breakdown">${Math.max(1, parseInt(String(x.night || 1), 10) || 1)} night(s)</div>
                             </td>
                             <td class="action-cell text-end">
@@ -6096,7 +6114,7 @@
                         serviceCellHtml = `
                             <div class="item-title">${escapeHtml(x.label || 'Restaurant')}</div>
                             ${metaParts.length ? `<div class="item-meta">${metaParts.join(' · ')}</div>` : ''}
-                            ${mealPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Meal SGD ${mealPrice.toFixed(2)}</span>` : ''}
+                            ${mealPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Meal ${getDayCurrency()} ${mealPrice.toFixed(2)}</span>` : ''}
                         `;
                     } else if (isTransferLikeOnly) {
                         serviceCellHtml = `
@@ -6111,7 +6129,7 @@
                         serviceCellHtml = `
                             <div class="item-title">${escapeHtml(x.label || 'Attraction')}</div>
                             ${metaParts.length ? `<div class="item-meta">${metaParts.join(' · ')}</div>` : ''}
-                            ${ticketPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Ticket SGD ${ticketPrice.toFixed(2)}</span>` : ''}
+                            ${ticketPrice > 0 ? `<span class="item-price-tag item-price-tag--meal">Ticket ${getDayCurrency()} ${ticketPrice.toFixed(2)}</span>` : ''}
                         `;
                     }
 
@@ -6122,7 +6140,7 @@
                                 <span class="item-route-arrow" aria-hidden="true">→</span>
                                 <span class="item-route-stop">${escapeHtml(dropDisplay)}</span>
                             </div>
-                            ${transferCost > 0 ? `<span class="item-price-tag item-price-tag--transfer">Transfer SGD ${transferCost.toFixed(2)}</span>` : ''}
+                            ${transferCost > 0 ? `<span class="item-price-tag item-price-tag--transfer">Transfer ${getDayCurrency()} ${transferCost.toFixed(2)}</span>` : ''}
                         `
                         : '<span class="item-meta">No transfer</span>';
 
@@ -6133,7 +6151,7 @@
                             <td class="align-middle">${transferCellHtml}</td>
                             <td class="text-end align-middle">
                                 ${lineTotal > 0
-                                    ? `<div class="hotel-price-total">SGD ${lineTotal.toFixed(2)}</div>`
+                                    ? `<div class="hotel-price-total">${getDayCurrency()} ${lineTotal.toFixed(2)}</div>`
                                     : '<span class="text-muted">-</span>'}
                             </td>
                             <td class="text-end align-middle action-cell">
@@ -6824,7 +6842,7 @@
                 <div class="preview-transfer-chip">
                     <strong>${escapeHtml(typeLabel)}:</strong>
                     ${escapeHtml(route)}
-                    ${previewCost > 0 ? ` · <span class="text-success fw-semibold">SGD ${previewCost.toFixed(2)}</span>` : ''}
+                    ${previewCost > 0 ? ` · <span class="text-success fw-semibold">${getDayCurrency()} ${previewCost.toFixed(2)}</span>` : ''}
                 </div>
             `;
         }
@@ -6861,9 +6879,9 @@
                 }
                 const priceParts = [];
                 if (servicePrice > 0) {
-                    priceParts.push(x.type === 'restaurant' ? `Meal SGD ${servicePrice.toFixed(2)}` : `Ticket SGD ${servicePrice.toFixed(2)}`);
+                    priceParts.push(x.type === 'restaurant' ? `Meal ${getDayCurrency()} ${servicePrice.toFixed(2)}` : `Ticket ${getDayCurrency()} ${servicePrice.toFixed(2)}`);
                 }
-                if (transferPrice > 0) priceParts.push(`Transfer SGD ${transferPrice.toFixed(2)}`);
+                if (transferPrice > 0) priceParts.push(`Transfer ${getDayCurrency()} ${transferPrice.toFixed(2)}`);
 
                 return `
                     <tr>
@@ -6876,7 +6894,7 @@
                             ${renderPreviewTransferLine(transfer, dayNum, itemType)}
                         </td>
                         <td class="text-end fw-semibold ${lineTotal > 0 ? 'text-success' : 'text-muted'}">
-                            ${lineTotal > 0 ? `SGD ${lineTotal.toFixed(2)}` : '-'}
+                            ${lineTotal > 0 ? `${getDayCurrency()} ${lineTotal.toFixed(2)}` : '-'}
                         </td>
                     </tr>
                 `;
@@ -6941,7 +6959,7 @@
                             <span class="fw-semibold">${escapeHtml(hotelLabel)}</span>
                             <span class="text-muted"> · ${escapeHtml(String(h.night || 1))} night(s) · ${escapeHtml(formatHotelRoomMealSummary(h))}</span>
                             ${isCheckinDay
-                                ? `<span class="text-primary fw-semibold"> · SGD ${perNight.toFixed(2)}/night · Total SGD ${stayTotal.toFixed(2)}</span>`
+                                ? `<span class="text-primary fw-semibold"> · ${getDayCurrency()} ${perNight.toFixed(2)}/night · Total ${getDayCurrency()} ${stayTotal.toFixed(2)}</span>`
                                 : `<span class="text-muted"> · Part of ${escapeHtml(stayLabel)} stay</span>`}
                         </div>
                     </div>
@@ -6983,7 +7001,7 @@
                     </div>
                     <div class="preview-summary-card grand-total">
                         <div class="label">Package Total</div>
-                        <div class="value">SGD ${grandTotal.toFixed(2)}</div>
+                        <div class="value">${getDayCurrency()} ${grandTotal.toFixed(2)}</div>
                     </div>
                 </div>
             `;
@@ -7034,8 +7052,8 @@
                                         </td>
                                         <td>${escapeHtml(String(h.night || 1))}</td>
                                         <td>${escapeHtml(formatHotelRoomMealSummary(h))}</td>
-                                        <td class="text-end">SGD ${getHotelPerNightPrice(h).toFixed(2)}</td>
-                                        <td class="text-end fw-semibold text-success">SGD ${getHotelStayTotalPrice(h).toFixed(2)}</td>
+                                        <td class="text-end">${getDayCurrency()} ${getHotelPerNightPrice(h).toFixed(2)}</td>
+                                        <td class="text-end fw-semibold text-success">${getDayCurrency()} ${getHotelStayTotalPrice(h).toFixed(2)}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
