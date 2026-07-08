@@ -1022,7 +1022,7 @@ class SingleTourPackageController extends Controller
                     'child' => $tour->child,
                     'infant' => $tour->infant,
                 ];
-                
+
                 if ($request->input('tour_booking_from') === 'manual_single_form') {
                     // Tour created from the manual single tour package form → send via CommonHelper::sendEmail
                     $agent = Agent::where('agent_id', $tour->agent_id)->first();
@@ -1419,6 +1419,7 @@ class SingleTourPackageController extends Controller
      */
     public function update(Request $request, $id)
     {
+        
         $package = Tour::findOrFail($id);
 
         $request->validate([
@@ -1439,7 +1440,7 @@ class SingleTourPackageController extends Controller
         try {
             DB::beginTransaction();
 
-            $updateData = [
+            $package->update([
                 'country_id' => $request->country_id,
                 'city_id' => $request->city_id,
                 'start_date' => $request->start_date,
@@ -1453,22 +1454,7 @@ class SingleTourPackageController extends Controller
                 'package_description' => $request->package_description,
                 'is_premium' => $request->has('is_premium'),
                 'updated_by' => Auth::id()
-            ];
-
-            // If the start date is being changed, recompute auto_cancel_date (reference: store()).
-            $newStartDate = Carbon::createFromFormat('Y-m-d', $request->start_date);
-            $existingStart = $package->check_in_time ?? $package->start_date;
-            $existingStartDate = $existingStart ? Carbon::parse($existingStart) : null;
-            $startDateChanged = !$existingStartDate || !$existingStartDate->isSameDay($newStartDate);
-
-            if ($startDateChanged) {
-                $userDmcId = CommonHelper::getDmcId(Auth::user());
-                $userDMC = User::where('userId', $userDmcId)->first();
-                $auto_cancel_day = (int) ($userDMC->auto_cancel_date ?? 0);
-                $updateData['auto_cancel_date'] = $newStartDate->copy()->subDays($auto_cancel_day)->toDateString();
-            }
-
-            $package->update($updateData);
+            ]);
 
             DB::commit();
 

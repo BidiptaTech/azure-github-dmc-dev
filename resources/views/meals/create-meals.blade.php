@@ -61,7 +61,7 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Meal
-                    <x-currency-price-note />
+                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <div class="d-flex gap-2">
                     {{-- @if(auth()->user()->role_id == '11')
@@ -105,7 +105,7 @@
                                             @if($dmcUsers->count() > 0)
                                                 <option value="">Select DMC</option>
                                                 @foreach($dmcUsers as $dmc)
-                                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                                    <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                                                 @endforeach
                                             @else
                                                 <option value="">No DMCs available for this restaurant</option>
@@ -511,7 +511,8 @@
 <!-- End of the form -->
 @endsection
 
-@section('scripts') 
+@section('scripts')
+@include('components.currency-price-note-dmc-script')
 {{-- <script>
         document.addEventListener('DOMContentLoaded', () => {
         const toggleVisibility = (checkboxId, fieldId) => {
@@ -877,6 +878,14 @@
             });
         }
         @endif
+
+        if (dmcSelect) {
+            dmcSelect.addEventListener('change', function () {
+                if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                    updateCurrencyPriceNoteFromDmc(this);
+                }
+            });
+        }
         
         // Show/hide submit button based on DMC selection
         if (dmcSelect && submitBtn) {

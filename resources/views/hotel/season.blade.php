@@ -167,7 +167,7 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add Seasons
-                    <x-currency-price-note />
+                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -245,7 +245,7 @@
                        <select id="dmc_selection" class="form-control" name="dmc_id" required>
                            <option value="">Select DMC</option>
                            @foreach($dmcUsers as $dmc)
-                               <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                               <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                            @endforeach
                        </select>
                        <small class="text-muted">
@@ -723,6 +723,12 @@
             allowClear: true,
             width: '100%'
         });
+
+        $('#dmc_selection').on('change', function () {
+            if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                updateCurrencyPriceNoteFromDmc(this);
+            }
+        });
         @endif
 
         // Initialize DataTable with export buttons
@@ -900,5 +906,6 @@
     });
 </script> --}}
 
+@include('components.currency-price-note-dmc-script')
 
 @endsection

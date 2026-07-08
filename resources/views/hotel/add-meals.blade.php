@@ -99,7 +99,11 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Meal
-                    <x-currency-price-note />
+                    <x-currency-price-note
+                        :watch-dmc="in_array($auth_user->role_id, [1, 20])"
+                        :dmc-selected="(bool) $userDMC"
+                        :dmc-currency="$userDMC?->currency"
+                    />
                 </span>
                 @if($userDMC)
                 <span class="badge bg-info">DMC: {{ $userDMC->company_name }}</span>
