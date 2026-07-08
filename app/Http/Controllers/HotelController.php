@@ -1006,7 +1006,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
-                           ->select('userId', 'name', 'company_name')
+                           ->select('userId', 'name', 'company_name', 'currency')
                            ->orderBy('company_name', 'asc')
                            ->get();
         }
@@ -1112,7 +1112,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
-                           ->select('userId', 'name', 'company_name')
+                           ->select('userId', 'name', 'company_name', 'currency')
                            ->orderBy('company_name', 'asc')
                            ->get();
         }
@@ -1132,7 +1132,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
-                           ->select('userId', 'name', 'company_name')
+                           ->select('userId', 'name', 'company_name', 'currency')
                            ->orderBy('company_name', 'asc')
                            ->get();
         }
@@ -1486,7 +1486,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
             $dmcUsers = User::whereIn('role_id', [11,20])
                            ->where('user_type', 2)
-                           ->select('userId', 'name', 'company_name')
+                           ->select('userId', 'name', 'company_name', 'currency')
                            ->orderBy('company_name', 'asc')
                            ->get();
         }
@@ -2085,7 +2085,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::where('role_id', 11)
             ->where('user_type', 2)
-            ->select('userId', 'name', 'company_name')
+            ->select('userId', 'name', 'company_name', 'currency')
             ->orderBy('company_name', 'asc')
             ->get();
         }
@@ -2421,7 +2421,7 @@ class HotelController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::where('role_id', 11)
                 ->where('user_type', 2)
-                ->select('userId', 'name', 'company_name')
+                ->select('userId', 'name', 'company_name', 'currency')
                 ->orderBy('company_name', 'asc')
                 ->get();
         }

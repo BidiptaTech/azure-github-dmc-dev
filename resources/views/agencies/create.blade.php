@@ -557,8 +557,13 @@
                             <select class="form-select select2 @error('city') is-invalid @enderror" 
                                     id="city" 
                                     name="city" 
+                                    data-old-city="{{ old('city') }}"
                                     required>
-                                <option value="">Select country first...</option>
+                                @if(old('city'))
+                                    <option value="{{ old('city') }}" selected>{{ old('city') }}</option>
+                                @else
+                                    <option value="">Select country first...</option>
+                                @endif
                             </select>
                             @error('city')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -586,7 +591,7 @@
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="agency_logo" class="form-label">
                                 <i class="ri-image-line text-primary"></i>
-                                Agency Logo
+                                Agency Logo <span class="text-danger">*</span>
                             </label>
                             <input type="file" 
                                    class="form-control @error('agency_logo') is-invalid @enderror" 
@@ -785,6 +790,7 @@
                     </label>
                     <select class="form-select select2 branch-city" 
                             name="branches[INDEX][city]" 
+                            data-old-city=""
                             required>
                         <option value="">Select country first...</option>
                     </select>
@@ -963,6 +969,12 @@ $(document).ready(function() {
                         $(citySelector).append('<option disabled>No cities found for this country</option>');
                         showNotification('No cities found for ' + country, 'warning');
                     }
+
+                    // Restore old city after reload (head office + branch)
+                    const oldCity = $(citySelector).data('old-city');
+                    if (oldCity) {
+                        $(citySelector).val(oldCity);
+                    }
                     
                     // Refresh Select2
                     $(citySelector).trigger('change');
@@ -1033,7 +1045,7 @@ $(document).ready(function() {
     }
 
     // Add Branch functionality
-    $('#addBranchBtn').on('click', function() {
+    function addBranchSection(prefill) {
         const template = document.getElementById('branchTemplate').content.cloneNode(true);
         
         // Update all INDEX placeholders with actual index
@@ -1045,7 +1057,7 @@ $(document).ready(function() {
         });
 
         // Generate and set unique branch UID
-        $(template).find('.branch-uid-field').val(generateBranchUid());
+        $(template).find('.branch-uid-field').val((prefill && prefill.branch_uid) ? prefill.branch_uid : generateBranchUid());
 
         // Add to container
         $('#branchesContainer').append(template);
@@ -1059,6 +1071,18 @@ $(document).ready(function() {
         initializeSelect2(countrySelect, 'Search for country...');
         initializeSelect2(citySelect, 'Search for city...');
         initializeSelect2(cardTypeSelect, 'Search for card type...');
+
+        // Prefill branch fields (old() restore)
+        if (prefill) {
+            branchContainer.find('input[name="branches[' + branchIndex + '][email]"]').val(prefill.email || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][phone]"]').val(prefill.phone || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][postal_code]"]').val(prefill.postal_code || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][card_number]"]').val(prefill.card_number || '');
+            branchContainer.find('textarea[name="branches[' + branchIndex + '][address]"]').val(prefill.address || '');
+
+            // Keep desired city on the select so it can be applied after AJAX loads options
+            citySelect.data('old-city', prefill.city || '');
+        }
         
         // Add change handler for branch country
         countrySelect.on('change', function() {
@@ -1068,17 +1092,47 @@ $(document).ready(function() {
             loadCitiesForElement(correspondingCitySelect, selectedCountry);
             loadCardTypesForElement(correspondingCardTypeSelect, selectedCountry);
         });
+
+        // Apply prefill country (will trigger city load + old-city restore)
+        if (prefill && prefill.country) {
+            countrySelect.val(prefill.country).trigger('change');
+        }
         
         branchIndex++;
         updateBranchCounter();
-        
+        return branchContainer;
+    }
+
+    $('#addBranchBtn').on('click', function() {
+        const branchContainer = addBranchSection(null);
+
         // Smooth scroll to new branch
         $('html, body').animate({
             scrollTop: branchContainer.offset().top - 100
         }, 500);
-        
+
         showNotification('Branch office section added successfully!', 'success');
     });
+
+    // Restore old() values after validation error (head office + branches)
+    const oldCountry = @json(old('country'));
+    const oldCity = @json(old('city'));
+    if (oldCountry) {
+        // Ensure the city is restored after AJAX loads
+        if (oldCity) {
+            $('#city').data('old-city', oldCity);
+        }
+        loadCitiesForElement('#city', oldCountry);
+        loadCardTypesForElement('#id_card_type', oldCountry);
+    }
+
+    const oldBranches = @json(old('branches', []));
+    if (Array.isArray(oldBranches) && oldBranches.length > 0) {
+        oldBranches.forEach(function(br) {
+            addBranchSection(br || {});
+        });
+        showNotification('Restored branch details from previous input', 'info');
+    }
 
     // Remove Branch functionality
     $(document).on('click', '.remove-branch-btn', function() {
