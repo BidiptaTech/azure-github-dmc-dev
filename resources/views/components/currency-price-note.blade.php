@@ -1,5 +1,6 @@
+@props(['currency' => null])
 @php
-    $userCurrency = auth()->user()->currency ?? null;
+    $userCurrency = filled($currency) ? $currency : (auth()->user()->currency ?? null);
 @endphp
 <small class="currency-price-note" style="color: #8B0000; font-size: 0.65rem; line-height: 1.2;">
     @if(filled($userCurrency))
