@@ -1629,6 +1629,21 @@ class CommonHelper
     }
 
     /**
+     * Resolve the display currency for a DMC (users.currency of the DMC user).
+     * Pass the packages.dmc_id (or any DMC userId). Returns null when not found.
+     */
+    public static function getDmcCurrency($dmcId = null): ?string
+    {
+        if (empty($dmcId)) {
+            return null;
+        }
+
+        $currency = User::where('userId', $dmcId)->value('currency');
+
+        return filled($currency) ? $currency : null;
+    }
+
+    /**
      * DMC booking form type from users.is_pro (set on users listing).
      * 1 = Lite only, 2 = Pro only, 3 = Both.
      */

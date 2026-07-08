@@ -1366,7 +1366,7 @@
         }
 
         function money(v) {
-            return 'SGD ' + numVal(v).toFixed(2);
+            return @json($currency ?? 'SGD') + ' ' + numVal(v).toFixed(2);
         }
 
         function parseIsoDate(dateStr) {
