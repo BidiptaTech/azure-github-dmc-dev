@@ -34,7 +34,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex align-items-center flex-wrap gap-2">
                                     <h4 class="card-title mb-0">Create New Ticket</h4>
-                                    <x-currency-price-note />
+                                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                                 </div>
                                 {{-- @if(auth()->user()->role_id == '11')
                                     <a href="{{ route('tickets.bulk_upload_for_attraction', $attraction->attraction_id) }}" 
@@ -69,7 +69,7 @@
                                             @if($dmcUsers->count() > 0)
                                                 <option value="">Select DMC</option>
                                                 @foreach($dmcUsers as $dmc)
-                                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                                    <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                                                 @endforeach
                                             @else
                                                 <option value="">No DMCs available for this attraction</option>
@@ -393,6 +393,17 @@
 <!-- End Modal -->
 @endsection 
 @section('scripts')
+@include('components.currency-price-note-dmc-script')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('[add-ticket] DOMContentLoaded — binding DMC currency note');
+        if (typeof bindCurrencyPriceNoteToDmcSelect === 'function') {
+            bindCurrencyPriceNoteToDmcSelect('dmc_selection');
+        } else {
+            console.error('[add-ticket] bindCurrencyPriceNoteToDmcSelect is not defined');
+        }
+    });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>
 <script>
     $(document).ready(function() {
@@ -414,13 +425,15 @@
             maxHeight: 500,   
             placeholder: 'Enter terms and conditions...', 
         });
-        // Initialize Select2 for city
-        $('#citySelect').select2({
-            placeholder: "Search and Select a City",
-            allowClear: true,
-            tags: true,
-            width: '100%'
-        });
+        // Initialize Select2 for city (only if element and plugin exist)
+        if ($('#citySelect').length && typeof $.fn.select2 === 'function') {
+            $('#citySelect').select2({
+                placeholder: "Search and Select a City",
+                allowClear: true,
+                tags: true,
+                width: '100%'
+            });
+        }
 
         function clampTicketPriceInput(el) {
             if (!el || el.value === '' || el.value === null) return;

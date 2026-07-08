@@ -215,7 +215,10 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
+                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -267,7 +270,7 @@
                         <select id="dmc_selection" class="form-control" name="dmc_id" required>
                             <option value="">Select DMC</option>
                             @foreach($dmcUsers as $dmc)
-                                <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                             @endforeach
                         </select>
                         <small class="text-muted">
@@ -761,6 +764,10 @@
         $('#dmc_selection').on('change', function() {
             const selectedDmcId = $(this).val();
             const hotelId = $('#hotel_id').val();
+
+            if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                updateCurrencyPriceNoteFromDmc(this);
+            }
             
             if (selectedDmcId) {
                 // Enable room dropdown and fetch DMC-specific rooms
@@ -1082,4 +1089,5 @@
         });
     });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection

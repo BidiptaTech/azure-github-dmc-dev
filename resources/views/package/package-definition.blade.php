@@ -15,7 +15,7 @@
                     <h4 class="fw-bold mb-0">
                         <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
                     </h4>
-                    <x-currency-price-note />
+                    <x-currency-price-note :currency="$currency ?? null" />
                 </div>
                 <p class="text-muted mb-0">
                     {{ $isEdit ? 'Update package definition services and pricing' : 'Define package services without day-wise itinerary' }}
@@ -1599,7 +1599,7 @@ $(document).ready(function() {
 
     function formatOptionalPrice(val) {
         if (val === '' || val == null || isNaN(parseFloat(val))) return '—';
-        return 'SGD ' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return @json($currency ?? 'SGD') + ' ' + parseFloat(val).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
     function numPriceVal(v) {
         if (v === '' || v == null) return 0;

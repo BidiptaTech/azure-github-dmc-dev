@@ -87,6 +87,7 @@
         $currentUser = auth()->user();
         $currentUserId = $currentUser->userId;
         $currentUserRole = $currentUser->role_id;
+        $displayCurrency = strtoupper(trim((string) ($currentUser->currency ?? 'SGD')));
         
         // Determine DMC ID based on role hierarchy (same as controller logic)
         $dmcId = null;
@@ -157,6 +158,7 @@
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+        window.__displayCurrency = @json($displayCurrency);
 
         window.isRoomBreakfastIncluded = function(room) {
             if (!room) return false;
@@ -1483,7 +1485,7 @@
                                             @unless($isNewEnquiry) disabled title="Discount can only be edited when the tour status is New Enquiry" @endunless
                                         >
                                         <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
-                                            {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                            {{ $displayCurrency }}
                                         </span>
                                     </div>
                                     @unless($isNewEnquiry)
@@ -1714,7 +1716,7 @@
                                                 <div class="text-end">
                                                     <span class="d-block text-muted small">Total Price</span>
                                                     <span class="fw-bold text-success" style="font-size: 1.05rem;" id="hotel_header_total_{{ $hotelOrder->booking_id }}">
-                                                        {{ $tour->currency ?? '$' }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
+                                                        {{ $displayCurrency }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
@@ -1851,7 +1853,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control" name="hotel_transport_price_{{ $hotelOrder->booking_id }}" id="hotel_transport_price_{{ $hotelOrder->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted">Optional, can be adjusted later.</small>
@@ -1993,7 +1995,7 @@
                                                                             
                                                                             const option = document.createElement('option');
                                                                             option.value = roomType;
-                                                                            option.textContent = price > 0 ? `${roomType} - $${price.toFixed(2)}` : roomType;
+                                                                            option.textContent = price > 0 ? `${roomType} - ${window.__displayCurrency} ${price.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                                                             option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
@@ -2114,14 +2116,14 @@
                                                                         if (bed.extra_bed) {
                                                                             bedTypeText += ` + Extra Bed`;
                                                                             if (bed.extra_bed_price) {
-                                                                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                                                                                bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                                                                             }
                                                                         }
                                                                         
                                                                         if (bed.baby_cot) {
                                                                             bedTypeText += ` + Baby Cot`;
                                                                             if (bed.baby_cot_price) {
-                                                                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                                                                                bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                                                                             }
                                                                         }
                                                                         
@@ -2435,7 +2437,7 @@
                                                             if (maxOccupancy && paxInfoEl) {
                                                                 let info = `Max occupancy: ${maxOccupancy} pax`;
                                                                 if (bedData.extra_bed && bedData.extra_bed_price) {
-                                                                    info += ` | Extra bed: $${parseFloat(bedData.extra_bed_price).toFixed(2)}/night`;
+                                                                    info += ` | Extra bed: ${window.__displayCurrency} ${parseFloat(bedData.extra_bed_price).toFixed(2)}/night`;
                                                                 } else if (bedData.extra_bed) {
                                                                     info += ' | Extra bed available';
                                                                 }
@@ -2497,7 +2499,7 @@
                                                                 if (maxOccupancy) {
                                                                     let info = `Max occupancy: ${maxOccupancy} pax`;
                                                                     if (bedData.extra_bed && extraBedPrice > 0) {
-                                                                        info += ` | Extra bed: $${extraBedPrice.toFixed(2)}/night`;
+                                                                        info += ` | Extra bed: ${window.__displayCurrency} ${extraBedPrice.toFixed(2)}/night`;
                                                                     } else if (bedData.extra_bed) {
                                                                         info += ' | Extra bed available';
                                                                     }
@@ -2589,10 +2591,10 @@
                                                         wrapCnb.style.display = cnbPrice > 0 ? 'block' : 'none';
 
                                                         if (labelCwb) {
-                                                            labelCwb.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
+                                                            labelCwb.textContent = cwbPrice > 0 ? '(' + window.__displayCurrency + ' ' + cwbPrice.toFixed(2) + ')' : '';
                                                         }
                                                         if (labelCnb) {
-                                                            labelCnb.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+                                                            labelCnb.textContent = cnbPrice > 0 ? '(' + window.__displayCurrency + ' ' + cnbPrice.toFixed(2) + ')' : '';
                                                         }
 
                                                         // Restore initial checked state if price is available, otherwise uncheck
@@ -2734,7 +2736,7 @@
                                                         
                                                         if (!selectedRoom || !selectedRoomType) {
                                                             gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Select room type to see price breakdown</div>';
-                                                            grandTotalEl.textContent = '$0.00';
+                                                            grandTotalEl.textContent = window.__displayCurrency + ' 0.00';
                                                             return;
                                                         }
                                                         
@@ -2867,11 +2869,11 @@
                                                         // Room price row - show weekday/weekend breakdown when applicable
                                                         let roomLabel = '';
                                                         if (weekendNights > 0 && weekdayNights > 0) {
-                                                            roomLabel = `${weekdayNights} weekday${weekdayNights > 1 ? 's' : ''} @ $${weekdayPricePerNight.toFixed(2)}/night, ${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = `${weekdayNights} weekday${weekdayNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekdayPricePerNight.toFixed(2)}/night, ${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekendPricePerNight.toFixed(2)}/night`;
                                                         } else if (weekendNights > 0) {
-                                                            roomLabel = `${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = `${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekendPricePerNight.toFixed(2)}/night`;
                                                         } else {
-                                                            roomLabel = (numberOfNights === 1 ? '1 weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`) + ` @ $${weekdayPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = (numberOfNights === 1 ? '1 weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`) + ` @ ${window.__displayCurrency} ${weekdayPricePerNight.toFixed(2)}/night`;
                                                         }
                                                         roomLabel += ` x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
                                                         gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
@@ -2879,17 +2881,17 @@
                                                                 <i class="ri-hotel-line me-2" style="font-size: 1rem; color: #dc2626;"></i>
                                                                 <span style="color: #475569;"><strong>Room Price:</strong></span>
                                                             </div>
-                                                            <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
+                                                            <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
                                                         </div>`;
 
                                                         if (extraBedSubtotal > 0) {
-                                                            const ebLabel = `${extraBedCalc.extraPersons} extra person${extraBedCalc.extraPersons > 1 ? 's' : ''} @ $${extraBedCalc.perNightRate.toFixed(2)}/night x ${numberOfNights} night${numberOfNights > 1 ? 's' : ''} x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
+                                                            const ebLabel = `${extraBedCalc.extraPersons} extra person${extraBedCalc.extraPersons > 1 ? 's' : ''} @ ${window.__displayCurrency} ${extraBedCalc.perNightRate.toFixed(2)}/night x ${numberOfNights} night${numberOfNights > 1 ? 's' : ''} x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
                                                             gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
                                                                 <div class="d-flex align-items-center">
                                                                     <i class="ri-hotel-bed-line me-2" style="font-size: 1rem; color: #d97706;"></i>
                                                                     <span style="color: #475569;"><strong>Extra Bed Cost:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${extraBedSubtotal.toFixed(2)} <small class="text-muted">(${ebLabel})</small></span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${extraBedSubtotal.toFixed(2)} <small class="text-muted">(${ebLabel})</small></span>
                                                             </div>`;
                                                         }
                                                         
@@ -2902,7 +2904,7 @@
                                                                     <i class="ri-restaurant-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Meal Cost:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${mealPlanSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${mealPlanSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         } else if (supplementBreakfastIncludedGrid && selectedMealPlan && selectedMealPlan.includes('breakfast')) {
                                                             gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
@@ -2922,7 +2924,7 @@
                                                                     <i class="ri-user-smile-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Child with Bed:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithBedSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${childWithBedSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         }
                                                         
@@ -2934,7 +2936,7 @@
                                                                     <i class="ri-user-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Child without Bed:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithoutBedSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${childWithoutBedSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         }
                                                         
@@ -2942,7 +2944,7 @@
                                                         
                                                         // Calculate and display grand total
                                                         const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
                                                         grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
                                                         
                                                         const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
@@ -3093,7 +3095,7 @@
                                                                 const headerEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
                                                                 const val = parseFloat(priceInput.value) || parseFloat(priceInput.dataset.dbTotal) || 0;
                                                                 if (headerEl && val > 0) {
-                                                                    headerEl.textContent = '{{ trim($tour->currency ?? "$") }} ' + val.toFixed(2);
+                                                                    headerEl.textContent = '{{ trim($displayCurrency) }} ' + val.toFixed(2);
                                                                 }
                                                             }
 
@@ -3253,7 +3255,7 @@
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
+                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">{{ $displayCurrency }}</span>
                                                     <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
                                                     <button type="button" class="btn d-flex align-items-center get-hotel-price-btn" id="get_price_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price">
                                                         <i class="ri-money-dollar-circle-line me-1"></i> Get Price
@@ -3304,7 +3306,7 @@
                                                         <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
                                                             <div class="d-flex justify-content-between align-items-center">
                                                                 <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
-                                                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="hotel_grand_total_{{ $hotelOrder->booking_id }}">$0.00</span>
+                                                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="hotel_grand_total_{{ $hotelOrder->booking_id }}">{{ $displayCurrency }} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4187,7 +4189,7 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text" style="height: 35px;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
@@ -4294,7 +4296,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide Price</label>
                                                         <div class="position-relative">
-                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
                                                         </div>
                                                         <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
@@ -4671,7 +4673,7 @@
                                                                 foreach ($multiRestaurants as $mr) {
                                                                     $mrValue = 'multi_restaurant_' . $mr->id;
                                                                     $mrPrice = $mr->adult_price ?? $mr->price ?? 0;
-                                                                    $mrCurrency = $mr->currency ?? 'SGD';
+                                                                    $mrCurrency = $mr->currency ?? $displayCurrency;
                                                                     $mrName = $mr->package_name ?? 'Multi Restaurant Package';
                                                                     $isSelected = ($restaurantName === $mrName || strpos($restaurantName, 'Multi Restaurant') !== false);
                                                                     if ($isSelected) $multiRestaurantSelected = true;
@@ -4896,7 +4898,7 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text" style="height: 35px;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
@@ -6426,16 +6428,16 @@
                                     </h6>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="text-muted" style="font-size: 0.8rem;">Base Price</span>
-                                        <span class="fw-bold" id="price_base_amount" style="color: #495057; font-size: 0.85rem;">$0.00</span>
+                                        <span class="fw-bold" id="price_base_amount" style="color: #495057; font-size: 0.85rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-2" id="price_surcharge_row" style="display: none;">
                                         <span class="text-muted" style="font-size: 0.8rem;">Night Surcharge</span>
-                                        <span class="fw-bold text-warning" id="price_surcharge_amount" style="font-size: 0.85rem;">$0.00</span>
+                                        <span class="fw-bold text-warning" id="price_surcharge_amount" style="font-size: 0.85rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                     <hr class="my-2" style="border-color: #e9ecef;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold" style="color: #495057; font-size: 0.9rem;">Total Price</span>
-                                        <span class="fw-bold" id="price_total_amount" style="color: #fda085; font-size: 1.1rem;">$0.00</span>
+                                        <span class="fw-bold" id="price_total_amount" style="color: #fda085; font-size: 1.1rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -6454,7 +6456,7 @@
 </div>
 
 <!-- Hotel Booking Modal -->
-<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $tour->currency ?? '$' }}">
+<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $displayCurrency }}">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
@@ -6560,7 +6562,7 @@
                                         <label for="total_price_modal" class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;">Total Price</label>
                                         <div class="d-flex align-items-center flex-nowrap text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.5rem 0.375rem 0.75rem; height: 38px;">
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
-                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
+                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">{{ $displayCurrency }} 0.00</span>
                                             <button type="button" class="btn d-flex align-items-center flex-shrink-0 ms-2" style="height: 28px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.7rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
                                                 <i class="ri-refresh-line me-1"></i> Get Price
                                             </button>
@@ -6602,7 +6604,7 @@
                                 <div id="hotel_modal_price_grid" class="mt-2 rounded text-start" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.5rem 0.6rem; border-radius: 6px;">
                                     <label class="form-label fw-semibold mb-1 text-start d-block" style="color: #059669; font-size: 0.7rem;"><i class="ri-price-tag-3-line me-1"></i>Breakdown</label>
                                     <div id="hotel_modal_price_grid_content" style="color: #374151; font-size: 0.75rem; line-height: 1.4;"></div>
-                                    <div class="border-top mt-2 pt-2 fw-bold d-flex justify-content-between align-items-center" style="font-size: 0.8rem; color: #059669;"><span>Total</span><span id="hotel_modal_price_grid_total">$0.00</span></div>
+                                    <div class="border-top mt-2 pt-2 fw-bold d-flex justify-content-between align-items-center" style="font-size: 0.8rem; color: #059669;"><span>Total</span><span id="hotel_modal_price_grid_total">{{ $displayCurrency }} 0.00</span></div>
                                 </div>
                             </div>
                         </div>
@@ -6714,7 +6716,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Estimated Price</label>
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                        <span class="input-group-text">{{ $displayCurrency }}</span>
                                         <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_hotel_transport_price" id="modal_hotel_transport_price" placeholder="0.00" data-original-price="">
                                     </div>
                                     <small class="text-muted">Optional, can be adjusted later.</small>
@@ -7031,7 +7033,7 @@
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem;  height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false" style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                             </div>
@@ -7752,7 +7754,7 @@
                                         <div class="col-md-4" style="display: none;">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guide Price</label>
                                             <div class="position-relative">
-                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
+                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $displayCurrency }}</span>
                                                 <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_attraction_guide_price" id="modal_attraction_guide_price" placeholder="0.00" readonly style="padding-left: 30px; height: 36px; font-size: 0.8rem;">
                                             </div>
                                             <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
@@ -7885,7 +7887,7 @@
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="font-size: 0.8rem; height: 36px; font-weight: 500;" readonly>
                                             </div>
@@ -7940,7 +7942,7 @@
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center rounded px-3 py-2" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                                             <span class="fw-bold text-white d-flex align-items-center" style="font-size: 0.95rem;"><i class="ri-calculator-line me-2"></i>Total Price</span>
-                                            <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">{{ $tour->currency ?? '$' }} 0.00</span>
+                                            <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">{{ $displayCurrency }} 0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -8352,7 +8354,7 @@
                                             </label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" 
                                                        class="form-control border border-start-0" 
@@ -8410,7 +8412,7 @@
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
                                                 <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
-                                                <span class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
+                                                <span class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981;">{{ $displayCurrency }} 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -8774,7 +8776,7 @@
                                             </label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" 
                                                        class="form-control border border-start-0" 
@@ -8824,7 +8826,7 @@
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
                                                 <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
-                                                <span class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
+                                                <span class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981;">{{ $displayCurrency }} 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -9079,7 +9081,7 @@
                                     </label>
                                     <div class="input-group" style="height: 36px;">
                                         <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                            {{ $tour->currency ?? '$' }}
+                                            {{ $displayCurrency }}
                                         </span>
                                         <input type="number" 
                                                class="form-control border border-start-0" 
@@ -9174,14 +9176,14 @@
                     </div>
 
                     <input type="hidden" id="globalPaymentTourId" value="{{ $tour->tour_id ?? '' }}">
-                    <input type="hidden" id="globalPaymentCurrency" value="SGD">
+                    <input type="hidden" id="globalPaymentCurrency" value="{{ $displayCurrency }}">
                     <input type="hidden" id="globalPaymentExchangeRate" value="1">
                     <input type="hidden" id="globalPaymentAutoVerify" value="1">
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Amount</label>
                         <div class="input-group">
-                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                            <span class="input-group-text">{{ $displayCurrency }}</span>
                             <input type="number" step="0.01" min="0" class="form-control" id="globalPaymentAmount" name="payment_amount" readonly>
                         </div>
                         <small class="text-muted">Amount is auto-filled from the service price.</small>
@@ -11292,7 +11294,7 @@
             const needTransport = document.getElementById('modal_need_restaurant_transport');
             const transportPrice = (needTransport && needTransport.checked && transportEl.length) ? (parseFloat(transportEl.val()) || 0) : 0;
             const totalPrice = mealPrice + transportPrice;
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             
             $('#modal_restaurant_meal_price_display').text(currency + ' ' + mealPrice.toFixed(2));
             const breakdown = totalPriceEl && totalPriceEl.getAttribute('data-meal-breakdown');
@@ -11514,7 +11516,7 @@
 
         // Update attraction modal price grid: Ticket | Transport | Guide segments + Total (like reference image)
         function updateAttractionModalPriceGrid() {
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             const ticketPrice = parseFloat($('#modal_attraction_total_price').val()) || 0;
             const transportPrice = parseFloat($('#modal_attraction_transport_price').val()) || 0;
             const guidePrice = parseFloat($('#modal_attraction_guide_price').val()) || 0;
@@ -12360,7 +12362,7 @@
 
     // -------- Global Payment Gate (ALL service adds) --------
     const __tourStatus = @json($tour->tour_status ?? '');
-    const __tourCurrencySymbol = @json($tour->currency ?? '$');
+    const __tourCurrencySymbol = @json($displayCurrency);
     const __tourIdForPayment = @json($tour->tour_id ?? '');
     const __tourAddPaymentUrl = @json(isset($tour) && isset($tour->tour_id) ? route('tour.add-payment', $tour->tour_id) : '');
 
@@ -12498,7 +12500,7 @@
                     },
                     body: JSON.stringify({
                         payment_amount: safeAmount,
-                        currency: 'SGD',
+                        currency: @json($displayCurrency),
                         exchange_rate: 1,
                         payment_date: paymentDate,
                         payment_type: paymentType,
@@ -16545,30 +16547,30 @@
                 detailsHtml = `
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${adultPrice.toFixed(2)} × ${adultsCount} = ${__tourCurrencySymbol} ${adultTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${childPrice.toFixed(2)} × ${childrenCount} = ${__tourCurrencySymbol} ${childTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${infantPrice.toFixed(2)} × ${infantsCount} = ${__tourCurrencySymbol} ${infantTotal.toFixed(2)}</span>
                     </div>
                 `;
             } else if (serviceType === 'Private' && !isManualPriceUsed) {
                 detailsHtml = `
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;">
                         <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
@@ -16593,7 +16595,7 @@
             
             const totalPriceDisplay = document.getElementById('transport_total_price_display');
             if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
+                totalPriceDisplay.textContent = __tourCurrencySymbol + ' ' + formattedTotalPrice;
             }
             
             // Update hidden fields
@@ -16706,11 +16708,11 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-car-line me-1" style="color: #667eea;"></i>Base (vehicle):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #667eea;"></i>Hourly rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${costPerHour.toFixed(2)} per hour</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-calendar-check-line me-1" style="color: #667eea;"></i>Selected hours:</span>
@@ -16718,11 +16720,11 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-calculator-line me-1" style="color: #667eea;"></i>Hours charge:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${costPerHour.toFixed(2)} × ${selectedHours} = ${__tourCurrencySymbol} ${hourlyCost.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
-                            <span class="fw-bold" style="color: #495057;">SGD ${basePrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalPrice.toFixed(2)}</span>
+                            <span class="fw-bold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)} + ${__tourCurrencySymbol} ${hourlyCost.toFixed(2)} = ${__tourCurrencySymbol} ${totalPrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).</small>
                     `;
@@ -16732,11 +16734,11 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-price-tag-3-line me-1" style="color: #28a745;"></i>Base (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #28a745;"></i>Hourly (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${selectedHours} h = SGD ${hourlyPerPerson.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${sharableCostPerHour.toFixed(2)} × ${selectedHours} h = ${__tourCurrencySymbol} ${hourlyPerPerson.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-group-line me-1" style="color: #28a745;"></i>Guests:</span>
@@ -16744,7 +16746,7 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
-                            <span class="fw-bold" style="color: #495057;">(SGD ${perPersonTotal.toFixed(2)} per person) × ${validatedPassengers} = SGD ${totalPrice.toFixed(2)}</span>
+                            <span class="fw-bold" style="color: #495057;">(${__tourCurrencySymbol} ${perPersonTotal.toFixed(2)} per person) × ${validatedPassengers} = ${__tourCurrencySymbol} ${totalPrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.</small>
                     `;
@@ -16759,30 +16761,30 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${adultPrice.toFixed(2)} × ${adultsCount} = ${__tourCurrencySymbol} ${adultTotal.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${childPrice.toFixed(2)} × ${childrenCount} = ${__tourCurrencySymbol} ${childTotal.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${infantPrice.toFixed(2)} × ${infantsCount} = ${__tourCurrencySymbol} ${infantTotal.toFixed(2)}</span>
                         </div>
                     `;
                 } else {
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).</small>
                     `;
@@ -16797,7 +16799,7 @@
             priceDetails.innerHTML = detailsHtml;
             const formattedTotalPrice = totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const totalPriceDisplay = document.getElementById('local_transfer_total_price_display');
-            if (totalPriceDisplay) totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = __tourCurrencySymbol + ' ' + formattedTotalPrice;
             
             document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
             document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
@@ -18112,10 +18114,10 @@
                                     
                                     if (isSingleOccupancy) {
                                         price = parseFloat(sampleRoom.weekday_price) || 0;
-                                        priceText = ` - $${price}`;
+                                        priceText = ` - ${window.__displayCurrency} ${price}`;
                                     } else {
                                         price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                        priceText = ` - $${price}`;
+                                        priceText = ` - ${window.__displayCurrency} ${price}`;
                                     }
                                     
                                     const option = document.createElement('option');
@@ -18137,7 +18139,7 @@
                                     option.dataset.dinner = sampleRoom.dinner || 0;
                                     
                                     roomTypeSelect.appendChild(option);
-                                    console.log(`Added room type: ${roomType} with price $${price}`);
+                                    console.log(`Added room type: ${roomType} with price ${window.__displayCurrency} ${price}`);
                                 }
                             });
                             
@@ -18327,7 +18329,7 @@
                         if (bed.extra_bed) {
                             bedTypeText += ` + Extra Bed`;
                             if (bed.extra_bed_price) {
-                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                                bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                             }
                         }
                         
@@ -18335,7 +18337,7 @@
                         if (bed.baby_cot) {
                             bedTypeText += ` + Baby Cot`;
                             if (bed.baby_cot_price) {
-                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                                bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                             }
                         }
                         
@@ -18613,7 +18615,7 @@
         }
         
         // Update the UI with the calculated price if needed
-        console.log(`Meal pricing for ${personCount} persons: $${totalMealPrice.toFixed(2)}`);
+        console.log(`Meal pricing for ${personCount} persons: ${window.__displayCurrency} ${totalMealPrice.toFixed(2)}`);
         
         // Validate fields after meal plan selection
         validateHotelModalFields();
@@ -18935,7 +18937,7 @@
                          if (bed.extra_bed) {
                              bedTypeText += ` + Extra Bed`;
                              if (bed.extra_bed_price) {
-                                 bedTypeText += ` ($${bed.extra_bed_price})`;
+                                 bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                              }
                          }
                          
@@ -18943,7 +18945,7 @@
                          if (bed.baby_cot) {
                              bedTypeText += ` + Baby Cot`;
                              if (bed.baby_cot_price) {
-                                 bedTypeText += ` ($${bed.baby_cot_price})`;
+                                 bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                              }
                          }
                          
@@ -19143,7 +19145,7 @@
         const totalPrice = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
         
         const modalEl = document.getElementById('hotelBookingModal');
-        const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+        const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || __tourCurrencySymbol;
         const fmt = (n) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         // Update price breakdown grid
@@ -19254,7 +19256,7 @@
 
     // Reset a booking's price (input, pricing-details grid, totals) to zero.
     window.zeroOutHotelBookingPrice = function(bookingId) {
-        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+        const currencyLabel = '{{ trim($displayCurrency) }}';
         const totalInput = document.getElementById('total_price_' + bookingId);
         if (totalInput) {
             totalInput.value = '0.00';
@@ -19400,7 +19402,7 @@
             dates: dates
         })
         .then(data => {
-            const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+            const currencyLabel = '{{ trim($displayCurrency) }}';
             if (data && data.success) {
                 // Helper grand_total is per single room (room + meals + extra bed).
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
@@ -19558,7 +19560,7 @@
             if (data && data.success) {
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
                 const modalEl = document.getElementById('hotelBookingModal');
-                const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+                const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || __tourCurrencySymbol;
                 if (priceInput) priceInput.value = finalTotal.toFixed(2);
                 if (priceDisplay) priceDisplay.textContent = currencySymbol + finalTotal.toFixed(2);
 
@@ -19603,7 +19605,7 @@
             if (childWithBedPrice > 0) {
                 childWithBedWrap.style.display = 'block';
                 if (childWithBedPriceLabel) {
-                    childWithBedPriceLabel.textContent = ` ($${childWithBedPrice.toFixed(2)})`;
+                    childWithBedPriceLabel.textContent = ` (${window.__displayCurrency} ${childWithBedPrice.toFixed(2)})`;
                 }
             } else {
                 childWithBedWrap.style.display = 'none';
@@ -19619,7 +19621,7 @@
             if (childWithoutBedPrice > 0) {
                 childWithoutBedWrap.style.display = 'block';
                 if (childWithoutBedPriceLabel) {
-                    childWithoutBedPriceLabel.textContent = ` ($${childWithoutBedPrice.toFixed(2)})`;
+                    childWithoutBedPriceLabel.textContent = ` (${window.__displayCurrency} ${childWithoutBedPrice.toFixed(2)})`;
                 }
             } else {
                 childWithoutBedWrap.style.display = 'none';
@@ -20324,18 +20326,18 @@
         const totalPrice = basePrice + surcharge;
         
         // Update price display
-        document.getElementById('price_base_amount').textContent = '$' + basePrice.toFixed(2);
+        document.getElementById('price_base_amount').textContent = __tourCurrencySymbol + ' ' + basePrice.toFixed(2);
         
         // Show/hide surcharge
         const surchargeRow = document.getElementById('price_surcharge_row');
         if (surcharge > 0) {
             surchargeRow.style.display = 'flex';
-            document.getElementById('price_surcharge_amount').textContent = '$' + surcharge.toFixed(2);
+            document.getElementById('price_surcharge_amount').textContent = __tourCurrencySymbol + ' ' + surcharge.toFixed(2);
         } else {
             surchargeRow.style.display = 'none';
         }
         
-        document.getElementById('price_total_amount').textContent = '$' + totalPrice.toFixed(2);
+        document.getElementById('price_total_amount').textContent = __tourCurrencySymbol + ' ' + totalPrice.toFixed(2);
         
         // Show price container
         priceContainer.style.display = 'block';
@@ -21142,7 +21144,7 @@
             const option = document.createElement('option');
             option.value = 'multi_restaurant_' + m.id;
             const price = m.adult_price ?? m.price ?? 0;
-            const currency = m.currency || 'SGD';
+            const currency = m.currency || __tourCurrencySymbol;
             const packageName = m.package_name || 'Multi Restaurant';
             // Show only package name in dropdown; price kept in data for calculations
             option.textContent = packageName;
@@ -21351,7 +21353,7 @@
             const totalPriceInput = document.getElementById('modal_restaurant_total_price');
             if (totalPriceInput) {
                 totalPriceInput.value = mealTotal.toFixed(2);
-                const currency = '{{ $tour->currency ?? "$" }}';
+                const currency = '{{ $displayCurrency }}';
                 const breakdownText = adults + ' adults × ' + currency + adultPrice.toFixed(2) + ' + ' + children + ' children × ' + currency + childPrice.toFixed(2) + ' = ' + currency + mealTotal.toFixed(2);
                 totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
             }
@@ -21538,7 +21540,7 @@
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
         if (totalPriceInput) {
             totalPriceInput.value = totalPrice.toFixed(2);
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             const breakdownText = adults + ' adults × ' + currency + adultPricePerPerson.toFixed(2) + ' + ' + children + ' children × ' + currency + childPricePerPerson.toFixed(2) + ' = ' + currency + totalPrice.toFixed(2);
             totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
         }

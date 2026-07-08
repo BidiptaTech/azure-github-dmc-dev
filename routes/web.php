@@ -608,7 +608,7 @@ Route::get('/clear', function () {
         // Country and City API routes
         Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
-
+        Route::get('/get-currency-by-country', [UserController::class, 'getCurrencyByCountry'])->name('get.currency.by.country');
         Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms'])->name('get-no-of-rooms');
         Route::get('/get-rooms-by-dmc', [HotelController::class, 'getRoomsByDmc']);
         Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
