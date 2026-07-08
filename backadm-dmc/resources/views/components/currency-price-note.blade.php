@@ -4,8 +4,9 @@
     'dmcSelected' => false,
 ])
 
+@props(['currency' => null])
 @php
-    $userCurrency = auth()->user()->currency ?? null;
+    $userCurrency = filled($currency) ? $currency : (auth()->user()->currency ?? null);
     $isAdminDmcMode = $watchDmc && in_array(auth()->user()->role_id, [1, 20]);
 
     if ($isAdminDmcMode && $dmcSelected) {
