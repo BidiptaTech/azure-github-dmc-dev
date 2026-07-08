@@ -313,6 +313,7 @@
 </head>
 <body class="invoice-pdf-compact">
 @php
+    require resource_path('views/invoices/pdf/partials/currency-setup-inc.php');
     $mode = $mode ?? 'full';
     $logoType = $logoType ?? 'dmc';
     $displayLogoSrc = null;
@@ -477,7 +478,6 @@
     $invDate = $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('d-M-Y') : '';
     $docTitle = ($invoice->invoice_type ?? '') === 'proforma' ? 'PROFORMA INVOICE' : 'INVOICE';
 
-    $baseCc = strtoupper($invoice->base_currency ?? 'SGD');
     $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
     $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
     $gstAmount = (float) ($invoice->gst_amount ?? 0);
@@ -499,13 +499,6 @@
     // Packaged Lite PDF: total / outstanding reflect special discount off stored invoice total.
     $grandTotalAlternatePdf = (float) $grandTotal - $specialDiscountForLines;
     $outstandingBalanceAlternatePdf = $grandTotalAlternatePdf - $paymentReceived;
-
-    $selectedCurrency = strtoupper($selectedCurrency ?? 'SGD');
-    $currencyConversion = $currencyConversion ?? [];
-    $showCurrencyConversion = ($selectedCurrency !== 'SGD' && count($currencyConversion) > 1);
-
-    // Use currency code prefix to avoid missing-glyph issues in PDF engines.
-    $selectedCurrencyPrefix = $selectedCurrency . ' ';
 
     $fmtMoney = function ($n) use ($baseCc) {
         return number_format(round((float) $n, 2), 2);
