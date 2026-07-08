@@ -26,6 +26,7 @@ use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
@@ -2962,6 +2963,8 @@ class CommonHelper
             str_contains($country, 'thailand') => 'THB',
             str_contains($country, 'malaysia') => 'MYR',
             str_contains($country, 'indonesia') => 'IDR',
+            str_contains($country, 'vietnam') || str_contains($country, 'viet nam') => 'VND',
+            str_contains($country, 'philippines') => 'PHP',
             str_contains($country, 'united arab') || str_contains($country, 'dubai') => 'AED',
             default => 'SGD',
         };
@@ -3267,8 +3270,8 @@ class CommonHelper
         }
 
         // Currency handling
-        // Base currency is what prices are stored in (default SGD as per requirement)
-        $baseCurrency = strtoupper($tour->currency ?? 'SGD');
+        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC), not a hardcoded SGD.
+        $baseCurrency = self::resolveTourDisplayCurrency($tour);
         $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
         $exchangeRate = 1.0;
 
@@ -6899,6 +6902,238 @@ class CommonHelper
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * ISO codes available for invoice currency selection / conversion.
+     *
+     * @return array<int, string>
+     */
+    public static function getInvoiceAvailableCurrencies(): array
+    {
+        return [
+            'SGD', 'USD', 'EUR', 'GBP', 'INR', 'AUD', 'NZD', 'CAD', 'CHF', 'JPY', 'CNY',
+            'HKD', 'TWD', 'KRW', 'THB', 'MYR', 'IDR', 'PHP', 'VND', 'AED', 'SAR', 'QAR',
+            'KWD', 'BHD', 'OMR', 'ZAR', 'NGN', 'EGP', 'KES', 'GHS', 'MAD', 'BRL', 'ARS',
+            'CLP', 'COP', 'PEN', 'MXN', 'RUB', 'UAH', 'TRY', 'ILS', 'PLN', 'CZK', 'HUF',
+            'RON', 'SEK', 'NOK', 'DKK', 'ISK', 'BGN', 'HRK', 'PKR', 'LKR', 'BDT', 'MVR',
+            'KZT', 'DOP', 'JMD',
+        ];
+    }
+
+    /**
+     * Resolve DMC / tour currency for invoices (e.g. VND for Vietnam DMC).
+     */
+    public static function resolveDmcCurrencyForInvoice(?User $dmc, ?Tour $tour = null): string
+    {
+        $available = self::getInvoiceAvailableCurrencies();
+
+        if ($dmc && trim((string) ($dmc->currency ?? '')) !== '') {
+            return CurrencyHelper::normalizeCurrencyToCode($dmc->currency, $available, 'SGD');
+        }
+
+        if ($tour && trim((string) ($tour->currency ?? '')) !== '') {
+            return CurrencyHelper::normalizeCurrencyToCode($tour->currency, $available, 'SGD');
+        }
+
+        if ($dmc && trim((string) ($dmc->country ?? '')) !== '') {
+            $country = Country::where('name', $dmc->country)->first();
+            if ($country && trim((string) ($country->currency ?? '')) !== '') {
+                return CurrencyHelper::normalizeCurrencyToCode($country->currency, $available, 'SGD');
+            }
+        }
+
+        if ($tour) {
+            return self::resolveTourEmailCurrency($tour, $dmc);
+        }
+
+        return 'SGD';
+    }
+
+    /**
+     * Tour display/base currency for quotation & itinerary PDFs (e.g. VND for Vietnam DMC).
+     * Prefers the tour's DMC currency, then tour currency, then DMC country currency.
+     */
+    public static function resolveTourDisplayCurrency(Tour $tour): string
+    {
+        $dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $dmc = User::where('userId', $tour->dmc_id)->first();
+        }
+
+        return self::resolveDmcCurrencyForInvoice($dmc, $tour);
+    }
+
+    /**
+     * Invoice display base currency: prefer DMC country currency over legacy SGD default.
+     */
+    public static function resolveInvoiceBaseCurrency(Invoice $invoice): string
+    {
+        $invoice->loadMissing(['tour', 'dmc']);
+
+        $dmc = $invoice->dmc;
+        if (!$dmc && $invoice->dmc_id) {
+            $dmc = User::where('userId', $invoice->dmc_id)->first();
+        }
+
+        $fromDmc = self::resolveDmcCurrencyForInvoice($dmc, $invoice->tour);
+        $stored = strtoupper(trim((string) ($invoice->base_currency ?? '')));
+        $available = self::getInvoiceAvailableCurrencies();
+
+        if ($stored !== '' && $stored !== 'SGD') {
+            return CurrencyHelper::normalizeCurrencyToCode($stored, $available, $fromDmc);
+        }
+
+        return $fromDmc;
+    }
+
+    /**
+     * Selected invoice display currency (query param or invoice DMC base).
+     */
+    public static function getInvoiceSelectedCurrency($requested, Invoice $invoice): string
+    {
+        $available = self::getInvoiceAvailableCurrencies();
+        $default = self::resolveInvoiceBaseCurrency($invoice);
+        $selected = strtoupper(trim((string) ($requested ?? $default)));
+
+        if ($selected === '') {
+            $selected = $default;
+        }
+
+        return in_array($selected, $available, true) ? $selected : $default;
+    }
+
+    /**
+     * Build currency conversion map keyed by invoice base currency.
+     *
+     * @return array<string, float>
+     */
+    public static function buildInvoiceCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
+    {
+        $baseCurrency = self::resolveInvoiceBaseCurrency($invoice);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        $tour = $invoice->tour;
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        $shouldShowTax = in_array($tourStatus, $statusesWithTax, true);
+
+        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
+        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
+        $gstAmount = $invoice->gst_amount ?? 0;
+        $finalPrice = $baseAmount + $gstAmount;
+        $outstandingBalance = $invoice->outstanding_balance ?? 0;
+
+        $amountInBase = $shouldShowTax ? (float) $outstandingBalance : (float) $finalPrice;
+        $conversion = [$baseCurrency => $amountInBase];
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $converted = CurrencyHelper::convertAmount($amountInBase, $baseCurrency, $selectedCurrency);
+            if ($converted !== null) {
+                $conversion[$selectedCurrency] = $converted;
+            }
+        }
+
+        return $conversion;
+    }
+
+    /**
+     * Exchange rate from invoice base currency to selected currency.
+     */
+    public static function getInvoiceExchangeRate(string $baseCurrency, string $selectedCurrency, array $currencyConversion): float
+    {
+        $baseCurrency = strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        if ($selectedCurrency === $baseCurrency) {
+            return 1.0;
+        }
+
+        $baseAmount = $currencyConversion[$baseCurrency] ?? 0;
+        $convertedAmount = $currencyConversion[$selectedCurrency] ?? null;
+
+        if ($baseAmount > 0 && $convertedAmount !== null && $convertedAmount > 0) {
+            return (float) $convertedAmount / (float) $baseAmount;
+        }
+
+        $rate = CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
+
+        if ($rate !== null && $rate > 0) {
+            return (float) $rate;
+        }
+
+        $converted = CurrencyHelper::convertAmount(1, $baseCurrency, $selectedCurrency);
+
+        return ($converted !== null && $converted > 0) ? (float) $converted : 0.0;
+    }
+
+    public static function shouldShowInvoiceCurrencyConversion(string $baseCurrency, string $selectedCurrency, array $currencyConversion): bool
+    {
+        if (strtoupper($selectedCurrency) === strtoupper($baseCurrency)) {
+            return false;
+        }
+
+        $convertedAmount = $currencyConversion[strtoupper($selectedCurrency)] ?? null;
+
+        return $convertedAmount !== null && (float) $convertedAmount > 0;
+    }
+
+    /**
+     * Dual-currency price string for invoice PDFs (base + converted when selected differs).
+     */
+    public static function formatInvoiceDualPrice($amount, string $baseCurrency, string $selectedCurrency, float $exchangeRate): string
+    {
+        if (!is_numeric($amount)) {
+            return '0.00';
+        }
+
+        $amt = (float) $amount;
+        $baseCurrency = strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        if ($selectedCurrency === $baseCurrency) {
+            return number_format(round($amt, 2), 2);
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $baseCurrency, $selectedCurrency);
+        if ($converted === null && $exchangeRate > 0 && $exchangeRate !== 1.0) {
+            $converted = $amt * $exchangeRate;
+        }
+
+        if ($converted === null) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $baseCurrency;
+        }
+
+        return self::formatMoneyAdaptive($amt) . ' ' . $baseCurrency
+            . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
+    }
+
+    /**
+     * Format a monetary value with adaptive precision so small converted
+     * amounts (e.g. 60 IDR = 0.0048 AUD) do not collapse to "0.00".
+     */
+    public static function formatMoneyAdaptive($value): string
+    {
+        if (!is_numeric($value)) {
+            return '0.00';
+        }
+
+        $value = (float) $value;
+        $abs = abs($value);
+
+        if ($abs == 0.0) {
+            return '0.00';
+        }
+
+        if ($abs >= 0.01) {
+            $decimals = 2;
+        } elseif ($abs >= 0.0001) {
+            $decimals = 4;
+        } else {
+            $decimals = 6;
+        }
+
+        return number_format(round($value, $decimals), $decimals);
     }
 
     // Get DMC Dynamic Currency

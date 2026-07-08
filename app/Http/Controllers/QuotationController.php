@@ -123,12 +123,11 @@ class QuotationController extends Controller
             'DOP', // Dominican Peso
             'JMD', // Jamaican Dollar
         ];
-        $currentUser = Auth::user();
-        $dmcId = CommonHelper::getDmcId($currentUser);
-        $dmc = User::select('country')->where('userId', $dmcId)->first();
-        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
-        $currencyRaw = $country ? $country->currency : null;
-        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $availableCurrencies, 'SGD');
+        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC).
+        $defaultCurrency = CommonHelper::resolveTourDisplayCurrency($tour);
+        if (!in_array($defaultCurrency, $availableCurrencies, true)) {
+            $defaultCurrency = 'SGD';
+        }
         $selectedCurrency = strtoupper($request->query('currency', $defaultCurrency));
 
         if (!in_array($selectedCurrency, $availableCurrencies, true)) {
@@ -242,12 +241,11 @@ class QuotationController extends Controller
             'DOP',
             'JMD',
         ];
-        $currentUser = Auth::user();
-        $dmcId = CommonHelper::getDmcId($currentUser);
-        $dmc = User::select('country')->where('userId', $dmcId)->first();
-        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
-        $currencyRaw = $country ? $country->currency : null;
-        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $availableCurrencies, 'SGD');
+        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC).
+        $defaultCurrency = CommonHelper::resolveTourDisplayCurrency($tour);
+        if (!in_array($defaultCurrency, $availableCurrencies, true)) {
+            $defaultCurrency = 'SGD';
+        }
         $selectedCurrency = strtoupper($request->query('currency', $defaultCurrency));
 
         if (!in_array($selectedCurrency, $availableCurrencies, true)) {
