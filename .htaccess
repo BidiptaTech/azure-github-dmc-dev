@@ -7,3 +7,23 @@ RewriteRule ^backadm-dmc/?(.*)$ backadm-dmc/public/$1 [L,QSA]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ $1 [L,QSA]
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # ========================
+  # Laravel Backend Routing
+  # ========================
+  # Redirect /backadm-dmc to Laravel public directory
+  RewriteRule ^backadm-dmc/?(.*)$ backadm-dmc/public/$1 [L,QSA]
+
+  # ========================
+  # React Frontend Routing
+  # ========================
+  # Ignore existing files and directories
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Redirect all other requests to index.html
+  RewriteRule . /index.html [L]
+</IfModule>
