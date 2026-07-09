@@ -29100,7 +29100,8 @@
         formData.append('markup_type', markupType);
         formData.append('discount_value', discountValue);
         formData.append('discount_type', discountType);
-        const discountAmountOut = (discountType === 'foc') ? discountValue : 0;
+        // Store the entered discount amount for FOC, Fixed and % types; 0 when nothing selected.
+        const discountAmountOut = ['foc', 'flat', 'percentage'].includes(discountType) ? discountValue : 0;
         formData.append('discount_amount', discountAmountOut);
         
         // Add tour type (FIT or GROUP). Fall back to whichever radio still exists (the live one is disabled when locked).
