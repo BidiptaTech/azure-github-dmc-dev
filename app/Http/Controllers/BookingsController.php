@@ -112,7 +112,9 @@ class BookingsController extends Controller
     }
 
     /**
-     * Ensure tours.discount_amount is available on list rows (join selects can omit or null it).
+     * Ensure the tour markup / discount columns used by the negotiation modals are available on
+     * list rows. Join selects often omit them, which makes the modal show 0 for markup / discount.
+     * Missing columns are back-filled from the tours table in a single batched query.
      */
     private function hydrateTourNegotiationDiscounts($tours): void
     {
@@ -120,16 +122,41 @@ class BookingsController extends Controller
             ? $tours->getCollection()
             : $tours;
 
+        // Columns required for the negotiation markup/discount business calculation.
+        $negotiationColumns = ['discount', 'discount_type', 'discount_amount', 'markup', 'markup_type', 'markup_amount'];
+
+        // Collect tour ids that are missing any of these attributes on the loaded row.
+        $missingIds = [];
         foreach ($items as $tour) {
-            $fromRow = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
-            if ($fromRow > 0) {
-                $tour->discount_amount = $fromRow;
+            if (empty($tour->tour_id)) {
                 continue;
             }
-            if (!empty($tour->tour_id)) {
-                $stored = Tour::where('tour_id', $tour->tour_id)->value('discount_amount');
-                $tour->discount_amount = max(0, (float) ($stored ?? 0));
+            $attrs = $tour->getAttributes();
+            foreach ($negotiationColumns as $col) {
+                if (!array_key_exists($col, $attrs)) {
+                    $missingIds[] = $tour->tour_id;
+                    break;
+                }
             }
+        }
+
+        $fetched = collect();
+        if (!empty($missingIds)) {
+            $fetched = Tour::whereIn('tour_id', array_unique($missingIds))
+                ->get(array_merge(['tour_id'], $negotiationColumns))
+                ->keyBy('tour_id');
+        }
+
+        foreach ($items as $tour) {
+            $source = !empty($tour->tour_id) ? $fetched->get($tour->tour_id) : null;
+            if ($source) {
+                $sourceAttrs = $source->getAttributes();
+                foreach ($negotiationColumns as $col) {
+                    $tour->{$col} = $sourceAttrs[$col] ?? null;
+                }
+            }
+            // Normalise discount_amount for downstream display.
+            $tour->discount_amount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
         }
     }
 
@@ -340,6 +367,10 @@ class BookingsController extends Controller
             //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
             // }
 
+            // Gross at negotiation time (same calc as the negotiation list) so later-added
+            // services can be detected and added on top of this agreed amount.
+            $grossAtNegotiation = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
+
             $enquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
@@ -352,6 +383,7 @@ class BookingsController extends Controller
                 'current_position' => 'OM',
                 'amount' => $amountOffered,
                 'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
+                'gross_amount' => $grossAtNegotiation,
                 'comment' => $validated['comment'] ?? '',
             ]);
             $enquiry->refresh();
