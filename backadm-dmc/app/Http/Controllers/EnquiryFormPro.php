@@ -1416,7 +1416,17 @@ class EnquiryFormPro extends Controller
             // Pro form: monetary FOC line (footer) persisted for reporting / quotations
             $tour->discount_amount = ($discountType === 'foc')
                 ? ($discountAmountStored > 0 ? $discountAmountStored : (float) $discountValue)
-                : $discountAmountStored;
+                : (in_array($discountType, ['flat', 'percentage'], true)
+                    ? (float) $discountValue
+                    : $discountAmountStored);
+            // Discount type selected by user (percentage / flat / foc); null when nothing selected.
+            $tour->discount_type = in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null;
+            // Markup: boolean flag + selected type + amount.
+            $markupAmountStored = (float) $markupValue;
+            $markupSelected = ($markupAmountStored > 0 && in_array($markupType, ['percentage', 'flat'], true)) ? 1 : 0;
+            $tour->markup = $markupSelected;
+            $tour->markup_type = $markupSelected ? $markupType : null;
+            $tour->markup_amount = $markupSelected ? $markupAmountStored : 0;
             $tour->created_by = $user->userId; // Store the user ID who created the tour
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
@@ -3206,7 +3216,17 @@ class EnquiryFormPro extends Controller
             }
             $tour->discount_amount = ($discountType === 'foc')
                 ? ($discountAmountStored > 0 ? $discountAmountStored : (float) $discountValue)
-                : $discountAmountStored;
+                : (in_array($discountType, ['flat', 'percentage'], true)
+                    ? (float) $discountValue
+                    : $discountAmountStored);
+            // Discount type selected by user (percentage / flat / foc); null when nothing selected.
+            $tour->discount_type = in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null;
+            // Markup: boolean flag + selected type + amount.
+            $markupAmountStored = (float) $markupValue;
+            $markupSelected = ($markupAmountStored > 0 && in_array($markupType, ['percentage', 'flat'], true)) ? 1 : 0;
+            $tour->markup = $markupSelected;
+            $tour->markup_type = $markupSelected ? $markupType : null;
+            $tour->markup_amount = $markupSelected ? $markupAmountStored : 0;
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Update main guest data as JSON
@@ -3287,12 +3307,16 @@ class EnquiryFormPro extends Controller
                 'agent_id' => $request->agent_id
             ]);
             
+            // Count of orders removed during this update. When any existing service is removed and
+            // the tour went through negotiation, the tour reverts to "New Enquiry" (see after commit).
+            $removedOrdersCount = 0;
+
             // Explicit removals from edit form (soft delete)
             if ($request->has('orders_to_delete') && !empty($request->orders_to_delete)) {
                 $ordersToDelete = json_decode($request->orders_to_delete, true);
                 if (is_array($ordersToDelete) && count($ordersToDelete) > 0) {
                     \Log::info('Soft-deleting orders requested by client', ['booking_ids' => $ordersToDelete]);
-                    $this->ordersForTourRow($tour, false)
+                    $removedOrdersCount += (int) $this->ordersForTourRow($tour, false)
                         ->whereIn('booking_id', $ordersToDelete)
                         ->delete();
                 }
@@ -3307,7 +3331,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->entry_port, true);
                 $entryPorts = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'entry_port', $this->resolveKeepBookingIdsForType($tour, 'entry_port', $entryPorts));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'entry_port', $this->resolveKeepBookingIdsForType($tour, 'entry_port', $entryPorts));
 
             $seenEntries = [];
             foreach ($entryPorts as $entryPort) {
@@ -3376,7 +3400,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->exit_port, true);
                 $exitPorts = is_array($decoded) ? $decoded : ($decoded ? [$decoded] : []);
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'exit_port', $this->resolveKeepBookingIdsForType($tour, 'exit_port', $exitPorts));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'exit_port', $this->resolveKeepBookingIdsForType($tour, 'exit_port', $exitPorts));
 
             $seenExits = [];
             foreach ($exitPorts as $exitPort) {
@@ -3445,7 +3469,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->accommodations, true);
                 $accommodations = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'hotel', $this->resolveKeepBookingIdsForType($tour, 'hotel', $accommodations));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'hotel', $this->resolveKeepBookingIdsForType($tour, 'hotel', $accommodations));
 
             $seenHotels = [];
             foreach ($accommodations as $accommodation) {
@@ -3500,7 +3524,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->tours, true);
                 $toursPayload = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'attraction', $this->resolveKeepBookingIdsForType($tour, 'attraction', $toursPayload));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'attraction', $this->resolveKeepBookingIdsForType($tour, 'attraction', $toursPayload));
 
             $seenTours = [];
             foreach ($toursPayload as $tourItem) {
@@ -3553,7 +3577,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->meals, true);
                 $meals = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'restaurant', $this->resolveKeepBookingIdsForType($tour, 'restaurant', $meals));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'restaurant', $this->resolveKeepBookingIdsForType($tour, 'restaurant', $meals));
 
             $seenMeals = [];
             foreach ($meals as $meal) {
@@ -3607,7 +3631,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->transfers, true);
                 $transfers = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'local_transport', $this->resolveKeepBookingIdsForType($tour, 'local_transport', $transfers));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'local_transport', $this->resolveKeepBookingIdsForType($tour, 'local_transport', $transfers));
 
             $seenTransfers = [];
             foreach ($transfers as $transfer) {
@@ -3707,7 +3731,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->guides, true);
                 $guides = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'guide', $this->resolveKeepBookingIdsForType($tour, 'guide', $guides));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'guide', $this->resolveKeepBookingIdsForType($tour, 'guide', $guides));
 
             $seenGuides = [];
             foreach ($guides as $guide) {
@@ -3760,7 +3784,7 @@ class EnquiryFormPro extends Controller
                 $decoded = json_decode($request->miscellaneous, true);
                 $miscItems = is_array($decoded) ? $decoded : [];
             }
-            $this->softDeleteOrphanOrdersForType($tour, 'miscellaneous', $this->resolveKeepBookingIdsForType($tour, 'miscellaneous', $miscItems));
+            $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'miscellaneous', $this->resolveKeepBookingIdsForType($tour, 'miscellaneous', $miscItems));
 
             $seenMisc = [];
             foreach ($miscItems as $miscItem) {
@@ -3807,6 +3831,13 @@ class EnquiryFormPro extends Controller
             }
 
             DB::commit();
+
+            // If any existing service was removed, revert a negotiated tour (Prospect/Tentative/Confirmed)
+            // back to "New Enquiry" and clear payment/negotiation history - same rule as the
+            // single-tour edit form. No-op for New Enquiry / Definite / Actual or when nothing was removed.
+            if ($removedOrdersCount > 0) {
+                \App\Helpers\CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour_id);
+            }
 
             $createdCount = count(array_filter($syncedOrders, fn ($r) => ($r['action'] ?? '') === 'created'));
             $updatedCount = count(array_filter($syncedOrders, fn ($r) => ($r['action'] ?? '') === 'updated'));

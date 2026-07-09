@@ -7338,4 +7338,70 @@ class CommonHelper
             'days' => $days,
         ];
     }
+
+    /**
+     * Gross tour amount (sum of booked service sell prices) used by the negotiation modals.
+     * Mirrors the inline calculation in the new-enquiries / follow-ups blades so the value stored
+     * at negotiation time matches what those lists display. Hotels use pickup/item total only
+     * (transport is already included); other services add transfer + guide prices.
+     *
+     * @param  \App\Models\Tour|int  $tour
+     */
+    public static function calculateTourGrossAmount($tour): float
+    {
+        if (is_numeric($tour)) {
+            $tour = Tour::where('tour_id', (int) $tour)->first();
+        }
+        if (!$tour) {
+            return 0.0;
+        }
+
+        $isPro = (int) ($tour->is_pro ?? 0);
+        $bookings = Order::where('tour_id', $tour->tour_id)->get();
+
+        $total = 0.0;
+        foreach ($bookings as $booking) {
+            if (!in_array((int) $booking->status, [1, 3], true)) {
+                continue;
+            }
+            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+            if (!is_array($data)) {
+                continue;
+            }
+            $orderType = $booking->type ?? '';
+            foreach ($data as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+                // Hotel: pickup total only - do NOT add transfer (transport added automatically).
+                $transferPrice = 0.0;
+                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                    if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                    } else {
+                        $transferPrice = (float) $item['transfer_options']['cost'];
+                    }
+                }
+
+                $guidePrice = 0.0;
+                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                    $gv = $item['guide_options']['total_price']
+                        ?? $item['guide_options']['cost']
+                        ?? $item['guide_options']['Cost']
+                        ?? $item['guide_options']['sell']
+                        ?? $item['guide_options']['Sell']
+                        ?? 0;
+                    if ($gv > 0) {
+                        $guidePrice = (float) $gv;
+                    }
+                }
+
+                $total += $itemPrice + $transferPrice + $guidePrice;
+            }
+        }
+
+        return (float) ceil($total);
+    }
 }
