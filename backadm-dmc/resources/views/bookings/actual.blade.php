@@ -953,12 +953,37 @@
                                 $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
                             }
                             $grossTourAmount = round($tourTotalPrice);
-                            $tourFocDiscount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
-                            $discountAmount = $tourFocDiscount;
-                            $priceAfterFoc = max(0, $grossTourAmount - $discountAmount);
-                            $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $priceAfterFoc;
+
+                            // Markup stored on the tour (increases payable amount).
+                            $tourMarkupType = $tour->markup_type ?? null;
+                            $tourMarkupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
+                            $tourMarkupOn = ((int) ($tour->markup ?? 0) === 1)
+                                && $tourMarkupRaw > 0
+                                && in_array($tourMarkupType, ['percentage', 'flat'], true);
+                            $tourMarkupMoney = $tourMarkupOn
+                                ? ($tourMarkupType === 'percentage'
+                                    ? ($grossTourAmount * $tourMarkupRaw / 100)
+                                    : $tourMarkupRaw)
+                                : 0;
+                            $tourMarkupMoney = max(0, $tourMarkupMoney);
+
+                            // Discount stored on the tour, applied after markup.
+                            $tourDiscountType = $tour->discount_type ?? null;
+                            $tourDiscountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
+                            $discountBaseAmount = $grossTourAmount + $tourMarkupMoney;
+                            if ($tourDiscountType === 'percentage') {
+                                $tourDiscountMoney = $discountBaseAmount * $tourDiscountRaw / 100;
+                            } else {
+                                $tourDiscountMoney = $tourDiscountRaw;
+                            }
+                            $tourDiscountMoney = max(0, $tourDiscountMoney);
+
+                            $discountAmount = $tourDiscountMoney;
+                            $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
+                            $netPayableBase = (int) ceil($priceAfterFoc);
+                            $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
                             $netTourAmount = $baseAmount;
-                            $negotiationDiscount = max(0, $priceAfterFoc - $baseAmount);
+                            $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
                             // Calculate tax amount using TaxHelper
                             $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
@@ -4787,12 +4812,37 @@
             $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
         }
         $grossTourAmount = round($tourTotalPrice);
-        $tourFocDiscount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
-        $discountAmount = $tourFocDiscount;
-        $priceAfterFoc = max(0, $grossTourAmount - $discountAmount);
-        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $priceAfterFoc;
+
+        // Markup stored on the tour (increases payable amount).
+        $tourMarkupType = $tour->markup_type ?? null;
+        $tourMarkupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
+        $tourMarkupOn = ((int) ($tour->markup ?? 0) === 1)
+            && $tourMarkupRaw > 0
+            && in_array($tourMarkupType, ['percentage', 'flat'], true);
+        $tourMarkupMoney = $tourMarkupOn
+            ? ($tourMarkupType === 'percentage'
+                ? ($grossTourAmount * $tourMarkupRaw / 100)
+                : $tourMarkupRaw)
+            : 0;
+        $tourMarkupMoney = max(0, $tourMarkupMoney);
+
+        // Discount stored on the tour, applied after markup.
+        $tourDiscountType = $tour->discount_type ?? null;
+        $tourDiscountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
+        $discountBaseAmount = $grossTourAmount + $tourMarkupMoney;
+        if ($tourDiscountType === 'percentage') {
+            $tourDiscountMoney = $discountBaseAmount * $tourDiscountRaw / 100;
+        } else {
+            $tourDiscountMoney = $tourDiscountRaw;
+        }
+        $tourDiscountMoney = max(0, $tourDiscountMoney);
+
+        $discountAmount = $tourDiscountMoney;
+        $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
+        $netPayableBase = (int) ceil($priceAfterFoc);
+        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
         $netTourAmount = $baseAmount;
-        $negotiationDiscount = max(0, $priceAfterFoc - $baseAmount);
+        $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
         // Calculate tax amount using TaxHelper
         $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
@@ -4819,7 +4869,7 @@
                 }
             }
         }
-        $remainingAmount = $finalAmount - $totalPaid;
+        $remainingAmount = max(0, round($finalAmount - $totalPaid));
         $tourCurrency = $tour->user_currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
     @endphp
     <script>window.tourPaymentData = window.tourPaymentData || {}; window.tourPaymentData[{{ $tour->tour_id }}] = @json($paymentData ?? []);</script>
@@ -5020,6 +5070,7 @@
         data-dmc-rate="{{ $tour->dmc_exchange_rate_value ?? '' }}"
         data-previous-rate="{{ $tour->previous_exchange_rate ?? '' }}"
         data-previous-currency="{{ $tour->previous_payment_currency ?? '' }}"
+        data-tour-currency="{{ $tourCurrency }}"
     >
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg rounded">
@@ -5100,7 +5151,7 @@
                                 required>
                                 <option value="">Select Currency</option>
                                 @foreach(\App\Models\Setting::getCurrencyCodes() as $currencyCode)
-                                    <option value="{{ $currencyCode }}" {{ $currencyCode == ($currency ?? 'SGD') ? 'selected' : '' }}>
+                                    <option value="{{ $currencyCode }}" {{ $currencyCode == $tourCurrency ? 'selected' : '' }}>
                                         {{ $currencyCode }}
                                     </option>
                                 @endforeach
@@ -5133,7 +5184,7 @@
                                 <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light">1 {{ $currency ?? 'SGD' }} =</span>
+                                <span class="input-group-text bg-light">1 {{ $tourCurrency }} =</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="exchange_rate{{ $tour->tour_id }}" 
@@ -5142,7 +5193,7 @@
                                     min="0" 
                                     step="0.0001"
                                     oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
-                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $currency ?? 'SGD' }}</span>
+                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
                             </div>
                             <div class="mt-1">
                                 <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
@@ -5158,7 +5209,7 @@
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $currency ?? 'SGD' }}</span>
+                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="payment_amount{{ $tour->tour_id }}" 
@@ -5174,7 +5225,7 @@
                             <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
                                 <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Amount in {{ $currency ?? 'SGD' }}: {{ number_format(round($remainingAmount), 2) }}
+                                    Amount in {{ $tourCurrency }}: {{ number_format(round($remainingAmount), 2) }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -22883,272 +22934,7 @@ function validateAmount(input, maxAmount) {
     }
 }
 
-function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
-    const exchangeRateSection = document.getElementById(`exchangeRateSection${tourId}`);
-    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
-    const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
-    const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
-    const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
-    
-    if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
-        exchangeRateSection.style.display = 'block';
-        exchangeRateCurrency.textContent = selectedCurrency;
-        currencySymbol.textContent = selectedCurrency;
-        conversionInfoContainer.style.display = 'block';
-        
-        // Fetch exchange rate (placeholder - replace with actual API call)
-        fetchExchangeRate(selectedCurrency, tourId);
-    } else {
-        exchangeRateSection.style.display = 'none';
-        exchangeRateInput.value = '1.00';
-        currencySymbol.textContent = window.bookingCurrency;
-        conversionInfoContainer.style.display = 'none';
-    }
-}
-
-function fetchExchangeRate(currency, tourId) {
-    // Placeholder for exchange rate API call
-    console.log(`Fetching exchange rate for ${currency}`);
-    
-    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
-    const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
-    
-    // Set default rates (replace with actual API call)
-    const defaultRates = {
-        'USD': 0.74,
-        'EUR': 0.69,
-        'GBP': 0.59,
-        'AUD': 1.09,
-        'JPY': 109.50,
-        'CNY': 5.12,
-        'INR': 61.75
-    };
-    
-    if (defaultRates[currency]) {
-        exchangeRateInput.value = defaultRates[currency];
-        rateSourceText.textContent = 'Default';
-    }
-}
-
-function recalculateFromExchangeRate(tourId) {
-    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value);
-    const sgdAmount = parseFloat(document.getElementById(`amount${tourId}`).value);
-    const paymentAmountInput = document.getElementById(`payment_amount${tourId}`);
-    
-    if (exchangeRate && sgdAmount) {
-        const convertedAmount = sgdAmount * exchangeRate;
-        paymentAmountInput.value = convertedAmount.toFixed(2);
-    }
-}
-
-function validatePaymentAmountInput(tourId) {
-    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value);
-    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
-    const maxSGDAmount = parseFloat(document.getElementById(`amount${tourId}`).value);
-    const selectedCurrency = document.getElementById(`currency${tourId}`).value;
-    
-    const validationError = document.getElementById(`paymentValidationError${tourId}`);
-    const validationMessage = document.getElementById(`validationMessage${tourId}`);
-    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
-    
-    if (!paymentAmount || paymentAmount <= 0) {
-        validationError.style.display = 'block';
-        validationMessage.textContent = 'Please enter a valid payment amount';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
-        return;
-    }
-    
-    // Calculate equivalent SGD amount
-    const equivalentSGD = selectedCurrency === window.bookingCurrency ? paymentAmount : (paymentAmount / exchangeRate);
-    
-    if (equivalentSGD > maxSGDAmount) {
-        validationError.style.display = 'block';
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} ${window.bookingCurrency})`;
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
-    } else {
-        validationError.style.display = 'none';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
-    }
-    
-    // Update conversion info
-    if (selectedCurrency !== window.bookingCurrency) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentSGD.toFixed(2)}`;
-    } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${window.bookingCurrency}`;
-    }
-}
-
-function submitPaymentForm(tourId) {
-    const form = document.getElementById(`paymentForm${tourId}`);
-    const overlay = document.getElementById('paymentProcessingOverlay');
-    const modal = document.getElementById(`addPaymentModal${tourId}`);
-    
-    // More robust button selection - try multiple selectors
-    let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
-    if (!submitBtn) {
-        submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
-    }
-    if (!submitBtn) {
-        submitBtn = form.querySelector('button[type="submit"]');
-    }
-    if (!submitBtn) {
-        submitBtn = form.querySelector('.btn-success');
-    }
-    
-    console.log('Submitting payment form for tour:', tourId);
-    console.log('Form action:', form.action);
-    console.log('Submit button found:', submitBtn);
-    
-    if (form.checkValidity()) {
-        // Disable submit button immediately to prevent multiple submissions
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        }
-        
-        // Close modal immediately to prevent multiple submissions
-        const modalInstance = bootstrap.Modal.getInstance(modal);
-        if (modalInstance) {
-            modalInstance.hide();
-        }
-        
-        overlay.classList.add('active');
-        
-        // Use AJAX to submit the form for better user experience
-        const formData = new FormData(form);
-        
-        // Log form data for debugging
-        for (let [key, value] of formData.entries()) {
-            console.log(key, value);
-        }
-        
-        $.ajax({
-            url: form.action,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            success: function(response) {
-                overlay.classList.remove('active');
-                
-                if (response.success) {
-                    Swal.fire({
-                        title: 'Success!',
-                        text: response.message || 'Payment has been recorded and is pending verification.',
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        // Close the modal and reload the page
-                        $(`#addPaymentModal${tourId}`).modal('hide');
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Error!',
-                        text: response.message || 'Failed to submit payment.',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                }
-            },
-            error: function(xhr, status, error) {
-                overlay.classList.remove('active');
-                
-                // Re-enable submit button
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
-                }
-                
-                // Reopen modal if error occurs
-                const modalInstance = new bootstrap.Modal(modal);
-                modalInstance.show();
-                
-                console.error('Error submitting payment:', error);
-                
-                let errorMessage = 'An error occurred while submitting the payment.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    // Handle validation errors
-                    const errors = Object.values(xhr.responseJSON.errors).flat();
-                    errorMessage = errors.join(', ');
-                }
-                
-                Swal.fire({
-                    title: 'Error!',
-                    text: errorMessage,
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-            }
-        });
-    } else {
-        // Reset button if validation fails
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
-        }
-        form.reportValidity();
-    }
-}
-
-// Add event listeners to reset forms when modals are closed
-document.addEventListener('DOMContentLoaded', function() {
-    // Reset payment forms when modals are hidden
-    const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
-    paymentModals.forEach(modal => {
-        modal.addEventListener('shown.bs.modal', function() {
-            const tourId = this.id.replace('addPaymentModal', '');
-            initPaymentRateSourcesForTour(tourId);
-
-            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
-            if (liveEl) liveEl.checked = true;
-
-            const currencySelect = document.getElementById(`currency${tourId}`);
-            if (currencySelect) {
-                updatePaymentAmountEnhanced(tourId, currencySelect.value);
-            }
-        });
-
-        modal.addEventListener('hidden.bs.modal', function() {
-            const tourId = this.id.replace('addPaymentModal', '');
-            const form = document.getElementById(`paymentForm${tourId}`);
-            
-            // More robust button selection
-            let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
-            if (!submitBtn) {
-                submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
-            }
-            if (!submitBtn) {
-                submitBtn = form.querySelector('button[type="submit"]');
-            }
-            if (!submitBtn) {
-                submitBtn = form.querySelector('.btn-success');
-            }
-            
-            // Reset form
-            form.reset();
-            
-            // Reset submit button
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
-            }
-            
-            // Reset currency selection to base DMC currency
-            const currencySelect = form.querySelector('select[name="currency"]');
-            if (currencySelect) {
-                currencySelect.value = window.bookingCurrency;
-                updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
-            }
-        });
-    });
-});
+// Legacy payment handlers removed — see Payment Functions block below (uses tour base currency + API/DMC rates).
 
 function updatePaymentStatus(tourId, paymentIndex, status, amount) {
     if (status === 1) {
@@ -27049,7 +26835,10 @@ function validateAmount(input, maxAmount) {
     }
 }
 
+@include('bookings.partials.payment-currency-helpers')
+
 function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
+    const baseCurrency = getTourPaymentCurrency(tourId);
     const exchangeRateSection = document.getElementById(`exchangeRateSection${tourId}`);
     const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
     const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
@@ -27057,20 +26846,24 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
     const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
     const selectedSource = getSelectedRateSource(tourId);
     
-    if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
+    if (selectedCurrency && selectedCurrency !== baseCurrency) {
         exchangeRateSection.style.display = 'block';
         exchangeRateCurrency.textContent = selectedCurrency;
         currencySymbol.textContent = selectedCurrency;
         conversionInfoContainer.style.display = 'block';
-        
+
+        fetchDmcRateForCurrency(tourId, selectedCurrency);
+
         if (selectedSource === 'live') {
             fetchExchangeRate(selectedCurrency, tourId);
             setRateSourceLabel(tourId, 'API Rate');
+        } else if (selectedSource === 'dmc') {
+            applyRateSourceSelection(tourId, 'dmc');
         }
     } else {
         exchangeRateSection.style.display = 'none';
         exchangeRateInput.value = 1.00;
-        currencySymbol.textContent = window.bookingCurrency;
+        currencySymbol.textContent = baseCurrency;
         conversionInfoContainer.style.display = 'none';
     }
 }
@@ -27088,33 +26881,6 @@ function getSelectedRateSource(tourId) {
 function setRateSourceLabel(tourId, label) {
     const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
     if (rateSourceText) rateSourceText.textContent = label;
-}
-
-function fetchExchangeRate(currency, tourId) {
-    // This would normally call your exchange rate API
-    fetch(`/get-exchange-rate?from=${encodeURIComponent(window.bookingCurrency)}&to=${encodeURIComponent(currency)}`)
-        .then(response => response.json())
-        .then(data => {
-            const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
-            const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
-            if (data.rate) {
-                exchangeRateInput.value = data.rate.toFixed(4);
-                rateSourceText.textContent = 'API Rate';
-                window.paymentRateSources = window.paymentRateSources || {};
-                window.paymentRateSources[tourId] = window.paymentRateSources[tourId] || {};
-                window.paymentRateSources[tourId].liveRate = String(data.rate);
-            } else {
-                exchangeRateInput.value = '1.00';
-                rateSourceText.textContent = 'API Rate';
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching exchange rate:', error);
-            const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
-            const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
-            exchangeRateInput.value = '1.00';
-            rateSourceText.textContent = 'API Rate';
-        });
 }
 
 function initPaymentRateSourcesForTour(tourId) {
@@ -27165,6 +26931,7 @@ function initPaymentRateSourcesForTour(tourId) {
 }
 
 function applyRateSourceSelection(tourId, source) {
+    const baseCurrency = getTourPaymentCurrency(tourId);
     const selectedCurrency = document.getElementById(`currency${tourId}`)?.value;
     const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
     if (!exchangeRateInput) return;
@@ -27173,7 +26940,7 @@ function applyRateSourceSelection(tourId, source) {
     const sources = window.paymentRateSources[tourId] || {};
 
     if (source === 'live') {
-        if (selectedCurrency && selectedCurrency !== window.bookingCurrency) {
+        if (selectedCurrency && selectedCurrency !== baseCurrency) {
             exchangeRateInput.value = '1.00';
             setRateSourceLabel(tourId, 'API Rate');
             fetchExchangeRate(selectedCurrency, tourId);
@@ -27188,7 +26955,13 @@ function applyRateSourceSelection(tourId, source) {
     }
 
     if (source === 'dmc') {
-        if (!sources.dmcRate) return;
+        if (!sources.dmcRate) {
+            const currentCurrency = document.getElementById(`currency${tourId}`)?.value;
+            if (currentCurrency && currentCurrency !== baseCurrency) {
+                fetchDmcRateForCurrency(tourId, currentCurrency);
+            }
+            return;
+        }
         exchangeRateInput.value = sources.dmcRate;
         setRateSourceLabel(tourId, 'DMC Rate');
         recalculateFromExchangeRate(tourId);
@@ -27211,23 +26984,31 @@ function applyRateSourceSelection(tourId, source) {
 }
 
 function recalculateFromExchangeRate(tourId) {
+    const baseCurrency = getTourPaymentCurrency(tourId);
     const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
-    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
-    const remainingAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
-    
-    const equivalentBase = paymentAmount / exchangeRate;
+    const baseAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
+    const paymentAmountInput = document.getElementById(`payment_amount${tourId}`);
     const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
-    
-    if (conversionInfo) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentBase.toFixed(2)}`;
+    const selectedCurrency = document.getElementById(`currency${tourId}`)?.value;
+
+    if (exchangeRate && baseAmount && paymentAmountInput && selectedCurrency && selectedCurrency !== baseCurrency) {
+        const convertedAmount = baseAmount * exchangeRate;
+        paymentAmountInput.value = convertedAmount.toFixed(2);
     }
-    
+
+    if (conversionInfo && selectedCurrency && selectedCurrency !== baseCurrency) {
+        const paymentAmount = parseFloat(paymentAmountInput?.value) || 0;
+        const equivalentBase = paymentAmount / exchangeRate;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${baseCurrency}: ${equivalentBase.toFixed(2)}`;
+    }
+
     validatePaymentAmountInput(tourId);
 }
 
 function validatePaymentAmountInput(tourId) {
+    const baseCurrency = getTourPaymentCurrency(tourId);
     const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
-    const maxSGDAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
+    const maxBaseAmount = Math.round(parseFloat(document.getElementById(`amount${tourId}`).value) || 0);
     const selectedCurrency = document.getElementById(`currency${tourId}`).value;
     const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
     const validationError = document.getElementById(`paymentValidationError${tourId}`);
@@ -27241,23 +27022,22 @@ function validatePaymentAmountInput(tourId) {
         return;
     }
     
-    // Calculate equivalent SGD amount
-    const equivalentSGD = selectedCurrency === window.bookingCurrency ? paymentAmount : (paymentAmount / exchangeRate);
+    const equivalentBase = selectedCurrency === baseCurrency ? Math.round(paymentAmount) : (paymentAmount / exchangeRate);
     
-    if (equivalentSGD > maxSGDAmount) {
+    if (equivalentBase > maxBaseAmount) {
         validationError.style.display = 'block';
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} ${window.bookingCurrency})`;
+        const maxDisplay = selectedCurrency === baseCurrency ? String(maxBaseAmount) : maxBaseAmount.toFixed(2);
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxDisplay} ${baseCurrency})`;
         document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
     } else {
         validationError.style.display = 'none';
         document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
     }
     
-    // Update conversion info
-    if (selectedCurrency !== window.bookingCurrency) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${window.bookingCurrency}: ${equivalentSGD.toFixed(2)}`;
+    if (selectedCurrency !== baseCurrency) {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${baseCurrency}: ${equivalentBase.toFixed(2)}`;
     } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${window.bookingCurrency}`;
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${baseCurrency}`;
     }
 }
 
@@ -27641,9 +27421,21 @@ function submitEditPaymentForm(tourId) {
 
 // Add event listeners to reset forms when modals are closed
 document.addEventListener('DOMContentLoaded', function() {
-    // Reset payment forms when modals are hidden
     const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
     paymentModals.forEach(modal => {
+        modal.addEventListener('shown.bs.modal', function() {
+            const tourId = this.id.replace('addPaymentModal', '');
+            initPaymentRateSourcesForTour(tourId);
+
+            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
+            if (liveEl) liveEl.checked = true;
+
+            const currencySelect = document.getElementById(`currency${tourId}`);
+            if (currencySelect) {
+                updatePaymentAmountEnhanced(tourId, currencySelect.value);
+            }
+        });
+
         modal.addEventListener('hidden.bs.modal', function() {
             const tourId = this.id.replace('addPaymentModal', '');
             const form = document.getElementById(`paymentForm${tourId}`);
@@ -27669,13 +27461,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
             }
             
-            // Reset currency selection to SGD
+            // Reset currency selection to tour base currency
             const currencySelect = document.getElementById(`currency${tourId}`);
             if (currencySelect) {
-                currencySelect.value = window.bookingCurrency;
+                const baseCurrency = getTourPaymentCurrency(tourId);
+                currencySelect.value = baseCurrency;
                 const liveEl = document.getElementById(`rateSourceLive${tourId}`);
                 if (liveEl) liveEl.checked = true;
-                updatePaymentAmountEnhanced(tourId, window.bookingCurrency);
+                updatePaymentAmountEnhanced(tourId, baseCurrency);
             }
             
             // Hide validation errors
