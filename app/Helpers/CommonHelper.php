@@ -6937,6 +6937,48 @@ class CommonHelper
     }
 
     /**
+     * Currencies for payment modal dropdowns: invoice list + any codes from countries table.
+     *
+     * @return array<int, string>
+     */
+    public static function getPaymentAvailableCurrencies(): array
+    {
+        $codes = self::getInvoiceAvailableCurrencies();
+
+        $countryCurrencies = Country::query()
+            ->whereNotNull('currency')
+            ->where('currency', '!=', '')
+            ->distinct()
+            ->pluck('currency');
+
+        foreach ($countryCurrencies as $raw) {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                continue;
+            }
+
+            $upper = strtoupper($raw);
+            if (strlen($upper) === 3 && ctype_alpha($upper)) {
+                $codes[] = $upper;
+                continue;
+            }
+
+            $normalized = CurrencyHelper::normalizeCurrencyToCode($raw, $codes, '');
+            if ($normalized !== '' && strlen($normalized) === 3) {
+                $codes[] = $normalized;
+            }
+        }
+
+        $codes = array_values(array_unique(array_map(
+            static fn ($code) => strtoupper(trim((string) $code)),
+            $codes
+        )));
+        sort($codes);
+
+        return $codes;
+    }
+
+    /**
      * Resolve DMC / tour currency for invoices (e.g. VND for Vietnam DMC).
      */
     public static function resolveDmcCurrencyForInvoice(?User $dmc, ?Tour $tour = null): string
