@@ -1021,6 +1021,10 @@ class TourController extends Controller
                 return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
             }
 
+            if ((int) ($paymentDetails[$paymentIndex]['status'] ?? 0) === 2) {
+                return response()->json(['success' => false, 'message' => 'Declined payments cannot be edited'], 422);
+            }
+
             $paymentDetails[$paymentIndex] = [
                 'amount' => $baseAmount,
                 'original_amount' => $originalAmount,
