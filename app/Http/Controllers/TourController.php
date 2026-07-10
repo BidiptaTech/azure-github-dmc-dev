@@ -691,21 +691,24 @@ class TourController extends Controller
         }
         
         try {
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
             // Get currency data from request
-            $selectedCurrency = $request->input('currency', 'SGD');
-            $exchangeRate = $request->input('exchange_rate', 1);
-            $originalAmount = $request->input('payment_amount'); // The amount user entered
-            
-            // Calculate SGD amount based on currency
-            if ($selectedCurrency === 'SGD') {
-                $sgdAmount = $originalAmount;
+            $selectedCurrency = $request->input('currency', $baseCurrency);
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount'); // The amount user entered
+
+            // Convert the entered amount into the tour base currency for consistent storage.
+            if ($selectedCurrency === $baseCurrency || $exchangeRate <= 0) {
+                $baseAmount = $originalAmount;
             } else {
-                // Convert foreign currency to SGD
-                $sgdAmount = $originalAmount / $exchangeRate;
+                // Convert the selected (foreign) currency back to the base currency.
+                $baseAmount = $originalAmount / $exchangeRate;
             }
-        
+
         $paymentData = [
-            'amount' => $sgdAmount, // Store SGD converted amount
+            'amount' => $baseAmount, // Store amount converted to the tour base currency
             'original_amount' => $originalAmount, // Store original amount in selected currency
             'currency' => $selectedCurrency, // Store selected currency
             'exchange_rate' => $exchangeRate, // Store exchange rate used
@@ -731,7 +734,7 @@ class TourController extends Controller
             'null',
             'null',
             'null',
-            $sgdAmount,
+            $baseAmount,
             $selectedCurrency,
             $request->payment_date,
             $request->payment_type,
@@ -748,8 +751,8 @@ class TourController extends Controller
         $tour->save();
         
         // Create success message with currency information
-        $successMessage = 'Payment of ' . number_format($sgdAmount, 2) . ' SGD';
-        if ($selectedCurrency !== 'SGD') {
+        $successMessage = 'Payment of ' . number_format($baseAmount, 2) . ' ' . $baseCurrency;
+        if ($selectedCurrency !== $baseCurrency) {
             $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
         }
         $successMessage .= ' has been successfully added to Tour #' . $tourId;
@@ -1002,11 +1005,16 @@ class TourController extends Controller
                 'payment_type' => 'required|string'
             ]);
 
-            $selectedCurrency = $request->input('currency', 'SGD');
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
+            $selectedCurrency = $request->input('currency', $baseCurrency);
             $exchangeRate = (float) $request->input('exchange_rate', 1);
             $originalAmount = (float) $request->input('payment_amount');
 
-            $sgdAmount = $selectedCurrency === 'SGD' ? $originalAmount : $originalAmount / $exchangeRate;
+            $baseAmount = ($selectedCurrency === $baseCurrency || $exchangeRate <= 0)
+                ? $originalAmount
+                : $originalAmount / $exchangeRate;
 
             $paymentDetails = json_decode($tour->payment_details, true) ?: [];
             if (!isset($paymentDetails[$paymentIndex])) {
@@ -1014,7 +1022,7 @@ class TourController extends Controller
             }
 
             $paymentDetails[$paymentIndex] = [
-                'amount' => $sgdAmount,
+                'amount' => $baseAmount,
                 'original_amount' => $originalAmount,
                 'currency' => $selectedCurrency,
                 'exchange_rate' => $exchangeRate,
@@ -1043,7 +1051,7 @@ class TourController extends Controller
                 null,
                 null,
                 null,
-                $sgdAmount,
+                $baseAmount,
                 $selectedCurrency,
                 $request->payment_date,
                 $request->payment_type
