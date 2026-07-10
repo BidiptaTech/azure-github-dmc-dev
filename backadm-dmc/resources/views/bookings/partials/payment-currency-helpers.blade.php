@@ -8,6 +8,24 @@ function getTourPaymentCurrency(tourId) {
     return window.bookingCurrency || 'SGD';
 }
 
+function updatePaymentAmountMax(tourId) {
+    const paymentAmountInput = document.getElementById(`payment_amount${tourId}`);
+    if (!paymentAmountInput) {
+        return;
+    }
+
+    const baseCurrency = getTourPaymentCurrency(tourId);
+    const maxBaseAmount = Math.round(parseFloat(document.getElementById(`amount${tourId}`)?.value) || 0);
+    const selectedCurrency = document.getElementById(`currency${tourId}`)?.value;
+    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`)?.value) || 1;
+
+    if (selectedCurrency && selectedCurrency !== baseCurrency && exchangeRate > 0) {
+        paymentAmountInput.setAttribute('max', (maxBaseAmount * exchangeRate).toFixed(2));
+    } else {
+        paymentAmountInput.setAttribute('max', String(maxBaseAmount));
+    }
+}
+
 function fetchExchangeRate(currency, tourId) {
     const baseCurrency = getTourPaymentCurrency(tourId);
     const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
