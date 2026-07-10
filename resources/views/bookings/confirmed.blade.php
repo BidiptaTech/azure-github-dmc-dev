@@ -4778,7 +4778,9 @@
                                                             <button type="button" class="btn btn-xs btn-success p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="verifyPayment({{ $tour->tour_id }}, {{ $index }})" title="Approve"><i class="fas fa-check"></i></button>
                                                             <button type="button" class="btn btn-xs btn-danger p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="declinePayment({{ $tour->tour_id }}, {{ $index }})" title="Reject"><i class="fas fa-times"></i></button>
                                                         @endif
-                                                        <button type="button" class="btn btn-xs btn-primary p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="openEditPaymentModal({{ $tour->tour_id }}, {{ $index }})" title="Edit"><i class="fas fa-edit"></i></button>
+                                                        @if(!isset($payment['status']) || (int) $payment['status'] !== 2)
+                                                            <button type="button" class="btn btn-xs btn-primary p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="openEditPaymentModal({{ $tour->tour_id }}, {{ $index }})" title="Edit"><i class="fas fa-edit"></i></button>
+                                                        @endif
                                                         <button type="button" class="btn btn-xs btn-outline-danger p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="deletePayment({{ $tour->tour_id }}, {{ $index }})" title="Delete"><i class="fas fa-trash-alt"></i></button>
                                                     </div>
                                                 </td>
@@ -23787,6 +23789,8 @@ function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
         currencySymbol.textContent = baseCurrency;
         conversionInfoContainer.style.display = 'none';
     }
+
+    updatePaymentAmountMax(tourId);
 }
 
 function getSelectedRateSource(tourId) {
@@ -23813,6 +23817,8 @@ function recalculateFromExchangeRate(tourId) {
         const convertedAmount = sgdAmount * exchangeRate;
         paymentAmountInput.value = convertedAmount.toFixed(2);
     }
+
+    updatePaymentAmountMax(tourId);
 }
 
 function initPaymentRateSourcesForTour(tourId) {
@@ -23936,6 +23942,9 @@ function validatePaymentAmountInput(tourId) {
     const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
     const maxBaseAmount = Math.round(parseFloat(document.getElementById(`amount${tourId}`).value) || 0);
     const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+    const isForeignCurrency = selectedCurrency && selectedCurrency !== baseCurrency;
+
+    updatePaymentAmountMax(tourId);
     
     const validationError = document.getElementById(`paymentValidationError${tourId}`);
     const validationMessage = document.getElementById(`validationMessage${tourId}`);
@@ -23948,12 +23957,14 @@ function validatePaymentAmountInput(tourId) {
         return;
     }
     
-    const equivalentBase = selectedCurrency === baseCurrency ? Math.round(paymentAmount) : (paymentAmount / exchangeRate);
+    const equivalentBase = isForeignCurrency ? Math.round(paymentAmount / exchangeRate) : Math.round(paymentAmount);
+    const maxPaymentAmount = isForeignCurrency ? (maxBaseAmount * exchangeRate) : maxBaseAmount;
     
     if (equivalentBase > maxBaseAmount) {
         validationError.style.display = 'block';
-        const maxDisplay = selectedCurrency === baseCurrency ? String(maxBaseAmount) : maxBaseAmount.toFixed(2);
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxDisplay} ${baseCurrency})`;
+        const maxDisplay = isForeignCurrency ? maxPaymentAmount.toFixed(2) : String(maxBaseAmount);
+        const maxCurrency = isForeignCurrency ? selectedCurrency : baseCurrency;
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxDisplay} ${maxCurrency})`;
         document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
     } else {
         validationError.style.display = 'none';
@@ -24402,6 +24413,7 @@ function openEditPaymentModal(tourId, paymentIndex) {
     const payments = (window.tourPaymentData || {})[tourId];
     if (!payments || !payments[paymentIndex]) return;
     const p = payments[paymentIndex];
+    if (parseInt(p.status, 10) === 2) return;
     document.getElementById(`editPaymentIndex${tourId}`).value = paymentIndex;
     document.getElementById(`editCurrency${tourId}`).value = p.currency || 'SGD';
     document.getElementById(`editExchangeRate${tourId}`).value = p.exchange_rate ?? 1;
