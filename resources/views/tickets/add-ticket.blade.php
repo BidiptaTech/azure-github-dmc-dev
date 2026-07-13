@@ -5,6 +5,31 @@
 
 @section('content')
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
+<style>
+    .ticket-form-compact .form-label { margin-bottom: 0.2rem; font-size: 0.8125rem; }
+    .ticket-form-compact .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #405189;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .ticket-price-table { font-size: 0.8125rem; margin-bottom: 0; }
+    .ticket-price-table th,
+    .ticket-price-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
+    .ticket-price-table thead th { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .ticket-price-table .form-control { max-width: 100%; }
+    .ticket-price-table .age-badge { font-size: 0.7rem; padding: 0.2em 0.45em; }
+    .ticket-price-table .visitor-group {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+    }
+    .ticket-form-compact .form-control-sm { font-size: 0.8125rem; }
+    .ticket-form-compact textarea.form-control { min-height: auto; }
+</style>
     <div class="page-content">
     <ul class="nav nav-pills mb-4 mt-4 d-flex justify-content-center" id="pills-tab" role="tablist">
             <li class="nav-item" role="presentation">
@@ -44,190 +69,148 @@
                                 @endif --}}
                             </div>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body ticket-form-compact">
                             <form action="{{ route('tickets.store', Crypt::encrypt($attraction->attraction_id)) }}" method="POST">
                                 @csrf
-                                <div class="row">
+                                <div class="row g-2">
                                     <input type="hidden" name="attraction_id" value="{{ $attraction->attraction_id }}">
                                     @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
-                                    <!-- DMC Selection (Required for Admin and Role 20) -->
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-12 mb-1">
                                         @if($dmcUsers->count() > 0)
-                                            <div class="alert alert-info">
-                                                <strong>Note:</strong> As an admin/manager, you must select a DMC to add tickets on their behalf. Only DMCs associated with this attraction are shown.
+                                            <div class="alert alert-info py-1 px-2 mb-0 small">
+                                                Select a DMC to add tickets on their behalf.
                                             </div>
                                         @else
-                                            <div class="alert alert-warning">
-                                                <strong>Warning:</strong> This attraction is not associated with any DMCs. You cannot add tickets until DMCs are assigned to this attraction.
+                                            <div class="alert alert-warning py-1 px-2 mb-0 small">
+                                                No DMCs assigned to this attraction. Tickets cannot be added.
                                             </div>
                                         @endif
                                     </div>
-                                    
-                                    <div class="col-md-4 mb-3">
+
+                                    <div class="col-md-4 mb-2">
                                         <label for="dmc_selection" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
-                                        <select id="dmc_selection" class="form-control" name="dmc_id" required @if($dmcUsers->count() == 0) disabled @endif>
+                                        <select id="dmc_selection" class="form-control form-control-sm" name="dmc_id" required @if($dmcUsers->count() == 0) disabled @endif>
                                             @if($dmcUsers->count() > 0)
                                                 <option value="">Select DMC</option>
                                                 @foreach($dmcUsers as $dmc)
                                                     <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                                                 @endforeach
                                             @else
-                                                <option value="">No DMCs available for this attraction</option>
+                                                <option value="">No DMCs available</option>
                                             @endif
                                         </select>
-                                        @if($dmcUsers->count() > 0)
-                                            <small class="text-muted">You are adding tickets on behalf of the selected DMC.</small>
-                                        @else
-                                            <small class="text-muted text-warning">Please contact administrator to assign DMCs to this attraction first.</small>
-                                        @endif
                                     </div>
                                     @endif
-                                    <!-- Ticket Name -->
-                                    <div class="col-md-4 mb-3">
+
+                                    <div class="col-md-{{ ($auth_user->role_id == 1 || $auth_user->role_id == 20) ? '8' : '12' }} mb-2">
                                         <label for="name" class="form-label"><strong>Ticket Name</strong><span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="name" name="name" placeholder="Enter Ticket Name" value="{{ old('name') }}" required>
-                                        @error('name')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        <input type="text" class="form-control form-control-sm" id="name" name="name" placeholder="e.g. General Admission" value="{{ old('name') }}" required>
+                                        @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Child Sell Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="child_price" class="form-label"><strong>Child Sell Price (Local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price" name="child_price" placeholder="Enter Child Sell Price" value="{{ old('child_price') }}" required>
-                                        @error('child_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <div class="col-12 mt-1 mb-2">
+                                        <div class="section-title"><i class="ri-money-dollar-circle-line me-1"></i> Pricing <small class="text-muted fw-normal">(Sell = customer pays · Cost = attraction fee)</small></div>
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-sm ticket-price-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th rowspan="2" class="align-middle" style="width:10%">Age</th>
+                                                        <th colspan="2" class="text-center visitor-group">Local</th>
+                                                        <th colspan="2" class="text-center visitor-group">Foreigner</th>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Sell <span class="text-danger">*</span></th>
+                                                        <th>Cost <span class="text-danger">*</span></th>
+                                                        <th>Sell <span class="text-danger">*</span></th>
+                                                        <th>Cost <span class="text-danger">*</span></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td><span class="badge bg-info-subtle text-info age-badge">Child</span></td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_price" name="child_price" placeholder="0.00" value="{{ old('child_price') }}" required>
+                                                            @error('child_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_cost_price" name="child_cost_price" placeholder="0.00" value="{{ old('child_cost_price') }}" required>
+                                                            @error('child_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_price_nri" name="child_price_nri" placeholder="0.00" value="{{ old('child_price_nri') }}" required>
+                                                            @error('child_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_cost_price_nri" name="child_cost_price_nri" placeholder="0.00" value="{{ old('child_cost_price_nri') }}" required>
+                                                            @error('child_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><span class="badge bg-primary-subtle text-primary age-badge">Adult</span></td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_price" name="adult_price" placeholder="0.00" value="{{ old('adult_price') }}" required>
+                                                            @error('adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_cost_price" name="adult_cost_price" placeholder="0.00" value="{{ old('adult_cost_price') }}" required>
+                                                            @error('adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_price_nri" name="adult_price_nri" placeholder="0.00" value="{{ old('adult_price_nri') }}" required>
+                                                            @error('adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_cost_price_nri" name="adult_cost_price_nri" placeholder="0.00" value="{{ old('adult_cost_price_nri') }}" required>
+                                                            @error('adult_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><span class="badge bg-secondary-subtle text-secondary age-badge">Senior</span></td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_price" name="senior_adult_price" placeholder="0.00" value="{{ old('senior_adult_price') }}" required>
+                                                            @error('senior_adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_cost_price" name="senior_adult_cost_price" placeholder="0.00" value="{{ old('senior_adult_cost_price') }}" required>
+                                                            @error('senior_adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="0.00" value="{{ old('senior_adult_price_nri') }}" required>
+                                                            @error('senior_adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" placeholder="0.00" value="{{ old('senior_adult_cost_price_nri') }}" required>
+                                                            @error('senior_adult_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
 
-                                    <!-- Child Cost Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="child_price" class="form-label"><strong>Child Cost Price (Local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_cost_price" name="child_cost_price" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price') }}" required>
-                                        @error('child_cost_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    
-                                    <!-- Adult Sell Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="adult_price" class="form-label"><strong>Adult Sell Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price" name="adult_price" placeholder="Enter Adult Sell Price" value="{{ old('adult_price') }}" required>
-                                        @error('adult_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>    
-                                    
-                                    <!-- Adult Cost Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="adult_price" class="form-label"><strong>Adult Cost Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_cost_price" name="adult_cost_price" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price') }}" required>
-                                        @error('adult_cost_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>    
-                                    
-                                    <!-- Senior Adult Sell Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="senior_adult_price" class="form-label"><strong>Senior Sell Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price" name="senior_adult_price" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price') }}" required>
-                                        @error('senior_adult_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <div class="col-12 mt-1 mb-1">
+                                        <div class="section-title"><i class="ri-file-text-line me-1"></i> Details</div>
                                     </div>
 
-                                    <!-- Senior Adult Cost Price -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="senior_adult_price" class="form-label"><strong>Senior Cost Price (local)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_cost_price" name="senior_adult_cost_price" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price') }}" required>
-                                        @error('senior_adult_cost_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Child Sell Price NRI -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="child_price_nri" class="form-label"><strong>Child Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_price_nri" name="child_price_nri" placeholder="Enter Child Sell Price" value="{{ old('child_price_nri') }}" required>
-                                        @error('child_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Child Cost Price NRI -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="child_price_nri" class="form-label"><strong>Child Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="child_cost_price_nri" name="child_cost_price_nri" placeholder="Enter Child Cost Price" value="{{ old('child_cost_price_nri') }}" required>
-                                        @error('child_cost_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    
-                                    <!-- Adult Sell Price NRI-->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="adult_price_nri" class="form-label"><strong>Adult Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_price_nri" name="adult_price_nri" placeholder="Enter Adult Sell Price" value="{{ old('adult_price_nri') }}" required>
-                                        @error('adult_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>   
-                                    
-                                    <!-- Adult Cost Price NRI-->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="adult_price_nri" class="form-label"><strong>Adult Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="adult_cost_price_nri" name="adult_cost_price_nri" placeholder="Enter Adult Cost Price" value="{{ old('adult_cost_price_nri') }}" required>
-                                        @error('adult_cost_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>  
-                                    
-                                    <!-- Senior Adult Sell Price NRI-->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="senior_adult_price_nri" class="form-label"><strong>Senior Sell Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="Enter Senior Sell Price" value="{{ old('senior_adult_price_nri') }}" required>
-                                        @error('senior_adult_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <!-- Senior Adult Cost Price NRI-->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="senior_adult_price_nri" class="form-label"><strong>Senior Cost Price (foreigner)</strong><span class="text-danger">*</span></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control ticket-price-input" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" placeholder="Enter Senior Cost Price" value="{{ old('senior_adult_cost_price_nri') }}" required>
-                                        @error('senior_adult_cost_price_nri')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    
-                                    <!-- Description -->
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <label for="description" class="form-label"><strong>Important Notes</strong><span class="text-danger">*</span></label>
-                                        <textarea class="form-control" id="description" name="description" rows="4" placeholder="Enter Description">{{ old('description') }}</textarea>
-                                        @error('description')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        <textarea class="form-control form-control-sm" id="description" name="description" rows="2" placeholder="Enter description">{{ old('description') }}</textarea>
+                                        @error('description')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Remarks -->
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <label for="remarks" class="form-label"><strong>Remarks</strong> <small class="text-muted">(Optional)</small></label>
-                                        <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)"></textarea>
-                                        @error('remarks')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        <textarea id="remarks" name="remarks" class="form-control form-control-sm" rows="2" placeholder="Optional remarks"></textarea>
+                                        @error('remarks')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
 
-                                    <!-- Terms & Conditions -->
-                                    <div class="col-md-12 mb-3">
+                                    <div class="col-md-12 mb-2">
                                         <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
-                                        <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..."></textarea>
-                                        @error('terms_conditions')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                        <textarea id="terms_conditions" name="terms_conditions" class="form-control form-control-sm" rows="3" placeholder="Enter terms and conditions..."></textarea>
+                                        @error('terms_conditions')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
-                                    
-                                    <!-- Status -->
-                                    <div class="col-md-4 mb-3">
+
+                                    <div class="col-md-4 mb-2">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" id="status" name="status" value="1" {{ old('status') ? 'checked' : '' }}>
                                             <label class="form-check-label" for="status"><strong>Active</strong></label>
@@ -235,7 +218,7 @@
                                     </div>
                                 </div>
                                 
-                                <div class="row mt-3">
+                                <div class="row mt-2">
                                     <div class="col-md-12">
                                         <button type="submit" class="btn btn-primary" id="submitBtn"
                                             @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
@@ -408,22 +391,22 @@
 <script>
     $(document).ready(function() {
         $('#description').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter your content here...', 
+            height: 120,
+            minHeight: 80,
+            maxHeight: 300,
+            placeholder: 'Enter your content here...',
         });
         $('#remarks').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter any remarks or notes (optional)...', 
+            height: 80,
+            minHeight: 60,
+            maxHeight: 200,
+            placeholder: 'Optional remarks...',
         });
         $('#terms_conditions').summernote({
-            height: 200,      
-            minHeight: 200,   
-            maxHeight: 500,   
-            placeholder: 'Enter terms and conditions...', 
+            height: 120,
+            minHeight: 80,
+            maxHeight: 300,
+            placeholder: 'Enter terms and conditions...',
         });
         // Initialize Select2 for city (only if element and plugin exist)
         if ($('#citySelect').length && typeof $.fn.select2 === 'function') {
@@ -447,8 +430,7 @@
                 clampTicketPriceInput(el);
             }
         });
-        
-        // Form submission validation for DMC availability
+
         const ticketForm = document.querySelector('form[action*="tickets.store"]');
         const dmcSelect = document.getElementById('dmc_selection');
         const submitBtn = document.getElementById('submitBtn');
