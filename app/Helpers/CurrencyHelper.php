@@ -116,16 +116,25 @@ class CurrencyHelper
      */
     public static function getExchangeRate(string $baseCurrency, string $targetCurrency): ?float
     {
+        $baseCurrency = strtoupper(trim($baseCurrency));
+        $targetCurrency = strtoupper(trim($targetCurrency));
+
+        if ($baseCurrency === $targetCurrency) {
+            return 1.0;
+        }
+
         try {
             $service = new CurrencyService();
+            $rate = $service->getExchangeRate($baseCurrency, $targetCurrency);
 
-            return $service->getExchangeRate(strtoupper($baseCurrency), strtoupper($targetCurrency));
+            return ($rate !== null && $rate > 0) ? (float) $rate : null;
         } catch (\Throwable $e) {
             Log::warning('Failed to fetch exchange rate', [
                 'base' => $baseCurrency,
                 'target' => $targetCurrency,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -140,6 +149,13 @@ class CurrencyHelper
      */
     public static function convertAmount($amount, string $currentCurrency, string $targetCurrency): ?float
     {
+        $currentCurrency = strtoupper(trim($currentCurrency));
+        $targetCurrency = strtoupper(trim($targetCurrency));
+
+        if ($currentCurrency === $targetCurrency) {
+            return (float) $amount;
+        }
+
         $rate = self::getExchangeRate($currentCurrency, $targetCurrency);
 
         if ($rate === null) {

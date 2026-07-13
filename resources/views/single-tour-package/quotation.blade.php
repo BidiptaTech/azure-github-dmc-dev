@@ -192,8 +192,15 @@
 
         $formatAmount = function ($amount) use ($exchangeRate) {
             if (!is_numeric($amount)) return '0';
-            $converted = ceil(((float)$amount) * $exchangeRate);
-            return (string)(int)$converted;
+            $converted = ((float)$amount) * $exchangeRate;
+            $abs = abs($converted);
+            if ($abs == 0.0) return '0';
+            // Normal amounts keep the existing whole-number look.
+            if ($abs >= 1) return (string)(int)ceil($converted);
+            // Small conversions (e.g. tiny base amount -> high-value currency) keep visible precision.
+            if ($abs >= 0.01) return number_format($converted, 2);
+            if ($abs >= 0.0001) return number_format($converted, 4);
+            return number_format($converted, 6);
         };
 
         $formatMoney = function ($amount) use ($currencyLabel, $formatAmount) {

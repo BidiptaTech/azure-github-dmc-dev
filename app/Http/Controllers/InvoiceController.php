@@ -22,83 +22,55 @@ class InvoiceController extends Controller
     protected $invoiceService;
 
     /** Available currencies for invoice (same as quotation) */
-    protected $availableCurrencies = [
-        'SGD', 'USD', 'EUR', 'GBP', 'INR', 'AUD', 'NZD', 'CAD', 'CHF', 'JPY', 'CNY',
-        'HKD', 'TWD', 'KRW', 'THB', 'MYR', 'IDR', 'PHP', 'VND', 'AED', 'SAR', 'QAR',
-        'KWD', 'BHD', 'OMR', 'ZAR', 'NGN', 'EGP', 'KES', 'GHS', 'MAD', 'BRL', 'ARS',
-        'CLP', 'COP', 'PEN', 'MXN', 'RUB', 'UAH', 'TRY', 'ILS', 'PLN', 'CZK', 'HUF',
-        'RON', 'SEK', 'NOK', 'DKK', 'ISK', 'BGN', 'HRK', 'PKR', 'LKR', 'BDT', 'MVR',
-        'KZT', 'DOP', 'JMD',
-    ];
+    protected function getAvailableCurrencies(): array
+    {
+        return CommonHelper::getInvoiceAvailableCurrencies();
+    }
+
+    /**
+     * Build currency context for invoice views and PDFs.
+     *
+     * @return array{baseCurrency: string, selectedCurrency: string, currencyConversion: array<string, float>, exchangeRate: float}
+     */
+    protected function buildInvoiceCurrencyContext(Request $request, Invoice $invoice): array
+    {
+        $baseCurrency = CommonHelper::resolveInvoiceBaseCurrency($invoice);
+        $selectedCurrency = CommonHelper::getInvoiceSelectedCurrency($request->query('currency'), $invoice);
+        $currencyConversion = CommonHelper::buildInvoiceCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
+
+        return compact('baseCurrency', 'selectedCurrency', 'currencyConversion', 'exchangeRate');
+    }
+
+    /**
+     * @deprecated Use buildInvoiceCurrencyContext()
+     */
+    protected function getSelectedCurrency(Request $request): string
+    {
+        return strtoupper($request->query('currency', 'SGD'));
+    }
+
+    /**
+     * @deprecated Use CommonHelper::buildInvoiceCurrencyConversion()
+     */
+    protected function buildCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
+    {
+        return CommonHelper::buildInvoiceCurrencyConversion($invoice, $selectedCurrency);
+    }
+
+    /**
+     * @deprecated Use CommonHelper::getInvoiceExchangeRate()
+     */
+    protected function getExchangeRate(string $selectedCurrency, array $currencyConversion): float
+    {
+        $baseCurrency = array_key_first($currencyConversion) ?: 'SGD';
+
+        return CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
+    }
 
     public function __construct(InvoiceService $invoiceService)
     {
         $this->invoiceService = $invoiceService;
-    }
-
-    /**
-     * Get selected currency from request, validate against available list.
-     */
-    protected function getSelectedCurrency(Request $request): string
-    {
-        $currentUser = Auth::user();
-        $dmcId = CommonHelper::getDmcId($currentUser);
-        $dmc = User::select('country')->where('userId', $dmcId)->first();
-        $country = $dmc ? Country::select('currency')->where('name', $dmc->country)->first() : null;
-        $currencyRaw = $country ? $country->currency : null;
-        $defaultCurrency = CurrencyHelper::normalizeCurrencyToCode($currencyRaw, $this->availableCurrencies, 'SGD');
-        $selected = strtoupper($request->query('currency', $defaultCurrency));
-        return in_array($selected, $this->availableCurrencies, true) ? $selected : $defaultCurrency;
-    }
-
-    /**
-     * Build currency conversion data for display.
-     * Base amount in SGD; when selectedCurrency !== SGD, add converted amount.
-     * Returns ['SGD' => amount] or ['SGD' => amount, 'INR' => convertedAmount] etc.
-     */
-    protected function buildCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
-    {
-        $baseCurrency = strtoupper($invoice->base_currency ?? 'SGD');
-        $tour = $invoice->tour;
-        $tourStatus = $tour->tour_status ?? '';
-        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
-        $shouldShowTax = in_array($tourStatus, $statusesWithTax);
-
-        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
-        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
-        $gstAmount = $invoice->gst_amount ?? 0;
-        $finalPrice = $baseAmount + $gstAmount;
-        $outstandingBalance = $invoice->outstanding_balance ?? 0;
-
-        $amountInSgd = $shouldShowTax ? (float) $outstandingBalance : (float) $finalPrice;
-        $conversion = ['SGD' => $amountInSgd];
-
-        if ($selectedCurrency !== 'SGD') {
-            $converted = CurrencyHelper::convertAmount($amountInSgd, 'SGD', $selectedCurrency);
-            if ($converted !== null) {
-                $conversion[$selectedCurrency] = $converted;
-            }
-        }
-
-        return $conversion;
-    }
-
-    /**
-     * Get exchange rate from SGD to selected currency (for dual-currency display).
-     * Returns 1.0 when selectedCurrency is SGD.
-     */
-    protected function getExchangeRate(string $selectedCurrency, array $currencyConversion): float
-    {
-        if ($selectedCurrency === 'SGD') {
-            return 1.0;
-        }
-        $sgdAmount = $currencyConversion['SGD'] ?? 0;
-        $convertedAmount = $currencyConversion[$selectedCurrency] ?? null;
-        if ($sgdAmount > 0 && $convertedAmount !== null && $convertedAmount > 0) {
-            return (float) $convertedAmount / (float) $sgdAmount;
-        }
-        $rate = CurrencyHelper::getExchangeRate('SGD', $selectedCurrency);
-        return ($rate !== null && $rate > 0) ? (float) $rate : 1.0;
     }
 
     /**
@@ -204,15 +176,12 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
 
-        return view('invoices.show', [
+        return view('invoices.show', array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'availableCurrencies' => $this->availableCurrencies,
-            'currencyConversion' => $currencyConversion,
-        ]);
+            'availableCurrencies' => $this->getAvailableCurrencies(),
+        ]));
     }
 
     /**
@@ -235,7 +204,10 @@ class InvoiceController extends Controller
             return back()->with('error', 'Only proforma invoices can be edited');
         }
 
-        return view('invoices.edit', compact('invoice'));
+        return view('invoices.edit', [
+            'invoice' => $invoice,
+            'baseCurrency' => CommonHelper::resolveInvoiceBaseCurrency($invoice),
+        ]);
     }
 
     /**
@@ -312,9 +284,7 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
-        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
         $format = $request->query('format');
         $logoType = $request->query('logo_type', 'dmc');
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
@@ -323,14 +293,11 @@ class InvoiceController extends Controller
 
         $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
 
-        $pdf = Pdf::loadView($viewName, [
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'currencyConversion' => $currencyConversion,
-            'exchangeRate' => $exchangeRate,
             'logoType' => $logoType,
             'mode' => 'full',
-        ])->setPaper('a4', 'portrait');
+        ]))->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf'
@@ -359,9 +326,7 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
-        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
         $format = $request->query('format');
         $logoType = $request->query('logo_type', 'dmc');
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
@@ -370,14 +335,11 @@ class InvoiceController extends Controller
 
         $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'price-only', $format);
 
-        $pdf = Pdf::loadView($viewName, [
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'currencyConversion' => $currencyConversion,
-            'exchangeRate' => $exchangeRate,
             'logoType' => $logoType,
             'mode' => 'price-only',
-        ])->setPaper('a4', 'portrait');
+        ]))->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf'
@@ -409,8 +371,7 @@ class InvoiceController extends Controller
         if (!in_array($mode, ['full', 'price-only'], true)) {
             $mode = 'full';
         }
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
         $logoType = $request->query('logo_type', 'dmc');
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
             $logoType = 'dmc';
@@ -421,16 +382,14 @@ class InvoiceController extends Controller
         }
         $hasAgency = $invoice->agent && $invoice->agent->agency;
 
-        return view('invoices.invoice-preview', [
+        return view('invoices.invoice-preview', array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'availableCurrencies' => $this->availableCurrencies,
-            'currencyConversion' => $currencyConversion,
+            'availableCurrencies' => $this->getAvailableCurrencies(),
             'mode' => $mode,
             'logoType' => $logoType,
             'hasAgency' => $hasAgency,
             'format' => $format,
-        ]);
+        ]));
     }
 
     /**
@@ -456,9 +415,7 @@ class InvoiceController extends Controller
         if (!in_array($mode, ['full', 'price-only'], true)) {
             $mode = 'full';
         }
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
-        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
         $preview = $request->boolean('preview', false);
         $logoType = $request->query('logo_type', 'dmc');
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
@@ -468,14 +425,11 @@ class InvoiceController extends Controller
 
         $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, $mode, $format);
 
-        $pdf = Pdf::loadView($viewName, [
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'currencyConversion' => $currencyConversion,
-            'exchangeRate' => $exchangeRate,
             'logoType' => $logoType,
             'mode' => $mode,
-        ])->setPaper('a4', 'portrait');
+        ]))->setPaper('a4', 'portrait');
 
         if ($preview) {
             return $pdf->stream();
@@ -504,9 +458,7 @@ class InvoiceController extends Controller
             ->where('invoice_id', $decryptedId)
             ->firstOrFail();
 
-        $selectedCurrency = $this->getSelectedCurrency($request);
-        $currencyConversion = $this->buildCurrencyConversion($invoice, $selectedCurrency);
-        $exchangeRate = $this->getExchangeRate($selectedCurrency, $currencyConversion);
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
         $format = $request->query('format');
         $logoType = $request->query('logo_type', 'dmc');
         if (!in_array($logoType, ['dmc', 'agency'], true)) {
@@ -515,14 +467,11 @@ class InvoiceController extends Controller
 
         $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
 
-        $pdf = Pdf::loadView($viewName, [
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
             'invoice' => $invoice,
-            'selectedCurrency' => $selectedCurrency,
-            'currencyConversion' => $currencyConversion,
-            'exchangeRate' => $exchangeRate,
             'logoType' => $logoType,
             'mode' => 'full',
-        ])->setPaper('a4', 'portrait');
+        ]))->setPaper('a4', 'portrait');
 
         return $pdf->stream();
     }
