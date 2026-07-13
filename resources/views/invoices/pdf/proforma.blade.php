@@ -240,6 +240,9 @@
     </style>
 </head>
 <body>
+    @php
+        require resource_path('views/invoices/pdf/partials/currency-setup-inc.php');
+    @endphp
     <!-- Header -->
     @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => true])
 
@@ -671,17 +674,7 @@
         $exitPortItems = $allItems->where('item_type', 'exit_port');
         $miscellaneousItems = $allItems->where('item_type', 'miscellaneous');
         $otherItems = $allItems->whereNotIn('item_type', ['hotel', 'entry_port', 'attraction', 'restaurant', 'guide', 'travel_point', 'travel_hourly', 'local_transport', 'exit_port', 'miscellaneous']);
-        $selectedCurrency = $selectedCurrency ?? 'SGD';
-        $exchangeRate = $exchangeRate ?? 1.0;
-        $formatPrice = function($amount) use ($selectedCurrency, $exchangeRate) {
-            if (!is_numeric($amount)) return '0.00';
-            $amt = (float) $amount;
-            if ($selectedCurrency === 'SGD') {
-                return number_format(round($amt, 2), 2);
-            }
-            return number_format(round($amt, 2), 2) . ' SGD (' . number_format(round($amt * $exchangeRate, 2), 2) . ' ' . $selectedCurrency . ')';
-        };
-    @endphp
+@endphp
 
     @if($hotelItems->count() > 0)
     <!-- Hotel Services Table -->
@@ -695,8 +688,8 @@
                 <th>Check-out</th>
                 <th>Nights</th>
                 <th>Pax / Qty</th>
-                <th>Unit Price / Rate (Per Night) ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price / Rate (Per Night) ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -800,8 +793,8 @@
                 @if($isPro)<th>Guide</th>@endif
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -882,8 +875,8 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -959,8 +952,8 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1021,8 +1014,8 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1067,8 +1060,8 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1134,8 +1127,8 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1201,8 +1194,8 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1271,8 +1264,8 @@
                 @if($isPro)<th>Guide</th>@endif
                 <th>Exit Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1345,8 +1338,8 @@
                 <th>Description</th>
                 <th>Booking Date</th>
                 <th>Total Pax</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1384,8 +1377,8 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
             </tr>
         </thead>
         <tbody>
@@ -1534,14 +1527,8 @@
             @endif
         </tfoot>
     </table>
-
-    @php
-        $selectedCurrency = $selectedCurrency ?? 'SGD';
-        $currencyConversion = $currencyConversion ?? [];
-        $showCurrencyConversion = ($selectedCurrency !== 'SGD' && count($currencyConversion) > 1);
-    @endphp
-    @if($showCurrencyConversion)
-    <!-- Currency Conversion (shown when a non-SGD currency is selected) -->
+@if($showCurrencyConversion)
+    <!-- Currency Conversion (shown when a non-base currency is selected) -->
     <div class="currency-section">
         <table class="currency-table">
             <thead>

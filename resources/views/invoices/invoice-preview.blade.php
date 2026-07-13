@@ -145,12 +145,12 @@ use Illuminate\Support\Facades\Crypt;
         </div>
     </div>
 
-    @if(($selectedCurrency ?? 'SGD') !== 'SGD' && !empty($currencyConversion ?? []))
+    @if($selectedCurrency !== $baseCurrency && !empty($currencyConversion ?? []))
     <div class="row mb-3">
         <div class="col-12">
             <div class="card border-success">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion (SGD + {{ $selectedCurrency }})</h5>
+                    <h5 class="mb-0"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion ({{ $baseCurrency }} + {{ $selectedCurrency }})</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">

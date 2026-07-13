@@ -460,7 +460,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label">Total Amount:</span>
                                 <span class="info-value">
                                     <strong style="color: #28a745; font-size: 18px;">
-                                        {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($actualAmountTop)) }}
+                                        {{ $baseCurrency }} {{ number_format(round($actualAmountTop)) }}
                                     </strong>
                                 </span>
                             </div>
@@ -468,7 +468,7 @@ use Illuminate\Support\Facades\Crypt;
                             <div class="info-row">
                                 <span class="info-label">GST Amount:</span>
                                 <span class="info-value">
-                                    {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($gstAmountTop)) }}
+                                    {{ $baseCurrency }} {{ number_format(round($gstAmountTop)) }}
                                 </span>
                             </div>
                             @endif
@@ -476,7 +476,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label">Payment Received:</span>
                                 <span class="info-value">
                                     <strong style="color: #17a2b8;">
-                                        {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($paymentReceivedTop)) }}
+                                        {{ $baseCurrency }} {{ number_format(round($paymentReceivedTop)) }}
                                     </strong>
                                 </span>
                             </div>
@@ -484,7 +484,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label" style="font-size: 16px; font-weight: 700;">Outstanding Balance:</span>
                                 <span class="info-value">
                                     <strong style="color: {{ $outstandingBalanceTop > 0 ? '#dc3545' : '#28a745' }}; font-size: 22px;">
-                                        {{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($outstandingBalanceTop)) }}
+                                        {{ $baseCurrency }} {{ number_format(round($outstandingBalanceTop)) }}
                                     </strong>
                                 </span>
                             </div>
@@ -670,8 +670,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $checkOutDisplay }}</td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $totalPax }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
                                 @php
                                     $childWithBed = $serviceDetails['child_with_bed'] ?? null;
@@ -683,8 +683,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td colspan="2"></td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $childWithBed['children'] ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithBed['price'] ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithBed['total_cost'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($childWithBed['price'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($childWithBed['total_cost'] ?? 0, 2) }}</td>
                                 </tr>
                                 @endif
                                 @if($childWithoutBed)
@@ -693,8 +693,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td colspan="2"></td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $childWithoutBed['children'] ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithoutBed['price'] ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($childWithoutBed['total_cost'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($childWithoutBed['price'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($childWithoutBed['total_cost'] ?? 0, 2) }}</td>
                                 </tr>
                                 @endif
                                 @endforeach
@@ -762,8 +762,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_type'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -840,8 +840,8 @@ use Illuminate\Support\Facades\Crypt;
                                         $attractionDisplayTotal = isset($attractionCorrectedTotals[$item->id]) ? $attractionCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $attractionDisplayUnit = isset($attractionCorrectedTotals[$item->id]) ? $attractionDisplayTotal : ($item->unit_price ?? 0);
                                     @endphp
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($attractionDisplayUnit ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($attractionDisplayTotal ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($attractionDisplayUnit ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($attractionDisplayTotal ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -903,8 +903,8 @@ use Illuminate\Support\Facades\Crypt;
                                         $restaurantDisplayTotal = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $restaurantDisplayUnit = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantDisplayTotal : ($item->unit_price ?? 0);
                                     @endphp
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($restaurantDisplayUnit ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($restaurantDisplayTotal ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($restaurantDisplayUnit ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($restaurantDisplayTotal ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -950,8 +950,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $item->quantity_adults ?? 0 }}</td>
                                     <td>{{ $item->quantity_children ?? 0 }}</td>
                                     <td>{{ $item->quantity_infants ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1016,8 +1016,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1082,8 +1082,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1148,8 +1148,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1216,8 +1216,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_type'] ?? 'N/A' }}</td>
                                     <td>{{ $exitPickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1241,8 +1241,8 @@ use Illuminate\Support\Facades\Crypt;
                                 @foreach($otherItems as $item)
                                 <tr>
                                     <td>{{ $item->description ?? 'N/A' }}</td>
-                                    <td class="text-end price-cell unit">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1299,22 +1299,22 @@ use Illuminate\Support\Facades\Crypt;
                         @endphp
                         <div class="summary-row">
                             <span class="summary-label">Total (Actual Amount):</span>
-                            <span class="summary-value">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($actualAmount)) }}</span>
+                            <span class="summary-value">{{ $baseCurrency }} {{ number_format(round($actualAmount)) }}</span>
                         </div>
                         @if($negotiatedAmount !== null)
                         <div class="summary-row" style="background: #e7f3ff; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Last Negotiated Amount:</span>
-                            <span class="summary-value" style="color: #0056b3;">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($negotiatedAmount)) }}</span>
+                            <span class="summary-value" style="color: #0056b3;">{{ $baseCurrency }} {{ number_format(round($negotiatedAmount)) }}</span>
                         </div>
                         @if($discount > 0)
                         <div class="summary-row" style="background: #d4edda; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Discount:</span>
-                            <span class="summary-value" style="color: #155724;">-{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($discount)) }}</span>
+                            <span class="summary-value" style="color: #155724;">-{{ $baseCurrency }} {{ number_format(round($discount)) }}</span>
                         </div>
                         @elseif($discount < 0)
                         <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Additional Charges:</span>
-                            <span class="summary-value" style="color: #856404;">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round(abs($discount))) }}</span>
+                            <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round(abs($discount))) }}</span>
                         </div>
                         @endif
                         @endif
@@ -1324,37 +1324,37 @@ use Illuminate\Support\Facades\Crypt;
                             @foreach($taxBreakdown as $taxName => $taxValue)
                             <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
                                 <span class="summary-label">{{ $taxName }}:</span>
-                                <span class="summary-value" style="color: #856404;">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($taxValue)) }}</span>
+                                <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round($taxValue)) }}</span>
                             </div>
                             @endforeach
                         @else
                         <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Total Vat / GST Tax:</span>
-                            <span class="summary-value" style="color: #856404;">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($gstAmount)) }}</span>
+                            <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round($gstAmount)) }}</span>
                         </div>
                         @endif
                         @endif
                         
                         <div class="summary-row" style="background: #d4edda; padding: 20px; border-radius: 6px; margin-top: 15px; border-top: 3px solid #28a745;">
                             <span class="summary-label" style="font-size: 18px; font-weight: 700;">Final Price:</span>
-                            <span class="summary-value highlight">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($finalPrice)) }}</span>
+                            <span class="summary-value highlight">{{ $baseCurrency }} {{ number_format(round($finalPrice)) }}</span>
                         </div>
                         
                         @if($shouldShowTax)
                         <div class="summary-row" style="background: #d1ecf1; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Payment Received:</span>
-                            <span class="summary-value info">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($paymentReceived)) }}</span>
+                            <span class="summary-value info">{{ $baseCurrency }} {{ number_format(round($paymentReceived)) }}</span>
                         </div>
                         <div class="summary-row" style="background: #f8d7da; padding: 20px; border-radius: 6px; margin-top: 15px; border-top: 3px solid #dc3545;">
                             <span class="summary-label" style="font-size: 18px; font-weight: 700;">Outstanding Balance:</span>
-                            <span class="summary-value danger" style="font-size: 24px;">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format(round($outstandingBalance)) }}</span>
+                            <span class="summary-value danger" style="font-size: 24px;">{{ $baseCurrency }} {{ number_format(round($outstandingBalance)) }}</span>
                         </div>
                         @endif
                     </div>
                 </div>
 
                 <!-- Currency Conversion (shown only when a non-SGD currency is selected) -->
-                @if(($selectedCurrency ?? 'SGD') !== 'SGD' && !empty($currencyConversion ?? []))
+                @if($selectedCurrency !== $baseCurrency && !empty($currencyConversion ?? []))
                 <div class="row mt-4">
                     <div class="col-12">
                         <div class="info-section" style="border-left-color: #4CAF50;">

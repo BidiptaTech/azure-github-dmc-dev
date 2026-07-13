@@ -242,6 +242,9 @@
     </style>
 </head>
 <body>
+    @php
+        require resource_path('views/invoices/pdf/partials/currency-setup-inc.php');
+    @endphp
     <!-- Header -->
     @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => true])
 
@@ -1251,18 +1254,8 @@
 
     <!-- Summary Table (Prices Only) -->
     @php
-        $selectedCurrency = $selectedCurrency ?? 'SGD';
-        $exchangeRate = $exchangeRate ?? 1.0;
-        $formatPrice = function($amount) use ($selectedCurrency, $exchangeRate) {
-            if (!is_numeric($amount)) return '0.00';
-            $amt = (float) $amount;
-            if ($selectedCurrency === 'SGD') {
-                return number_format(round($amt, 2), 2);
-            }
-            return number_format(round($amt, 2), 2) . ' SGD (' . number_format(round($amt * $exchangeRate, 2), 2) . ' ' . $selectedCurrency . ')';
-        };
-    @endphp
-    <div class="section-title">Price Summary ({{ $invoice->base_currency ?? 'SGD' }}@if($selectedCurrency !== 'SGD') / {{ $selectedCurrency }}@endif)</div>
+@endphp
+    <div class="section-title">Price Summary ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</div>
     <table>
         <tfoot>
             @php
@@ -1383,14 +1376,8 @@
             @endif
         </tfoot>
     </table>
-
-    @php
-        $selectedCurrency = $selectedCurrency ?? 'SGD';
-        $currencyConversion = $currencyConversion ?? [];
-        $showCurrencyConversion = ($selectedCurrency !== 'SGD' && count($currencyConversion) > 1);
-    @endphp
-    @if($showCurrencyConversion)
-    <!-- Currency Conversion (shown when a non-SGD currency is selected) -->
+@if($showCurrencyConversion)
+    <!-- Currency Conversion (shown when a non-base currency is selected) -->
     <div class="currency-section">
         <table class="currency-table">
             <thead>
@@ -1439,38 +1426,38 @@
         <table style="width: 100%; margin-top: 20px;">
             <tr>
                 <td><strong>Payment Received</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right">{{ number_format(round($paymentReceived), 2) }}</td>
             </tr>
             <tr>
                 <td><strong>Outstanding Balance</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right">{{ number_format(round($outstandingBalance), 2) }}</td>
             </tr>
             @if($gstAmount > 0)
             <tr>
                 <td><strong>Total Vat / GST Tax</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right">{{ number_format(round($gstAmount), 2) }}</td>
             </tr>
             @endif
             @if($serviceCharge > 0)
             <tr>
                 <td><strong>Total Service Charge</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right">{{ number_format(round($serviceCharge), 2) }}</td>
             </tr>
             @endif
             @if($touristTax > 0)
             <tr>
                 <td><strong>Total Tourist Tax</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right">{{ number_format(round($touristTax), 2) }}</td>
             </tr>
             @endif
             <tr style="border-top: 2px solid #000;">
                 <td><strong>Total</strong></td>
-                <td>{{ $invoice->base_currency ?? 'SGD' }}</td>
+                <td>{{ $baseCurrency }}</td>
                 <td class="text-right"><strong>{{ number_format(round($finalPrice), 2) }}</strong></td>
             </tr>
         </table>

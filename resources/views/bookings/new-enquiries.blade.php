@@ -1205,30 +1205,85 @@
                                     }
                                 }
                                 
-                                // Tour discount (FOC / package) from tours.discount_amount
-                                $tourDiscountAmount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
                                 $grossTourAmount = ceil($tourTotalPrice);
-                                $netNegotiationBase = max(0, $grossTourAmount - $tourDiscountAmount);
-                                $discount = $tourDiscountAmount;
+
+                                // Markup stored on the tour (markup_amount holds the % when type = percentage,
+                                // otherwise a flat money value). Markup increases the payable amount.
+                                $tourMarkupType = $tour->markup_type ?? null;
+                                $tourMarkupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
+                                $tourMarkupOn = ((int) ($tour->markup ?? 0) === 1)
+                                    && $tourMarkupRaw > 0
+                                    && in_array($tourMarkupType, ['percentage', 'flat'], true);
+                                $tourMarkupMoney = $tourMarkupOn
+                                    ? ($tourMarkupType === 'percentage'
+                                        ? ($grossTourAmount * $tourMarkupRaw / 100)
+                                        : $tourMarkupRaw)
+                                    : 0;
+                                $tourMarkupMoney = max(0, $tourMarkupMoney);
+
+                                // Discount stored on the tour. For percentage the column holds the %,
+                                // for flat / foc it holds a money value. Discount is applied after markup.
+                                $tourDiscountType = $tour->discount_type ?? null;
+                                $tourDiscountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
+                                $discountBaseAmount = $grossTourAmount + $tourMarkupMoney;
+                                if ($tourDiscountType === 'percentage') {
+                                    $tourDiscountMoney = $discountBaseAmount * $tourDiscountRaw / 100;
+                                } elseif (in_array($tourDiscountType, ['flat', 'foc'], true)) {
+                                    $tourDiscountMoney = $tourDiscountRaw;
+                                } else {
+                                    $tourDiscountMoney = 0;
+                                }
+                                $tourDiscountMoney = max(0, $tourDiscountMoney);
+
+                                // Payable = Gross + Markup − Discount (business calculation), rounded up.
+                                $netNegotiationBase = max(0, ceil($grossTourAmount + $tourMarkupMoney - $tourDiscountMoney));
+
+                                // Aliases kept for the existing data attributes / JS (now hold money values).
+                                $tourDiscountAmount = $tourDiscountMoney;
+                                $discount = $tourDiscountMoney;
 
                                 $hasAgentComment = $latestComment && strtolower($latestComment->sender_type ?? '') === 'agent';
                                 if ($hasAgentComment) {
                                     $agentOffer = (float) ($latestComment->amount ?? 0);
                                     $agentRowCap = (float) ($latestComment->actual_amount ?? 0);
-                                    $currentActualAmount = $agentRowCap > 0 ? $agentRowCap : $netNegotiationBase;
-                                    $settlementAmount = $agentOffer > 0 ? $agentOffer : $netNegotiationBase;
+                                    $capFromNegotiation = $agentRowCap > 0;
+                                    $currentActualAmount = $capFromNegotiation ? $agentRowCap : $netNegotiationBase;
+                                    $settlementFromNegotiation = $agentOffer > 0;
+                                    $settlementAmount = $settlementFromNegotiation ? $agentOffer : $netNegotiationBase;
                                     $lastAgentAmount = $agentOffer > 0 ? $agentOffer : null;
                                     $lastAgentRemark = $latestComment->comment ?? '';
                                 } else {
                                     $latestCounter = ($latestComment && (float) ($latestComment->amount ?? 0) > 0)
                                         ? (float) $latestComment->amount
                                         : 0;
-                                    $currentActualAmount = $latestCounter > 0 ? $latestCounter : $netNegotiationBase;
+                                    $capFromNegotiation = $latestCounter > 0;
+                                    $currentActualAmount = $capFromNegotiation ? $latestCounter : $netNegotiationBase;
+                                    $settlementFromNegotiation = $capFromNegotiation;
                                     $settlementAmount = $currentActualAmount;
                                     $lastAgentAmount = ($latestAgentComment && (float) ($latestAgentComment->amount ?? 0) > 0)
                                         ? (float) $latestAgentComment->amount
                                         : null;
                                     $lastAgentRemark = $latestAgentComment->comment ?? ($latestComment->comment ?? '');
+                                }
+
+                                // Services added after the last negotiation are added on top of the agreed
+                                // amount. Baseline = gross captured when the negotiation was submitted.
+                                $negotiationBaselineGross = (float) ($latestComment?->gross_amount ?? 0);
+                                $addedSinceNegotiation = 0;
+                                if ($negotiationBaselineGross > 0 && $grossTourAmount > $negotiationBaselineGross) {
+                                    $addedGrossRaw = $grossTourAmount - $negotiationBaselineGross;
+                                    $addedSinceNegotiation = ($tourMarkupOn && $tourMarkupType === 'percentage')
+                                        ? $addedGrossRaw * (1 + $tourMarkupRaw / 100)
+                                        : $addedGrossRaw;
+                                    $addedSinceNegotiation = ceil($addedSinceNegotiation);
+                                }
+                                if ($addedSinceNegotiation > 0) {
+                                    if (!empty($capFromNegotiation)) {
+                                        $currentActualAmount += $addedSinceNegotiation;
+                                    }
+                                    if (!empty($settlementFromNegotiation)) {
+                                        $settlementAmount += $addedSinceNegotiation;
+                                    }
                                 }
 
                                 $agentNegotiationCap = $currentActualAmount;
@@ -1250,6 +1305,13 @@
                                         data-actual="{{ $agentNegotiationCap ?? 0 }}"
                                         data-gross="{{ $grossTourAmount ?? 0 }}"
                                         data-discount-amount="{{ $tourDiscountAmount ?? 0 }}"
+                                        data-markup-type="{{ $tourMarkupType ?? '' }}"
+                                        data-markup-raw="{{ $tourMarkupRaw ?? 0 }}"
+                                        data-markup-money="{{ $tourMarkupMoney ?? 0 }}"
+                                        data-discount-type="{{ $tourDiscountType ?? '' }}"
+                                        data-discount-raw="{{ $tourDiscountRaw ?? 0 }}"
+                                        data-discount-money="{{ $tourDiscountMoney ?? 0 }}"
+                                        data-payable="{{ $netNegotiationBase ?? 0 }}"
                                         data-last-amount="{{ $agentNegotiationCap ?? '' }}"
                                         data-last-agent-offer="{{ $lastAgentAmount ?? '' }}"
                                         data-last-comment="{{ e($lastAgentRemark) }}"
@@ -1273,6 +1335,13 @@
                                         data-gross="{{ $grossTourAmount ?? 0 }}"
                                         data-actual="{{ $currentActualAmount }}"
                                         data-discount="{{ $discount }}"
+                                        data-markup-type="{{ $tourMarkupType ?? '' }}"
+                                        data-markup-raw="{{ $tourMarkupRaw ?? 0 }}"
+                                        data-markup-money="{{ $tourMarkupMoney ?? 0 }}"
+                                        data-discount-type="{{ $tourDiscountType ?? '' }}"
+                                        data-discount-raw="{{ $tourDiscountRaw ?? 0 }}"
+                                        data-discount-money="{{ $tourDiscountMoney ?? 0 }}"
+                                        data-payable="{{ $netNegotiationBase ?? 0 }}"
                                         data-comment="{{ e($lastAgentRemark) }}"
                                         onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
                                         {{ $canCheckNegotiation ? '' : 'disabled' }}
@@ -1401,24 +1470,28 @@
 
                         <div class="negotiation-pricing-summary mb-3">
                             <div class="row g-3">
-                                <div class="col-6 col-md-3 negotiation-pricing-item">
+                                <div class="col-6 col-md-4 negotiation-pricing-item">
                                     <span class="negotiation-label">Gross Total</span>
                                     <div class="negotiation-value" id="new_enquiry_display_gross">—</div>
                                 </div>
-                                <div class="col-6 col-md-3 negotiation-pricing-item negotiation-discount">
-                                    <span class="negotiation-label">Discount (FOC)</span>
+                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-markup">
+                                    <span class="negotiation-label" id="new_enquiry_markup_label">Markup</span>
+                                    <div class="negotiation-value text-info" id="new_enquiry_display_markup">—</div>
+                                </div>
+                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-discount">
+                                    <span class="negotiation-label" id="new_enquiry_discount_label">Discount</span>
                                     <div class="negotiation-value" id="new_enquiry_display_discount">—</div>
                                 </div>
-                                <div class="col-6 col-md-3 negotiation-pricing-item negotiation-payable">
+                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-payable">
                                     <span class="negotiation-label">Payable Amount</span>
                                     <div class="negotiation-value" id="new_enquiry_display_actual">—</div>
                                 </div>
-                                <div class="col-6 col-md-3 negotiation-pricing-item">
+                                <div class="col-6 col-md-4 negotiation-pricing-item">
                                     <span class="negotiation-label">Agent Offer</span>
                                     <div class="negotiation-value text-success" id="new_enquiry_display_price">—</div>
                                 </div>
                             </div>
-                            <div class="negotiation-formula-hint">Payable = Gross − Discount (FOC). Your counter-offer cannot exceed payable amount.</div>
+                            <div class="negotiation-formula-hint">Payable = Gross + Markup − Discount. Your counter-offer cannot exceed payable amount.</div>
                         </div>
 
                         <div class="negotiation-meta-block mb-3">
@@ -1466,7 +1539,7 @@
                 <div class="modal-body pt-3 pb-2">
                     <div class="negotiation-pricing-summary mb-3">
                         <div class="row g-3">
-                            <div class="col-12 col-md-4 negotiation-pricing-item">
+                            <div class="col-6 col-md-4 negotiation-pricing-item">
                                 <span class="negotiation-label">Tour</span>
                                 <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
                             </div>
@@ -1474,16 +1547,20 @@
                                 <span class="negotiation-label">Gross Total</span>
                                 <div class="negotiation-value" id="agentNegotiationGrossAmount">—</div>
                             </div>
+                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-markup">
+                                <span class="negotiation-label" id="agentNegotiationMarkupLabel">Markup</span>
+                                <div class="negotiation-value text-info" id="agentNegotiationMarkupAmount">—</div>
+                            </div>
                             <div class="col-6 col-md-4 negotiation-pricing-item negotiation-discount">
-                                <span class="negotiation-label">Discount (FOC)</span>
+                                <span class="negotiation-label" id="agentNegotiationDiscountLabel">Discount</span>
                                 <div class="negotiation-value" id="agentNegotiationDiscountAmount">—</div>
                             </div>
-                            <div class="col-12 col-md-4 negotiation-pricing-item negotiation-payable">
+                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-payable">
                                 <span class="negotiation-label">Payable Amount</span>
                                 <div class="negotiation-value" id="agentNegotiationCurrentAmount">—</div>
                             </div>
                         </div>
-                        <div class="negotiation-formula-hint">Payable = Gross − Discount (FOC)</div>
+                        <div class="negotiation-formula-hint">Payable = Gross + Markup − Discount</div>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-md-6">
@@ -5176,6 +5253,9 @@ function testServices() {
             var displayActual = document.getElementById('new_enquiry_display_actual');
             var displayPrice = document.getElementById('new_enquiry_display_price');
             var displayDiscount = document.getElementById('new_enquiry_display_discount');
+            var displayMarkup = document.getElementById('new_enquiry_display_markup');
+            var markupLabel = document.getElementById('new_enquiry_markup_label');
+            var discountLabel = document.getElementById('new_enquiry_discount_label');
             var displayComment = document.getElementById('new_enquiry_display_comment');
 
             form.action = route || '';
@@ -5205,9 +5285,21 @@ function testServices() {
             if (displayActual) {
                 displayActual.textContent = Number.isFinite(actual) ? formatNegotiationAmount(actual) : '—';
             }
-            if (displayDiscount) {
-                displayDiscount.textContent = Number.isFinite(discount) ? formatNegotiationAmount(discount) : '—';
+            // Markup + typed discount display (business calculation: Payable = Gross + Markup − Discount).
+            var markupType = button.getAttribute('data-markup-type') || '';
+            var markupRaw = button.getAttribute('data-markup-raw');
+            var markupMoney = button.getAttribute('data-markup-money');
+            var discountType = button.getAttribute('data-discount-type') || '';
+            var discountRaw = button.getAttribute('data-discount-raw');
+            var discountMoney = button.getAttribute('data-discount-money');
+
+            applyAdjustmentDisplay(markupLabel, displayMarkup, 'Markup', markupType, markupRaw, markupMoney, '+');
+
+            var discountMoneyVal = parseNegotiationAttr(discountMoney);
+            if (!Number.isFinite(discountMoneyVal)) {
+                discountMoneyVal = Number.isFinite(discount) ? discount : 0;
             }
+            applyAdjustmentDisplay(discountLabel, displayDiscount, 'Discount', discountType, discountRaw, discountMoneyVal, '−');
             if (displayPrice) {
                 displayPrice.textContent = Number.isFinite(prevPrice) ? formatNegotiationAmount(prevPrice) : '—';
             }
@@ -5342,6 +5434,9 @@ function testServices() {
             const displayEl = document.getElementById('agentNegotiationDisplayId');
             const grossAmountEl = document.getElementById('agentNegotiationGrossAmount');
             const discountAmountEl = document.getElementById('agentNegotiationDiscountAmount');
+            const markupAmountEl = document.getElementById('agentNegotiationMarkupAmount');
+            const markupLabelEl = document.getElementById('agentNegotiationMarkupLabel');
+            const discountLabelEl = document.getElementById('agentNegotiationDiscountLabel');
             const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
             const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
             const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
@@ -5355,6 +5450,11 @@ function testServices() {
             const actualAttr = button.getAttribute('data-actual');
             const grossAttr = button.getAttribute('data-gross');
             const discountAmountAttr = button.getAttribute('data-discount-amount');
+            const markupTypeAttr = button.getAttribute('data-markup-type') || '';
+            const markupRawAttr = button.getAttribute('data-markup-raw');
+            const markupMoneyAttr = button.getAttribute('data-markup-money');
+            const discountTypeAttr = button.getAttribute('data-discount-type') || '';
+            const discountRawAttr = button.getAttribute('data-discount-raw');
             const lastAttr = button.getAttribute('data-last-amount');
             const lastAgentOfferAttr = button.getAttribute('data-last-agent-offer');
             const isLocked = button.getAttribute('data-negotiation-locked') === '1';
@@ -5373,9 +5473,10 @@ function testServices() {
             if (grossAmountEl) {
                 grossAmountEl.textContent = Number.isFinite(grossAmount) ? formatNegotiationAmount(grossAmount) : '—';
             }
-            if (discountAmountEl) {
-                discountAmountEl.textContent = Number.isFinite(tourDiscountAmount) ? formatNegotiationAmount(tourDiscountAmount) : '—';
-            }
+            // Markup line (business calculation: Payable = Gross + Markup − Discount).
+            applyAdjustmentDisplay(markupLabelEl, markupAmountEl, 'Markup', markupTypeAttr, markupRawAttr, markupMoneyAttr, '+');
+            // Typed discount line.
+            applyAdjustmentDisplay(discountLabelEl, discountAmountEl, 'Discount', discountTypeAttr, discountRawAttr, tourDiscountAmount, '−');
 
             form.dataset.enquiryId = button.getAttribute('data-enquiry-id') || '';
             if (enquiryIdHidden) {
@@ -5718,6 +5819,37 @@ function testServices() {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(Number(value));
+        }
+
+        // Build the label shown next to a markup/discount line, e.g. "Markup (10%)" / "Discount (Fixed)".
+        function buildAdjustmentLabel(baseLabel, type, rawValue) {
+            const t = (type || '').toString().toLowerCase();
+            if (t === 'percentage') {
+                const pct = parseNegotiationAttr(rawValue);
+                return Number.isFinite(pct) && pct > 0 ? `${baseLabel} (${pct}%)` : `${baseLabel} (%)`;
+            }
+            if (t === 'flat') {
+                return `${baseLabel} (Fixed)`;
+            }
+            if (t === 'foc') {
+                return `${baseLabel} (FOC)`;
+            }
+            return baseLabel;
+        }
+
+        // Populate a markup/discount pricing cell with its typed label + signed money value.
+        function applyAdjustmentDisplay(labelEl, valueEl, baseLabel, type, rawValue, moneyValue, sign) {
+            const money = parseNegotiationAttr(moneyValue);
+            if (labelEl) {
+                labelEl.textContent = buildAdjustmentLabel(baseLabel, type, rawValue);
+            }
+            if (valueEl) {
+                if (Number.isFinite(money) && money > 0) {
+                    valueEl.textContent = `${sign}${formatNegotiationAmount(money)}`;
+                } else {
+                    valueEl.textContent = formatNegotiationAmount(0);
+                }
+            }
         }
         
         // Tour cancellation function
