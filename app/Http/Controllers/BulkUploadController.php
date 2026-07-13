@@ -1683,16 +1683,9 @@ class BulkUploadController extends Controller
                     $restaurant->images = json_encode($imagesArray);
                 }
                 
-                // Generate unique restaurant_id
-                $lastRestaurant = Restaurant::withTrashed()->orderBy('created_at', 'desc')->first();
-                $restaurant_max_id = $lastRestaurant->restaurant_id ?? 0;
-                $restaurantId = \App\Helpers\CommonHelper::createId($restaurant_max_id);
-                while (Restaurant::where('restaurant_id', $restaurantId)->exists()) {
-                    $restaurantId = \App\Helpers\CommonHelper::createId($restaurantId);
-                }
-                
-                $restaurant->restaurant_id = $restaurantId; // <-- critical line
+                // restaurant_id is assigned by DB sequence on save (same as RestaurantController::store)
                 $restaurant->save();
+                $restaurant->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -1824,15 +1817,7 @@ class BulkUploadController extends Controller
 
     private function createMeal($restaurant, $mealType, $beverage, $mealsType, $itemName, $itemPrice, $itemType, $adultPrice, $childPrice, $itemDescription, $mealStatus, $userId)
     {
-        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-        $meal_max_id = $lastMeal->meal_id ?? 0;
-        $mealId = \App\Helpers\CommonHelper::createId($meal_max_id);
-        while (Meal::where('meal_id', $mealId)->exists()) {
-            $mealId = \App\Helpers\CommonHelper::createId($mealId);
-        }
-        
         $meal = new Meal();
-        $meal->meal_id = $mealId;
         $meal->restaurant_id = $restaurant->restaurant_id;
         $meal->name = $itemName ?: 'Menu Item';
         $meal->item_description = $itemDescription;
@@ -1883,6 +1868,7 @@ class BulkUploadController extends Controller
         $meal->created_by = $userId;
         
         $meal->save();
+        $meal->refresh();
         
         return $meal;
     }
@@ -2045,17 +2031,8 @@ class BulkUploadController extends Controller
                     // Mark this guide as being processed
                     $processedGuides[$guideKey] = $rowNumber;
                     
-                    // Generate unique guide ID
-                    $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $guide_max_id = $lastGuide->guide_id ?? 0;
-                    $guideId = \App\Helpers\CommonHelper::createId($guide_max_id);
-                    while (Guide::where('guide_id', $guideId)->exists()) {
-                        $guideId = \App\Helpers\CommonHelper::createId($guideId);
-                    }
-                    
-                    // Create new guide
+                    // Create new guide — guide_id auto-assigned on save (same as GuideController::store)
                     $guide = new Guide();
-                    $guide->guide_id = $guideId;
                     $guide->salutation = $salutation;
                     $guide->guide_gender = $gender;
                     $guide->name = $guideName;
@@ -2096,6 +2073,7 @@ class BulkUploadController extends Controller
                     $guide->created_by = $auth_user->userId;
                     
                     $guide->save();
+                    $guide->refresh();
                     
                     // Set current guide for language processing
                     $currentGuide = $guide;
@@ -2179,16 +2157,13 @@ class BulkUploadController extends Controller
             $existingLanguage->proficiency = $proficiency;
             $existingLanguage->save();
         } else {
-            // Create new language entry
-            $max_language_id = \App\Models\GuideLanguage::max('language_id') ?? 0;
-            $language_id = \App\Helpers\CommonHelper::createId($max_language_id);
-            
-            \App\Models\GuideLanguage::create([
+            // Create new language entry — language_id auto-assigned on save
+            $guideLanguage = \App\Models\GuideLanguage::create([
                 'guide_id' => $guideId,
-                'language_id' => $language_id,
                 'language' => $language,
                 'proficiency' => $proficiency,
             ]);
+            $guideLanguage->refresh();
         }
     }
 
@@ -3017,17 +2992,8 @@ class BulkUploadController extends Controller
                 // Mark this driver as being processed
                 $processedDrivers[$driverKey] = $rowNumber;
                 
-                // Generate unique driver ID
-                $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
-                $driver_max_id = $lastDriver->driver_id ?? 0;
-                $driverId = \App\Helpers\CommonHelper::createId($driver_max_id);
-                while (Driver::where('driver_id', $driverId)->exists()) {
-                    $driverId = \App\Helpers\CommonHelper::createId($driverId);
-                }
-                
-                // Create new driver
+                // Create new driver — driver_id auto-assigned on save (same as DriverController::store)
                 $driver = new Driver();
-                $driver->driver_id = $driverId;
                 $driver->salutation = $salutation;
                 $driver->driver_gender = $driverGender;
                 $driver->name = $driverName;
@@ -3052,6 +3018,7 @@ class BulkUploadController extends Controller
                 $driver->operational_country_id = 1;
                 
                 $driver->save();
+                $driver->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -3430,17 +3397,8 @@ class BulkUploadController extends Controller
                 // Mark this vehicle as being processed
                 $processedVehicles[$vehicleKey] = $rowNumber;
                 
-                // Generate unique vehicle ID
-                $lastVehicle = Vehicle::withTrashed()->orderBy('created_at', 'desc')->first();
-                $vehicle_max_id = $lastVehicle->vehicle_id ?? 0;
-                $vehicleId = \App\Helpers\CommonHelper::createId($vehicle_max_id);
-                while (Vehicle::where('vehicle_id', $vehicleId)->exists()) {
-                    $vehicleId = \App\Helpers\CommonHelper::createId($vehicleId);
-                }
-                
-                // Create new vehicle (same structure as VehicleController)
+                // Create new vehicle — vehicle_id auto-assigned on save (same as VehicleController::store)
                 $vehicle = new Vehicle();
-                $vehicle->vehicle_id = $vehicleId;
                 $vehicle->vehicle_name = $vehicleName;
                 $vehicle->vehicle_type = $vehicleType;
                 $vehicle->vehicle_model = $vehicleModel;
@@ -3497,6 +3455,7 @@ class BulkUploadController extends Controller
                 $vehicle->night_cancel_cost_price = is_numeric($nightCancelCostPrice) ? floatval($nightCancelCostPrice) : 0;
                 
                 $vehicle->save();
+                $vehicle->refresh();
                 $successCount++;
                 
             } catch (\Exception $e) {
@@ -3705,24 +3664,6 @@ class BulkUploadController extends Controller
                     // Mark this attraction as being processed
                     $processedAttractions[$attractionKey] = $rowNumber;
                     
-                    // Generate unique attraction ID
-                    $lastAttraction = Attraction::withTrashed()->orderBy('attraction_id', 'desc')->first();
-                    $attraction_max_id = $lastAttraction->attraction_id ?? 0;
-                    
-                    // Generate new ID with retry logic
-                    $maxRetries = 10;
-                    $retryCount = 0;
-                    do {
-                        $attractionId = \App\Helpers\CommonHelper::createId($attraction_max_id + $retryCount);
-                        $retryCount++;
-                    } while (Attraction::where('attraction_id', $attractionId)->exists() && $retryCount < $maxRetries);
-                    
-                    if ($retryCount >= $maxRetries) {
-                        $errors[] = "Row {$rowNumber}: Could not generate unique attraction ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
                     // Process additional images (comma-separated to JSON array)
                     $additionalImagesArray = [];
                     if (!empty($additionalImages)) {
@@ -3732,9 +3673,8 @@ class BulkUploadController extends Controller
                     // Use Important Notes as description (no additional data appended)
                     $description = $importantNotes;
                   
-                    // Create attraction record
+                    // Create attraction record — attraction_id auto-assigned on save
                     $attraction = new Attraction();
-                    $attraction->attraction_id = $attractionId;
                     $attraction->name = $attractionName;
                     $attraction->description = $description;
                     $attraction->master_image = $masterImage;
@@ -3786,6 +3726,7 @@ class BulkUploadController extends Controller
                     }
                     
                     $attraction->save();
+                    $attraction->refresh();
                     $successCount++;
                     
                 } catch (\Exception $e) {
@@ -4002,24 +3943,8 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique ticket ID - get the maximum ticket_id and increment
-                    $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
-                    
-                    // Ensure it's at least 8 digits
-                    if (!$maxTicketId || $maxTicketId < 10000000) {
-                        $ticketMaxId = 10000000;
-                    } else {
-                        $ticketMaxId = $maxTicketId + 1;
-                    }
-                    
-                    // Double-check for uniqueness (in case of concurrent uploads)
-                    while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists()) {
-                        $ticketMaxId++;
-                    }
-                    
-                    // Create ticket record
+                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
                     $ticket = new \App\Models\Ticket();
-                    $ticket->ticket_id = $ticketMaxId;
                     $ticket->name = $ticketName;
                     $ticket->description = $description;
                     $ticket->terms_conditions = $termsConditions;
@@ -4035,6 +3960,7 @@ class BulkUploadController extends Controller
                     $ticket->created_by = $auth_user->userId;
                     
                     $ticket->save();
+                    $ticket->refresh();
                     $successCount++;
                     
                     Log::info("SUCCESS: Created ticket '{$ticketName}' for attraction '{$currentAttraction->name}' with ID {$ticket->ticket_id}");
@@ -4406,37 +4332,9 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique ticket ID with better error handling
-                    try {
-                        $maxTicketId = \App\Models\Ticket::withTrashed()->max('ticket_id');
-                        
-                        if (!$maxTicketId || $maxTicketId < 10000000) {
-                            $ticketMaxId = 10000000;
-                        } else {
-                            $ticketMaxId = $maxTicketId + 1;
-                        }
-                        
-                        // Double-check for uniqueness with limit to prevent infinite loop
-                        $attempts = 0;
-                        while (\App\Models\Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists() && $attempts < 100) {
-                            $ticketMaxId++;
-                            $attempts++;
-                        }
-
-                        if ($attempts >= 100) {
-                            throw new \Exception("Unable to generate unique ticket ID after 100 attempts");
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Ticket ID generation error for row {$rowNumber}: " . $e->getMessage());
-                        $errors[] = "Row {$rowNumber}: Error generating ticket ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create ticket record with enhanced error handling
+                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
                     try {
                         $ticket = new \App\Models\Ticket();
-                        $ticket->ticket_id = $ticketMaxId;
                         $ticket->name = $ticketName;
                         $ticket->description = $description;
                         $ticket->terms_conditions = $termsConditions;
@@ -4452,6 +4350,7 @@ class BulkUploadController extends Controller
                         $ticket->created_by = $auth_user->userId;
                         
                         $ticket->save();
+                        $ticket->refresh();
                         $successCount++;
                     } catch (\Exception $e) {
                         Log::error("Ticket save error for row {$rowNumber}: " . $e->getMessage());
@@ -5498,33 +5397,9 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique meal ID
-                    try {
-                        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-                        $meal_max_id = $lastMeal->meal_id ?? 0;
-                        $mealId = \App\Helpers\CommonHelper::createId($meal_max_id);
-                        
-                        // Ensure uniqueness
-                        $attempts = 0;
-                        while (Meal::where('meal_id', $mealId)->exists() && $attempts < 100) {
-                            $mealId = \App\Helpers\CommonHelper::createId($mealId);
-                            $attempts++;
-                        }
-
-                        if ($attempts >= 100) {
-                            throw new \Exception("Unable to generate unique meal ID after 100 attempts");
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Meal ID generation error for row {$rowNumber}: " . $e->getMessage());
-                        $errors[] = "Row {$rowNumber}: Error generating meal ID";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create meal record
+                    // Create meal record — meal_id auto-assigned on save (same as MealController::store)
                     try {
                         $meal = new Meal();
-                        $meal->meal_id = $mealId;
                         $meal->restaurant_id = $restaurant->restaurant_id;
                         $meal->name = 'Menu Item'; // Default name
                         $meal->item_description = $itemDescription;
@@ -5560,6 +5435,7 @@ class BulkUploadController extends Controller
                         $meal->created_by = $auth_user->userId;
                         
                         $meal->save();
+                        $meal->refresh();
                         $successCount++;
                     } catch (\Exception $e) {
                         Log::error("Meal save error for row {$rowNumber}: " . $e->getMessage());
@@ -6000,16 +5876,7 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Generate unique bed ID using CommonHelper (following HotelController logic)
-                    $lastBed = \App\Models\Bed::withTrashed()->orderBy('bed_id', 'desc')->first();
-                    $bedMaxId = $lastBed ? $lastBed->bed_id : 0;
-                    $bedId = \App\Helpers\CommonHelper::createId($bedMaxId);
-                    
-                    while (\App\Models\Bed::where('bed_id', $bedId)->exists()) {
-                        $bedId = \App\Helpers\CommonHelper::createId($bedId);
-                    }
-                    
-                    // Handle null values for extra bed and baby cot (following HotelController logic)
+                    // Create bed record — bed_id auto-assigned on save (same as HotelController::storebeds)
                     if ($extraBedNumeric != '1') {
                         $extraBedType = null;
                         $extraBedPrice = 0;
@@ -6031,7 +5898,6 @@ class BulkUploadController extends Controller
                     $bed->extra_bed_price = floatval($extraBedPrice);
                     $bed->baby_cot = ($babyCotNumeric == '1') ? 1 : null;
                     $bed->baby_cot_price = floatval($babyCotPrice);
-                    $bed->bed_id = $bedId;
                     $bed->dmc_id = $auth_user->userId;
                     $bed->room_id = $roomCategoryId;
                     $bed->is_active = ($statusNumeric == '1') ? 1 : 0;
@@ -6039,6 +5905,7 @@ class BulkUploadController extends Controller
                     $bed->force_child_count = intval($forceChildCount);
                     
                     $bed->save();
+                    $bed->refresh();
                     $successCount++;
                     
                 } catch (\Exception $e) {
@@ -6470,34 +6337,23 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Generate unique rate ID
-                    $lastRate = \App\Models\Rate::withTrashed()->orderBy('created_at', 'desc')->first();
-                    $rate_max_id = $lastRate->rate_id ?? 0;
-                    $rateId = \App\Helpers\CommonHelper::createId($rate_max_id);
-                    while (\App\Models\Rate::where('rate_id', $rateId)->exists()) {
-                        $rateId = \App\Helpers\CommonHelper::createId($rateId);
-                    }
+                    // Create season record — rate_id auto-assigned on save (same as HotelController)
+                    $season = new \App\Models\Rate();
+                    $season->event = $seasonName;
+                    $season->event_type = 'Season';
+                    $season->hotel_id = $hotel_id;
+                    $season->price = 0;
+                    $season->weekday_price = floatval($singleWeekdayPrice);
+                    $season->weekend_price = floatval($singleWeekendPrice);
+                    $season->double_weekday_price = floatval($doubleWeekdayPrice);
+                    $season->double_weekend_price = floatval($doubleWeekendPrice);
+                    $season->start_date = $startDateParsed;
+                    $season->end_date = $endDateParsed;
+                    $season->dmc_id = $auth_user->userId;
+                    $season->is_active = $status == '1' ? 1 : 0;
 
-                    // Create season record
-                    $season = \App\Models\Rate::create([
-                        'rate_id' => $rateId,
-                        'event' => $seasonName,
-                        'event_type' => 'Season',
-                        'hotel_id' => $hotel_id,
-                        'price' => 0,
-                        'weekday_price' => floatval($singleWeekdayPrice),
-                        'weekend_price' => floatval($singleWeekendPrice),
-                        'double_weekday_price' => floatval($doubleWeekdayPrice),
-                        'double_weekend_price' => floatval($doubleWeekendPrice),
-                        'start_date' => $startDateParsed,
-                        'end_date' => $endDateParsed,
-                        'dmc_id' => $auth_user->userId,
-                        'is_active' => $status == '1' ? 1 : 0,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-
-                    if ($season) {
+                    if ($season->save()) {
+                        $season->refresh();
                         $successCount++;
                     } else {
                         $errors[] = "Row {$rowNumber}: Failed to create season record.";

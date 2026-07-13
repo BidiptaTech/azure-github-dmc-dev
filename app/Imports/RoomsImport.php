@@ -339,14 +339,8 @@ class RoomsImport
      */
     private function createDmcRoomCopy($originalRoom, $row, int $dmcOwnerUserId)
     {
-        // Generate new unique room_id
-        $newRoomId = $this->generateNewRoomId();
-
         // Create new room record (copy of admin room with DMC's custom data)
         $newRoom = new Room();
-        
-        // Copy structure from original room
-        $newRoom->room_id = $newRoomId;
         $newRoom->hotel_id = $originalRoom->hotel_id;
         $newRoom->room_type = $originalRoom->room_type;
         $newRoom->no_of_room = $row['no_of_room'] ?? $originalRoom->no_of_room; // DMC can set their own no_of_room
@@ -387,27 +381,8 @@ class RoomsImport
         $newRoom->status = $originalRoom->status;
         
         $newRoom->save();
+        $newRoom->refresh();
         
-        Log::info("Created new DMC room copy: {$newRoomId} for DMC user: {$dmcOwnerUserId}");
-    }
-
-    /**
-     * Generate new unique room_id using CommonHelper
-     */
-    private function generateNewRoomId()
-    {
-        // Get the last room ID (including soft deleted) - same logic as HotelController
-        $lastRoom = Room::withTrashed()->orderBy('id', 'desc')->first();
-        $room_max_id = $lastRoom->room_id ?? 0;
-        
-        // Use CommonHelper to create ID (returns an integer)
-        $roomId = \App\Helpers\CommonHelper::createId($room_max_id);
-        
-        // Ensure uniqueness (in case of concurrent requests)
-        while (Room::where('room_id', $roomId)->exists()) {
-            $roomId = \App\Helpers\CommonHelper::createId($roomId);
-        }
-        
-        return $roomId; // Returns integer, not string
+        Log::info("Created new DMC room copy: {$newRoom->room_id} for DMC user: {$dmcOwnerUserId}");
     }
 }
