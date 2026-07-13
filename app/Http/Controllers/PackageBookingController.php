@@ -44,9 +44,13 @@ class PackageBookingController extends Controller
             ->select('agent_id', 'name', 'company_name')
             ->get();
 
+        // Currency of the DMC handling this booking flow.
+        $currency = CommonHelper::getDmcCurrency($dmcId);
+
         return view('package.package-booking', [
             'agencies' => $agencies,
             'prefilledPackageId' => $prefilledPackageId,
+            'currency' => $currency,
         ]);
     }
 
@@ -535,6 +539,9 @@ class PackageBookingController extends Controller
 
         $totalPax = (int) ($bookingDetails['total_pax'] ?? $bookingDetails['pax_count'] ?? 1);
 
+        // Currency of the DMC that maintains this booking.
+        $currency = CommonHelper::getDmcCurrency($booking->dmc_id);
+
         return view('package.package-booking-edit', [
             'booking' => $booking,
             'booked' => [
@@ -548,6 +555,7 @@ class PackageBookingController extends Controller
             'bookingDetails' => $bookingDetails,
             'travelDates' => $travelDates,
             'totalPax' => $totalPax,
+            'currency' => $currency,
         ]);
     }
 
@@ -823,10 +831,14 @@ class PackageBookingController extends Controller
 
         $packageItinerary = $this->buildPackageItineraryByDate($booking);
 
+        // Currency of the DMC that maintains this booking.
+        $currency = CommonHelper::getDmcCurrency($booking->dmc_id);
+
         return view('package.package-booking-details', [
             'booking' => $booking,
             'packageItinerary' => $packageItinerary,
             'priceHide' => 0,
+            'currency' => $currency,
         ]);
     }
 

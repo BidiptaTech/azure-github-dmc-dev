@@ -52,7 +52,7 @@
                     <div class="col-md-3">
                         <label class="form-label small text-muted mb-1">Current Final Price</label>
                         <div class="fw-semibold text-primary">
-                            SGD {{ number_format((float)($priceData['final_price'] ?? 0), 2) }}
+                            {{ $currency ?? 'SGD' }} {{ number_format((float)($priceData['final_price'] ?? 0), 2) }}
                         </div>
                     </div>
                 </div>
@@ -94,7 +94,7 @@
                                             <span class="badge bg-light text-dark ms-2">{{ $itemType }}</span>
                                         </div>
                                         @if($itemPrice !== null && is_numeric($itemPrice))
-                                            <span class="text-muted small">SGD {{ number_format((float) $itemPrice, 2) }}</span>
+                                            <span class="text-muted small">{{ $currency ?? 'SGD' }} {{ number_format((float) $itemPrice, 2) }}</span>
                                         @endif
                                     </li>
                                 @endforeach
@@ -165,9 +165,9 @@
                                                 <div class="fw-semibold">{{ $name }}</div>
                                                 <div class="text-muted small">
                                                     @if($s['section'] === 'hotels')
-                                                        Flat price: SGD {{ number_format($perUnit, 2) }}
+                                                        Flat price: {{ $currency ?? 'SGD' }} {{ number_format($perUnit, 2) }}
                                                     @else
-                                                        Per pax: SGD {{ number_format($perPax, 2) }}
+                                                        Per pax: {{ $currency ?? 'SGD' }} {{ number_format($perPax, 2) }}
                                                     @endif
                                                 </div>
                                             </div>
@@ -184,7 +184,7 @@
                                             <div class="text-end" style="min-width: 140px;">
                                                 <div class="small text-muted">Line total</div>
                                                 <div class="fw-semibold addon-line-total" data-section="{{ $s['section'] }}" data-id="{{ $rawId }}">
-                                                    SGD 0.00
+                                                    {{ $currency ?? 'SGD' }} 0.00
                                                 </div>
                                             </div>
                                         </label>
@@ -212,19 +212,19 @@
                 <div class="row small g-2">
                     <div class="col-md-3">
                         <div class="text-muted">Current Total</div>
-                        <div class="fw-semibold">SGD {{ number_format($currentTotal, 2) }}</div>
+                        <div class="fw-semibold">{{ $currency ?? 'SGD' }} {{ number_format($currentTotal, 2) }}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="text-muted">Add-ons Delta</div>
-                        <div class="fw-semibold text-success" id="addonDelta">SGD 0.00</div>
+                        <div class="fw-semibold text-success" id="addonDelta">{{ $currency ?? 'SGD' }} 0.00</div>
                     </div>
                     <div class="col-md-3">
                         <div class="text-muted">New Total (before markup)</div>
-                        <div class="fw-semibold" id="newTotal">SGD {{ number_format($currentTotal, 2) }}</div>
+                        <div class="fw-semibold" id="newTotal">{{ $currency ?? 'SGD' }} {{ number_format($currentTotal, 2) }}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="text-muted">New Final Price ({{ $markupType }} {{ $markupAmount }}{{ $markupType === 'percentage' ? '%' : '' }})</div>
-                        <div class="fw-bold text-primary" id="newFinal">SGD {{ number_format($currentFinal, 2) }}</div>
+                        <div class="fw-bold text-primary" id="newFinal">{{ $currency ?? 'SGD' }} {{ number_format($currentFinal, 2) }}</div>
                     </div>
                 </div>
             </div>
@@ -266,7 +266,7 @@
         return Math.ceil(num / 5) * 5;
     }
     function money(n) {
-        return 'SGD ' + (parseFloat(n) || 0).toFixed(2);
+        return @json($currency ?? 'SGD') + ' ' + (parseFloat(n) || 0).toFixed(2);
     }
 
     function findPaxInput(section, id) {

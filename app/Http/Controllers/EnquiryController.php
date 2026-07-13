@@ -150,6 +150,7 @@ class EnquiryController extends Controller
                 'current_position' => '',
                 'amount' => 0,
                 'actual_amount' => $actualForRow,
+                'gross_amount' => \App\Helpers\CommonHelper::calculateTourGrossAmount($tour),
                 'comment' => '',
             ]);
             $currentEnquiry->refresh();
@@ -186,6 +187,9 @@ class EnquiryController extends Controller
             $currentEnquiry->receiver_type = '';
             $currentEnquiry->current_position = '';
             $currentEnquiry->actual_amount = $currentEnquiry->actual_amount ?? 0;
+            // Reset the gross baseline to the current gross for this negotiation round so that
+            // services added afterwards are added on top of this newly agreed amount.
+            $currentEnquiry->gross_amount = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
             $currentEnquiry->amount = $request->price;
             $currentEnquiry->comment = $request->comment;
         // }

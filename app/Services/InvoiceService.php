@@ -485,7 +485,7 @@ class InvoiceService
             'no_of_adults' => $tour->adult ?? $data['no_of_adults'] ?? 0,
             'no_of_children' => $tour->child ?? $data['no_of_children'] ?? 0,
             'no_of_infants' => $tour->infant ?? $data['no_of_infants'] ?? 0,
-            'base_currency' => $data['base_currency'] ?? 'SGD',
+            'base_currency' => $data['base_currency'] ?? CommonHelper::resolveDmcCurrencyForInvoice($dmc, $tour),
             'client_details' => $clientDetails,
             'travel_company_details' => $travelCompanyDetails,
             'currency_conversion' => $data['currency_conversion'] ?? [],
