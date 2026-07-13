@@ -29,11 +29,10 @@
         </div>
 
         <!-- Selected Hotels Section -->
-        @if(isset($selectedHotels) && count($selectedHotels) > 0)
-        <div class="card mb-4" id="selectedHotelsSection">
+        <div class="card mb-4 {{ (!isset($selectedHotels) || count($selectedHotels) === 0) ? 'd-none' : '' }}" id="selectedHotelsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Selected Hotels ({{ count($selectedHotels) }})</h5>
+                    <h5 class="mb-0" id="selectedHotelsTitle">Selected Hotels ({{ isset($selectedHotels) ? count($selectedHotels) : 0 }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -63,7 +62,7 @@
                             </tr>
                         </thead>
                         <tbody id="selectedHotelsBody">
-                            @foreach($selectedHotels as $hotel)
+                            @foreach(($selectedHotels ?? []) as $hotel)
                                 <tr class="selected-hotel-row" data-hotel-id="{{ $hotel->id }}" data-name="{{ strtolower($hotel->name) }}" data-location="{{ strtolower($hotel->city) }}, {{ strtolower($hotel->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -113,7 +112,6 @@
                 </div>
             </div>
         </div>
-        @endif
 
         <!-- Available Hotels Section -->
         <div class="card">
@@ -163,7 +161,18 @@
                 <div class="row" id="hotelsContainer">
                     @if(isset($availableHotels) && count($availableHotels) > 0)
                         @foreach($availableHotels as $hotel)
-                            <div class="col-lg-3 col-md-6 mb-3 hotel-item" data-hotel-name="{{ strtolower($hotel->name) }}" data-country="{{ strtolower($hotel->country) }}" data-city="{{ strtolower($hotel->city) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 hotel-item"
+                                 data-hotel-id="{{ $hotel->id }}"
+                                 data-hotel-unique-id="{{ $hotel->hotel_unique_id }}"
+                                 data-display-name="{{ $hotel->name }}"
+                                 data-main-image="{{ $hotel->main_image }}"
+                                 data-display-city="{{ $hotel->city }}"
+                                 data-display-country="{{ $hotel->country }}"
+                                 data-cat-id="{{ $hotel->cat_id }}"
+                                 data-edit-url="{{ route('hotels.edit', $hotel->hotel_unique_id) }}"
+                                 data-hotel-name="{{ strtolower($hotel->name) }}"
+                                 data-country="{{ strtolower($hotel->country) }}"
+                                 data-city="{{ strtolower($hotel->city) }}">
                                 <div class="card h-100 hotel-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -376,6 +385,101 @@
 // CSRF Token
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 const defaultCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+let selectedHotelsPaginator = null;
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function resetButton(btn) {
+    if (!btn) return;
+    btn.classList.remove('loading');
+    btn.disabled = false;
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('#selectedHotelsBody .selected-hotel-row').length;
+    const title = document.getElementById('selectedHotelsTitle');
+    const section = document.getElementById('selectedHotelsSection');
+
+    if (title) {
+        title.textContent = `Selected Hotels (${count})`;
+    }
+    if (section) {
+        section.classList.toggle('d-none', count === 0);
+    }
+}
+
+function buildSelectedRowFromItem(hotelItem) {
+    const hotelId = hotelItem.getAttribute('data-hotel-id');
+    const name = hotelItem.getAttribute('data-display-name') || '';
+    const city = hotelItem.getAttribute('data-display-city') || '';
+    const country = hotelItem.getAttribute('data-display-country') || '';
+    const mainImage = hotelItem.getAttribute('data-main-image') || '';
+    const catId = hotelItem.getAttribute('data-cat-id') || '';
+    const editUrl = hotelItem.getAttribute('data-edit-url') || '#';
+    const categoryLabel = catId ? `Category: ${escapeHtml(catId)}` : 'Standard';
+    const imageHtml = mainImage
+        ? `<img src="${escapeHtml(mainImage)}" alt="${escapeHtml(name)}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">`
+        : `<div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="ri-hotel-line text-muted"></i></div>`;
+
+    const row = document.createElement('tr');
+    row.className = 'selected-hotel-row';
+    row.setAttribute('data-hotel-id', hotelId);
+    row.setAttribute('data-name', name.toLowerCase());
+    row.setAttribute('data-location', `${city}, ${country}`.toLowerCase());
+    row.innerHTML = `
+        <td>
+            <div class="d-flex align-items-center">
+                ${imageHtml}
+                <div><strong>${escapeHtml(name)}</strong></div>
+            </div>
+        </td>
+        <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
+        <td><span class="badge bg-label-primary">${categoryLabel}</span></td>
+        <td>
+            <div class="btn-group" role="group">
+                <a href="${escapeHtml(editUrl)}" class="btn btn-sm btn-outline-primary">
+                    <i class="ri-edit-line me-1"></i>Edit
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-hotel-btn"
+                        data-hotel-id="${escapeHtml(hotelId)}"
+                        data-hotel-name="${escapeHtml(name)}">
+                    <i class="ri-delete-bin-line me-1"></i>Remove
+                </button>
+            </div>
+        </td>
+    `;
+    return row;
+}
+
+function addHotelToSelectedTable(hotelItem) {
+    const hotelId = hotelItem.getAttribute('data-hotel-id');
+    if (document.querySelector(`#selectedHotelsBody .selected-hotel-row[data-hotel-id="${hotelId}"]`)) {
+        return;
+    }
+
+    const tbody = document.getElementById('selectedHotelsBody');
+    if (!tbody) return;
+
+    tbody.insertBefore(buildSelectedRowFromItem(hotelItem), tbody.firstChild);
+    hotelItem.classList.add('hotel-selected');
+}
+
+function removeHotelFromSelectedTable(hotelId) {
+    const row = document.querySelector(`#selectedHotelsBody .selected-hotel-row[data-hotel-id="${hotelId}"]`);
+    if (row) {
+        row.remove();
+    }
+}
+
+function refreshSelectedPagination() {
+    if (selectedHotelsPaginator) {
+        selectedHotelsPaginator.refresh(1);
+    }
+}
 
 function selectAll() {
     document.querySelectorAll('.select-hotel-btn').forEach(button => {
@@ -401,6 +505,11 @@ function applyFilters() {
     let visibleCount = 0;
 
     hotelItems.forEach(item => {
+        if (item.classList.contains('hotel-selected')) {
+            item.classList.add('hidden');
+            return;
+        }
+
         const hotelName = item.getAttribute('data-hotel-name');
         const hotelCountry = item.getAttribute('data-country') || '';
         const hotelCity = item.getAttribute('data-city') || '';
@@ -484,14 +593,13 @@ function updateHotelCount(visibleCount = null) {
     }
 }
 
-function selectHotel(hotelId, hotelName) {
-    // Remember last selected hotel to bring it to top after reload
-    try { localStorage.setItem('last_selected_hotel_id', String(hotelId)); } catch (e) {}
+function selectHotel(hotelId, hotelName, buttonEl) {
     fetch('{{ route("services.hotels.select") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
         },
         body: JSON.stringify({
             hotel_id: hotelId
@@ -500,29 +608,35 @@ function selectHotel(hotelId, hotelName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message
+            const hotelItem = document.querySelector(`.hotel-item[data-hotel-id="${hotelId}"]`);
+            if (hotelItem) {
+                addHotelToSelectedTable(hotelItem);
+                hotelItem.classList.add('hidden');
+            }
+
+            updateSelectedCount();
+            refreshSelectedPagination();
+            applyFilters();
             showAlert('success', `${hotelName} has been selected successfully!`);
-            
-            // Reload page after a short delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
         } else {
+            resetButton(buttonEl);
             showAlert('error', data.message || 'An error occurred while selecting the hotel.');
         }
     })
     .catch(error => {
         console.error('Error:', error);
+        resetButton(buttonEl);
         showAlert('error', 'An error occurred while selecting the hotel.');
     });
 }
 
-function removeHotel(hotelId, hotelName) {
+function removeHotel(hotelId, hotelName, buttonEl) {
     fetch('{{ route("services.hotels.remove") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
         },
         body: JSON.stringify({
             hotel_id: hotelId
@@ -531,13 +645,18 @@ function removeHotel(hotelId, hotelName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Show success message
+            removeHotelFromSelectedTable(hotelId);
+
+            const hotelItem = document.querySelector(`.hotel-item[data-hotel-id="${hotelId}"]`);
+            if (hotelItem) {
+                hotelItem.classList.remove('hotel-selected');
+                resetButton(hotelItem.querySelector('.select-hotel-btn'));
+            }
+
+            updateSelectedCount();
+            refreshSelectedPagination();
+            applyFilters();
             showAlert('success', `${hotelName} has been removed successfully!`);
-            
-            // Reload page after a short delay
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
         } else {
             showAlert('error', data.message || 'An error occurred while removing the hotel.');
         }
@@ -545,6 +664,9 @@ function removeHotel(hotelId, hotelName) {
     .catch(error => {
         console.error('Error:', error);
         showAlert('error', 'An error occurred while removing the hotel.');
+    })
+    .finally(() => {
+        resetButton(buttonEl);
     });
 }
 
@@ -556,14 +678,14 @@ function showAlert(type, message) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    
-    // Insert alert at the top of the card body
-    const cardBody = document.querySelector('.card-body');
-    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
-    
-    // Auto-dismiss after 5 seconds
+
+    const alertContainer = document.getElementById('availableHotelsAlerts');
+    if (!alertContainer) return;
+
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+
     setTimeout(() => {
-        const alert = cardBody.querySelector('.alert');
+        const alert = alertContainer.querySelector('.alert');
         if (alert) {
             alert.remove();
         }
@@ -584,50 +706,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle hotel selection
     document.querySelectorAll('.select-hotel-btn').forEach(button => {
         button.addEventListener('click', function() {
+            if (this.disabled) return;
+
             const hotelId = this.getAttribute('data-hotel-id');
             const hotelName = this.getAttribute('data-hotel-name');
-            
-            // Show loading state
+
             this.classList.add('loading');
             this.disabled = true;
-            
-            // Call select hotel function
-            selectHotel(hotelId, hotelName);
+
+            selectHotel(hotelId, hotelName, this);
         });
     });
 
-    // Handle hotel removal
-    document.querySelectorAll('.remove-hotel-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const hotelId = this.getAttribute('data-hotel-id');
-            const hotelName = this.getAttribute('data-hotel-name');
-            
-            // Set modal content
-            document.getElementById('removeHotelName').textContent = hotelName;
-            document.getElementById('confirmRemoveBtn').setAttribute('data-hotel-id', hotelId);
-            document.getElementById('confirmRemoveBtn').setAttribute('data-hotel-name', hotelName);
-            
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('removeHotelModal'));
-            modal.show();
-        });
+    // Handle hotel removal (including dynamically added rows)
+    document.addEventListener('click', function(event) {
+        const removeBtn = event.target.closest('.remove-hotel-btn');
+        if (!removeBtn || !document.getElementById('selectedHotelsBody')?.contains(removeBtn)) {
+            return;
+        }
+
+        const hotelId = removeBtn.getAttribute('data-hotel-id');
+        const hotelName = removeBtn.getAttribute('data-hotel-name');
+
+        document.getElementById('removeHotelName').textContent = hotelName;
+        document.getElementById('confirmRemoveBtn').setAttribute('data-hotel-id', hotelId);
+        document.getElementById('confirmRemoveBtn').setAttribute('data-hotel-name', hotelName);
+
+        const modal = new bootstrap.Modal(document.getElementById('removeHotelModal'));
+        modal.show();
     });
 
     // Handle confirm remove
     document.getElementById('confirmRemoveBtn').addEventListener('click', function() {
         const hotelId = this.getAttribute('data-hotel-id');
         const hotelName = this.getAttribute('data-hotel-name');
-        
-        // Show loading state
-        this.classList.add('loading');
-        this.disabled = true;
-        
-        // Call remove hotel function
-        removeHotel(hotelId, hotelName);
-        
-        // Hide modal
+        const confirmBtn = this;
+
+        confirmBtn.classList.add('loading');
+        confirmBtn.disabled = true;
+
+        removeHotel(hotelId, hotelName, confirmBtn);
+
         const modal = bootstrap.Modal.getInstance(document.getElementById('removeHotelModal'));
-        modal.hide();
+        if (modal) {
+            modal.hide();
+        }
     });
 
     // Prime Country dropdown from server-allowed list (Master DMC countries / Created DMC country)
@@ -676,16 +799,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Selected Hotels: client-side pagination + search
     const selectedBody = document.getElementById('selectedHotelsBody');
     if (selectedBody) {
-        const rows = Array.from(selectedBody.querySelectorAll('.selected-hotel-row'));
         const pagination = document.getElementById('selectedHotelsPagination');
         const searchInput = document.getElementById('selectedSearch');
         const pageSizeSelect = document.getElementById('selectedPageSize');
 
         function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
 
+        function getAllRows() {
+            return Array.from(selectedBody.querySelectorAll('.selected-hotel-row'));
+        }
+
         function getFilteredRows() {
             const term = (searchInput.value || '').toLowerCase();
-            return rows.filter(r => {
+            return getAllRows().filter(r => {
                 if (!term) return true;
                 const name = r.getAttribute('data-name') || '';
                 const loc = r.getAttribute('data-location') || '';
@@ -723,29 +849,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const start = (safePage - 1) * pageSize;
             const end = start + pageSize;
 
-            // Hide all, then show only the slice
-            rows.forEach(r => r.classList.add('d-none'));
+            getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
 
             renderPagination(total, safePage, pageSize);
         }
 
-        // Reorder by last selected hotel id if exists
-        try {
-            const lastId = localStorage.getItem('last_selected_hotel_id');
-            if (lastId) {
-                const row = rows.find(r => String(r.getAttribute('data-hotel-id')) === String(lastId));
-                if (row && row.parentElement) {
-                    row.parentElement.insertBefore(row, row.parentElement.firstChild);
-                }
-                localStorage.removeItem('last_selected_hotel_id');
+        selectedHotelsPaginator = {
+            refresh(page = 1) {
+                render(page);
             }
-        } catch (e) {}
+        };
 
-        // Initial render
         render(1);
 
-        // Bind events
         searchInput.addEventListener('input', () => render(1));
         pageSizeSelect.addEventListener('change', () => render(1));
     }

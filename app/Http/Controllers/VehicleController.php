@@ -879,28 +879,29 @@ class VehicleController extends Controller
                 'vehicle_plate_no' => $vehiclePlateRules,
                 // Regular Day Pricing
                 'base_price' => 'required|numeric',
-                'cost_per_km_below_10' => 'required|numeric',
-                'cost_per_km_10_to_25' => 'required|numeric',
-                'cost_per_km_above_25' => 'required|numeric',
+                // Per KM pricing temporarily hidden from forms
+                // 'cost_per_km_below_10' => 'required|numeric',
+                // 'cost_per_km_10_to_25' => 'required|numeric',
+                // 'cost_per_km_above_25' => 'required|numeric',
                 'cost_per_hour' => 'required|numeric',
                 'cancel_cost' => 'required|numeric',
                 'base_cost_price' => 'required|numeric',
-                'per_km_below_10_cost_price' => 'required|numeric',
-                'per_km_10_to_25_cost_price' => 'required|numeric',
-                'per_km_above_25_cost_price' => 'required|numeric',
+                // 'per_km_below_10_cost_price' => 'required|numeric',
+                // 'per_km_10_to_25_cost_price' => 'required|numeric',
+                // 'per_km_above_25_cost_price' => 'required|numeric',
                 'per_hour_cost_price' => 'required|numeric',
                 'cancel_cost_price' => 'required|numeric',
                 // Regular Night Pricing
                 'night_base_price' => 'required|numeric',
-                'night_cost_per_km_below_10' => 'required|numeric',
-                'night_cost_per_km_10_to_25' => 'required|numeric',
-                'night_cost_per_km_above_25' => 'required|numeric',
+                // 'night_cost_per_km_below_10' => 'required|numeric',
+                // 'night_cost_per_km_10_to_25' => 'required|numeric',
+                // 'night_cost_per_km_above_25' => 'required|numeric',
                 'night_cost_per_hour' => 'required|numeric',
                 'night_cancel_cost' => 'required|numeric',
                 'night_base_cost_price' => 'required|numeric',
-                'night_per_km_below_10_cost_price' => 'required|numeric',
-                'night_per_km_10_to_25_cost_price' => 'required|numeric',
-                'night_per_km_above_25_cost_price' => 'required|numeric',
+                // 'night_per_km_below_10_cost_price' => 'required|numeric',
+                // 'night_per_km_10_to_25_cost_price' => 'required|numeric',
+                // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
                 'night_cancel_cost_price' => 'required|numeric',
             ],[
@@ -956,29 +957,53 @@ class VehicleController extends Controller
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
         // Regular Day Pricing
         $vehicle->base_price = $request->input('base_price')?? 0;
-        $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10')?? 0;
-        $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
-        $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
+        if ($request->has('cost_per_km_below_10')) {
+            $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10') ?? 0;
+        }
+        if ($request->has('cost_per_km_10_to_25')) {
+            $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25') ?? 0;
+        }
+        if ($request->has('cost_per_km_above_25')) {
+            $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
+        }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
         $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
-        $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
-        $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
-        $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
+        if ($request->has('per_km_below_10_cost_price')) {
+            $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price') ?? 0;
+        }
+        if ($request->has('per_km_10_to_25_cost_price')) {
+            $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price') ?? 0;
+        }
+        if ($request->has('per_km_above_25_cost_price')) {
+            $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price') ?? 0;
+        }
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
         $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
 
         // Regular Night Pricing
         $vehicle->night_base_price = $request->input('night_base_price')?? 0;
-        $vehicle->night_cost_per_km_below_10 = $request->input('night_cost_per_km_below_10')?? 0;
-        $vehicle->night_cost_per_km_10_to_25 = $request->input('night_cost_per_km_10_to_25')?? 0;
-        $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25')?? 0;
+        if ($request->has('night_cost_per_km_below_10')) {
+            $vehicle->night_cost_per_km_below_10 = $request->input('night_cost_per_km_below_10') ?? 0;
+        }
+        if ($request->has('night_cost_per_km_10_to_25')) {
+            $vehicle->night_cost_per_km_10_to_25 = $request->input('night_cost_per_km_10_to_25') ?? 0;
+        }
+        if ($request->has('night_cost_per_km_above_25')) {
+            $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25') ?? 0;
+        }
         $vehicle->night_cost_per_hour = $request->input('night_cost_per_hour')?? 0;
         $vehicle->night_cancel_cost = $request->input('night_cancel_cost')?? 0;
         $vehicle->night_base_cost_price = $request->input('night_base_cost_price')?? 0;
-        $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price')?? 0;
-        $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price')?? 0;
-        $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price')?? 0;
+        if ($request->has('night_per_km_below_10_cost_price')) {
+            $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price') ?? 0;
+        }
+        if ($request->has('night_per_km_10_to_25_cost_price')) {
+            $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price') ?? 0;
+        }
+        if ($request->has('night_per_km_above_25_cost_price')) {
+            $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price') ?? 0;
+        }
         $vehicle->night_per_hour_cost_price = $request->input('night_per_hour_cost_price')?? 0;
         $vehicle->night_cancel_cost_price = $request->input('night_cancel_cost_price')?? 0;
 
