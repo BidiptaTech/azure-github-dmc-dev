@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use App\Helpers\CommonHelper;
 
 class AgentsImport
 {
@@ -260,17 +259,7 @@ class AgentsImport
     private function createNewAgent($data, $agency, $rowNumber)
     {
         try {
-            // Generate unique agent ID
-            $lastAgent = Agent::withTrashed()->orderBy('created_at', 'desc')->first();
-            $agent_max_id = $lastAgent ? $lastAgent->agent_id : 1;
-            $agentId = CommonHelper::createId($agent_max_id);
-            
-            while (Agent::where('agent_id', $agentId)->exists()) {
-                $agentId = CommonHelper::createId($agentId);
-            }
-
             $agent = new Agent();
-            $agent->agent_id = $agentId;
             $agent->salutation = trim($data['salutation']);
             $agent->name = trim($data['name']);
             $agent->company_name = $agency->agency_name;
@@ -286,6 +275,7 @@ class AgentsImport
             $agent->status = 1;
 
             $agent->save();
+            $agent->refresh();
 
             // Send email
             $this->sendAgentEmail($agent, $data, $agency, 'created');
