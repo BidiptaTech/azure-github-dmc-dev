@@ -393,7 +393,12 @@ class MiscellaneousItemController extends Controller
                     'item_id' => $itemId,
                     'dmc_id' => $dmc_id,
                     'price_id' => $price->id
-                ]
+                ],
+                'prices' => [
+                    'adult_price' => (float) ($price->adult_price ?? 0),
+                    'child_price' => (float) ($price->child_price ?? 0),
+                    'infant_price' => (float) ($price->infant_price ?? 0),
+                ],
             ]);
 
         } catch (\Exception $e) {

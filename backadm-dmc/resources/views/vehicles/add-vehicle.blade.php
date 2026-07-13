@@ -280,6 +280,7 @@
                                             <input type="number" step="0.01" class="form-control" name="base_cost_price" placeholder="Enter Base Cost Price" value="{{ old('base_cost_price') }}">
                                             @error('base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
                                             <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control" name="cost_per_km_below_10" placeholder="Enter Sell Price" value="{{ old('cost_per_km_below_10') }}">
@@ -310,6 +311,7 @@
                                             <input type="number" step="0.01" class="form-control" name="per_km_above_25_cost_price" placeholder="Enter Cost Price" value="{{ old('per_km_above_25_cost_price') }}">
                                             @error('per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        --}}
                                         <div class="col-md-3 mb-3">
                                             <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control" name="cost_per_hour" placeholder="Enter Sell Price" value="{{ old('cost_per_hour') }}">
@@ -346,6 +348,7 @@
                                             <input type="number" step="0.01" class="form-control" name="night_base_cost_price" placeholder="Enter Base Cost Price" value="{{ old('night_base_cost_price') }}">
                                             @error('night_base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_km_below_10" placeholder="Auto-calculated" value="{{ old('night_cost_per_km_below_10') }}">
@@ -376,24 +379,25 @@
                                             <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_km_above_25_cost_price" placeholder="Auto-calculated" value="{{ old('night_per_km_above_25_cost_price') }}">
                                             @error('night_per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        --}}
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_hour" placeholder="Auto-calculated" value="{{ old('night_cost_per_hour') }}">
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_hour" placeholder="Per Hour Sell Price" value="{{ old('night_cost_per_hour') }}">
                                             @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="night_per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_hour_cost_price" placeholder="Auto-calculated" value="{{ old('night_per_hour_cost_price') }}">
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_hour_cost_price" placeholder="Per Hour Cost Price" value="{{ old('night_per_hour_cost_price') }}">
                                             @error('night_per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cancel_cost" class="form-label"><strong>Cancel Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cancel_cost" placeholder="Auto-calculated" value="{{ old('night_cancel_cost') }}">
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cancel_cost" placeholder="Cancel Sell Price" value="{{ old('night_cancel_cost') }}">
                                             @error('night_cancel_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="night_cancel_cost_price" class="form-label"><strong>Cancel Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_cancel_cost_price" placeholder="Auto-calculated" value="{{ old('night_cancel_cost_price') }}">
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_cancel_cost_price" placeholder="Cancel Cost Price" value="{{ old('night_cancel_cost_price') }}">
                                             @error('night_cancel_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
@@ -1548,9 +1552,9 @@ function initNightChargeAutoPopulate() {
         cssClass: 'auto-calculated-sell',
         runInitialRecalc: true,
         pairs: [
-            { day: 'cost_per_km_below_10', night: 'night_cost_per_km_below_10' },
-            { day: 'cost_per_km_10_to_25', night: 'night_cost_per_km_10_to_25' },
-            { day: 'cost_per_km_above_25', night: 'night_cost_per_km_above_25' },
+            // { day: 'cost_per_km_below_10', night: 'night_cost_per_km_below_10' },
+            // { day: 'cost_per_km_10_to_25', night: 'night_cost_per_km_10_to_25' },
+            // { day: 'cost_per_km_above_25', night: 'night_cost_per_km_above_25' },
             { day: 'cost_per_hour', night: 'night_cost_per_hour' },
             { day: 'cancel_cost', night: 'night_cancel_cost' },
         ],
@@ -1561,9 +1565,9 @@ function initNightChargeAutoPopulate() {
         cssClass: 'auto-calculated-cost',
         runInitialRecalc: true,
         pairs: [
-            { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
-            { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
-            { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
+            // { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
+            // { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
+            // { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
             { day: 'per_hour_cost_price', night: 'night_per_hour_cost_price' },
             { day: 'cancel_cost_price', night: 'night_cancel_cost_price' },
         ],
