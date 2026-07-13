@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 class AgentController extends Controller
 {
     /**
@@ -406,6 +407,151 @@ class AgentController extends Controller
         } else {
             return redirect()->back()->withInput()->with('error', 'Failed to add agent details.');
         }
+    }
+
+    /**
+     * Quick-create agency contact from tour package / enquiry forms (JSON).
+     */
+    public function quickStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+            'name' => 'required|string|max:255',
+            'agency_id' => 'required|integer',
+            'phone' => 'required|numeric',
+            'designation' => 'required|string|max:255',
+            'email' => 'required|email',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $existingAgent = Agent::where('email', $request->input('email'))->first();
+            if ($existingAgent && !$existingAgent->trashed()) {
+                $validator->errors()->add('email', 'The email has already been taken.');
+            }
+        });
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
+        if (!$agency) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected agency was not found.',
+            ], 404);
+        }
+
+        $currentUser = Auth::user();
+        $dmc_id = null;
+
+        if ($currentUser->role_id == 11) {
+            $dmc_id = $currentUser->userId;
+        } else {
+            $parentUser = User::where('userId', $currentUser->created_by)->first();
+            while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                $parentUser = User::where('userId', $parentUser->created_by)->first();
+            }
+            if ($parentUser && $parentUser->role_id == 11) {
+                $dmc_id = $parentUser->userId;
+            }
+        }
+        if ($currentUser->role_id == 1 || $currentUser->role_id == 2 || $currentUser->role_id == 3 || $currentUser->role_id == 4 || $currentUser->role_id == 19) {
+            $dmc = User::where('role_id', 20)->first();
+            $dmc_id = $dmc ? $dmc->userId : null;
+        } elseif ($currentUser->role_id == 20) {
+            $dmc_id = $currentUser->userId;
+        }
+
+        if (!$dmc_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not determine DMC ID.',
+            ], 422);
+        }
+
+        $deletedAgent = Agent::withTrashed()->where('email', $request->input('email'))->first();
+        $generatedPassword = Str::random(10);
+
+        if ($deletedAgent && $deletedAgent->trashed()) {
+            $existingDmcIds = [];
+            if ($deletedAgent->dmc_id) {
+                if (is_string($deletedAgent->dmc_id)) {
+                    try {
+                        $existingDmcIds = json_decode($deletedAgent->dmc_id, true) ?? [];
+                    } catch (\Exception $e) {
+                        $existingDmcIds = [];
+                    }
+                }
+            }
+            if (!in_array($dmc_id, $existingDmcIds)) {
+                $existingDmcIds[] = $dmc_id;
+            }
+
+            $deletedAgent->fill([
+                'salutation' => $request->input('salutation'),
+                'name' => $request->input('name'),
+                'company_name' => $agency->agency_name,
+                'agency_id' => $request->input('agency_id'),
+                'phone' => $request->input('phone'),
+                'designation' => $request->input('designation'),
+                'email' => $request->input('email'),
+                'sales_manager_dmc' => Auth::user()->userId,
+                'role_id' => Auth::user()->role_id,
+                'created_by' => Auth::user()->userId,
+                'dmc_id' => json_encode($existingDmcIds),
+                'password' => bcrypt($generatedPassword),
+                'status' => 1,
+            ]);
+            $deletedAgent->restore();
+            $deletedAgent->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Agency contact restored and added successfully.',
+                'agent' => [
+                    'agent_id' => $deletedAgent->agent_id,
+                    'name' => $deletedAgent->name,
+                ],
+            ]);
+        }
+
+        $agent = new Agent();
+        $agent->salutation = $request->input('salutation');
+        $agent->name = $request->input('name');
+        $agent->company_name = $agency->agency_name;
+        $agent->agency_id = $request->input('agency_id');
+        $agent->phone = $request->input('phone');
+        $agent->designation = $request->input('designation');
+        $agent->email = $request->input('email');
+        $agent->sales_manager_dmc = Auth::user()->userId;
+        $agent->role_id = Auth::user()->role_id;
+        $agent->created_by = Auth::user()->userId;
+        $agent->dmc_id = json_encode([$dmc_id]);
+        $agent->password = bcrypt($generatedPassword);
+        $agent->status = 1;
+
+        if (!$agent->save()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add agency contact.',
+            ], 500);
+        }
+
+        $agent->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Agency contact added successfully.',
+            'agent' => [
+                'agent_id' => $agent->agent_id,
+                'name' => $agent->name,
+            ],
+        ]);
     }
     
 

@@ -920,10 +920,8 @@ class GuideController extends Controller
 
 
         if ($isSaved) {
-            LogActivityService::log('edit_guide', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('success', 'Guide details updated successfully!');
         } else {
-            LogActivityService::log('edit_guide_failed', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('error', 'Failed to update guide details.');
         }
     }
