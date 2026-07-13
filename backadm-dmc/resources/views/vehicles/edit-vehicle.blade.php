@@ -844,6 +844,19 @@
                 <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
                 <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
 
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
                 @php
                     $portsSorted = collect($ports ?? [])
                         ->sortByDesc(fn ($p) => mb_strtolower(trim((string) ($p->port_name ?? ''))))
@@ -1589,6 +1602,38 @@
                         </div>
                     </div>
                     @endif
+
+                    @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                    <div class="col-md-6 d-flex flex-column justify-content-end">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
+                            <a href="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               class="btn btn-outline-success px-3">
+                                <i class="ri-file-excel-2-line me-1"></i> Download Template
+                            </a>
+                            <div class="input-group input-group-sm" style="max-width: 260px;">
+                                <input type="file"
+                                       class="form-control"
+                                       id="zone_mapping_import_file"
+                                       name="import_file"
+                                       form="zoneMappingImportForm"
+                                       accept=".xlsx,.xls,.csv">
+                                <button type="button"
+                                        id="zone_mapping_clear_file"
+                                        class="btn btn-outline-secondary d-none"
+                                        title="Remove selected file">
+                                    <i class="ri-close-line"></i>
+                                </button>
+                            </div>
+                            <button type="submit"
+                                    form="zoneMappingImportForm"
+                                    id="zone_mapping_upload_btn"
+                                    class="btn btn-success px-3 d-none">
+                                <i class="ri-upload-2-line me-1"></i> Upload
+                            </button>
+                        </div>
+                    </div>
+                    @endif
                     
                     @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
                         <div class="col-md-2 d-flex align-items-end">
@@ -1783,10 +1828,47 @@
                     </div>
                 </div>
                 
-                <div class="d-flex gap-3 mt-4">
+                <div class="d-flex gap-3 mt-4 flex-wrap align-items-center">
                     <button type="submit" class="btn btn-primary px-4">Save Mappings</button>
                 </div>
             </form>
+
+            @if(request()->get('mapping_type'))
+            <form id="zoneMappingImportForm"
+                  method="POST"
+                  action="{{ route('vehicle.zone_mappings.import') }}"
+                  enctype="multipart/form-data"
+                  class="d-none">
+                @csrf
+                <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
+                <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
+            </form>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const fileInput = document.getElementById('zone_mapping_import_file');
+                const uploadBtn = document.getElementById('zone_mapping_upload_btn');
+                const clearBtn = document.getElementById('zone_mapping_clear_file');
+                if (!fileInput || !uploadBtn) return;
+
+                function syncFileUi() {
+                    const hasFile = fileInput.files && fileInput.files.length > 0;
+                    uploadBtn.classList.toggle('d-none', !hasFile);
+                    if (clearBtn) {
+                        clearBtn.classList.toggle('d-none', !hasFile);
+                    }
+                }
+
+                fileInput.addEventListener('change', syncFileUi);
+
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        fileInput.value = '';
+                        syncFileUi();
+                    });
+                }
+            });
+            </script>
+            @endif
 
             @if(request()->get('mapping_type') == 'port_port')
                 @php
