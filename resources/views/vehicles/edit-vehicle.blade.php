@@ -1248,6 +1248,44 @@
                             }
 
                             document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
+                        },
+
+                        getExportParams() {
+                            const fromEl = document.getElementById('from_zone');
+                            const fromZoneId = fromEl ? String(fromEl.value || '').trim() : '';
+                            const params = new URLSearchParams();
+
+                            if (this.country) {
+                                params.set('country', this.country);
+                            }
+                            if (this.cityId) {
+                                params.set('city_id', this.cityId);
+                            }
+                            if (fromZoneId) {
+                                params.set('from_zone_id', fromZoneId);
+                            }
+
+                            return params;
+                        },
+
+                        updateExportLink() {
+                            const link = document.getElementById('zone_mapping_export_btn');
+                            if (!link) return;
+
+                            const base = link.dataset.exportUrl || link.getAttribute('href') || '';
+                            if (!base) return;
+
+                            const url = new URL(base, window.location.origin);
+                            url.searchParams.delete('country');
+                            url.searchParams.delete('city_id');
+                            url.searchParams.delete('from_zone_id');
+
+                            const params = this.getExportParams();
+                            params.forEach(function (value, key) {
+                                url.searchParams.set(key, value);
+                            });
+                            link.href = url.pathname + url.search;
                         },
 
                         applyToFromZoneSelect() {
@@ -1290,6 +1328,7 @@
                             }
 
                             document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
                         }
                     };
                 })();
@@ -1612,27 +1651,20 @@
                         <label class="form-label d-none d-md-block">&nbsp;</label>
                         <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
                             <a href="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               id="zone_mapping_export_btn"
+                               data-export-url="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
                                class="btn btn-outline-success px-3">
                                 <i class="ri-file-excel-2-line me-1"></i> Download Template
                             </a>
-                            <div class="input-group input-group-sm" style="max-width: 260px;">
-                                <input type="file"
-                                       class="form-control"
-                                       id="zone_mapping_import_file"
-                                       name="import_file"
-                                       form="zoneMappingImportForm"
-                                       accept=".xlsx,.xls,.csv">
-                                <button type="button"
-                                        id="zone_mapping_clear_file"
-                                        class="btn btn-outline-secondary d-none"
-                                        title="Remove selected file">
-                                    <i class="ri-close-line"></i>
-                                </button>
-                            </div>
-                            <button type="submit"
-                                    form="zoneMappingImportForm"
+                            <input type="file"
+                                   class="d-none"
+                                   id="zone_mapping_import_file"
+                                   name="import_file"
+                                   form="zoneMappingImportForm"
+                                   accept=".xlsx,.xls,.csv">
+                            <button type="button"
                                     id="zone_mapping_upload_btn"
-                                    class="btn btn-success px-3 d-none">
+                                    class="btn btn-success px-3">
                                 <i class="ri-upload-2-line me-1"></i> Upload
                             </button>
                         </div>
@@ -1837,7 +1869,7 @@
                 </div>
             </form>
 
-            @if(request()->get('mapping_type'))
+            @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
             <form id="zoneMappingImportForm"
                   method="POST"
                   action="{{ route('vehicle.zone_mappings.import') }}"
@@ -1851,25 +1883,43 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const fileInput = document.getElementById('zone_mapping_import_file');
                 const uploadBtn = document.getElementById('zone_mapping_upload_btn');
-                const clearBtn = document.getElementById('zone_mapping_clear_file');
-                if (!fileInput || !uploadBtn) return;
+                const importForm = document.getElementById('zoneMappingImportForm');
 
-                function syncFileUi() {
-                    const hasFile = fileInput.files && fileInput.files.length > 0;
-                    uploadBtn.classList.toggle('d-none', !hasFile);
-                    if (clearBtn) {
-                        clearBtn.classList.toggle('d-none', !hasFile);
+                function syncExportLink() {
+                    const F = window.VehicleZoneMappingFilters;
+                    if (F && typeof F.updateExportLink === 'function') {
+                        F.updateExportLink();
                     }
                 }
 
-                fileInput.addEventListener('change', syncFileUi);
+                document.addEventListener('zoneMappingFiltersChanged', syncExportLink);
+                document.addEventListener('zoneMappingFiltersReady', syncExportLink);
+                document.addEventListener('change', function (e) {
+                    if (e.target && e.target.id === 'from_zone') {
+                        syncExportLink();
+                    }
+                });
 
-                if (clearBtn) {
-                    clearBtn.addEventListener('click', function () {
-                        fileInput.value = '';
-                        syncFileUi();
-                    });
+                if (window.jQuery) {
+                    window.jQuery(document).on('select2:select select2:clear', '#from_zone', syncExportLink);
                 }
+
+                syncExportLink();
+
+                if (!fileInput || !uploadBtn || !importForm) return;
+
+                uploadBtn.addEventListener('click', function () {
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener('change', function () {
+                    if (!fileInput.files || !fileInput.files.length) return;
+
+                    uploadBtn.disabled = true;
+                    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Uploading...';
+
+                    importForm.submit();
+                });
             });
             </script>
             @endif
@@ -1900,7 +1950,7 @@
                         const ports = @json($ports ?? []);
                         const existing = @json($portPortMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
                         const tbody = document.getElementById('mappingsTableBody');
@@ -2019,10 +2069,14 @@
 
                             const fromStr = String(fromId);
                             const filteredPorts = (F ? F.getFilteredPorts() : (ports || []));
+                            const resolvePortId = (p) => (F && F.resolvePortId) ? F.resolvePortId(p) : String(p?.port_id ?? p?.id ?? '');
 
                             const destinations = filteredPorts
                                 .slice()
-                                .filter(p => String(p.port_id) && String(p.port_id) !== fromStr);
+                                .filter(p => {
+                                    const portId = resolvePortId(p);
+                                    return portId && portId !== fromStr;
+                                });
 
                             if (!destinations.length) {
                                 const tr = document.createElement('tr');
@@ -2038,11 +2092,15 @@
                                     return bt.localeCompare(at);
                                 })
                                 .forEach(p => {
-                                    tbody.appendChild(buildRow(fromStr, String(p.port_id)));
+                                    tbody.appendChild(buildRow(fromStr, resolvePortId(p)));
                                 });
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2068,7 +2126,11 @@
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            startPortPortMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2106,7 +2168,7 @@
                         const toZones = @json($toAttractions);
                         const existing = @json($portAttractionMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -2244,6 +2306,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2269,7 +2335,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortAttractionMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2307,7 +2377,7 @@
                         const toZones = @json($toRestaurants);
                         const existing = @json($portRestaurantMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -2443,6 +2513,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2468,7 +2542,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2506,7 +2584,7 @@
                         const toZones = @json($toHotels);
                         const existing = @json($portHotelMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -2642,6 +2720,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2667,7 +2749,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortHotelMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2840,6 +2926,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -3042,6 +3132,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -3244,6 +3338,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }

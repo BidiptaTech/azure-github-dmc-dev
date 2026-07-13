@@ -1128,7 +1128,13 @@ class VehicleController extends Controller
             return redirect()->back()->with('error', 'Invalid mapping type for export.');
         }
 
-        $rows = $this->buildZoneMappingExportRows($vehicle, $mappingType);
+        $filters = [
+            'country' => trim((string) $request->query('country', '')),
+            'city_id' => trim((string) $request->query('city_id', '')),
+            'from_zone_id' => trim((string) $request->query('from_zone_id', '')),
+        ];
+
+        $rows = $this->buildZoneMappingExportRows($vehicle, $mappingType, $filters);
         $filename = 'vehicle_' . $vehicle->vehicle_id . '_' . $mappingType . '_prices.xlsx';
 
         return Excel::download(new VehicleZoneMappingExport($rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
@@ -1315,11 +1321,16 @@ class VehicleController extends Controller
     }
 
     /**
+     * @param array{country?: string, city_id?: string, from_zone_id?: string} $filters
      * @return array<int, array<int, mixed>>
      */
-    private function buildZoneMappingExportRows(Vehicle $vehicle, string $mappingType): array
+    private function buildZoneMappingExportRows(Vehicle $vehicle, string $mappingType, array $filters = []): array
     {
         [$fromZoneType, $toZoneType] = $this->zoneTypesForMappingType($mappingType);
+
+        $country = trim((string) ($filters['country'] ?? ''));
+        $cityId = trim((string) ($filters['city_id'] ?? ''));
+        $fromZoneId = trim((string) ($filters['from_zone_id'] ?? ''));
 
         $existing = VehicleZoneMapping::where('vehicle_id', $vehicle->vehicle_id)
             ->where('from_zone_type', $fromZoneType)
@@ -1335,32 +1346,181 @@ class VehicleController extends Controller
             ? $this->getScopedPortsForVehicle($vehicle)
             : $this->getScopedZonesForVehicle($vehicle, $toZoneType);
 
+        if ($fromZoneType === 'Port') {
+            $fromItems = $this->filterPortsForExport($fromItems, $country, $cityId);
+            $toItems = $this->filterPortsForExport($toItems, $country, $cityId);
+        } else {
+            $fromItems = $this->filterZonesForExport($fromItems, $country, $cityId);
+            $toItems = $this->filterZonesForExport($toItems, $country, $cityId);
+        }
+
         $rows = [];
-        foreach ($fromItems as $from) {
-            $fromId = $fromZoneType === 'Port' ? (string) $from->port_id : (string) $from->zone_id;
-            $fromName = $fromZoneType === 'Port' ? (string) $from->port_name : (string) $from->zone_name;
 
-            foreach ($toItems as $to) {
-                $toId = $toZoneType === 'Port' ? (string) $to->port_id : (string) $to->zone_id;
-                $toName = $toZoneType === 'Port' ? (string) $to->port_name : (string) $to->zone_name;
-                $mapping = $existing->get($fromId . '__' . $toId);
-
-                $rows[] = [
-                    (string) $vehicle->vehicle_id,
-                    $mappingType,
-                    $fromId,
-                    $fromName,
-                    $fromZoneType,
-                    $toId,
-                    $toName,
-                    $toZoneType,
-                    (float) ($mapping->private_price ?? 0),
-                    (float) ($mapping->shared_price ?? 0),
-                ];
+        if ($fromZoneId !== '') {
+            if ($fromZoneType === 'Port') {
+                $fromItems = $fromItems->filter(static fn ($from) => (string) $from->port_id === $fromZoneId)->values();
+            } else {
+                $fromItems = $fromItems->filter(static fn ($from) => (string) $from->zone_id === $fromZoneId)->values();
             }
+
+            foreach ($fromItems as $from) {
+                $fromId = $fromZoneType === 'Port' ? (string) $from->port_id : (string) $from->zone_id;
+                $fromName = $fromZoneType === 'Port' ? (string) $from->port_name : (string) $from->zone_name;
+
+                $destinations = $toItems;
+                if ($mappingType === 'port_port') {
+                    $destinations = $toItems->filter(static fn ($to) => (string) $to->port_id !== $fromId)->values();
+                }
+
+                foreach ($destinations as $to) {
+                    $toId = $toZoneType === 'Port' ? (string) $to->port_id : (string) $to->zone_id;
+                    $toName = $toZoneType === 'Port' ? (string) $to->port_name : (string) $to->zone_name;
+                    $mapping = $existing->get($fromId . '__' . $toId);
+
+                    $rows[] = $this->makeZoneMappingExportRow(
+                        $vehicle,
+                        $mappingType,
+                        $fromId,
+                        $fromName,
+                        $fromZoneType,
+                        $toId,
+                        $toName,
+                        $toZoneType,
+                        $mapping
+                    );
+                }
+            }
+
+            return $rows;
+        }
+
+        $fromIds = $fromItems->map(static function ($item) use ($fromZoneType) {
+            return $fromZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+        })->flip();
+
+        $toIds = $toItems->map(static function ($item) use ($toZoneType) {
+            return $toZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+        })->flip();
+
+        $fromNameById = $fromItems->mapWithKeys(static function ($item) use ($fromZoneType) {
+            $id = $fromZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+            $name = $fromZoneType === 'Port' ? (string) $item->port_name : (string) $item->zone_name;
+
+            return [$id => $name];
+        });
+
+        $toNameById = $toItems->mapWithKeys(static function ($item) use ($toZoneType) {
+            $id = $toZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+            $name = $toZoneType === 'Port' ? (string) $item->port_name : (string) $item->zone_name;
+
+            return [$id => $name];
+        });
+
+        foreach ($existing as $mapping) {
+            $privatePrice = (float) ($mapping->private_price ?? 0);
+            $sharedPrice = (float) ($mapping->shared_price ?? 0);
+            if ($privatePrice <= 0 && $sharedPrice <= 0) {
+                continue;
+            }
+
+            $fromId = (string) $mapping->from_zone_id;
+            $toId = (string) $mapping->to_zone_id;
+
+            if (!$fromIds->has($fromId) || !$toIds->has($toId)) {
+                continue;
+            }
+
+            $rows[] = $this->makeZoneMappingExportRow(
+                $vehicle,
+                $mappingType,
+                $fromId,
+                (string) ($fromNameById[$fromId] ?? $fromId),
+                $fromZoneType,
+                $toId,
+                (string) ($toNameById[$toId] ?? $toId),
+                $toZoneType,
+                $mapping
+            );
         }
 
         return $rows;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function makeZoneMappingExportRow(
+        Vehicle $vehicle,
+        string $mappingType,
+        string $fromId,
+        string $fromName,
+        string $fromZoneType,
+        string $toId,
+        string $toName,
+        string $toZoneType,
+        ?VehicleZoneMapping $mapping = null
+    ): array {
+        return [
+            (string) $vehicle->vehicle_id,
+            $mappingType,
+            $fromId,
+            $fromName,
+            $fromZoneType,
+            $toId,
+            $toName,
+            $toZoneType,
+            (float) ($mapping->private_price ?? 0),
+            (float) ($mapping->shared_price ?? 0),
+        ];
+    }
+
+    private function filterPortsForExport($ports, string $country, string $cityId)
+    {
+        $collection = $ports instanceof \Illuminate\Support\Collection ? $ports : collect($ports);
+
+        if ($cityId !== '') {
+            return $collection
+                ->filter(static fn ($port) => (string) ($port->city_id ?? '') === $cityId)
+                ->values();
+        }
+
+        if ($country !== '') {
+            $normalizedCountry = strtolower($country);
+
+            return $collection
+                ->filter(static fn ($port) => strtolower(trim((string) ($port->country ?? ''))) === $normalizedCountry)
+                ->values();
+        }
+
+        return $collection->values();
+    }
+
+    private function filterZonesForExport($zones, string $country, string $cityId)
+    {
+        $collection = $zones instanceof \Illuminate\Support\Collection ? $zones : collect($zones);
+
+        if ($cityId !== '') {
+            return $collection
+                ->filter(static fn ($zone) => (string) ($zone->city ?? '') === $cityId)
+                ->values();
+        }
+
+        if ($country !== '') {
+            $cityIds = City::where('country', $country)
+                ->pluck('city_id')
+                ->map(static fn ($id) => (string) $id)
+                ->all();
+
+            if (empty($cityIds)) {
+                return collect();
+            }
+
+            return $collection
+                ->filter(static fn ($zone) => in_array((string) ($zone->city ?? ''), $cityIds, true))
+                ->values();
+        }
+
+        return $collection->values();
     }
 
     private function upsertVehicleZoneMapping(
