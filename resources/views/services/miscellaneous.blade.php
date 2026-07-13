@@ -34,11 +34,10 @@
         </div>
 
         <!-- Selected Items Section -->
-        @if(isset($selectedItems) && count($selectedItems) > 0)
-        <div class="card mb-4" id="selectedItemsSection">
+        <div class="card mb-4 {{ (!isset($selectedItems) || count($selectedItems) === 0) ? 'd-none' : '' }}" id="selectedItemsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Your Selected Items ({{ count($selectedItems) }})</h5>
+                    <h5 class="mb-0" id="selectedItemsTitle">Your Selected Items ({{ isset($selectedItems) ? count($selectedItems) : 0 }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <button type="button" class="btn btn-sm btn-success" onclick="saveAllPrices()">
                             <i class="ri-save-line me-1"></i>Save All Prices
@@ -62,8 +61,11 @@
                                 </tr>
                             </thead>
                             <tbody id="selectedItemsBody">
-                                @foreach($selectedItems as $item)
-                                    <tr data-item-id="{{ $item->mis_id }}">
+                                @foreach(($selectedItems ?? []) as $item)
+                                    <tr data-item-id="{{ $item->mis_id }}"
+                                        data-display-name="{{ $item->item_name }}"
+                                        data-description="{{ $item->description ?? '' }}"
+                                        data-image-url="{{ $item->image ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image)) : '' }}">
                                         <td>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-danger remove-item-btn" 
@@ -137,13 +139,12 @@
                 </form>
             </div>
         </div>
-        @endif
 
         <!-- Available Items Section -->
         <div class="card">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Available Items ({{ count($availableItems) }})</h5>
+                    <h5 class="mb-0" id="availableItemsTitle">Available Items ({{ count($availableItems) }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <button type="button" class="btn btn-sm btn-info" onclick="testJQuery()">
                             <i class="ri-bug-line me-1"></i>Test JS
@@ -156,7 +157,7 @@
                 </div>
             </div>
             <div class="card-body">
-                @if(count($availableItems) > 0)
+                <div id="availableItemsTableWrapper" class="{{ count($availableItems) > 0 ? '' : 'd-none' }}">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -168,11 +169,21 @@
                         </thead>
                         <tbody id="availableItemsBody">
                             @foreach($availableItems as $item)
-                                <tr class="available-item-row" data-item-id="{{ $item->mis_id }}" data-name="{{ strtolower($item->item_name) }}">
+                                @php
+                                    $itemImageUrl = $item->image
+                                        ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image))
+                                        : '';
+                                @endphp
+                                <tr class="available-item-row"
+                                    data-item-id="{{ $item->mis_id }}"
+                                    data-item-name="{{ strtolower($item->item_name) }}"
+                                    data-display-name="{{ $item->item_name }}"
+                                    data-description="{{ $item->description ?? '' }}"
+                                    data-image-url="{{ $itemImageUrl }}">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($item->image)
-                                                <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
+                                                <img src="{{ $itemImageUrl }}" 
                                                      alt="{{ $item->item_name }}" 
                                                      class="rounded me-2" 
                                                      style="width: 40px; height: 40px; object-fit: cover;">
@@ -199,11 +210,10 @@
                         </tbody>
                     </table>
                 </div>
-                @else
-                <div class="alert alert-info mb-0">
+                </div>
+                <div id="availableItemsEmpty" class="alert alert-info mb-0 {{ count($availableItems) > 0 ? 'd-none' : '' }}">
                     <i class="ri-information-line me-2"></i>All available items have been selected. Great job!
                 </div>
-                @endif
             </div>
         </div>
     </div>
@@ -214,6 +224,121 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text ?? '';
+        return div.innerHTML;
+    }
+
+    function updateSelectedItemCount() {
+        const count = document.querySelectorAll('#selectedItemsBody tr[data-item-id]').length;
+        const title = document.getElementById('selectedItemsTitle');
+        const section = document.getElementById('selectedItemsSection');
+        if (title) title.textContent = `Your Selected Items (${count})`;
+        if (section) section.classList.toggle('d-none', count === 0);
+    }
+
+    function updateAvailableItemCount() {
+        const count = document.querySelectorAll('#availableItemsBody .available-item-row').length;
+        const title = document.getElementById('availableItemsTitle');
+        const wrapper = document.getElementById('availableItemsTableWrapper');
+        const empty = document.getElementById('availableItemsEmpty');
+        if (title) title.textContent = `Available Items (${count})`;
+        if (wrapper) wrapper.classList.toggle('d-none', count === 0);
+        if (empty) empty.classList.toggle('d-none', count > 0);
+    }
+
+    function buildSelectedItemRow(itemRow, prices) {
+        const itemId = itemRow.getAttribute('data-item-id');
+        const name = itemRow.getAttribute('data-display-name') || '';
+        const description = itemRow.getAttribute('data-description') || '';
+        const imageUrl = itemRow.getAttribute('data-image-url') || '';
+        const adult = prices?.adult_price ?? 0;
+        const child = prices?.child_price ?? 0;
+        const infant = prices?.infant_price ?? 0;
+        const imageHtml = imageUrl
+            ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(name)}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">`
+            : `<div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="ri-add-box-line text-muted"></i></div>`;
+        const descHtml = description ? `<br><small class="text-muted">${escapeHtml(description.length > 50 ? description.substring(0, 50) + '...' : description)}</small>` : '';
+
+        const row = document.createElement('tr');
+        row.setAttribute('data-item-id', itemId);
+        row.setAttribute('data-display-name', name);
+        row.setAttribute('data-description', description);
+        row.setAttribute('data-image-url', imageUrl);
+        row.innerHTML = `
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" data-item-id="${escapeHtml(itemId)}" title="Remove Item">
+                    <i class="ri-close-line"></i>
+                </button>
+            </td>
+            <td>
+                <div class="d-flex align-items-center">
+                    ${imageHtml}
+                    <div><strong>${escapeHtml(name)}</strong>${descHtml}</div>
+                </div>
+                <input type="hidden" name="selected_items[${escapeHtml(itemId)}][selected]" value="1">
+            </td>
+            <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="selected_items[${escapeHtml(itemId)}][adult_price]" value="${adult}" placeholder="0.00"></td>
+            <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="selected_items[${escapeHtml(itemId)}][child_price]" value="${child}" placeholder="0.00"></td>
+            <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="selected_items[${escapeHtml(itemId)}][infant_price]" value="${infant}" placeholder="0.00"></td>
+            <td>
+                <button type="button" class="btn btn-sm btn-primary quick-save-btn" data-item-id="${escapeHtml(itemId)}" title="Quick Save">
+                    <i class="ri-save-line me-1"></i>Save
+                </button>
+            </td>`;
+        return row;
+    }
+
+    function addItemToSelectedTable(itemRow, prices) {
+        const itemId = itemRow.getAttribute('data-item-id');
+        if (document.querySelector(`#selectedItemsBody tr[data-item-id="${itemId}"]`)) return;
+        const tbody = document.getElementById('selectedItemsBody');
+        if (!tbody) return;
+        tbody.insertBefore(buildSelectedItemRow(itemRow, prices), tbody.firstChild);
+        itemRow.remove();
+        updateSelectedItemCount();
+        updateAvailableItemCount();
+    }
+
+    function restoreItemToAvailableTable(itemRowData) {
+        const tbody = document.getElementById('availableItemsBody');
+        if (!tbody) return;
+
+        const row = document.createElement('tr');
+        row.className = 'available-item-row';
+        row.setAttribute('data-item-id', itemRowData.itemId);
+        row.setAttribute('data-item-name', (itemRowData.name || '').toLowerCase());
+        row.setAttribute('data-display-name', itemRowData.name || '');
+        row.setAttribute('data-description', itemRowData.description || '');
+        row.setAttribute('data-image-url', itemRowData.imageUrl || '');
+        const imageHtml = itemRowData.imageUrl
+            ? `<img src="${escapeHtml(itemRowData.imageUrl)}" alt="${escapeHtml(itemRowData.name)}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">`
+            : `<div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="ri-add-box-line text-muted"></i></div>`;
+        const desc = itemRowData.description || 'N/A';
+        const descDisplay = desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
+
+        row.innerHTML = `
+            <td><div class="d-flex align-items-center">${imageHtml}<strong>${escapeHtml(itemRowData.name)}</strong></div></td>
+            <td>${escapeHtml(descDisplay)}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-success add-item-btn" data-item-id="${escapeHtml(itemRowData.itemId)}" data-item-name="${escapeHtml(itemRowData.name)}">
+                    <i class="ri-add-line me-1"></i>Add Item
+                </button>
+            </td>`;
+        tbody.appendChild(row);
+        updateAvailableItemCount();
+    }
+
+    function captureItemRowData(itemRow) {
+        return {
+            itemId: itemRow.getAttribute('data-item-id'),
+            name: itemRow.getAttribute('data-display-name') || '',
+            description: itemRow.getAttribute('data-description') || '',
+            imageUrl: itemRow.getAttribute('data-image-url') || '',
+        };
+    }
+
     // Test function
     function testJQuery() {
         console.log('Test button clicked');
@@ -275,7 +400,11 @@
             success: function(response) {
                 console.log('Success response:', response);
                 if (response.success) {
-                    // Show success message
+                    const itemRow = button.closest('.available-item-row').get(0);
+                    if (itemRow) {
+                        addItemToSelectedTable(itemRow, response.prices || { adult_price: 0, child_price: 0, infant_price: 0 });
+                    }
+
                     if (typeof Swal !== 'undefined') {
                         const successMessage = response.action === 'restored'
                             ? itemName + ' has been restored with previous prices.'
@@ -291,11 +420,8 @@
                     } else {
                         alert(response.message || (itemName + ' has been added successfully!'));
                     }
-                    
-                    // Reload page to show updated lists
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
+                } else {
+                    button.prop('disabled', false).html('<i class="ri-add-line me-1"></i>Add Item');
                 }
             },
             error: function(xhr, status, error) {
@@ -348,6 +474,27 @@
                     },
                     success: function(response) {
                         if (response.success) {
+                            const selectedRow = document.querySelector(`#selectedItemsBody tr[data-item-id="${itemId}"]`);
+                            let itemData = {
+                                itemId: String(itemId),
+                                name: '',
+                                description: '',
+                                imageUrl: '',
+                            };
+
+                            if (selectedRow) {
+                                itemData = {
+                                    itemId: String(itemId),
+                                    name: selectedRow.getAttribute('data-display-name') || selectedRow.querySelector('strong')?.textContent.trim() || '',
+                                    description: selectedRow.getAttribute('data-description') || '',
+                                    imageUrl: selectedRow.getAttribute('data-image-url') || '',
+                                };
+                                selectedRow.remove();
+                                updateSelectedItemCount();
+                            }
+
+                            restoreItemToAvailableTable(itemData);
+
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Removed!',
@@ -355,10 +502,8 @@
                                 timer: 2000,
                                 showConfirmButton: false
                             });
-                            
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1500);
+                        } else {
+                            button.prop('disabled', false);
                         }
                     },
                     error: function(xhr) {
@@ -427,17 +572,12 @@
         $('#priceUpdateForm').submit();
     }
 
-    // Search functionality
     $('#availableItemSearch').on('keyup', function() {
         const searchTerm = $(this).val().toLowerCase();
         
         $('.available-item-row').each(function() {
-            const itemName = $(this).data('name');
-            if (itemName.includes(searchTerm)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
+            const itemName = $(this).data('item-name') || $(this).attr('data-item-name') || '';
+            $(this).toggle(itemName.includes(searchTerm));
         });
     });
 </script>
