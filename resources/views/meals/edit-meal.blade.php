@@ -297,42 +297,24 @@
         var childPriceInput = document.querySelector("input[name='child_price']");
         var childCostPriceInput = document.querySelector("input[name='child_cost_price']");
 
-        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu
+        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu — same Adult/Child cost & sell fields
             if (itemFileContainer) itemFileContainer.style.display = "block";
             if (itemNameContainer) itemNameContainer.style.display = "none";
 
-            if (mealType === "1") { // Buffet: show adult_price, child_price
-                if (adultPriceContainer) adultPriceContainer.style.display = "block";
-                if (childPriceContainer) childPriceContainer.style.display = "block";
-                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
-                if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
-                if (vegContainer) vegContainer.style.display = "none";
-                if (itemPriceContainer) itemPriceContainer.style.display = "none";
-                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
-                if (itemFileInput) itemFileInput.removeAttribute("required");
-                if (itemPriceInput) { itemPriceInput.value = ""; itemPriceInput.removeAttribute("required"); }
-                if (itemCostPriceInput) { itemCostPriceInput.value = ""; itemCostPriceInput.removeAttribute("required"); }
-                if (adultPriceInput) adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
-                if (childPriceInput) childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
-                if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
-                if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
-            } else { // Set Menu: show item_price
-                if (adultPriceContainer) adultPriceContainer.style.display = "none";
-                if (childPriceContainer) childPriceContainer.style.display = "none";
-                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
-                if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
-                if (itemPriceContainer) itemPriceContainer.style.display = "block";
-                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
-                if (vegContainer) vegContainer.style.display = "block";
-                if (itemPriceInput) {
-                    itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-                    itemPriceInput.setAttribute("required", "required");
-                }
-                if (itemCostPriceInput) {
-                    itemCostPriceInput.dataset.interacted = itemCostPriceInput.value.trim() === '' ? "true" : "false";
-                    itemCostPriceInput.setAttribute("required", "required");
-                }
-            }
+            if (adultPriceContainer) adultPriceContainer.style.display = "block";
+            if (childPriceContainer) childPriceContainer.style.display = "block";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
+            if (vegContainer) vegContainer.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            if (itemFileInput) itemFileInput.removeAttribute("required");
+            if (itemPriceInput) { itemPriceInput.value = ""; itemPriceInput.removeAttribute("required"); }
+            if (itemCostPriceInput) { itemCostPriceInput.value = ""; itemCostPriceInput.removeAttribute("required"); }
+            if (adultPriceInput) adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
+            if (childPriceInput) childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
+            if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
+            if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
             if (itemNameInput) itemNameInput.removeAttribute("required");
         } else if (mealType === "3") { // A-La-Carte
             if (itemFileContainer) itemFileContainer.style.display = "none";
