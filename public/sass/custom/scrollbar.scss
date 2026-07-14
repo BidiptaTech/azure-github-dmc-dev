@@ -1,0 +1,21 @@
+// Custom scrollbar styles
+
+.scroll-bar-2 {
+  &::-webkit-scrollbar {
+    width: 0; /* No vertical scrollbar */
+    height: 10px; /* Horizontal scrollbar height */
+  }
+
+//   &::-webkit-scrollbar-track {
+//     background: #f1f1f1;
+//   }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #5392de; /* Light blue color */
+    border-radius: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: #0f95f5; /* Slightly darker blue on hover */
+  }
+} 
