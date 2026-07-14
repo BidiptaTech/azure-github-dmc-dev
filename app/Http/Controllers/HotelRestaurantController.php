@@ -874,14 +874,14 @@ class HotelRestaurantController extends Controller
             $request->validate($rules);
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Catch Validation Errors
-            dd($e->errors());
+            return redirect()->back()->withErrors($e->errors())->withInput();
         }
-        $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
-        $meal_max_id = $lastMeal->meal_id ?? 0;
-        $mealId = CommonHelper::createId($meal_max_id);
-        while (Meal::where('meal_id', $mealId)->exists()) {
-            $mealId = CommonHelper::createId($mealId);
-        }
+        // $lastMeal = Meal::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $meal_max_id = $lastMeal->meal_id ?? 0;
+        // $mealId = CommonHelper::createId($meal_max_id);
+        // while (Meal::where('meal_id', $mealId)->exists()) {
+        //     $mealId = CommonHelper::createId($mealId);
+        // }
 
         // $image = $request->file('item_file');
         // if($image){
@@ -910,15 +910,18 @@ class HotelRestaurantController extends Controller
         
         //Create a new restaurant record
         $meal = new Meal();
-        $meal->meal_id = $mealId;
+        // $meal->meal_id = $mealId;
         $meal->name = $request->input('name');
         $meal->restaurant_id = $request->restaurant_id;
         $meal->item_description = $request->item_description;
         $meal->type = $request->input('meal_type');
         $meal->meal_period = $request->input('meal_period');
         $meal->price = $request->input('price');
+        $meal->item_cost_price = $request->input('item_cost_price');
         $meal->adult_price = $request->input('adult_price');
+        $meal->adult_cost_price = $request->input('adult_cost_price');
         $meal->child_price = $request->input('child_price');
+        $meal->child_cost_price = $request->input('child_cost_price');
         $meal->category = $request->input('meal_category');
         $meal->files = $image;
         $meal->item_type = $request->input('item_type');
@@ -927,6 +930,7 @@ class HotelRestaurantController extends Controller
         $meal->dmc_id = $dmcId; // Set DMC ID based on user role
 
         $meal->save();
+        $meal->refresh();
 
         return redirect()->route('hotel-meals-create', [
             'dmc_id' => $dmc_id,
@@ -1028,8 +1032,11 @@ class HotelRestaurantController extends Controller
         $meal->name = $request->input('name');
         $meal->type = $request->input('meal_type');
         $meal->price = $request->input('price');
+        $meal->item_cost_price = $request->input('item_cost_price');
         $meal->adult_price = $request->input('adult_price');
+        $meal->adult_cost_price = $request->input('adult_cost_price');
         $meal->child_price = $request->input('child_price');
+        $meal->child_cost_price = $request->input('child_cost_price');
         $meal->category = $request->input('category');
         $meal->item_type = $request->input('item_type');
         $meal->files = $image;
