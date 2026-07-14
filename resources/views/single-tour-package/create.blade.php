@@ -649,6 +649,29 @@
             background: rgba(13, 110, 253, 0.16);
             border-color: rgba(13, 110, 253, 0.55) !important;
         }
+
+        .add-agency-contact-wrap {
+            background: #e8f7ff !important;
+            border-bottom: 1px solid #b8e8ff !important;
+        }
+
+        .add-agency-contact-wrap .add-agency-contact-btn {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #ffffff !important;
+            background: #18C1FF !important;
+            border: 1px solid #18C1FF !important;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        .add-agency-contact-wrap .add-agency-contact-btn:hover,
+        .add-agency-contact-wrap .add-agency-contact-btn:focus {
+            color: #ffffff !important;
+            background: #12b0eb !important;
+            border-color: #12b0eb !important;
+            box-shadow: 0 2px 8px rgba(24, 193, 255, 0.35);
+        }
     </style>
     <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -1128,21 +1151,24 @@
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
                         <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="false" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-center flex-grow-1">
                                 <div style="width: 35px; height: 35px; background: rgba(108, 117, 125, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
                                     <i class="ri-hotel-line" style="color: #6c757d; font-size: 1rem;"></i>
                                 </div>
-                                <div>
+                                <div class="flex-grow-1">
                                     <h6 class="mb-0 fw-semibold text-dark" style="color: #212529 !important; font-size: 0.85rem;">
                                         Hotel Accommodations
-                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                     </h6>
-                                    <small class="text-muted" style="color: #6c757d !important; font-size: 0.75rem;">Manage hotel bookings and room configurations</small>
+                                    <div id="hotelHeaderDetails" class="text-muted" style="color: #6c757d !important; font-size: 0.75rem; line-height: 1.4;"></div>
+                                    <span id="tourDates" class="d-none"></span>
+                                    <span id="hotelNights" class="d-none"></span>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center">
-                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="tourDates"></span>
-                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="hotelNights"></span>
+                            <div class="d-flex align-items-center ms-3">
+                                <div class="text-end me-3">
+                                    <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="hotelTotalPrice">{{ $dmcCurrency }} 0.00</div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                </div>
                                 <i class="ri-arrow-down-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
                             </div>
                         </div>
@@ -6424,6 +6450,66 @@
         </div>
     </div>
 </div>
+
+<!-- Add Agency Contact Modal -->
+<div class="modal fade" id="addAgencyContactModal" tabindex="-1" aria-labelledby="addAgencyContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addAgencyContactModalLabel">
+                    <i class="ri-user-add-line me-1"></i>Add Agency Contact
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addAgencyContactForm" onsubmit="return false;">
+                <div class="modal-body">
+                    <div id="quickAgencyContactErrors" class="alert alert-danger py-2 px-3 d-none" style="font-size: 0.85rem;"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold mb-1">Agency Company</label>
+                        <div class="form-control bg-light" id="quickAgencyContactAgencyName" style="height: 38px; line-height: 24px;"></div>
+                        <input type="hidden" name="agency_id" id="quickAgencyContactAgencyId" value="">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">Salutation <span class="text-danger">*</span></label>
+                            <select class="form-select" name="salutation" required>
+                                <option value="">Select</option>
+                                <option value="Mr">Mr.</option>
+                                <option value="Mrs">Mrs.</option>
+                                <option value="Miss">Miss</option>
+                                <option value="Dear">Dear</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold mb-1">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" placeholder="Contact name" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold mb-1">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" placeholder="Email address" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold mb-1">Phone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" placeholder="Phone number" required>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label fw-semibold mb-1">Designation <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="designation" placeholder="e.g. Sales Manager" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveQuickAgencyContactBtn" onclick="saveQuickAgencyContact()">
+                        <i class="ri-save-line me-1"></i>Save Contact
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -6837,6 +6923,7 @@
                 const y = e.format('YYYY');
                 $('#tourDates').text(s.format('DD MMM') + ' – ' + e.format('DD MMM') + ', ' + y);
                 $('#hotelNights').text(e.diff(s, 'days') + ' nights · this stay');
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
             }
 
             /** After city plan is set: fill hotel/port/attraction/guide/restaurant/transport city selects; retry for async DOM. */
@@ -6892,6 +6979,7 @@
                         if (ms.isValid() && me.isValid()) {
                             $('#tourDates').text(ms.format('DD MMM') + ' – ' + me.format('DD MMM') + ', ' + me.format('YYYY'));
                             $('#hotelNights').text(me.diff(ms, 'days') + ' nights · full tour');
+                            if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                         }
                     }
                     const tdc = document.getElementById('transportDayCount');
@@ -7559,6 +7647,274 @@
                 }, 100);
             }
             
+            // Agency / Agent select helpers
+            window.agentSelectHasRealOptions = function () {
+                const agentSelect = document.getElementById('agent_id');
+                if (!agentSelect) return false;
+                return Array.from(agentSelect.options).some(function (opt) {
+                    return String(opt.value || '').trim() !== '';
+                });
+            };
+
+            window.isAgentSelectLocked = function () {
+                const agentSelect = document.getElementById('agent_id');
+                return !!(agentSelect && agentSelect.hasAttribute('disabled'));
+            };
+
+            window.renderAgentSelectAddContactButton = function () {
+                if (window.isAgentSelectLocked()) return;
+                const agencyId = jQuery('#agency_id').val();
+                if (!agencyId) return;
+
+                const $agent = jQuery('#agent_id');
+                const select2 = $agent.data('select2');
+                if (!select2 || !select2.$dropdown) return;
+
+                const $dropdown = select2.$dropdown;
+                const $results = $dropdown.find('.select2-results');
+                $results.find('.add-agency-contact-wrap').remove();
+
+                const $wrap = jQuery('<div class="add-agency-contact-wrap border-bottom p-2"></div>');
+                const $btn = jQuery('<button type="button" class="btn btn-sm w-100 add-agency-contact-btn"><i class="ri-user-add-line me-1"></i>Add Agency Contact</button>');
+                $wrap.css({ background: '#e8f7ff', borderBottom: '1px solid #b8e8ff' });
+                $btn.css({
+                    color: '#ffffff',
+                    background: '#18C1FF',
+                    border: '1px solid #566f79',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '0.82rem'
+                });
+                $btn.on('mousedown', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    jQuery('#agent_id').select2('close');
+                    setTimeout(function () {
+                        window.openAddAgencyContactModal();
+                    }, 0);
+                });
+                $wrap.append($btn);
+                $results.prepend($wrap);
+            };
+
+            window.bindAgentSelectAddContactUi = function () {
+                const $agent = jQuery('#agent_id');
+                $agent.off('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd')
+                    .on('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd', function () {
+                        setTimeout(window.renderAgentSelectAddContactButton, 0);
+                    });
+            };
+
+            window.initAgentSelect2 = function () {
+                const $agentSelect = jQuery('#agent_id');
+                if (!$agentSelect.length) return;
+
+                if ($agentSelect.hasClass('select2-hidden-accessible')) {
+                    $agentSelect.select2('destroy');
+                }
+
+                $agentSelect.select2({
+                    placeholder: "Choose agency contact...",
+                    allowClear: true,
+                    width: '100%',
+                    language: {
+                        noResults: function () {
+                            return '';
+                        }
+                    },
+                    escapeMarkup: function (markup) {
+                        return markup;
+                    }
+                });
+
+                window.bindAgentSelectAddContactUi();
+            };
+
+            window.openAddAgencyContactModal = function () {
+                if (window.isAgentSelectLocked()) return;
+
+                const agencyId = jQuery('#agency_id').val();
+                if (!agencyId) {
+                    alert('Please select an agency company first.');
+                    return;
+                }
+
+                const agencyName = jQuery('#agency_id option:selected').text() || '';
+                const form = document.getElementById('addAgencyContactForm');
+                const errorsEl = document.getElementById('quickAgencyContactErrors');
+                if (form) form.reset();
+                if (errorsEl) {
+                    errorsEl.innerHTML = '';
+                    errorsEl.classList.add('d-none');
+                }
+
+                const agencyIdInput = document.getElementById('quickAgencyContactAgencyId');
+                const agencyNameEl = document.getElementById('quickAgencyContactAgencyName');
+                if (agencyIdInput) agencyIdInput.value = agencyId;
+                if (agencyNameEl) agencyNameEl.textContent = agencyName;
+
+                const modalEl = document.getElementById('addAgencyContactModal');
+                if (!modalEl) {
+                    console.error('Add Agency Contact modal not found in DOM.');
+                    alert('Unable to open add contact form. Please refresh the page and try again.');
+                    return;
+                }
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            };
+
+            window.loadAgentsByAgencyId = function (agencyId, selectedAgentId) {
+                const agentSelect = document.getElementById('agent_id');
+                const $agentSelect = jQuery('#agent_id');
+                const isAgentDisabled = window.isAgentSelectLocked();
+
+                if (!agentSelect) return Promise.resolve();
+
+                agentSelect.innerHTML = '<option value="">Loading agency contacts...</option>';
+                $agentSelect.val(null).trigger('change');
+                $agentSelect.prop('disabled', true);
+
+                return fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${encodeURIComponent(agencyId)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    agentSelect.innerHTML = '<option value="">Choose agency contact...</option>';
+
+                    if (data.success && data.agents && data.agents.length > 0) {
+                        data.agents.forEach(function (agent) {
+                            const option = document.createElement('option');
+                            option.value = agent.agent_id;
+                            option.textContent = agent.name;
+                            agentSelect.appendChild(option);
+                        });
+                    }
+
+                    window.initAgentSelect2();
+
+                    if (!isAgentDisabled) {
+                        $agentSelect.prop('disabled', false);
+                    } else {
+                        $agentSelect.prop('disabled', true);
+                    }
+
+                    if (selectedAgentId) {
+                        $agentSelect.val(String(selectedAgentId)).trigger('change');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error fetching agents:', error);
+                    agentSelect.innerHTML = '<option value="">Error loading agency contacts</option>';
+                    window.initAgentSelect2();
+                    if (!isAgentDisabled) {
+                        $agentSelect.prop('disabled', false);
+                    } else {
+                        $agentSelect.prop('disabled', true);
+                    }
+                    alert('Error loading agency contacts. Please try again.');
+                });
+            };
+
+            window.saveQuickAgencyContact = function () {
+                const form = document.getElementById('addAgencyContactForm');
+                const errorsEl = document.getElementById('quickAgencyContactErrors');
+                const saveBtn = document.getElementById('saveQuickAgencyContactBtn');
+                if (!form) return;
+
+                if (errorsEl) errorsEl.innerHTML = '';
+
+                const formData = new FormData(form);
+                const agencyId = formData.get('agency_id');
+                if (!agencyId) {
+                    alert('Please select an agency company first.');
+                    return;
+                }
+
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+                }
+
+                fetch(`{{ route('agents.quick-store') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: formData
+                })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok || !result.data.success) {
+                        let html = '';
+                        const errors = (result.data && result.data.errors) ? result.data.errors : null;
+                        if (errors) {
+                            Object.keys(errors).forEach(function (key) {
+                                (errors[key] || []).forEach(function (msg) {
+                                    html += '<div>' + msg + '</div>';
+                                });
+                            });
+                        } else {
+                            html = '<div>' + ((result.data && result.data.message) ? result.data.message : 'Failed to add agency contact.') + '</div>';
+                        }
+                        if (errorsEl) {
+                            errorsEl.innerHTML = html;
+                            errorsEl.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    const modalEl = document.getElementById('addAgencyContactModal');
+                    if (modalEl) {
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }
+
+                    const newAgentId = result.data.agent ? result.data.agent.agent_id : null;
+                    return window.loadAgentsByAgencyId(agencyId, newAgentId).then(function () {
+                        if (typeof showNotification === 'function') {
+                            showNotification(result.data.message || 'Agency contact added successfully.', 'success');
+                        }
+                    });
+                })
+                .catch(function (error) {
+                    console.error('Error saving agency contact:', error);
+                    if (errorsEl) {
+                        errorsEl.innerHTML = '<div>Failed to add agency contact. Please try again.</div>';
+                        errorsEl.classList.remove('d-none');
+                    }
+                })
+                .finally(function () {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="ri-save-line me-1"></i>Save Contact';
+                    }
+                });
+            };
+
+            jQuery(document).off('mousedown.agentAdd', '.add-agency-contact-btn').on('mousedown.agentAdd', '.add-agency-contact-btn', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                jQuery('#agent_id').select2('close');
+                setTimeout(function () {
+                    window.openAddAgencyContactModal();
+                }, 0);
+            });
+
+            jQuery(document).off('input.agentAdd', '.select2-container--open .select2-search__field').on('input.agentAdd', '.select2-container--open .select2-search__field', function () {
+                if (jQuery(this).closest('.select2-container').prev('#agent_id').length) {
+                    setTimeout(window.renderAgentSelectAddContactButton, 0);
+                }
+            });
+
             // Agency Select
             $('#agency_id').select2({
                 placeholder: "Choose agency...",
@@ -7567,11 +7923,7 @@
             });
             
             // Agent Select
-            $('#agent_id').select2({
-                placeholder: "Choose agent...",
-                allowClear: true,
-                width: '100%'
-            });
+            window.initAgentSelect2();
             
             // Accordion arrow icon rotation
             $('#servicesAccordion').on('show.bs.collapse', function (e) {
@@ -7617,6 +7969,17 @@
             });
             $(document).on('hide.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
                 $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
+            });
+
+            // Keep the newly opened accordion header in view after other sections close.
+            $(document).on('shown.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
+                var header = $(e.target).prev('.card-header')[0];
+                if (!header) return;
+                requestAnimationFrame(function () {
+                    var scrollOffset = 20;
+                    var top = header.getBoundingClientRect().top + window.scrollY - scrollOffset;
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                });
             });
 
             // Hotel City Select
@@ -10208,6 +10571,10 @@
                     root.querySelectorAll('[id$="_guideTotalPrice"], [id$="_attractionTotalPrice"], [id$="_restaurantTotalPrice"]').forEach(function (el) {
                         el.textContent = getTourCurrency() + ' 0.00';
                     });
+                    const hotelTotalPriceReset = document.getElementById('hotelTotalPrice');
+                    if (hotelTotalPriceReset) hotelTotalPriceReset.textContent = getTourCurrency() + ' 0.00';
+                    const hotelHeaderDetailsReset = document.getElementById('hotelHeaderDetails');
+                    if (hotelHeaderDetailsReset) hotelHeaderDetailsReset.innerHTML = '';
                 })();
 
                 if (typeof displaySelectedHotels === 'function') {
@@ -13624,6 +13991,7 @@
                 // Update the hotel section date display
                 document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
                 document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                 
                 // Generate night selection buttons FIRST (before validation)
                 generateNightSelection();
@@ -13801,8 +14169,7 @@
                 if (document.getElementById('hotelNights')) {
                     document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
                 }
-                
-                // Generate night selection buttons for enquiry data
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                 generateNightSelection();
                 updateNightDisplay();
                 @endif
@@ -15907,8 +16274,76 @@
             ].join('|');
         };
 
+        window.validateHotelAccommodationForm = function (options) {
+            options = options || {};
+            const missing = [];
+
+            const cityEl = document.getElementById('hotelCitySelect');
+            const hotelEl = document.getElementById('hotelSelect');
+            const roomEl = document.getElementById('roomTypeSelect');
+            const bedEl = document.getElementById('bedTypeSelect');
+            const mealEl = document.getElementById('mealPlanSelect');
+            const personsEl = document.getElementById('selectedPersons');
+            const roomsEl = document.getElementById('numberOfRooms');
+
+            if (!cityEl || !String(cityEl.value || '').trim()) {
+                missing.push('City');
+            }
+            if (!hotelEl || !String(hotelEl.value || '').trim()) {
+                missing.push('Hotel');
+            }
+            if (!roomEl || !String(roomEl.value || '').trim()) {
+                missing.push('Room Type');
+            }
+            if (!bedEl || !String(bedEl.value || '').trim()) {
+                missing.push('Bed Type');
+            }
+
+            const persons = parseInt(personsEl ? personsEl.value : '0', 10);
+            if (!personsEl || !Number.isFinite(persons) || persons < 1) {
+                missing.push('Number of Persons');
+            }
+
+            if (!mealEl || !String(mealEl.value || '').trim()) {
+                missing.push('Meal Plan');
+            }
+
+            const rooms = parseInt(roomsEl ? roomsEl.value : '0', 10);
+            if (!roomsEl || !Number.isFinite(rooms) || rooms < 1) {
+                missing.push('Number of Rooms');
+            }
+
+            const selectedNights = document.querySelectorAll('.night-btn.active');
+            if (!selectedNights.length) {
+                missing.push('Hotel Nights');
+            }
+
+            if (options.requireTravelDates && !tourStartDate) {
+                missing.push('Travel Dates');
+            }
+
+            if (options.requireGuests) {
+                const adults = parseInt(document.getElementById('adults')?.value, 10) || 0;
+                const children = parseInt(document.getElementById('children')?.value, 10) || 0;
+                if (adults + children === 0) {
+                    missing.push('Guests (PAX)');
+                }
+            }
+
+            if (missing.length) {
+                alert('Please complete the following required field(s) before continuing:\n\n• ' + missing.join('\n• '));
+                return false;
+            }
+
+            return true;
+        };
+
         // Get Price via HotelPriceHelper (AJAX)
         window.getHotelPrice = function() {
+            if (!window.validateHotelAccommodationForm({ requireTravelDates: true })) {
+                return;
+            }
+
             const hotelSelect = document.getElementById('hotelSelect');
             const roomTypeSelect = document.getElementById('roomTypeSelect');
             const bedTypeSelect = document.getElementById('bedTypeSelect');
@@ -15917,10 +16352,6 @@
             const getPriceBtn = document.getElementById('getPriceBtn');
 
             const hotelUniqueId = hotelSelect ? hotelSelect.value : '';
-            if (!hotelUniqueId) {
-                showNotification('Please select a hotel first.', 'warning');
-                return;
-            }
 
             // room_id from the selected room type option (data-room-id), fallback to value
             let roomId = roomTypeSelect ? roomTypeSelect.value : '';
@@ -15929,10 +16360,6 @@
                 if (roomOpt && roomOpt.dataset && roomOpt.dataset.roomId) {
                     roomId = roomOpt.dataset.roomId;
                 }
-            }
-            if (!roomId) {
-                showNotification('Please select a room type first.', 'warning');
-                return;
             }
 
             // bed_id from the selected bed type option (data-bed-id)
@@ -15956,13 +16383,9 @@
 
             // Build the list of date strings from the selected nights.
             const selectedNights = document.querySelectorAll('.night-btn.active');
-            if (selectedNights.length === 0) {
-                showNotification('Please select at least one night.', 'warning');
-                return;
-            }
             const planStart = getHotelNightPlanStart();
             if (!planStart) {
-                showNotification('Unable to determine the stay start date.', 'warning');
+                alert('Unable to determine the stay start date. Please check travel dates.');
                 return;
             }
             const dates = Array.from(selectedNights)
@@ -16042,19 +16465,7 @@
 
             // Add Hotel Function
         window.addHotel = function() {
-            // Check if travel dates are set
-            if (!tourStartDate) {
-                alert('Please add travel dates first before adding hotels.');
-                return;
-            }
-            
-            // Check if guests (pax) are added
-            const adults = parseInt(document.getElementById('adults').value) || 0;
-            const children = parseInt(document.getElementById('children').value) || 0;
-            const totalGuests = adults + children;
-            
-            if (totalGuests === 0) {
-                alert('Please add guests (PAX) first before adding hotels.');
+            if (!window.validateHotelAccommodationForm({ requireTravelDates: true, requireGuests: true })) {
                 return;
             }
             
@@ -16071,16 +16482,7 @@
             }
             console.log(`Number of rooms from user input: ${numberOfRooms} rooms`);
             
-            if (!hotelSelect.value) {
-                showNotification('Please select a hotel first.', 'warning');
-                return;
-            }
-            
             const selectedNights = document.querySelectorAll('.night-btn.active');
-            if (selectedNights.length === 0) {
-                showNotification('Please select at least one night for this hotel.', 'warning');
-                return;
-            }
             
             // Get selected night numbers and dates
             const nightNumbers = Array.from(selectedNights).map(btn => parseInt(btn.dataset.night));
@@ -16596,6 +16998,110 @@
         };
 
             // Display selected hotels
+        window.renderHotelAccordionHeader = function () {
+            const detailsEl = document.getElementById('hotelHeaderDetails');
+            const hotelTotalPriceEl = document.getElementById('hotelTotalPrice');
+            if (!detailsEl) return;
+
+            detailsEl.innerHTML = '';
+
+            const formatHotelLine = function (h) {
+                const parts = [h.name || 'Hotel'];
+                if (h.checkInDate && h.checkOutDate) {
+                    let yearSuffix = '';
+                    try {
+                        const sd = document.getElementById('start_date');
+                        if (sd && sd.value && typeof moment !== 'undefined') {
+                            yearSuffix = ', ' + moment(sd.value).format('YYYY');
+                        } else if (typeof tourStartDate !== 'undefined' && tourStartDate && typeof moment !== 'undefined') {
+                            yearSuffix = ', ' + moment(tourStartDate).format('YYYY');
+                        }
+                    } catch (e) { /* ignore */ }
+                    parts.push(h.checkInDate + ' - ' + h.checkOutDate + yearSuffix);
+                }
+                const roomBits = [];
+                if (h.roomType) roomBits.push(h.roomType);
+                if (h.bedType) roomBits.push(h.bedType);
+                const numRooms = parseInt(h.numberOfRooms, 10) || 1;
+                roomBits.push(numRooms + ' room' + (numRooms === 1 ? '' : 's'));
+                if (roomBits.length) parts.push(roomBits.join(' · '));
+                return parts.join(' · ');
+            };
+
+            if (!selectedHotels || selectedHotels.length === 0) {
+                const tourDatesEl = document.getElementById('tourDates');
+                const hotelNightsEl = document.getElementById('hotelNights');
+                const tourText = ((tourDatesEl && tourDatesEl.textContent) || '').trim();
+                const nightsText = ((hotelNightsEl && hotelNightsEl.textContent) || '').trim();
+                const fallback = [tourText, nightsText].filter(Boolean).join(' · ');
+                if (fallback) {
+                    const line = document.createElement('div');
+                    line.className = 'hotel-header-line';
+                    line.textContent = fallback;
+                    detailsEl.appendChild(line);
+                }
+                if (hotelTotalPriceEl) hotelTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
+                return;
+            }
+
+            selectedHotels.forEach(function (h) {
+                const line = document.createElement('div');
+                line.className = 'hotel-header-line';
+                line.textContent = formatHotelLine(h);
+                detailsEl.appendChild(line);
+            });
+
+            const totalPrice = selectedHotels.reduce((sum, h) => {
+                const maxOcc = parseInt(h.maxOccupancy) || 0;
+                let extraBedCost = parseFloat(h.extraBedCost) || 0;
+                if (extraBedCost <= 0 && h.extraBedPrice > 0 && (h.selectedPersons || 1) > maxOcc) {
+                    extraBedCost = h.extraBedPrice * ((h.selectedPersons || 1) - maxOcc) * (h.numberOfRooms || 1) * (h.totalNights || 1);
+                }
+                let roomAndExtraCost;
+                if (h.roomPriceManuallyEdited && parseFloat(h.customRoomPrice) > 0) {
+                    roomAndExtraCost = parseFloat(h.customRoomPrice);
+                } else {
+                    const combined = parseFloat(h.combinedRoomTotal);
+                    roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
+                        ? combined
+                        : ((parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1)) + extraBedCost;
+                }
+                let mealCost = 0;
+                if (typeof window.calculateCorrectMealCosts === 'function') {
+                    mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
+                } else {
+                    const totalGuests = h.selectedPersons || 1;
+                    if (h.mealPrices && typeof h.mealPrices === 'object') {
+                        if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
+                            mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                        if (h.mealPlan && h.mealPlan.includes('lunch')) {
+                            mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                        if (h.mealPlan && h.mealPlan.includes('dinner')) {
+                            mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                    }
+                }
+                const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
+                const hNumChildren = headerChildren || (parseInt(h.children) || 0);
+                const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                return sum + roomAndExtraCost + mealCost + cwbCost + cnbCost;
+            }, 0);
+
+            const formattedPrice = totalPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            if (hotelTotalPriceEl) {
+                hotelTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedPrice;
+            }
+        };
+
         function displaySelectedHotels() {
             const container = document.getElementById('selectedHotels');
             
@@ -16864,73 +17370,9 @@
                 totalNightsEl.textContent = totalNights + ' Nights';
             }
             
-            // Update hotel accordion header summary (first hotel name + total price)
-            const headerSummaryEl = document.getElementById('hotelHeaderSummary');
-            if (headerSummaryEl) {
-                if (selectedHotels.length === 0) {
-                    headerSummaryEl.textContent = '';
-                } else {
-                    // Build a concise list of hotel names
-                    let hotelNames = '';
-                    if (selectedHotels.length === 1) {
-                        hotelNames = selectedHotels[0].name;
-                    } else if (selectedHotels.length === 2) {
-                        hotelNames = `${selectedHotels[0].name} & ${selectedHotels[1].name}`;
-                    } else if (selectedHotels.length === 3) {
-                        hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} & ${selectedHotels[2].name}`;
-                    } else {
-                        const remaining = selectedHotels.length - 2;
-                        hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} + ${remaining} more`;
-                    }
-                    
-                    const totalPrice = selectedHotels.reduce((sum, h) => {
-                        const maxOcc = parseInt(h.maxOccupancy) || 0;
-                        let extraBedCost = parseFloat(h.extraBedCost) || 0;
-                        if (extraBedCost <= 0 && h.extraBedPrice > 0 && (h.selectedPersons || 1) > maxOcc) {
-                            extraBedCost = h.extraBedPrice * ((h.selectedPersons || 1) - maxOcc) * (h.numberOfRooms || 1) * (h.totalNights || 1);
-                        }
-                        let roomAndExtraCost;
-                        if (h.roomPriceManuallyEdited && parseFloat(h.customRoomPrice) > 0) {
-                            roomAndExtraCost = parseFloat(h.customRoomPrice);
-                        } else {
-                            const combined = parseFloat(h.combinedRoomTotal);
-                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
-                                ? combined
-                                : ((parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1)) + extraBedCost;
-                        }
-                        let mealCost = 0;
-                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                            mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
-                        } else {
-                            const totalGuests = h.selectedPersons || 1;
-                            if (h.mealPrices && typeof h.mealPrices === 'object') {
-                                if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
-                                    mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                                if (h.mealPlan && h.mealPlan.includes('lunch')) {
-                                    mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                                if (h.mealPlan && h.mealPlan.includes('dinner')) {
-                                    mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                            }
-                        }
-                        const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
-                        const hNumChildren = headerChildren || (parseInt(h.children) || 0);
-                        const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
-                        const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
-                        const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
-                        const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
-                        return sum + roomAndExtraCost + mealCost + cwbCost + cnbCost;
-                    }, 0);
-                    
-                    const formattedPrice = totalPrice.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
-                    
-                    headerSummaryEl.textContent = `– ${hotelNames} • ${getTourCurrency()} ${formattedPrice}`;
-                }
+            // Update hotel accordion header (one line per hotel: name · dates · room)
+            if (typeof window.renderHotelAccordionHeader === 'function') {
+                window.renderHotelAccordionHeader();
             }
             try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
         }
@@ -32942,116 +33384,30 @@
                     };
 
                     // Agency-Agent Dependent Dropdown Functionality
-                    // Handle agency change to load agents (using Select2 event)
                     document.addEventListener('DOMContentLoaded', function() {
-                        // Wait for jQuery to be available
                         if (typeof jQuery === 'undefined') {
                             console.error('jQuery is not loaded');
                             return;
                         }
-                        
-                        const agentSelect = document.getElementById('agent_id');
-                        const $agentSelect = jQuery('#agent_id');
-                        const isAgentDisabled = agentSelect && agentSelect.hasAttribute('disabled');
-                        
-                        // Handle agency change using Select2 event
+
                         jQuery('#agency_id').on('change', function() {
                             const agencyId = jQuery(this).val();
-                            
+                            const agentSelect = document.getElementById('agent_id');
+                            const $agentSelect = jQuery('#agent_id');
+
                             if (!agentSelect) return;
-                            
-                            // Clear agent dropdown
-                            agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                            $agentSelect.val(null).trigger('change');
-                            
-                            if (agencyId) {
-                                // Show loading state
-                                agentSelect.innerHTML = '<option value="">Loading agents...</option>';
-                                $agentSelect.prop('disabled', true);
-                                
-                                // Make AJAX request to get agents by agency
-                                fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${agencyId}`, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Accept': 'application/json',
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                                    }
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    // Clear loading state
-                                    agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                                    
-                                    if (data.success && data.agents && data.agents.length > 0) {
-                                        // Populate agent dropdown
-                                        data.agents.forEach(agent => {
-                                            const option = document.createElement('option');
-                                            option.value = agent.agent_id;
-                                            option.textContent = agent.name;
-                                            agentSelect.appendChild(option);
-                                        });
-                                        
-                                        console.log(`Loaded ${data.agents.length} agents for agency ${agencyId}`);
-                                    } else {
-                                        console.log('No agents found for selected agency');
-                                        agentSelect.innerHTML = '<option value="">No agents found</option>';
-                                    }
-                                    
-                                    // Destroy and reinitialize Select2 to recognize new options
-                                    $agentSelect.select2('destroy');
-                                    jQuery('#agent_id').select2({
-                                        placeholder: "Choose agent...",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                    
-                                    // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                    if (!isAgentDisabled) {
-                                        $agentSelect.prop('disabled', false);
-                                    } else {
-                                        $agentSelect.prop('disabled', true);
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error fetching agents:', error);
-                                    agentSelect.innerHTML = '<option value="">Error loading agents</option>';
-                                    
-                                    // Destroy and reinitialize Select2
-                                    $agentSelect.select2('destroy');
-                                    $agentSelect.select2({
-                                        placeholder: "Choose agent...",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                    
-                                    // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                    if (!isAgentDisabled) {
-                                        $agentSelect.prop('disabled', false);
-                                    } else {
-                                        $agentSelect.prop('disabled', true);
-                                    }
-                                    
-                                    // Show user-friendly error message
-                                    alert('Error loading agents. Please try again.');
-                                });
-                            } else {
-                                // Reset to default state when no agency is selected
-                                // Destroy and reinitialize Select2
-                                $agentSelect.select2('destroy');
-                                jQuery('#agent_id').select2({
-                                    placeholder: "Choose agent...",
-                                    allowClear: true,
-                                    width: '100%'
-                                });
-                                
-                                // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                if (!isAgentDisabled) {
+
+                            if (!agencyId) {
+                                agentSelect.innerHTML = '<option value="">Choose agency contact...</option>';
+                                $agentSelect.val(null).trigger('change');
+                                window.initAgentSelect2();
+                                if (!window.isAgentSelectLocked()) {
                                     $agentSelect.prop('disabled', false);
-                                } else {
-                                    $agentSelect.prop('disabled', true);
                                 }
+                                return;
                             }
+
+                            window.loadAgentsByAgencyId(agencyId);
                         });
                     });
 
@@ -34843,6 +35199,32 @@
 
     #hotelLoadingStatus i {
         font-size: 1rem;
+    }
+
+    .add-agency-contact-wrap {
+        background: #e8f7ff !important;
+    }
+
+    .add-agency-contact-wrap .add-agency-contact-btn {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #ffffff !important;
+        background: #18C1FF !important;
+        border: 1px solid #18C1FF !important;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+
+    .add-agency-contact-wrap .add-agency-contact-btn:hover,
+    .add-agency-contact-wrap .add-agency-contact-btn:focus {
+        color: #ffffff !important;
+        background: #12b0eb !important;
+        border-color: #12b0eb !important;
+        box-shadow: 0 2px 8px rgba(24, 193, 255, 0.35);
+    }
+
+    .select2-results__message:empty {
+        display: none;
     }
 </style>
 

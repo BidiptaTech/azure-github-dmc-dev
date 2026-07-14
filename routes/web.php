@@ -1096,6 +1096,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
         Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
         Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        Route::post('/agents/quick-store', [AgentController::class, 'quickStore'])->name('agents.quick-store');
         
         // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
