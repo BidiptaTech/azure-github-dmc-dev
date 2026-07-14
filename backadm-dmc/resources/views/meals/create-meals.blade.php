@@ -426,14 +426,11 @@
                                     <td>
                                         <div class="meal-price-list">
                                             <div class="meal-price-list__title">Price:</div>
-                                            @if((int) $meal->type === 1)
+                                            @if(in_array((int) $meal->type, [1, 2], true))
                                                 <div class="meal-price-list__row"><span>Adult cost price-</span><span>{{ $formatMealPrice($meal->adult_cost_price) }}</span></div>
                                                 <div class="meal-price-list__row"><span>Adult sell price-</span><span>{{ $formatMealPrice($meal->adult_price) }}</span></div>
                                                 <div class="meal-price-list__row"><span>Child cost price-</span><span>{{ $formatMealPrice($meal->child_cost_price) }}</span></div>
                                                 <div class="meal-price-list__row"><span>Child sell price-</span><span>{{ $formatMealPrice($meal->child_price) }}</span></div>
-                                            @elseif((int) $meal->type === 2)
-                                                <div class="meal-price-list__row"><span>Item cost price-</span><span>{{ $formatMealPrice($meal->item_cost_price) }}</span></div>
-                                                <div class="meal-price-list__row"><span>Item sell price-</span><span>{{ $formatMealPrice($meal->price) }}</span></div>
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
@@ -580,55 +577,36 @@
         var childPriceInput = document.querySelector("input[name='child_price']");
         var childCostPriceInput = document.querySelector("input[name='child_cost_price']");
 
-        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu
+        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu — same Adult/Child cost & sell fields
             itemFileContainer.style.display = "block";
             itemNameContainer.style.display = "none";
-            
-            if(mealType === "1"){
-                adultPriceContainer.style.display = "block";
-                childPriceContainer.style.display = "block";
-                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
-                if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
-                vegContainer.style.display = "none";
-                itemPriceContainer.style.display = "none";
-                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
-                vegSelect.removeAttribute("required");
-                itemNameInput.removeAttribute("required");
-                itemPriceInput.removeAttribute("required");
-                if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
-                // Set validation for adult and child prices
-                adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
-                childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
-                if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
-                if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
-            }
-            else{
-                adultPriceContainer.style.display = "none";
-                childPriceContainer.style.display = "none";
-                if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
-                if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
-                itemPriceContainer.style.display = "block";
-                if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
-                vegContainer.style.display = "block";
 
-                
-                // Set validation for item price
-                itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-                if (itemCostPriceInput) itemCostPriceInput.dataset.interacted = itemCostPriceInput.value.trim() === '' ? "true" : "false";
-                if (itemCostPriceInput) itemCostPriceInput.setAttribute("required", "required");
-            }
+            adultPriceContainer.style.display = "block";
+            childPriceContainer.style.display = "block";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
+            vegContainer.style.display = "none";
+            itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            vegSelect.removeAttribute("required");
+            itemNameInput.removeAttribute("required");
+            itemPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
+
+            adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
+            childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
+            if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
+            if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
 
             // Clear hidden fields
             itemNameInput.value = "";
-            if (itemCostPriceInput && (!itemCostPriceContainer || itemCostPriceContainer.style.display === "none")) itemCostPriceInput.value = "";
-            if (adultCostPriceInput && (!adultCostPriceContainer || adultCostPriceContainer.style.display === "none")) adultCostPriceInput.value = "";
-            if (childCostPriceInput && (!childCostPriceContainer || childCostPriceContainer.style.display === "none")) childCostPriceInput.value = "";
+            if (itemPriceInput) itemPriceInput.value = "";
+            if (itemCostPriceInput) itemCostPriceInput.value = "";
 
-            // Set required attribute correctly
             itemFileInput.removeAttribute("required");
             itemNameInput.removeAttribute("required");
             itemPriceInput.removeAttribute("required");
-            if (itemCostPriceInput && (!itemCostPriceContainer || itemCostPriceContainer.style.display === "none")) itemCostPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
         } else if (mealType === "3") { // A-La-Carte
             itemFileContainer.style.display = "none";
             itemNameContainer.style.display = "block";
