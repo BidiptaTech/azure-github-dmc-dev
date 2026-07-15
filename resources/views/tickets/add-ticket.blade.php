@@ -102,7 +102,7 @@
                                     </div>
                                     @endif
 
-                                    <div class="col-md-{{ ($auth_user->role_id == 1 || $auth_user->role_id == 20) ? '8' : '12' }} mb-2">
+                                    <div class="col-md-4 mb-2">
                                         <label for="name" class="form-label"><strong>Ticket Name</strong><span class="text-danger">*</span></label>
                                         <input type="text" class="form-control form-control-sm" id="name" name="name" placeholder="e.g. General Admission" value="{{ old('name') }}" required>
                                         @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
@@ -195,19 +195,19 @@
                                     <div class="col-md-12 mb-2">
                                         <label for="description" class="form-label"><strong>Important Notes</strong><span class="text-danger">*</span></label>
                                         <textarea class="form-control form-control-sm" id="description" name="description" rows="2" placeholder="Enter description">{{ old('description') }}</textarea>
-                                        @error('description')<div class="text-danger small">{{ $message }}</div>@enderror
+                                        <div id="description_error" class="text-danger small mt-1 d-none"></div>
                                     </div>
 
                                     <div class="col-md-12 mb-2">
                                         <label for="remarks" class="form-label"><strong>Remarks</strong> <small class="text-muted">(Optional)</small></label>
-                                        <textarea id="remarks" name="remarks" class="form-control form-control-sm" rows="2" placeholder="Optional remarks"></textarea>
+                                        <textarea id="remarks" name="remarks" class="form-control form-control-sm" rows="2" placeholder="Optional remarks">{{ old('remarks') }}</textarea>
                                         @error('remarks')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
 
                                     <div class="col-md-12 mb-2">
                                         <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
-                                        <textarea id="terms_conditions" name="terms_conditions" class="form-control form-control-sm" rows="3" placeholder="Enter terms and conditions..."></textarea>
-                                        @error('terms_conditions')<div class="text-danger small">{{ $message }}</div>@enderror
+                                        <textarea id="terms_conditions" name="terms_conditions" class="form-control form-control-sm" rows="3" placeholder="Enter terms and conditions...">{{ old('terms_conditions') }}</textarea>
+                                        <div id="terms_conditions_error" class="text-danger small mt-1 d-none"></div>
                                     </div>
 
                                     <div class="col-md-4 mb-2">
@@ -434,17 +434,66 @@
         const ticketForm = document.querySelector('form[action*="tickets.store"]');
         const dmcSelect = document.getElementById('dmc_selection');
         const submitBtn = document.getElementById('submitBtn');
-        
-        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
-        // Prevent form submission when no DMCs are available
+
+        // Summernote hides the real textarea, so the browser cannot show its
+        // native "please fill this field" message. Validate manually instead.
+        function getEditorText(id) {
+            return $('<div>').html($('#' + id).summernote('code')).text().trim();
+        }
+        function setEditorError(id, message) {
+            const errorEl = document.getElementById(id + '_error');
+            const editor = $('#' + id).next('.note-editor');
+            if (message) {
+                errorEl.textContent = message;
+                errorEl.classList.remove('d-none');
+                editor.css('border-color', '#dc3545');
+            } else {
+                errorEl.classList.add('d-none');
+                editor.css('border-color', '');
+            }
+        }
+        const requiredEditors = [
+            ['description', 'Important Notes is required. Please fill in this field.'],
+            ['terms_conditions', 'Terms & Conditions is required. Please fill in this field.']
+        ];
         if (ticketForm) {
-            ticketForm.addEventListener('submit', function(e) {
+            ticketForm.addEventListener('submit', function (e) {
+                let firstInvalid = null;
+                requiredEditors.forEach(function (field) {
+                    if (getEditorText(field[0]) === '') {
+                        setEditorError(field[0], field[1]);
+                        if (!firstInvalid) firstInvalid = field[0];
+                    } else {
+                        setEditorError(field[0], '');
+                    }
+                });
+                if (firstInvalid) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.getElementById(firstInvalid + '_error').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+
+                @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
                 e.preventDefault();
                 alert('Cannot submit: This attraction is not associated with any DMCs. Please contact administrator to assign DMCs first.');
                 return false;
+                @endif
             });
         }
-        @endif
+        $('#description, #terms_conditions').on('summernote.change', function () {
+            if ($('<div>').html($(this).summernote('code')).text().trim() !== '') {
+                setEditorError(this.id, '');
+            }
+        });
+
+        // Show server-side validation errors on Summernote fields after redirect
+        @error('description')
+            setEditorError('description', @json($message));
+        @enderror
+        @error('terms_conditions')
+            setEditorError('terms_conditions', @json($message));
+        @enderror
         
         // Show/hide submit button based on DMC selection
         if (dmcSelect && submitBtn) {
