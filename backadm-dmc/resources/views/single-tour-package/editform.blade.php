@@ -3838,7 +3838,7 @@
                                             <div class="row g-3">
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
+                                                    <select class="form-select border-2 attraction-name-select" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}'); handleAttractionBundleSelection(this, {{ $order->booking_id }})" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
                                                             $tourCountry = $tour->destination ?? '';
@@ -3850,9 +3850,20 @@
                                                                 // If no country filter available, include all attractions
                                                                 return empty($tourCountry);
                                                             });
+                                                            $packagedAttractionList = collect($packagedAttractions ?? []);
+                                                            $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
+                                                                return ($bundle->name ?? '') === $attractionName
+                                                                    || ('bundle_' . ($bundle->package_attraction_id ?? '')) === $attractionName;
+                                                            });
+                                                            $isBundleSelected = (bool) $matchedBundle;
+                                                            $bundleTicketName = $matchedBundle->name ?? $attractionName;
+                                                            // Prefer saved ticket; for bundles fall back to attraction/bundle name
+                                                            $displayTicket = ($ticket && $ticket != 'N/A')
+                                                                ? $ticket
+                                                                : ($isBundleSelected ? $bundleTicketName : null);
                                                         @endphp
                                                         @foreach($filteredAttractions as $attraction)
-                                                            <option value="{{ $attraction->name }}" {{ $attractionName == $attraction->name ? 'selected' : '' }} 
+                                                            <option value="{{ $attraction->name }}" {{ (!$isBundleSelected && $attractionName == $attraction->name) ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
                                                                 data-attraction-data="{{ json_encode($attraction) }}">
                                                                 {{ $attraction->name }}
@@ -3861,7 +3872,42 @@
                                                                 @endif
                                                             </option>
                                                         @endforeach
-                                                        @if($attractionName && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                        @foreach($packagedAttractionList as $bundle)
+                                                            @php
+                                                                $bundleValue = 'bundle_' . $bundle->package_attraction_id;
+                                                                $bundleSelected = $isBundleSelected && (
+                                                                    ($matchedBundle->package_attraction_id ?? null) == $bundle->package_attraction_id
+                                                                    || $attractionName === $bundle->name
+                                                                );
+                                                                $bundleData = [
+                                                                    'name' => $bundle->name,
+                                                                    'package_attraction_id' => $bundle->package_attraction_id,
+                                                                    'adult_price' => $bundle->adult_price,
+                                                                    'child_price' => $bundle->child_price,
+                                                                    'senior_price' => $bundle->senior_citizen_price,
+                                                                    'vehicle_included' => (bool) $bundle->vehicle_included,
+                                                                    'guide_included' => (bool) $bundle->guide_included,
+                                                                    'is_bundle' => true,
+                                                                    'tickets' => [[
+                                                                        'name' => $bundle->name,
+                                                                        'ticket_name' => $bundle->name,
+                                                                        'adult_price' => $bundle->adult_price,
+                                                                        'child_price' => $bundle->child_price,
+                                                                        'senior_price' => $bundle->senior_citizen_price,
+                                                                    ]],
+                                                                ];
+                                                            @endphp
+                                                            <option value="{{ $bundleValue }}"
+                                                                {{ $bundleSelected ? 'selected' : '' }}
+                                                                data-is-bundle="1"
+                                                                data-vehicle-included="{{ $bundle->vehicle_included ? '1' : '0' }}"
+                                                                data-guide-included="{{ $bundle->guide_included ? '1' : '0' }}"
+                                                                data-attraction-id="{{ $bundleValue }}"
+                                                                data-attraction-data="{{ json_encode($bundleData) }}">
+                                                                {{ $bundle->name }}
+                                                            </option>
+                                                        @endforeach
+                                                        @if($attractionName && !$isBundleSelected && !$filteredAttractions->pluck('name')->contains($attractionName))
                                                             <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
                                                         @endif
                                                     </select>
@@ -3873,7 +3919,14 @@
                                                         @php
                                                             $selectedAttractionForTicket = $attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null;
                                                             $selectedTicketData = null;
-                                                            if ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
+                                                            if ($isBundleSelected && $matchedBundle) {
+                                                                $selectedTicketData = [
+                                                                    'name' => $bundleTicketName,
+                                                                    'adult_price' => $matchedBundle->adult_price,
+                                                                    'child_price' => $matchedBundle->child_price,
+                                                                    'senior_price' => $matchedBundle->senior_citizen_price,
+                                                                ];
+                                                            } elseif ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
                                                                 foreach ($selectedAttractionForTicket->tickets as $tk) {
                                                                     $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
                                                                     if ($tkName === $ticket) { $selectedTicketData = $tk; break; }
@@ -3883,14 +3936,12 @@
                                                             $childP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['child_price'] ?? 0) : ($selectedTicketData->child_price ?? 0)) : 0;
                                                             $seniorP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['senior_price'] ?? $selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->senior_price ?? $selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
                                                         @endphp
-                                                        @if($ticket && $ticket != 'N/A')
-                                                            <option value="{{ $ticket }}" selected
-                                                                @if($selectedTicketData)
-                                                                    data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
-                                                                    data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
-                                                                    data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
-                                                                @endif
-                                                            >{{ $ticket }}</option>
+                                                        @if($displayTicket)
+                                                            <option value="{{ $displayTicket }}" selected
+                                                                data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
+                                                                data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
+                                                                data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
+                                                            >{{ $displayTicket }}</option>
                                                         @endif
                                                     </select>
                                                     <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
@@ -7526,7 +7577,7 @@
                             <label for="modal_attraction_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Attraction
                             </label>
-                            <select class="form-select modern-select" id="modal_attraction_select" name="attraction_id" required data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
+                            <select class="form-select modern-select attraction-name-select" id="modal_attraction_select" name="attraction_id" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Search Attraction</option>
                             </select>
                             <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
@@ -10362,6 +10413,8 @@
                     if (typeof updateMultiRestaurantPriceForEdit === 'function') {
                         updateMultiRestaurantPriceForEdit(bookingId);
                     }
+                } else if (typeof updateRestaurantPriceForEdit === 'function') {
+                    updateRestaurantPriceForEdit(bookingId);
                 }
             }
             
@@ -11791,6 +11844,24 @@
     // Function to initialize Select2 on all select boxes
     function initializeAllSelect2(container = null) {
         const $container = container || $(document);
+        const bundleIconUrl = '{{ asset('assets/images/bundle-attraction-icon.png') }}';
+
+        window.formatAttractionBundleOption = function(option) {
+            if (!option.id || !option.element) {
+                return option.text;
+            }
+            if (option.element.dataset && option.element.dataset.isBundle === '1') {
+                const $wrapper = $('<span></span>');
+                $wrapper.append($('<img>', {
+                    src: bundleIconUrl,
+                    alt: 'Bundle',
+                    css: { width: '18px', height: '18px', 'margin-right': '6px', 'vertical-align': '-4px' }
+                }));
+                $wrapper.append(document.createTextNode(option.text));
+                return $wrapper;
+            }
+            return option.text;
+        };
         
         // Find all select boxes with form-select or form-control class that are not already initialized
         $container.find('select.form-select, select.form-control').each(function() {
@@ -11824,17 +11895,26 @@
             // Get the closest modal for dropdown parent (fixes z-index issues in modals)
             const $modal = $select.closest('.modal');
             const dropdownParent = $modal.length ? $modal : $('body');
+
+            const isAttractionSelect = $select.hasClass('attraction-name-select')
+                || id.indexOf('attraction_name_') === 0
+                || id === 'modal_attraction_select';
             
             // Initialize Select2
             // Note: Select2 automatically triggers native 'change' events, so onchange handlers will work
-            $select.select2({
+            const select2Options = {
                 theme: 'bootstrap-5',
                 placeholder: placeholder,
                 allowClear: !isMultiple && !$select.prop('required'),
                 width: '100%',
                 closeOnSelect: isMultiple ? false : true,
                 dropdownParent: dropdownParent
-            });
+            };
+            if (isAttractionSelect) {
+                select2Options.templateResult = window.formatAttractionBundleOption;
+                select2Options.templateSelection = window.formatAttractionBundleOption;
+            }
+            $select.select2(select2Options);
             
             // Mark as initialized to avoid re-initialization
             $select.attr('data-select2-initialized', 'true');
@@ -12230,6 +12310,20 @@
         try {
             const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction-data'));
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+
+            // Packaged attraction bundle: ticket uses the same name as the bundle
+            if (selectedOption.dataset.isBundle === '1' || attractionData.is_bundle) {
+                const bundleName = attractionData.name || selectedOption.textContent.trim();
+                const ticketOption = document.createElement('option');
+                ticketOption.value = bundleName;
+                ticketOption.textContent = bundleName;
+                ticketOption.dataset.adultPrice = attractionData.adult_price || 0;
+                ticketOption.dataset.childPrice = attractionData.child_price || 0;
+                ticketOption.dataset.seniorPrice = attractionData.senior_price || attractionData.senior_citizen_price || 0;
+                ticketOption.selected = true;
+                ticketSelect.appendChild(ticketOption);
+                return;
+            }
             
             // Populate tickets from attraction data
             if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
@@ -12266,6 +12360,33 @@
             ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
         }
     }
+
+    // When a packaged attraction bundle is selected, auto-enable transport/guide toggles if included
+    window.handleAttractionBundleSelection = function(attractionSelect, bookingId) {
+        if (!attractionSelect) return;
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (!selectedOption || selectedOption.dataset.isBundle !== '1') {
+            return;
+        }
+
+        if (selectedOption.dataset.vehicleIncluded === '1') {
+            const transportToggle = document.getElementById(`need_attraction_transport_${bookingId}`);
+            if (transportToggle && !transportToggle.checked) {
+                transportToggle.checked = true;
+                transportToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        if (selectedOption.dataset.guideIncluded === '1') {
+            const guideToggle = document.getElementById(`need_attraction_guide_${bookingId}`);
+            if (guideToggle && !guideToggle.checked) {
+                guideToggle.checked = true;
+                guideToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        updateAttractionRowPrice(bookingId);
+    };
     
     // Recalculate and set total price for one attraction edit row (bookingId)
     function updateAttractionRowPrice(bookingId) {
@@ -12953,6 +13074,7 @@
         // For demo purposes, show sample attractions
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
+        const all_bundles = @json($packagedAttractions ?? []);
         const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
         const attractions = all_attractions.filter(function(attraction) {
             const loc = (typeof normalizeCityText === 'function')
@@ -12968,8 +13090,54 @@
             option.setAttribute('data-attraction', JSON.stringify(attraction));
             attractionSelect.appendChild(option);
         });
+
+        // Append packaged attraction bundles (shown with bundle icon)
+        const cityAttractionIds = attractions.map(a => parseInt(a.id || 0, 10)).filter(Boolean);
+        const cityAttractionUniqueIds = attractions.map(a => parseInt(a.attraction_id || 0, 10)).filter(Boolean);
+        const bundles = (all_bundles || []).filter(function(bundle) {
+            let bundledIds = [];
+            try {
+                bundledIds = Array.isArray(bundle.attractions)
+                    ? bundle.attractions
+                    : (typeof bundle.attractions === 'string' ? JSON.parse(bundle.attractions || '[]') : []);
+            } catch (e) {
+                bundledIds = [];
+            }
+            bundledIds = bundledIds.map(id => parseInt(id, 10));
+            return bundledIds.some(id => cityAttractionIds.includes(id) || cityAttractionUniqueIds.includes(id));
+        });
+
+        bundles.forEach(bundle => {
+            const option = document.createElement('option');
+            option.value = 'bundle_' + bundle.package_attraction_id;
+            option.textContent = bundle.name;
+            option.dataset.isBundle = '1';
+            option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
+            option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
+            option.setAttribute('data-attraction', JSON.stringify({
+                name: bundle.name,
+                package_attraction_id: bundle.package_attraction_id,
+                adult_price: bundle.adult_price,
+                child_price: bundle.child_price,
+                senior_price: bundle.senior_citizen_price,
+                vehicle_included: !!bundle.vehicle_included,
+                guide_included: !!bundle.guide_included,
+                is_bundle: true,
+                tickets: [{
+                    name: bundle.name,
+                    ticket_name: bundle.name,
+                    adult_price: bundle.adult_price,
+                    child_price: bundle.child_price,
+                    senior_price: bundle.senior_citizen_price
+                }],
+                master_image: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
+                location: city,
+                category: 'Bundle'
+            }));
+            attractionSelect.appendChild(option);
+        });
         
-        attractionCount.textContent = attractions.length;
+        attractionCount.textContent = attractions.length + bundles.length;
         document.getElementById('modal_attraction_city').textContent = city;
         
         // Refresh Select2 if it's initialized
@@ -13033,6 +13201,50 @@
                 // if (priceRangeEl) priceRangeEl.textContent = attractionData.price_range || 'Price on request';
                 
                 console.log('Attraction selected:', attractionData);
+
+                // Packaged attraction bundle: same-name ticket + auto transfer/guide
+                if (selectedOption.dataset.isBundle === '1' || attractionData.is_bundle) {
+                    if (timeSlotSelect) {
+                        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option><option value="Full Day" selected>Full Day</option>';
+                    }
+                    if (ticketSelect) {
+                        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                        const ticketOption = document.createElement('option');
+                        ticketOption.value = attractionData.name;
+                        ticketOption.textContent = attractionData.name;
+                        ticketOption.dataset.adultPrice = attractionData.adult_price || 0;
+                        ticketOption.dataset.childPrice = attractionData.child_price || 0;
+                        ticketOption.dataset.seniorPrice = attractionData.senior_price || 0;
+                        ticketOption.selected = true;
+                        ticketSelect.appendChild(ticketOption);
+                    }
+
+                    if (selectedOption.dataset.vehicleIncluded === '1' || attractionData.vehicle_included) {
+                        const transportToggle = document.getElementById('modal_need_attraction_transport');
+                        if (transportToggle && !transportToggle.checked) {
+                            transportToggle.checked = true;
+                            transportToggle.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    if (selectedOption.dataset.guideIncluded === '1' || attractionData.guide_included) {
+                        const guideToggle = document.getElementById('modal_need_attraction_guide');
+                        if (guideToggle && !guideToggle.checked) {
+                            guideToggle.checked = true;
+                            guideToggle.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+
+                    if (attractionDetailsContainer) {
+                        attractionDetailsContainer.style.display = 'block';
+                    }
+                    if (typeof onTicketSelection === 'function') {
+                        onTicketSelection();
+                    }
+                    if (typeof updateAttractionPricing === 'function') {
+                        updateAttractionPricing();
+                    }
+                    return;
+                }
 
                 // Set Time Slot Options from attraction data
                 if (timeSlotSelect) {
@@ -21515,9 +21727,9 @@
         const adults = pax.adults || Math.max(1, pax.maleCount + pax.femaleCount);
         const children = parseInt(pax.children || 0) || 0;
         
-        // Get prices from meal data
-        const adultPricePerPerson = parseFloat(mealData.adult_price || 0) || 0;
-        const childPricePerPerson = parseFloat(mealData.child_price || 0) || 0;
+        // Get prices from meal data (Buffet and Set Menu both use adult_price + child_price)
+        const adultPricePerPerson = parseFloat(mealData.adult_price ?? 0) || 0;
+        const childPricePerPerson = parseFloat(mealData.child_price ?? 0) || 0;
         
         // Calculate: adults * adult_price + children * child_price
         const adultTotal = adultPricePerPerson * adults;
@@ -22999,7 +23211,7 @@
         
         const adultsNum = parseInt(guestData.adults) || 0;
         const childrenNum = parseInt(guestData.children) || 0;
-        const adultPrice = parseFloat(mealData && (mealData.adult_price != null || mealData.price != null) ? (mealData.adult_price ?? mealData.price) : '0') || 0;
+        const adultPrice = parseFloat(mealData && mealData.adult_price != null ? mealData.adult_price : '0') || 0;
         const childPrice = parseFloat(mealData && mealData.child_price != null ? mealData.child_price : '0') || 0;
         let totalPrice = adultPrice * Math.max(1, adultsNum) + childPrice * childrenNum;
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
@@ -24837,6 +25049,9 @@
                 // If restaurant has meals in data, use them directly
                 if (restaurantData.meals && Array.isArray(restaurantData.meals) && restaurantData.meals.length > 0) {
                     populateMealTypesForEdit(mealTypeSelect, restaurantData.meals, currentMealType);
+                    if (typeof updateRestaurantPriceForEdit === 'function') {
+                        updateRestaurantPriceForEdit(bookingId);
+                    }
                     return;
                 }
             } catch (error) {
@@ -24883,7 +25098,7 @@
             mealTypeSelect.appendChild(mealOption);
         });
         
-        // If a meal was selected, trigger dish type loading
+        // If a meal was selected, trigger dish type loading and price update
         if (mealTypeSelect.value) {
             const bookingId = mealTypeSelect.id.replace('meal_type_', '');
             loadDishTypesForEdit(bookingId);
@@ -24910,9 +25125,13 @@
                     category: meal.category === 'Alcoholic' ? 1 : (meal.category === 'Non Alcoholic' ? 2 : null),
                     item_type: meal.item_type === 'Veg' ? 1 : (meal.item_type === 'Non Veg' ? 2 : null),
                     adult_price: meal.adult_price,
-                    child_price: meal.child_price
+                    child_price: meal.child_price,
+                    price: meal.price
                 }));
                 populateMealTypesForEdit(mealTypeSelect, meals, currentMealType);
+                if (bookingId && typeof updateRestaurantPriceForEdit === 'function') {
+                    updateRestaurantPriceForEdit(bookingId);
+                }
             }
         } catch (error) {
             console.error('Error fetching meals for restaurant:', error);
@@ -25180,6 +25399,47 @@
         }
     }
     
+    // Update normal restaurant price in edit form (Buffet & Set Menu use adult_price + child_price)
+    function updateRestaurantPriceForEdit(bookingId) {
+        const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            if (typeof updateMultiRestaurantPriceForEdit === 'function') {
+                updateMultiRestaurantPriceForEdit(bookingId);
+            }
+            return;
+        }
+
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const totalPriceInput = document.getElementById(`restaurant_total_price_${bookingId}`);
+        if (!mealTypeSelect || !totalPriceInput) return;
+
+        const selectedOption = mealTypeSelect.options[mealTypeSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
+
+        const mealDataStr = selectedOption.getAttribute('data-meal');
+        if (!mealDataStr) return;
+
+        let mealData;
+        try {
+            mealData = JSON.parse(mealDataStr);
+        } catch (error) {
+            console.error('Error parsing meal data for price update:', error);
+            return;
+        }
+
+        const adultCountInput = document.getElementById(`restaurant_adult_count_${bookingId}`);
+        const childCountInput = document.getElementById(`restaurant_child_count_${bookingId}`);
+        const adults = parseInt(adultCountInput?.value || 0) || 0;
+        const children = parseInt(childCountInput?.value || 0) || 0;
+        const finalAdults = Math.max(1, adults);
+
+        const adultPrice = parseFloat(mealData.adult_price ?? 0) || 0;
+        const childPrice = parseFloat(mealData.child_price ?? 0) || 0;
+        const total = (adultPrice * finalAdults) + (childPrice * children);
+
+        totalPriceInput.value = total.toFixed(2);
+    }
+
     // Update Multi Restaurant price in edit form
     function updateMultiRestaurantPriceForEdit(bookingId) {
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
@@ -25322,6 +25582,10 @@
             }
         } catch (error) {
             console.error('Error parsing meal data:', error);
+        }
+
+        if (typeof updateRestaurantPriceForEdit === 'function') {
+            updateRestaurantPriceForEdit(bookingId);
         }
     }
     
