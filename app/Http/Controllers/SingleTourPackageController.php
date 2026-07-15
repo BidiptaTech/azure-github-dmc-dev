@@ -35,6 +35,7 @@ use App\Models\Agency;
 use App\Models\Tax;
 use App\Models\Guest;
 use App\Models\MultiRestaurant;
+use App\Models\PackagedAttraction;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 
@@ -1255,6 +1256,11 @@ class SingleTourPackageController extends Controller
         });
         $attractions = $attractionsQuery->get();
 
+        $packagedAttractions = PackagedAttraction::where('status', 1)
+            ->where('dmc_id', $userDmcId)
+            ->orderBy('name')
+            ->get();
+
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
@@ -1403,6 +1409,7 @@ class SingleTourPackageController extends Controller
             'guides',
             'restaurants',
             'attractions',
+            'packagedAttractions',
             'customer_info',
             'vehicles',
             'hotelOrders',
@@ -2049,7 +2056,7 @@ class SingleTourPackageController extends Controller
                 ->where(function($q) use ($city) {
                     $q->where('location', $city);
                 })
-                ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price');
+                ->select('id', 'attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price');
             
             $attractions = $query->get();
             // Transform the attractions data to include city (mapped from location) and parse time slots
@@ -2144,9 +2151,35 @@ class SingleTourPackageController extends Controller
                 'attractions_found' => $attractions->count()
             ]);
 
+            // Packaged attraction bundles for this DMC that contain at least one attraction in this city
+            $cityAttractionIds = $attractions->pluck('id')->map(fn($v) => (int) $v)->all();
+            $cityAttractionUniqueIds = $attractions->pluck('attraction_id')->map(fn($v) => (int) $v)->all();
+
+            $bundles = PackagedAttraction::where('status', 1)
+                ->where('dmc_id', $dmcId)
+                ->get()
+                ->filter(function ($package) use ($cityAttractionIds, $cityAttractionUniqueIds) {
+                    $bundledIds = array_map('intval', json_decode($package->attractions, true) ?? []);
+                    return count(array_intersect($bundledIds, $cityAttractionIds)) > 0
+                        || count(array_intersect($bundledIds, $cityAttractionUniqueIds)) > 0;
+                })
+                ->map(function ($package) {
+                    return [
+                        'package_attraction_id' => $package->package_attraction_id,
+                        'name' => $package->name,
+                        'adult_price' => $package->adult_price,
+                        'child_price' => $package->child_price,
+                        'senior_adult_price' => $package->senior_citizen_price,
+                        'vehicle_included' => (bool) $package->vehicle_included,
+                        'guide_included' => (bool) $package->guide_included,
+                    ];
+                })
+                ->values();
+
             return response()->json([
                 'success' => true,
                 'attractions' => $attractionsData,
+                'bundles' => $bundles,
                 'city' => $city,
                 'count' => $attractions->count()
             ]);
