@@ -354,6 +354,33 @@
                         @enderror
                     </div>
                 </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vehicle_included" name="vehicle_included" value="1"
+                                   {{ old('vehicle_included', $packagedAttraction->vehicle_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="vehicle_included">
+                                <strong>Vehicle Included</strong>
+                            </label>
+                        </div>
+                        @error('vehicle_included')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="guide_included" name="guide_included" value="1"
+                                   {{ old('guide_included', $packagedAttraction->guide_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="guide_included">
+                                <strong>Guide Included</strong>
+                            </label>
+                        </div>
+                        @error('guide_included')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
                 
                 <!-- Description -->
                 <div class="row mb-3">
