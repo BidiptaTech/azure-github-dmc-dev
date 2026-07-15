@@ -469,7 +469,7 @@ class EnquiryFormPro extends Controller
             // Get all meals for these restaurants
             $restaurantIds = $restaurants->pluck('restaurant_id')->toArray();
             $meals = Meal::whereIn('restaurant_id', $restaurantIds)
-                ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
+                ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'adult_cost_price', 'child_cost_price', 'meal_period')
                 ->get();
             
             \Log::info('EnquiryFormPro create() - Meals loaded', [
@@ -581,7 +581,7 @@ class EnquiryFormPro extends Controller
             
             $restaurantIds = $restaurants->pluck('restaurant_id')->toArray();
             $meals = Meal::whereIn('restaurant_id', $restaurantIds)
-                ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
+                ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'adult_cost_price', 'child_cost_price', 'meal_period')
                 ->get();
             
             // Get guides for this DMC only
@@ -4407,7 +4407,7 @@ class EnquiryFormPro extends Controller
                 $query->where('meal_period', $mealPeriod);
             }
 
-            $meals = $query->select('meal_id', 'name', 'type', 'category', 'item_description', 'item_type', 'price', 'adult_price', 'child_price', 'meal_period')
+            $meals = $query->select('meal_id', 'name', 'type', 'category', 'item_description', 'item_type', 'price', 'adult_price', 'child_price', 'adult_cost_price', 'child_cost_price', 'meal_period')
                 ->get();
 
             // Debug logging
@@ -4450,9 +4450,10 @@ class EnquiryFormPro extends Controller
                         $categoryLabel = '';
                 }
 
-                // Item Type (for Set Menu): 1=Veg, 2=Non-Veg
+                // Item Type remains available for older Set Menu records, but pricing for
+                // Buffet and Set Menu uses the same Adult/Child cost & sell fields.
                 $itemTypeLabel = '';
-                if ($meal->type == 2) { // Only for Set Menu
+                if ($meal->type == 2) { // Only for Set Menu (legacy item_type badge)
                     switch ($meal->item_type) {
                         case 1:
                             $itemTypeLabel = 'Veg';
@@ -4494,6 +4495,8 @@ class EnquiryFormPro extends Controller
                     'price' => $meal->price,
                     'adult_price' => $meal->adult_price,
                     'child_price' => $meal->child_price,
+                    'adult_cost_price' => $meal->adult_cost_price,
+                    'child_cost_price' => $meal->child_cost_price,
                     'display_name' => $typeLabel
                 ];
             });
