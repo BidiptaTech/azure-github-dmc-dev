@@ -5928,6 +5928,12 @@
         const checkInVal = document.getElementById('checkInDate')?.value;
         const checkOutVal = document.getElementById('checkOutDate')?.value;
         if (!checkInVal || !checkOutVal) return [];
+        const hotelData = (typeof enquiryProGetSelectedHotelDataFromDropdown === 'function')
+            ? enquiryProGetSelectedHotelDataFromDropdown()
+            : null;
+        if (typeof enquiryProGetBillableStayDateStrings === 'function') {
+            return enquiryProGetBillableStayDateStrings(checkInVal, checkOutVal, hotelData).map(ds => new Date(ds + 'T12:00:00'));
+        }
         const checkIn = new Date(checkInVal);
         const checkOut = new Date(checkOutVal);
         if (isNaN(checkIn) || isNaN(checkOut) || checkOut <= checkIn) return [];
@@ -6139,6 +6145,9 @@
 
     function enquiryProStayDateStringsForHotel(hotel) {
         if (!hotel) return [];
+        if (typeof enquiryProGetBillableStayDateStrings === 'function') {
+            return enquiryProGetBillableStayDateStrings(hotel.checkIn, hotel.checkOut, hotel);
+        }
         let checkIn = String(hotel.checkIn || '');
         let checkOut = String(hotel.checkOut || '');
         if (checkIn.includes('T')) checkIn = checkIn.split('T')[0];
@@ -8903,16 +8912,18 @@
                     }
                 }
                 
-                // Recalculate nights if dates were adjusted (still need Date objects for day difference)
+                // Recalculate nights if dates were adjusted (calendar + late checkout vs hotel check_out_time)
                 if (hotel.checkIn && hotel.checkOut) {
-                    // For calculating nights, we need the day difference
-                    // Since we're comparing dates at midnight, this is safe
-                    const checkInParts = hotel.checkIn.split('-');
-                    const checkOutParts = hotel.checkOut.split('-');
-                    const checkIn = new Date(checkInParts[0], checkInParts[1] - 1, checkInParts[2]);
-                    const checkOut = new Date(checkOutParts[0], checkOutParts[1] - 1, checkOutParts[2]);
-                    const timeDiff = checkOut.getTime() - checkIn.getTime();
-                    hotel.nights = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                    if (typeof enquiryProCalculateHotelNights === 'function') {
+                        hotel.nights = enquiryProCalculateHotelNights(hotel.checkIn, hotel.checkOut, hotel);
+                    } else {
+                        const checkInParts = String(hotel.checkIn).split('T')[0].split('-');
+                        const checkOutParts = String(hotel.checkOut).split('T')[0].split('-');
+                        const checkIn = new Date(checkInParts[0], checkInParts[1] - 1, checkInParts[2]);
+                        const checkOut = new Date(checkOutParts[0], checkOutParts[1] - 1, checkOutParts[2]);
+                        const timeDiff = checkOut.getTime() - checkIn.getTime();
+                        hotel.nights = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                    }
                 }
             });
         }
@@ -11818,7 +11829,12 @@
         const destination = document.getElementById('hotelDestination').value;
         const checkIn = document.getElementById('checkInDate').value;
         const checkOut = document.getElementById('checkOutDate').value;
-        const nights = document.getElementById('numNights').value;
+        const nights = (typeof enquiryProCalculateHotelNights === 'function')
+            ? enquiryProCalculateHotelNights(checkIn, checkOut, hotelData)
+            : (parseInt(document.getElementById('numNights')?.value, 10) || 0);
+        if (document.getElementById('numNights') && nights > 0) {
+            document.getElementById('numNights').value = nights;
+        }
         const headerValues = getHeaderValues();
         const hotelFocSvc = document.getElementById('accommodationHotelFocServiceDiscount')?.checked !== false;
         
@@ -12077,15 +12093,25 @@
         }
     }
 
-    // Calculate number of nights
+    // Calculate number of nights (calendar nights + 1 on late checkout vs hotel check_out_time)
     function calculateAccommodationNights() {
-        const checkIn = new Date(document.getElementById('checkInDate').value);
-        const checkOut = new Date(document.getElementById('checkOutDate').value);
-        
-        if (checkIn && checkOut && checkOut > checkIn) {
-            const diffTime = Math.abs(checkOut - checkIn);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            document.getElementById('numNights').value = diffDays;
+        const checkInVal = document.getElementById('checkInDate')?.value;
+        const checkOutVal = document.getElementById('checkOutDate')?.value;
+        const numNightsEl = document.getElementById('numNights');
+        const hotelData = (typeof enquiryProGetSelectedHotelDataFromDropdown === 'function')
+            ? enquiryProGetSelectedHotelDataFromDropdown()
+            : null;
+
+        if (checkInVal && checkOutVal && typeof enquiryProCalculateHotelNights === 'function') {
+            const nights = enquiryProCalculateHotelNights(checkInVal, checkOutVal, hotelData);
+            if (numNightsEl && nights > 0) numNightsEl.value = nights;
+        } else {
+            const checkIn = new Date(checkInVal);
+            const checkOut = new Date(checkOutVal);
+            if (checkIn && checkOut && checkOut > checkIn && numNightsEl) {
+                const diffTime = Math.abs(checkOut - checkIn);
+                numNightsEl.value = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
         }
 
         // Update room combination prices when dates change (season-aware)
@@ -14619,6 +14645,15 @@
         }
         if (hotel.checkOut) {
             expandHeaderDatesIfNeeded(hotel.checkOut, false);
+        }
+
+        if (typeof enquiryProCalculateHotelNights === 'function') {
+            const nights = enquiryProCalculateHotelNights(hotel.checkIn, hotel.checkOut, hotel);
+            if (nights > 0) {
+                accommodationList[index].nights = nights;
+                updateAccommodationTable();
+            }
+            return;
         }
 
         const checkIn = new Date(hotel.checkIn);
@@ -20083,24 +20118,19 @@
             const setMenuChildValue = isSetMenu ? headerValues.children : 0;
             const setMenuInfantValue = isSetMenu ? headerValues.infants : 0;
             
-            // Parse prices from database - both cost and sell should be the same value from database
-            // Use explicit null check to avoid treating 0 as falsy
-            const adultPrice = parseFloat(
-                (meal.adult_price !== null && meal.adult_price !== undefined && meal.adult_price !== '') 
-                    ? meal.adult_price 
-                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
-            ).toFixed(2);
-            const childPrice = parseFloat(
-                (meal.child_price !== null && meal.child_price !== undefined && meal.child_price !== '') 
-                    ? meal.child_price 
-                    : ((meal.price !== null && meal.price !== undefined && meal.price !== '') ? meal.price : 0)
-            ).toFixed(2);
-            
-            // Use the same database price for both cost and sell (no calculation)
-            const adultCostPrice = adultPrice;
-            const adultSellPrice = adultPrice;
-            const childCostPrice = childPrice;
-            const childSellPrice = childPrice;
+            // Buffet + Set Menu use the same Adult/Child cost & sell fields
+            const pickMealPrice = (...values) => {
+                for (const value of values) {
+                    if (value !== null && value !== undefined && value !== '') {
+                        return parseFloat(value) || 0;
+                    }
+                }
+                return 0;
+            };
+            const adultSellPrice = pickMealPrice(meal.adult_price, meal.price).toFixed(2);
+            const childSellPrice = pickMealPrice(meal.child_price, meal.price).toFixed(2);
+            const adultCostPrice = pickMealPrice(meal.adult_cost_price, meal.adult_price, meal.price).toFixed(2);
+            const childCostPrice = pickMealPrice(meal.child_cost_price, meal.child_price, meal.price).toFixed(2);
             
             // Icon and color based on meal type (Buffet vs Set Menu)
             let mealIcon = 'ri-restaurant-fill';
@@ -26215,9 +26245,15 @@
                 checkOutTime = parts[1] ? parts[1].substring(0, 5) + ':00' : "20:15:00";
             }
             
-            // Calculate nights from checkIn/checkOut
+            // Calculate nights from checkIn/checkOut (calendar + late checkout vs hotel check_out_time)
             let nights = parseInt(hotel.nights) || 0;
-            if (nights <= 0 && checkInDate && checkOutDate) {
+            if (typeof enquiryProCalculateHotelNights === 'function' && hotel.checkIn && hotel.checkOut) {
+                const computedNights = enquiryProCalculateHotelNights(hotel.checkIn, hotel.checkOut, hotel);
+                if (computedNights > 0) {
+                    nights = computedNights;
+                    hotel.nights = computedNights;
+                }
+            } else if (nights <= 0 && checkInDate && checkOutDate) {
                 const inDate = new Date(checkInDate);
                 const outDate = new Date(checkOutDate);
                 if (!isNaN(inDate) && !isNaN(outDate) && outDate > inDate) {
@@ -26323,6 +26359,10 @@
                 id: hotel.id || null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
+                nights: nights,
+                // Hotel table standard times (used for late-checkout night billing)
+                check_in_time: hotel.check_in_time || null,
+                check_out_time: hotel.check_out_time || null,
                 
                 // Hotel details (clean structure without room/bed/meal info)
                 hotelDetails: {
@@ -27834,7 +27874,13 @@
             }
 
             let groupNights = parseInt(group.hotel.nights, 10) || 0;
-            if (groupNights <= 0 && checkInDate && checkOutDate) {
+            if (typeof enquiryProCalculateHotelNights === 'function' && group.hotel.checkIn && group.hotel.checkOut) {
+                const computedNights = enquiryProCalculateHotelNights(group.hotel.checkIn, group.hotel.checkOut, group.hotel);
+                if (computedNights > 0) {
+                    groupNights = computedNights;
+                    group.hotel.nights = computedNights;
+                }
+            } else if (groupNights <= 0 && checkInDate && checkOutDate) {
                 const inDate = new Date(checkInDate);
                 const outDate = new Date(checkOutDate);
                 if (!isNaN(inDate) && !isNaN(outDate) && outDate > inDate) {
@@ -27861,6 +27907,9 @@
                 id: null,
                 bookingType: "enquiry",
                 bookingDate: [checkInDate, checkOutDate],
+                nights: groupNights,
+                check_in_time: group.hotel.check_in_time || null,
+                check_out_time: group.hotel.check_out_time || null,
                 checkInTime: checkInTime,
                 checkOutTime: checkOutTime,
                 hotelDetails: {
