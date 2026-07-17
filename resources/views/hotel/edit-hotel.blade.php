@@ -337,15 +337,14 @@
                                     <label for="country" class="form-label"><strong>Country</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <input name="country" class="form-control" type="text" value="{{$hotel->country}}" readonly>
-                                    {{-- <select class="form-control" id="country" name="country" required>
+                                    <select class="form-control" id="country" name="country" required>
                                         <option value="">Select Country</option>
                                         @foreach($country as $c)
                                             <option value="{{ $c->name }}" @if(old('country', $hotel->country ?? '') == $c->name) selected @endif>
                                                 {{ $c->name }}
                                             </option>
                                         @endforeach
-                                    </select> --}}
+                                    </select>
                                     @error('country')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -1084,6 +1083,54 @@
     }
     });
 
+</script>
+
+<script>
+    // Make City a dependent dropdown of Country
+    $(document).ready(function () {
+        function loadCitiesByCountry(countryName) {
+            if (!countryName) {
+                $('#citySelect').empty()
+                    .append('<option value="">Select Country First</option>')
+                    .trigger('change');
+                return;
+            }
+
+            $('#citySelect').empty()
+                .append('<option value="">Loading cities...</option>')
+                .trigger('change');
+
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function (response) {
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
+
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function (index, city) {
+                            $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                    } else {
+                        $('#citySelect').append('<option value="">No cities available</option>');
+                    }
+                    $('#citySelect').trigger('change');
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error fetching cities by country:", error);
+                    $('#citySelect').empty()
+                        .append('<option value="">Error loading cities</option>')
+                        .trigger('change');
+                }
+            });
+        }
+
+        // Reload city list whenever the country selection changes
+        $('#country').on('change', function () {
+            loadCitiesByCountry($(this).val());
+        });
+    });
 </script>
 
 
