@@ -22873,11 +22873,18 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
+
+            let emailStatus = '';
+            if (data.email_sent) {
+                emailStatus = `\nEmail sent to hotel: ${data.hotel_email || ''}`;
+            } else if (data.email_message) {
+                emailStatus = `\nEmail not sent: ${data.email_message}`;
+            }
             
             alert(`✅ Hotel booking approved successfully!
                     Reference ID: ${referenceId}
                     Due Date: ${displayDueDate}
-                    Data saved to database successfully!`);
+                    Data saved to database successfully!${emailStatus}`);
 
             // Close modal
             const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_approve`;
