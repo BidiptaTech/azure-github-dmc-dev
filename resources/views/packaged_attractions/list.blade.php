@@ -344,6 +344,9 @@
 @endsection
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -414,9 +417,9 @@
                                         <small class="text-muted">ID: {{ $attraction->package_attraction_id ?? 'N/A' }}</small>
                                     </div>
                                 </td>
-                                <td>${{ number_format($attraction->adult_price, 2) }}</td>
-                                <td>${{ number_format($attraction->child_price, 2) }}</td>
-                                <td>${{ number_format($attraction->senior_citizen_price, 2) }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->adult_price, 2) }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->child_price, 2) }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->senior_citizen_price, 2) }}</td>
                                 <td>
                                     @if($attraction->status == 1)
                                         <span class="badge-status active"><span class="dot"></span>Active</span>
