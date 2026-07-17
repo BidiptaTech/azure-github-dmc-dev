@@ -989,7 +989,10 @@ class EditTourController extends Controller
 
                 $existing = null;
                 if ($email !== '') {
-                    $existing = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+                    // Match by email globally: if a guest with this email already exists
+                    // (on any tour), reuse that record and just link this tour instead of
+                    // creating a duplicate. tour_id is appended below via addTourId().
+                    $existing = Guest::where('email', $email)->first();
                 }
                 if (!$existing && $fullName !== '' && $phone !== '') {
                     $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
@@ -1045,7 +1048,9 @@ class EditTourController extends Controller
 
                     $existing = null;
                     if ($email !== '') {
-                        $existing = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+                        // Match by email globally: reuse an existing guest with this email
+                        // (on any tour) and just link this tour instead of duplicating.
+                        $existing = Guest::where('email', $email)->first();
                     }
                     if (!$existing && $name !== '' && $contact !== '') {
                         $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
