@@ -8159,6 +8159,24 @@
                 });
             };
             
+            // Render bundle options with bundle icon in attraction dropdowns
+            window.formatAttractionOption = function(option) {
+                if (!option.id || !option.element) {
+                    return option.text;
+                }
+                if (option.element.dataset && option.element.dataset.isBundle === '1') {
+                    const $wrapper = $('<span></span>');
+                    $wrapper.append($('<img>', {
+                        src: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
+                        alt: 'Bundle',
+                        css: { width: '18px', height: '18px', 'margin-right': '6px', 'vertical-align': '-4px' }
+                    }));
+                    $wrapper.append(document.createTextNode(option.text));
+                    return $wrapper;
+                }
+                return option.text;
+            };
+            
             function initializeDynamicSelect2() {
                 // Attraction city selects
                 $('.attraction-city-select:not(.select2-hidden-accessible)').each(function() {
@@ -8174,7 +8192,9 @@
                     $(this).select2({
                         placeholder: "Select city first",
                         allowClear: true,
-                        width: '100%'
+                        width: '100%',
+                        templateResult: window.formatAttractionOption,
+                        templateSelection: window.formatAttractionOption
                     });
                 });
                 
@@ -11008,6 +11028,27 @@
                             console.log(`Loaded ${data.attractions.length} attractions for ${cityName}`);
                         } else {
                             attractionSelect.innerHTML += '<option disabled>No attractions found in this city</option>';
+                        }
+                        
+                        // Append packaged attraction bundles (shown with bundle icon)
+                        if (data.bundles && data.bundles.length > 0) {
+                            data.bundles.forEach(bundle => {
+                                const option = document.createElement('option');
+                                option.value = 'bundle_' + bundle.package_attraction_id;
+                                option.textContent = bundle.name;
+                                option.dataset.city = cityName;
+                                option.dataset.isBundle = '1';
+                                option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
+                                option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
+                                option.dataset.adultPrice = bundle.adult_price || 0;
+                                option.dataset.childPrice = bundle.child_price || 0;
+                                option.dataset.seniorPrice = bundle.senior_adult_price || 0;
+                                option.dataset.timeSlots = '[]';
+                                option.dataset.openTime = '';
+                                option.dataset.closeTime = '';
+                                attractionSelect.appendChild(option);
+                            });
+                            console.log(`Loaded ${data.bundles.length} attraction bundles for ${cityName}`);
                         }
                         
                         attractionSelect.disabled = false;
@@ -19964,6 +20005,52 @@
             const attractionSelect = document.getElementById('day' + day + '_attraction_' + index);
             const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
             
+            // Packaged attraction bundle: auto-check vehicle/guide and use bundle pricing
+            const isBundle = selectedOption.dataset.isBundle === '1';
+            if (isBundle) {
+                // Auto-set Transfer Required if bundle includes a vehicle
+                const transferRequiredSelect = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
+                if (transferRequiredSelect && selectedOption.dataset.vehicleIncluded === '1') {
+                    transferRequiredSelect.value = 'Yes';
+                    if (typeof window.toggleAttractionTransferFields === 'function') {
+                        window.toggleAttractionTransferFields(day, index);
+                    }
+                }
+                
+                // Auto-set Guide Required if bundle includes a guide
+                const guideRequiredSelect = document.getElementById(`day${day}_attraction_${index}_guide_required`);
+                if (guideRequiredSelect && selectedOption.dataset.guideIncluded === '1') {
+                    guideRequiredSelect.value = 'Yes';
+                    if (typeof window.toggleAttractionGuideFields === 'function') {
+                        window.toggleAttractionGuideFields(day, index);
+                    }
+                }
+                
+                // Bundles have no operating hours; offer a full-day slot
+                const bundleTimeSlotSelect = document.getElementById(`day${day}_attraction_${index}_time`);
+                if (bundleTimeSlotSelect) {
+                    bundleTimeSlotSelect.innerHTML = '<option value="">Select Time Slot</option><option value="Full Day">Full Day</option>';
+                }
+                
+                // Bundles have no tickets; use the bundle prices as a single ticket option
+                const bundleTicketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
+                if (bundleTicketSelect) {
+                    bundleTicketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                    const bundleTicketOption = document.createElement('option');
+                    bundleTicketOption.value = selectedOption.value;
+                    bundleTicketOption.textContent = selectedOption.text + ' (Bundle)';
+                    bundleTicketOption.dataset.adultPrice = selectedOption.dataset.adultPrice || 0;
+                    bundleTicketOption.dataset.childPrice = selectedOption.dataset.childPrice || 0;
+                    bundleTicketOption.dataset.seniorPrice = selectedOption.dataset.seniorPrice || 0;
+                    bundleTicketOption.selected = true;
+                    bundleTicketSelect.appendChild(bundleTicketOption);
+                }
+                
+                updateAttractionPricing(day, index);
+                try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
+                return;
+            }
+            
             // Get open_time and close_time from the selected attraction option
             const openTime = selectedOption.dataset.openTime;
             const closeTime = selectedOption.dataset.closeTime;
@@ -21382,10 +21469,8 @@
             
             console.log('Guest counts calculated:', {adultCount, childCount});
             
-            if (mealType === 1) { // Buffet
+            if (mealType === 1 || mealType === 2) { // Buffet or Set Menu — both use adult/child prices
                 setupBuffetModal(mealName, adultPrice, childPrice, adultCount, childCount);
-            } else if (mealType === 2) { // Set Menu
-                setupSetMenuModal(mealName, price);
             }
             
             // Store modal data for confirmation
@@ -21586,10 +21671,11 @@
             let modalHTML = '';
             let totalPrice = 0;
             
-            if (meal.type == 1) { // Buffet
+            if (meal.type == 1 || meal.type == 2) { // Buffet or Set Menu — both use adult_price and child_price
                 const adultPrice = parseFloat(meal.adult_price) || 0;
                 const childPrice = parseFloat(meal.child_price) || 0;
                 totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+                const mealTypeLabel = meal.type == 2 ? 'Set Menu' : 'Buffet';
                 
                 modalHTML = `
                     <div class="modal fade" id="tempDishModal" tabindex="-1">
@@ -21606,7 +21692,8 @@
                                                 <input type="radio" class="form-check-input me-3" checked disabled>
                                                 <div>
                                                     <h6 class="mb-1">${meal.name}</h6>
-                                                    <small class="text-muted">
+                                                    <small class="text-muted">${mealTypeLabel}</small>
+                                                    <small class="text-muted d-block">
                                                         Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultCount} = ${getTourCurrency()} ${(adultPrice * adultCount).toFixed(2)}
                                                         ${childCount > 0 ? `<br>Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${childCount} = ${getTourCurrency()} ${(childPrice * childCount).toFixed(2)}` : ''}
                                                     </small>
@@ -21628,65 +21715,9 @@
                                         </div>
                                     </div>
                                 </div>
-                                                            <div class="modal-footer">
+                                <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
                                     <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${totalPrice.toFixed(2)})" ${totalPrice > 0 ? '' : 'disabled'}>
-                                        <i class="fas fa-check me-2"></i>CONFIRM SELECTION
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (meal.type == 2) { // Set Menu
-                const unitPrice = parseFloat(meal.price) || 0;
-                totalPrice = unitPrice;
-                
-                modalHTML = `
-                    <div class="modal fade" id="tempDishModal" tabindex="-1">
-                        <div class="modal-dialog modal-lg">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Select ${meal.display_name}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="card border-light">
-                                        <div class="card-body">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="d-flex align-items-center">
-                                                    <input type="radio" class="form-check-input me-3" checked disabled>
-                                                    <div>
-                                                        <h6 class="mb-1">${meal.name}</h6>
-                                                        <small class="text-muted">${getTourCurrency()} ${unitPrice.toFixed(2)}</small>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(-1)">-</button>
-                                                    <span class="mx-3 fw-bold" id="quantityDisplay">1</span>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(1)">+</button>
-                                                    <span class="ms-3 text-success fw-bold" id="priceDisplay">= ${getTourCurrency()} ${unitPrice.toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row mt-4">
-                                        <div class="col-md-6">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-shopping-cart text-success me-2"></i>
-                                                <span class="fw-bold">Total Price:</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 text-end">
-                                            <span class="h4 text-success" id="totalPriceDisplay">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
-                                            <br>
-                                            <small class="text-muted" id="quantityInfo">Quantity: 1</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                                            <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
-                                    <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${unitPrice.toFixed(2)})" disabled>
                                         <i class="fas fa-check me-2"></i>CONFIRM SELECTION
                                     </button>
                                 </div>
@@ -21714,8 +21745,8 @@
                 meal: meal,
                 day: day,
                 index: index,
-                quantity: 1,
-                unitPrice: parseFloat(meal.price) || 0
+                adultPrice: parseFloat(meal.adult_price) || 0,
+                childPrice: parseFloat(meal.child_price) || 0
             };
         };
         
@@ -22223,16 +22254,13 @@
             // Get pricing data from the selected dish option
             let adultPrice = parseFloat(selectedDish.dataset.adultPrice) || 0;
             let childPrice = parseFloat(selectedDish.dataset.childPrice) || 0;
-            let setMenuPrice = parseFloat(selectedDish.dataset.price) || 0; // Price field for set menu
             
             console.log('Dish pricing data:', { 
                 mealType,
                 adultPrice, 
                 childPrice,
-                setMenuPrice,
                 rawAdultPrice: selectedDish.dataset.adultPrice,
                 rawChildPrice: selectedDish.dataset.childPrice,
-                rawPrice: selectedDish.dataset.price,
                 selectedDish: selectedDish
             });
             
@@ -22252,49 +22280,33 @@
             
             let totalPrice = 0;
             let pricingHTML = '';
-            
-            // Check if it's a set menu (type = 2)
-            if (mealType === 2) {
-                // For set menu, use the price field directly
-                totalPrice = setMenuPrice;
-                
-                priceDisplay.style.display = 'block';
-                if (pricingDetailsDisplay) {
-                    pricingHTML = `
-                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
-                        <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        <div>Set Menu Price: ${getTourCurrency()} ${setMenuPrice.toFixed(2)}</div>
-                        <div class="mt-2"><strong class="text-success">${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
-                    `;
-                    pricingDetailsDisplay.innerHTML = pricingHTML;
-                }
-            } else {
-                // For buffet (type = 1), always show adult_price and child_price
-                // Calculate total only when guests are selected
-                const adultTotal = adults > 0 ? adults * adultPrice : 0;
-                const childTotal = children > 0 ? children * childPrice : 0;
-                totalPrice = adultTotal + childTotal;
-                
-                priceDisplay.style.display = 'block';
-                if (pricingDetailsDisplay) {
-                    pricingHTML = `
-                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
-                        <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        ${adults > 0 || children > 0 ? `
-                            <div class="mt-2 border-top pt-2">
-                                <div><strong>Calculation:</strong></div>
-                                ${adults > 0 ? `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>` : ''}
-                                ${children > 0 ? `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>` : ''}
-                                <div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
-                            </div>
-                        ` : `
-                            <div class="mt-2 text-muted" style="font-size: 0.85rem;">
-                                <i class="ri-information-line me-1"></i>Select guests to calculate total price
-                            </div>
-                        `}
-                    `;
-                    pricingDetailsDisplay.innerHTML = pricingHTML;
-                }
+            const mealTypeLabel = mealType === 2 ? 'Set Menu' : 'Buffet';
+
+            // Buffet and Set Menu both use adult_price × adults + child_price × children
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            totalPrice = adultTotal + childTotal;
+
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingHTML = `
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div><strong>Dish: ${selectedDish.text}</strong></div>
+                    <div><small class="text-muted">${mealTypeLabel}</small></div>
+                    ${adults > 0 || children > 0 ? `
+                        <div class="mt-2 border-top pt-2">
+                            <div><strong>Calculation:</strong></div>
+                            ${adults > 0 ? `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>` : ''}
+                            ${children > 0 ? `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>` : ''}
+                            <div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
+                        </div>
+                    ` : `
+                        <div class="mt-2 text-muted" style="font-size: 0.85rem;">
+                            <i class="ri-information-line me-1"></i>Select guests to calculate total price
+                        </div>
+                    `}
+                `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
             }
             
             // Update hidden total price field

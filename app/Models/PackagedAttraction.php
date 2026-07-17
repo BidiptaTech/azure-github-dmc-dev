@@ -12,6 +12,11 @@ class PackagedAttraction extends Model
     protected $table = 'packaged_attractions';
     protected $guarded = [];
 
+    protected $casts = [
+        'vehicle_included' => 'boolean',
+        'guide_included' => 'boolean',
+    ];
+
     /**
      * Get the attractions as an array
      */
