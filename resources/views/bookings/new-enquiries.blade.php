@@ -924,7 +924,7 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         <tr 
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
@@ -1400,7 +1400,7 @@
                                     @endif
                                 @if($tour->created_at)
                                     @php
-                                        $createdAt = $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC');
+                                        $createdAt = $tour->destination_created_at ?? $tour->created_at;
                                     @endphp
 
                                     <span>{{ $createdAt->format('M d, Y') }}</span>
