@@ -1057,7 +1057,7 @@
                         <tr 
                             class="{{ $tour->updated_at < now()->subDays(7) ? 'table-warning' : '' }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-tour-status="{{ $tour->tour_status ?? '' }}"
                             data-destination="{{ $tour->destination ?? '' }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
@@ -1579,7 +1579,10 @@
                                     </span>
                                     <span class="created-at-line" title="Created at">
                                         <i class="ri-calendar-line"></i>
-                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                        @php
+                                            $createdAt = $tour->destination_created_at ?? $tour->created_at;
+                                        @endphp
+                                        <span>{{ $createdAt->format('D, M d, Y') }} · {{ $createdAt->format('h:i A') }}</span>
                                     </span>
                                 </div>
                             </td>

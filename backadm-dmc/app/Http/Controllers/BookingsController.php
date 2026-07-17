@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
+use App\Helpers\CountryHelper;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\Enquiry;
@@ -109,6 +110,44 @@ class BookingsController extends Controller
             $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
         }
         return $tours;
+    }
+
+    /**
+     * Add each tour's UTC creation time converted to its destination country's timezone.
+     */
+    private function hydrateDestinationCreatedAt($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        $destinations = collect($items)
+            ->pluck('destination')
+            ->filter(fn ($destination) => is_string($destination) && trim($destination) !== '')
+            ->map(fn ($destination) => mb_strtolower(trim($destination)))
+            ->unique()
+            ->values()
+            ->all();
+
+        $countriesByName = empty($destinations)
+            ? collect()
+            : Country::query()
+                ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                ->get(['id', 'name', 'timezone'])
+                ->keyBy(fn (Country $country) => mb_strtolower(trim($country->name)));
+
+        foreach ($items as $tour) {
+            $destination = is_string($tour->destination ?? null)
+                ? mb_strtolower(trim($tour->destination))
+                : '';
+            $country = $countriesByName->get($destination);
+
+            $tour->destination_created_at = CountryHelper::convertUtcToDestinationDateTime(
+                $tour->created_at,
+                $country
+            );
+            $tour->destination_timezone = $country?->timezone ?: 'UTC';
+        }
     }
 
     /**
@@ -316,6 +355,7 @@ class BookingsController extends Controller
             ->value('currency');
         $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency'));
     }
 
@@ -760,6 +800,7 @@ class BookingsController extends Controller
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $currency = CommonHelper::getDmcCurrencyByCountry();
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency'));
     }
 
@@ -807,6 +848,7 @@ class BookingsController extends Controller
         $this->formatToursDisplayId($tours);
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.tentative', compact('tours', 'country_tax', 'currency'));
     }
 
@@ -1036,6 +1078,7 @@ class BookingsController extends Controller
             }
         }
 
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory'));
     }
 
@@ -1565,6 +1608,7 @@ class BookingsController extends Controller
             }
         }
 
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
     }
 
@@ -1681,6 +1725,7 @@ class BookingsController extends Controller
 
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.cancelled', compact('tours', 'country_tax', 'currency'));
     }
 
@@ -1840,6 +1885,7 @@ class BookingsController extends Controller
         
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
 
