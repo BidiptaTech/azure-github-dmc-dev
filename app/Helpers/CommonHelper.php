@@ -1579,6 +1579,65 @@ class CommonHelper
         }
     }
 
+    /**
+     * Send a hotel booking confirmation email with a custom subject and body
+     * (plain text body is wrapped in a minimal HTML email container).
+     *
+     * @param  string  $email    Hotel email from hotels.email
+     * @param  string  $subject  Email subject
+     * @param  string  $body     Plain-text email body (e.g. from mail preview content)
+     * @return true|string       true on success, error message string on failure
+     */
+    public static function sendHotelApprovalEmail($email, $subject, $body)
+    {
+        try {
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                Log::error('Hotel approval email skipped: invalid hotel email', [
+                    'email' => $email,
+                    'subject' => $subject,
+                ]);
+                return 'Hotel email is not set or invalid';
+            }
+
+            $escapedBody = nl2br(e($body));
+            $safeSubject = e($subject);
+
+            $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . $safeSubject . '</title>
+<style>
+body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;margin:0;padding:0;color:#333;line-height:1.6;}
+.email-container{max-width:720px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.08);border:1px solid #e2e8f0;}
+.email-header{background:linear-gradient(135deg,#28a745 0%,#20c997 100%);padding:24px 28px;color:#fff;}
+.email-header h1{margin:0;font-size:20px;}
+.email-body{padding:28px;white-space:pre-wrap;font-family:Consolas,Monaco,monospace;font-size:13px;color:#1f2937;}
+.email-footer{padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;}
+</style>
+</head><body>
+<div class="email-container">
+<div class="email-header"><h1>Hotel Booking Confirmation</h1></div>
+<div class="email-body">' . $escapedBody . '</div>
+<div class="email-footer">This email was sent automatically from the booking system.</div>
+</div>
+</body></html>';
+
+            Mail::to($email)->send(new DmcMail($emailHtml, $subject));
+
+            Log::info('Hotel approval email sent successfully', [
+                'email' => $email,
+                'subject' => $subject,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Hotel approval email sending failed', [
+                'email' => $email,
+                'subject' => $subject,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Email sending failed: ' . $e->getMessage();
+        }
+    }
+
     public static function getDmcId($auth_user){
         if($auth_user->agent_id){
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
