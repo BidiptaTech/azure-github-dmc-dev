@@ -219,7 +219,7 @@
     </div>
 </div>
 
-@push('styles')
+@push('css')
 <style>
     #onlineHotelModal .select2-container { width: 100% !important; }
     #onlineHotelModal .select2-container--default .select2-selection--single {

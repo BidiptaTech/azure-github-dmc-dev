@@ -1175,6 +1175,28 @@
                         <div id="hotelAccommodationsSection" class="collapse">
                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
                                 <div class="row" id="hotelSection">
+                            <!-- Offline / Online hotel source -->
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;">
+                                    <i class="ri-toggle-line me-1"></i>Hotel Source
+                                </label>
+                                <div class="d-flex flex-wrap gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOffline" value="offline" checked>
+                                        <label class="form-check-label" for="hotelSourceOffline" style="font-size: 0.85rem;">
+                                            <i class="ri-database-2-line me-1"></i> Offline Hotels
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="hotelSourceType" id="hotelSourceOnline" value="online">
+                                        <label class="form-check-label" for="hotelSourceOnline" style="font-size: 0.85rem;">
+                                            <i class="ri-global-line me-1"></i> Online Hotels
+                                        </label>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses your DMC hotel inventory. Online opens a live API search popup.</small>
+                            </div>
+
                             <div id="offlineHotelPanel">
                             <!-- Hotel Selection Controls -->
                             <!-- Row 1: City, Select Hotel, Room Type, Bed Type -->
@@ -6510,6 +6532,8 @@
         </div>
     </div>
 </div>
+@include('single-tour-package.partials.online-hotel-modal')
+@include('single-tour-package.partials.online-attraction-modal')
 @endsection
 
 @section('scripts')
@@ -18096,6 +18120,21 @@
                                         <div class="attractions-container" id="day${day}_attractions_container">
                                 <div class="card border-0 shadow-sm attraction-item mb-4 overflow-hidden" data-attraction-index="1" style="border-radius: 12px;">
                                 <div class="card-body bg-white p-4">
+                                    <div class="mb-3 attraction-slot-source-block">
+                                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.85rem;"><i class="ri-toggle-line me-1"></i>Attraction Source · Slot #1</label>
+                                        <div class="d-flex flex-wrap gap-4">
+                                            <div class="form-check">
+                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOffline_day${day}_slot1" value="offline" data-day="${day}" data-index="1" checked>
+                                                <label class="form-check-label" for="attractionSourceOffline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-database-2-line me-1"></i> Offline Attractions</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input attraction-slot-source-radio" type="radio" name="attractionSourceType_day${day}_slot1" id="attractionSourceOnline_day${day}_slot1" value="online" data-day="${day}" data-index="1">
+                                                <label class="form-check-label" for="attractionSourceOnline_day${day}_slot1" style="font-size: 0.85rem;"><i class="ri-global-line me-1"></i> Online Attractions</label>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Offline uses DMC inventory. Online opens live API search for this slot.</small>
+                                    </div>
+                                    <div class="attraction-slot-online-hint d-none alert alert-info py-2 mb-3" id="day${day}_attraction_1_online_hint" style="font-size: 0.8rem;"><i class="ri-global-line me-1"></i>Use the popup to fetch and select an online attraction for this slot.</div>
                                     <div class="attraction-slot-offline-panel" id="day${day}_attraction_1_offline_panel">
                                     
                                     ${hasEnquiryLayout ? `
@@ -20576,6 +20615,9 @@
             const container = document.getElementById(`day${day}_attractions_container`);
             const existingAttractions = container.querySelectorAll('.attraction-item');
             const newIndex = existingAttractions.length + 1;
+            const slotSourceHtml = (typeof window.buildAttractionSlotSourceToggleHtml === 'function')
+                ? window.buildAttractionSlotSourceToggleHtml(day, newIndex)
+                : '';
             
             const newAttractionHTML = `
                 <div class="card border shadow-sm attraction-item mb-3" data-attraction-index="${newIndex}">
@@ -20596,6 +20638,7 @@
                         </div>
                     </div>
                     <div class="card-body bg-white">
+                        ${slotSourceHtml}
                         <div class="row g-3">
                             <div class="col-md-2">
                                 <label class="form-label fw-semibold">
