@@ -24,6 +24,7 @@ class Country extends Model
         'name',
         'country_code',
         'currency',
+        'timezone',
         'is_active',
         'country_image',
         'tax_percentage',

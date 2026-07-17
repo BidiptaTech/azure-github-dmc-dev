@@ -865,7 +865,7 @@
                         <tr 
                             class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-tour-id="{{ $tour->tour_id }}"
@@ -1779,8 +1779,7 @@
                                 </div>
                             </td>
                             @php
-                                $tz = auth()->user()->timezone ?? 'UTC';
-                                $createdAt = $tour->created_at->timezone($tz);
+                                $createdAt = $tour->destination_created_at ?? $tour->created_at;
                             @endphp
                             <td class="col-created align-top">
                                 <div class="d-flex flex-column">
