@@ -523,6 +523,23 @@
         color: #6c757d;
         font-style: italic;
     }
+
+    /* Keep occupancy pricing columns aligned in Bootstrap grid */
+    .room-occupancy-pricing-row > .col-md-6 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .room-occupancy-pricing-row fieldset {
+        height: 100%;
+        margin-bottom: 0;
+    }
+
+    .room-price-pair .form-text {
+        min-height: 1.25rem;
+        margin-top: 0.25rem;
+        margin-bottom: 0;
+    }
 </style>
 
 <!-- Start of the form - Only for Admin and Virtual DMC -->
@@ -597,9 +614,11 @@
                     placeholder="Enter Dimension">
                         <small class="validation-message text-danger" id="dimension_input-validation-message"></small>
                     </div>
+                </div>
 
+                <div class="mb-3 row room-child-pricing-row g-2">
                     <!-- Children Price -->
-                    <div class="mb-3 col-md-3">
+                    <div class="col mb-3">
                         <label for="children_price" class="form-label"><strong>Meal Children
                                 Price</strong></label>
                         <select name="children_price" id="children_price" class="form-control">
@@ -610,18 +629,30 @@
                         </select>
                     </div>
                     <!-- Child with bed price -->
-                    <div class="col-md-3">
-                        <label for="children_with_bed_price" class="form-label"><strong>Child with Bed Price</strong></label>
-                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Price">
+                    <div class="col mb-3">
+                        <label for="child_with_bed" class="form-label"><strong>Child with Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                    </div>
+                    <div class="col mb-3">
+                        <label for="child_with_bed_cost" class="form-label"><strong>Child with Bed Price(Cost)</strong></label>
+                        <input type="number" name="child_with_bed_cost" id="child_with_bed_cost" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
                     <!-- Child without bed price -->
-                    <div class="col-md-3">
-                        <label for="children_without_bed_price" class="form-label"><strong>Child without Bed Price</strong></label>
-                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Price">
+                    <div class="col mb-3">
+                        <label for="child_without_bed" class="form-label"><strong>Child without Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
+                    <div class="col mb-3">
+                        <label for="child_without_bed_cost" class="form-label"><strong>Child without Bed Price(Cost)</strong></label>
+                        <input type="number" name="child_without_bed_cost" id="child_without_bed_cost" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                    </div>
+                </div>
 
+                <div id="room-pricing-alert" class="mb-3"></div>
+
+                <div class="mb-3 row room-occupancy-pricing-row" id="variant_pricing_row" style="display: none;">
                     <!-- Single weekday weekend price -->
-                    <div class="col-md-6" id="single_price" style="display: none;">
+                    <div class="col-md-6" id="single_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Single</legend>
@@ -629,7 +660,7 @@
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="singleWeekdayPrice">Weekday Price</label>
+                                        <label for="singleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekdayPrice">0</span></span>
@@ -637,14 +668,24 @@
                                         <div class="calculation-display text-primary small mt-1" id="single-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="singleWeekendPrice">Weekend Price</label>
+                                        <label for="singleWeekendPrice">Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekendPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="single-weekend-calc" style="display: none;"></div>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -652,7 +693,7 @@
                     </div>
 
                     <!-- Double weekday weekend price -->
-                    <div class="col-md-6" id="double_price" style="display: none;">
+                    <div class="col-md-6" id="double_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
@@ -660,7 +701,7 @@
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="doubleWeekdayPrice">Weekday Price</label>
+                                        <label for="doubleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekdayPrice">0</span></span>
@@ -668,22 +709,34 @@
                                         <div class="calculation-display text-primary small mt-1" id="double-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="doubleWeekendPrice">Weekend Price</label>
+                                        <label for="doubleWeekendPrice">Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekendPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="double-weekend-calc" style="display: none;"></div>
                                     </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
+                                    </div>
                                 </div>
                             </fieldset>
                         </div>
                     </div>
+                </div>
 
+                <div class="mb-3 row room-occupancy-pricing-row" id="base_pricing_row">
                     <!-- Base Single weekday weekend -->
-                    <div class="col-md-6" id="base_single_price" style="display: none;">
+                    <div class="col-md-6" id="base_single_price">
                         <!-- First Row -->
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
@@ -692,20 +745,30 @@
                                     <div class="col-md-6 form-floating">
                                 <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control"
                                     placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="weekdayPrice">Base Weekday Price</label>
+                                        <label for="weekdayPrice">Base Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekdayPrice">0</span></span>
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control"
+                                            placeholder=" ">
+                                        <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                 <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control"
                                     placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="weekendPrice">Base Weekend Price</label>
+                                        <label for="weekendPrice">Base Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekendPrice">0</span></span>
                                         @endif
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control"
+                                            placeholder=" ">
+                                        <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -713,7 +776,7 @@
                     </div>
 
                     <!--  Base Double weekday weekend -->
-                    <div class="col-md-6" id="base_double_price" style="display: none;">
+                    <div class="col-md-6" id="base_double_price">
                         <div class="mb-3">
                             <fieldset class="border p-1 position-relative">
                                 <legend>Double</legend>
@@ -722,22 +785,32 @@
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleweekdayPrice" name="baseDoubleWeekdayPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="doubleweekdayPrice">Base Weekday Price</label>
+                                        <label for="doubleweekdayPrice">Base Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekdayPrice">0</span></span>
                                         @endif
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="baseDoubleWeekdayCostPrice">Base Weekday Price(Cost)</label>
                                     </div>
                                     
                                     <!-- Weekend Price -->
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleweekendPrice" name="baseDoubleWeekendPrice"
                                             class="form-control" placeholder=" " onkeyup="calculatePrice()">
-                                        <label for="doubleweekendPrice">Base Weekend Price</label>
+                                        <label for="doubleweekendPrice">Base Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekendPrice">0</span></span>
                                         @endif
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice"
+                                            class="form-control" placeholder=" ">
+                                        <label for="baseDoubleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -769,8 +842,12 @@
                     
                     <!-- Breakfast Price - Shows when breakfast is included -->
                     <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                        <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="breakfast_price" id="breakfast_price" class="form-control" placeholder="Enter Price" min="0" step="0.01">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="breakfast_price" id="breakfast_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
+                        <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Cost Price</strong></label>
+                        <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Lunch Toggle -->
@@ -795,8 +872,12 @@
                     
                     <!-- Lunch Price - Shows when lunch is included -->
                     <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                        <label for="lunch_price" class="form-label"><strong>Lunch Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="lunch_price" id="lunch_price" class="form-control" placeholder="Enter Price" min="0" step="0.01">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="lunch_price" id="lunch_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
+                        <label for="lunch_cost_price" class="form-label"><strong>Lunch Cost Price</strong></label>
+                        <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Dinner Toggle -->
@@ -821,8 +902,12 @@
                     
                     <!-- Dinner Price - Shows when dinner is included -->
                     <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                        <label for="dinner_price" class="form-label"><strong>Dinner Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="dinner_price" id="dinner_price" class="form-control" placeholder="Enter Price" min="0" step="0.01">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="dinner_price" id="dinner_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
+                        <label for="dinner_cost_price" class="form-label"><strong>Dinner Cost Price</strong></label>
+                        <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Supplementary Breakfast Toggle -->
@@ -1628,21 +1713,20 @@ $(document).ready(function() {
             // No rooms exist for this hotel - show base room fields
             $('#base_room_type_input').val('').prop('readonly', false);
             $('#room_type, #varient_price').hide();
-            $('#single_price, #double_price').hide();
-            $('#base_single_price, #base_double_price').show();
+            $('#variant_pricing_row').hide();
+            $('#base_pricing_row').show();
             
             // Set required fields for base room
             toggleRequiredFields(true);
             
             // Show message indicating this will be the base room
-            $('<div class="alert alert-info mb-3">This will be the base room for price calculations.</div>')
-                .insertBefore('#base_room_type');
+            $('#room-pricing-alert').html('<div class="alert alert-info mb-0">This will be the base room for price calculations.</div>');
         } else if (hasBaseRoom) {
             // Base room exists, allow variant room creation
             $('#base_room_type').hide();
             $('#room_type, #varient_price').show();
-            $('#single_price, #double_price').show().css('display', 'block');
-            $('#base_single_price, #base_double_price').hide();
+            $('#variant_pricing_row').show();
+            $('#base_pricing_row').hide();
             
             console.log('Showing variant room sections - Single visible:', $('#single_price').is(':visible'), 'Double visible:', $('#double_price').is(':visible'));
 
@@ -1684,7 +1768,7 @@ $(document).ready(function() {
                 $('#singleWeekdayPrice, #singleWeekendPrice, #doubleWeekdayPrice, #doubleWeekendPrice').addClass('bg-light').css('cursor', 'not-allowed');
                 
                 // Add note that prices are auto-calculated
-                $('#single_price').before('<div class="alert alert-info mb-3"><i class="fas fa-info-circle"></i> Prices are automatically calculated based on base room prices + variant price</div>');
+                $('#room-pricing-alert').html('<div class="alert alert-info mb-0"><i class="fas fa-info-circle"></i> Prices are automatically calculated based on base room prices + variant price</div>');
             }
 
             // Add a change handler for variant price to automatically update all price fields
@@ -1704,15 +1788,14 @@ $(document).ready(function() {
             // Rooms exist but no base room, create a base room first
             $('#base_room_type_input').val('').prop('readonly', false);
             $('#room_type, #varient_price').hide();
-            $('#single_price, #double_price').hide();
-            $('#base_single_price, #base_double_price').show();
+            $('#variant_pricing_row').hide();
+            $('#base_pricing_row').show();
             
             // Make sure the base_room_type input is required
             $('#base_room_type_input').prop('required', true);
             
             // Show an alert or message that base room must be created first
-            $('<div class="alert alert-warning mb-3">You must create a base room first before adding other room types.</div>')
-                .insertBefore('#base_room_type');
+            $('#room-pricing-alert').html('<div class="alert alert-warning mb-0">You must create a base room first before adding other room types.</div>');
         }
 
         // Calculate prices if DMC user

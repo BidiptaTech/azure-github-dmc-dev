@@ -233,14 +233,14 @@
                             <i class="ri-add-line me-1"></i>Add Single Bed
                         </button>
                     </li>
-                    {{-- @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
+                    @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
                         <li class="nav-item" role="presentation">
                         <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
                                 type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
                             <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
                         </button>
                     </li>
-                    @endif --}}
+                    @endif
                 </ul>
                 
                 <div class="tab-content" id="bedsTabContent">
@@ -353,9 +353,15 @@
                             <!-- extra bed price -->
                             <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
                                 <label for="extra_bed_price" class="form-label"><strong>Extra Bed
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="extra_bed_price" id="extra_bed_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
+                                <label for="extra_bed_cost_price" class="form-label"><strong>Extra Bed
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="extra_bed_cost_price" id="extra_bed_cost_price"
+                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                             </div>
 
                             <div class="mb-3 col-md-3">
@@ -387,9 +393,15 @@
                             <!-- baby cot price -->
                             <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
                                 <label for="baby_cot_price" class="form-label"><strong>Baby Cot
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="baby_cot_price" id="baby_cot_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
+                                <label for="baby_cot_cost_price" class="form-label"><strong>Baby Cot
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="baby_cot_cost_price" id="baby_cot_cost_price"
+                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
                             </div>
                             <hr>
                         </div>
@@ -905,15 +917,24 @@
     });
 </script>
 <script>
-    // Function to toggle the visibility of the baby cot price field
+    // Function to toggle the visibility of the baby cot price fields
     const toggleBabyCotPrice = () => {
         const babyCotDropdown = document.getElementById("baby_cot");
-        const babyCotPriceField = document.querySelector(`.baby_cot_price`);
+        const babyCotPriceFields = document.querySelectorAll(`.baby_cot_price`);
+        const sellInput = document.getElementById('baby_cot_price');
+        const costInput = document.getElementById('baby_cot_cost_price');
+        const isYes = babyCotDropdown.value === "1";
 
-        if (babyCotDropdown.value === "1") {
-            babyCotPriceField.style.display = "block"; // Show price field if "Yes" is selected
-        } else {
-            babyCotPriceField.style.display = "none"; // Hide price field if "No" or nothing is selected
+        babyCotPriceFields.forEach(function(field) {
+            field.style.display = isYes ? "block" : "none";
+        });
+        if (sellInput) {
+            sellInput.required = isYes;
+            if (!isYes) sellInput.value = "";
+        }
+        if (costInput) {
+            costInput.required = isYes;
+            if (!isYes) costInput.value = "";
         }
     };
 
@@ -931,16 +952,25 @@
     function toggleExtraBedField() {
         const extraBedSelect = document.getElementById('extra_bed');
         const extraBedTypeDiv = document.querySelector('.extra_bed_type');
-        const extraBedPriceDiv = document.querySelector('.extra_bed_price');
+        const extraBedPriceDivs = document.querySelectorAll('.extra_bed_price');
+        const typeEl = document.getElementById('extra_bed_type');
+        const priceEl = document.getElementById('extra_bed_price');
+        const costEl = document.getElementById('extra_bed_cost_price');
+        const isYes = extraBedSelect.value === "1";
 
-        if (extraBedSelect.value === "1") {
-            extraBedTypeDiv.style.display = "block";
-            extraBedPriceDiv.style.display = "block";
-        } else {
-            extraBedTypeDiv.style.display = "none";
-            extraBedPriceDiv.style.display = "none";
-            document.getElementById('extra_bed_type').value = ""; // Clear the type field
-            document.getElementById('extra_bed_price').value = ""; // Clear the price field
+        if (extraBedTypeDiv) extraBedTypeDiv.style.display = isYes ? "block" : "none";
+        extraBedPriceDivs.forEach(function(div) { div.style.display = isYes ? "block" : "none"; });
+        if (typeEl) {
+            typeEl.required = isYes;
+            if (!isYes) typeEl.value = "";
+        }
+        if (priceEl) {
+            priceEl.required = isYes;
+            if (!isYes) priceEl.value = "";
+        }
+        if (costEl) {
+            costEl.required = isYes;
+            if (!isYes) costEl.value = "";
         }
     }
 </script>

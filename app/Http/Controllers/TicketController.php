@@ -81,18 +81,18 @@ class TicketController extends Controller
             'description' => 'nullable|string',
             'remarks' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
-            'child_cost_price' => 'nullable|numeric|min:0',
-            'adult_cost_price' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price' => 'nullable|numeric|min:0',
-            'child_price_nri' => 'nullable|numeric|min:0',
-            'adult_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_price_nri' => 'nullable|numeric|min:0',
-            'child_cost_price_nri' => 'nullable|numeric|min:0',
-            'adult_cost_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
 
@@ -169,6 +169,7 @@ class TicketController extends Controller
             return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            dd($e);
             return redirect()->back()->with('error', 'Failed to create ticket.');
         }
     }
@@ -285,18 +286,18 @@ class TicketController extends Controller
             'description' => 'nullable|string',
             'remarks' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
-            'child_cost_price' => 'nullable|numeric|min:0',
-            'adult_cost_price' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price' => 'nullable|numeric|min:0',
-            'child_price_nri' => 'nullable|numeric|min:0',
-            'adult_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_price_nri' => 'nullable|numeric|min:0',
-            'child_cost_price_nri' => 'nullable|numeric|min:0',
-            'adult_cost_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
         $ticket_id = Crypt::decrypt($ticket_id);
