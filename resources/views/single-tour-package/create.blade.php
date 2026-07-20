@@ -1275,15 +1275,22 @@
                             <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
                                 <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithBed">Child with Bed <small class="text-muted" id="childWithBedPriceLabel"></small></label>
                                     </div>
                                 </div>
                                 <div id="hotelChildWithoutBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithoutBed">Child without Bed <small class="text-muted" id="childWithoutBedPriceLabel"></small></label>
                                     </div>
+                                </div>
+                                <div class="col-12">
+                                    <small id="hotelChildPricingGuestHint" class="text-muted" style="display: none; font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                    </small>
                                 </div>
                             </div>
                             
@@ -1860,6 +1867,22 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', updateGuestLimitInfo);
+                            childrenInput.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        const infantsInputGuest = document.getElementById('infants');
+                        if (infantsInputGuest) {
+                            infantsInputGuest.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                            window.updateHotelChildCheckboxEnabledState();
                         }
                     });
                     
@@ -1934,6 +1957,95 @@
                         }
                         
                         return totalMealCost;
+                    };
+
+                    window.getHotelMealTypeTotal = function(hotel, mealType) {
+                        if (!hotel) return 0;
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast') {
+                            if (hotel.supplement_breakfast_included) return 0;
+                            if (!plan.includes('breakfast') && !plan.includes('bf')) return 0;
+                        } else if (!plan.includes(mealType)) {
+                            return 0;
+                        }
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            return (parseFloat(hotel.helperMeals[mealType]) || 0) * rooms;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return unit * persons * nights * rooms;
+                    };
+
+                    window.formatHotelMealBreakdownLine = function(hotel, mealType) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast' && hotel.supplement_breakfast_included) {
+                            return 'Included (supplement)';
+                        }
+                        if (mealType === 'breakfast' && !plan.includes('breakfast') && !plan.includes('bf')) return '';
+                        if (mealType !== 'breakfast' && !plan.includes(mealType)) return '';
+
+                        const total = window.getHotelMealTypeTotal(hotel, mealType);
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            const perRoom = parseFloat(hotel.helperMeals[mealType]) || 0;
+                            if (perRoom <= 0 && total <= 0) {
+                                return `${cur} 0.00`;
+                            }
+                            const divisor = persons * nights;
+                            const perPersonNight = divisor > 0 ? (perRoom / divisor) : 0;
+                            let line = `${cur} ${perPersonNight.toFixed(2)}/person/night × ${persons} person(s) × ${nights} night(s)`;
+                            if (rooms > 1) {
+                                line += ` × ${rooms} room(s)`;
+                            }
+                            line += ` = ${cur} ${total.toFixed(2)} (rate-based)`;
+                            return line;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return `${cur} ${unit.toFixed(2)} × ${persons} person(s) × ${nights} night(s) × ${rooms} room(s) = ${cur} ${total.toFixed(2)}`;
+                    };
+
+                    window.formatHotelMealCostSummaryHtml = function(hotel) {
+                        if (!hotel || typeof window.calculateCorrectMealCosts !== 'function') {
+                            return '';
+                        }
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const parts = [];
+                        ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                            const amt = window.getHotelMealTypeTotal(hotel, meal);
+                            if (amt > 0) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                parts.push(`${label} ${cur} ${amt.toFixed(2)}`);
+                            } else if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                parts.push('Breakfast included (supplement)');
+                            }
+                        });
+                        const total = window.calculateCorrectMealCosts(
+                            hotel.mealPlan,
+                            hotel.totalNights,
+                            hotel.selectedPersons || 1,
+                            0,
+                            hotel.mealPrices,
+                            hotel.numberOfRooms,
+                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                        );
+                        if (!parts.length) {
+                            return `${cur} ${Number(total).toFixed(2)}`;
+                        }
+                        return parts.join(' + ') + ` = ${cur} ${Number(total).toFixed(2)}`;
                     };
                     
                     // Function to fetch ports by country
@@ -9495,14 +9607,18 @@
 
             // Update all service guest fields to match main guest values
             updateAllServiceGuestFields(male, female, children, infants);
-            
+
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
+
             // Reset hotel section
             resetHotelSection();
-            
+
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
             modal.hide();
-            
+
             console.log('applyMainGuestSelection completed successfully');
         };
         
@@ -15096,7 +15212,19 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
                                 updateRoomPriceDisplay(true); // Force update when children count changes
+                            });
+                        }
+                        const infantsInputForHotel = document.getElementById('infants');
+                        if (infantsInputForHotel) {
+                            infantsInputForHotel.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                                updateRoomPriceDisplay(true);
                             });
                         }
                         
@@ -15233,6 +15361,71 @@
             }
         };
         
+        // True when main guest selection includes at least one child or infant
+        window.tourHasChildOrInfantGuests = function () {
+            const children = parseInt(document.getElementById('children')?.value || 0, 10) || 0;
+            const infants = parseInt(document.getElementById('infants')?.value || 0, 10) || 0;
+            return (children + infants) > 0;
+        };
+
+        window.updateHotelChildCheckboxEnabledState = function () {
+            const allow = window.tourHasChildOrInfantGuests();
+            const chkCwb = document.getElementById('chkChildWithBed');
+            const chkCnb = document.getElementById('chkChildWithoutBed');
+            const hint = document.getElementById('hotelChildPricingGuestHint');
+            const section = document.getElementById('hotelChildPricingSection');
+            const msg = 'Please add child first';
+
+            [chkCwb, chkCnb].forEach(function (chk) {
+                if (!chk) return;
+                chk.disabled = !allow;
+                if (!allow) {
+                    chk.checked = false;
+                    chk.title = msg;
+                } else {
+                    chk.removeAttribute('title');
+                }
+            });
+
+            const cwbWrap = document.getElementById('hotelChildWithBedWrap');
+            const cnbWrap = document.getElementById('hotelChildWithoutBedWrap');
+            [cwbWrap, cnbWrap].forEach(function (wrap) {
+                if (!wrap) return;
+                wrap.style.opacity = allow ? '1' : '0.65';
+                wrap.dataset.childPricingLocked = allow ? '0' : '1';
+            });
+
+            const sectionVisible = section && section.style.display !== 'none';
+            const hasChildPriceOption =
+                (cwbWrap && cwbWrap.style.display !== 'none') ||
+                (cnbWrap && cnbWrap.style.display !== 'none');
+            if (hint) {
+                hint.style.display = (sectionVisible && hasChildPriceOption && !allow) ? 'block' : 'none';
+            }
+
+            if (!allow && typeof updateRoomPriceDisplay === 'function') {
+                updateRoomPriceDisplay(true);
+            }
+        };
+
+        if (!window._hotelChildPricingClickBound) {
+            window._hotelChildPricingClickBound = true;
+            document.addEventListener('click', function (e) {
+                const wrap = e.target.closest('#hotelChildWithBedWrap, #hotelChildWithoutBedWrap');
+                if (!wrap || wrap.dataset.childPricingLocked !== '1') return;
+                const chk = wrap.querySelector('input[type="checkbox"]');
+                if (!chk || !chk.disabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const message = 'Please add child first';
+                if (typeof showToastr === 'function') {
+                    showToastr('info', message);
+                } else {
+                    alert(message);
+                }
+            }, true);
+        }
+
         // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
         window.updateHotelChildPricingVisibility = function(roomType) {
             const section = document.getElementById('hotelChildPricingSection');
@@ -15269,6 +15462,9 @@
             if (chkCnb) chkCnb.checked = false;
             if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? formatTourPriceParen(cwbPrice) : '';
             if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? formatTourPriceParen(cnbPrice) : '';
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
         };
 
         // Update bed types for selected room type
@@ -16755,7 +16951,12 @@
                         breakfast: Number(window.lastHotelPriceResult.breakfast_total) || 0,
                         lunch: Number(window.lastHotelPriceResult.lunch_total) || 0,
                         dinner: Number(window.lastHotelPriceResult.dinner_total) || 0,
-                        total: Number(window.lastHotelPriceResult.meal_total) || 0
+                        total: Number(window.lastHotelPriceResult.meal_total) || 0,
+                        breakdown: Array.isArray(window.lastHotelPriceResult.breakdown)
+                            ? window.lastHotelPriceResult.breakdown
+                            : [],
+                        pax: Number(window.lastHotelPriceResult.pax) || hpPax,
+                        nights: Number(window.lastHotelPriceResult.nights) || nightNumbers.length
                     };
                 }
             } catch (e) { console.warn('helperMeals signature check failed:', e); }
@@ -17209,21 +17410,27 @@
                                                 ${hotel.mealPrices ? `
                                                     <div style="font-size: 0.8rem;">
                                                         ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Breakfast:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : (hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.breakfast || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`)}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Breakfast:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'breakfast')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('lunch') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Lunch:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.lunch || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Lunch:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'lunch')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('dinner') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Dinner:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.dinner || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Dinner:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'dinner')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                     </div>
@@ -17280,26 +17487,7 @@
                                                 ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
                                                     <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
                                                         <span>Meal Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(() => {
-                                                            if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                                return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                            }
-                                                            // Fallback calculation if function not available
-                                                            let mealCost = 0;
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                            return mealCost;
-                                                        })()}</span>
+                                                        <span style="font-weight: 500; color: #ffffff !important; text-align: right; max-width: 70%;">${window.formatHotelMealCostSummaryHtml(hotel)}</span>
                                                     </div>
                                                 ` : ''}
                                                 ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy && !hotel.roomPriceManuallyEdited ? `
@@ -19281,10 +19469,9 @@
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
+                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
                                                         <option value="">Select city first</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -19294,10 +19481,9 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled>
                                                         <option value="">Select city and pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                             </div>
                                         </div>
@@ -23777,10 +23963,9 @@
                                         <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
+                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
                                             <option value="">Select pickup location</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23790,10 +23975,9 @@
                                         <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled>
                                             <option value="">Select pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23841,8 +24025,7 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location...">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
@@ -27443,19 +27626,17 @@
             // Pickup field (ports)
             const ports = @json($ports ?? []);
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" style="padding-left: 45px;" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
+                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
                     <option value="">Select pickup port</option>
                     ${ports.map(port => `<option value="${port.port_id}">${port.port_name}</option>`).join('')}
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             // Dropoff field (will be populated by AJAX call)
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;" id="entry_dropoff_location_select">
+                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled id="entry_dropoff_location_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created, pickup will be populated by updateAllPortDropdowns');
@@ -27626,18 +27807,16 @@
             
             // Pickup field (hotels, attractions, restaurants - where customer is staying/visiting)
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" style="padding-left: 45px;" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
+                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;" id="exit_dropoff_port_select">
+                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created for exit port, pickup will be populated by updateAllPortDropdowns');
