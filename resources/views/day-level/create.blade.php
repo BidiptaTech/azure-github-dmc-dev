@@ -5670,20 +5670,35 @@
             const normalizedDay = parseInt(String(dayVal || 1), 10) || 1;
             const selOp = getSelectedOption(`attraction_select_${dayVal}`);
             const ticketOp = getSelectedOption(`attraction_ticket_select_${dayVal}`);
-            if (!selOp) {
-                alert('Select attraction first.');
-                return;
+            const priceRaw = document.getElementById(`attraction_price_${dayVal}`)?.value ?? '';
+
+            if (!selOp || !selOp.value) {
+                showDayGroupMessage(normalizedDay, 'attraction', 'Please select an attraction.');
+                return false;
+            }
+            if (!ticketOp || !ticketOp.value) {
+                showDayGroupMessage(normalizedDay, 'attraction', 'Please select a ticket for this attraction.');
+                return false;
+            }
+            const priceTrimmed = String(priceRaw).trim();
+            if (priceTrimmed === '') {
+                showDayGroupMessage(normalizedDay, 'attraction', 'Please enter a ticket price.');
+                return false;
+            }
+            const ticketPrice = parseFloat(priceTrimmed);
+            if (!Number.isFinite(ticketPrice) || ticketPrice < 0) {
+                showDayGroupMessage(normalizedDay, 'attraction', 'Please enter a valid ticket price.');
+                return false;
             }
 
-            const ticketPrice = parseFloat(document.getElementById(`attraction_price_${dayVal}`)?.value || '0') || 0;
             const payload = {
                 day: normalizedDay,
                 type: 'attraction',
                 id: selOp.value,
                 label: selOp.textContent,
                 city_name: getCityNameFromSelect(`activity_city_select_${dayVal}`) || '',
-                ticket_id: ticketOp?.value || '',
-                ticket_name: ticketOp?.textContent || '',
+                ticket_id: ticketOp.value,
+                ticket_name: ticketOp.textContent || '',
                 ticket_price: ticketPrice,
                 price: ticketPrice,
                 transfer: getAttractionTransferPayload(normalizedDay)
@@ -5697,6 +5712,7 @@
             renderActivityRows();
             resetDayEntryFields(normalizedDay);
             resetDayActivityEditButtons();
+            return true;
         }
 
         function addDayEntryForDay(dayVal) {
@@ -5817,8 +5833,7 @@
             }
             if (hasAttraction) {
                 // Attraction + transfer are stored as one combined entry.
-                addAttractionItemForDay(normalizedDay);
-                return true;
+                return addAttractionItemForDay(normalizedDay);
             }
             // Legacy transfer-only row being edited.
             const transferPayload = getAttractionTransferPayload(normalizedDay);
