@@ -58,6 +58,51 @@
     select#country.is-invalid + .select2-container .select2-selection--single {
         border-color: #dc3545 !important;
     }
+
+    .zone-type-options {
+        min-height: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.15rem;
+        padding-top: 0.1rem;
+    }
+
+    .zone-type-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1rem;
+    }
+
+    .zone-type-options .form-check {
+        margin-bottom: 0;
+        min-height: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .zone-type-options .form-check-input {
+        width: 0.85rem;
+        height: 0.85rem;
+        margin-top: 0;
+        margin-right: 0;
+        flex-shrink: 0;
+        pointer-events: none;
+    }
+
+    .zone-type-options .form-check-label {
+        font-size: 0.78rem;
+        line-height: 1.1;
+        color: #697a8d;
+        margin-bottom: 0;
+        cursor: default;
+    }
+
+    .zone-type-options.readonly {
+        opacity: 0.85;
+    }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -87,15 +132,52 @@
                             </div>
                             
                             <div class="col-md-3">
-                                <label for="zone_type" class="form-label">Zone Type <span class="text-danger">*</span></label>
-                                <select class="form-select @error('zone_type') is-invalid @enderror" id="zone_type" name="zone_type" required>
-                                    <option value="">-- Select Zone Type --</option>
-                                    <option value="Hotel" {{ old('zone_type', $zone->zone_type) == 'Hotel' ? 'selected' : '' }}>Hotel</option>
-                                    <option value="Attraction" {{ old('zone_type', $zone->zone_type) == 'Attraction' ? 'selected' : '' }}>Attraction</option>
-                                    <option value="Restaurant" {{ old('zone_type', $zone->zone_type) == 'Restaurant' ? 'selected' : '' }}>Restaurant</option>
-                                </select>
+                                <label class="form-label">Zone Type <span class="text-danger">*</span></label>
+                                @php($currentZoneType = old('zone_type', $zone->zone_type))
+                                <input type="hidden" name="zone_type" value="{{ $currentZoneType }}">
+                                <div class="zone-type-options readonly" title="Zone type cannot be changed">
+                                    <div class="zone-type-row">
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_hotel"
+                                                value="Hotel"
+                                                {{ $currentZoneType == 'Hotel' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_hotel">Hotel</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_attraction"
+                                                value="Attraction"
+                                                {{ $currentZoneType == 'Attraction' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_attraction">Attraction</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="zone-type-row">
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_restaurant"
+                                                value="Restaurant"
+                                                {{ $currentZoneType == 'Restaurant' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_restaurant">Restaurant</label>
+                                        </div>
+                                    </div>
+                                </div>
                                 @error('zone_type')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
 
