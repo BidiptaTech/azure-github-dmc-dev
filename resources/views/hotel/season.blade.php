@@ -18,147 +18,147 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
 
 <style>
-/* DMC Filter Styles */
-#dmcFilter {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    background-color: #fff;
-    color: #566a7f;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
+    /* DMC Filter Styles */
+    #dmcFilter {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        color: #566a7f;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
 
-#dmcFilter:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-    outline: 0;
-}
+    #dmcFilter:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+        outline: 0;
+    }
 
-/* DMC Badge Styles */
-.badge.bg-primary {
-    background-color: #696cff !important;
-}
+    /* DMC Badge Styles */
+    .badge.bg-primary {
+        background-color: #696cff !important;
+    }
 
-.badge.bg-secondary {
-    background-color: #8592a3 !important;
-}
+    .badge.bg-secondary {
+        background-color: #8592a3 !important;
+    }
 
-/* Filter Info Text */
-.filter-info {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-style: italic;
-}
+    /* Filter Info Text */
+    .filter-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-style: italic;
+    }
 
-/* Select2 Custom Styles */
-.select2-container .select2-selection--single {
-    height: 50px !important;
-    line-height: 38px !important;
-    padding: 0 12px;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-}
+    /* Select2 Custom Styles */
+    .select2-container .select2-selection--single {
+        height: 50px !important;
+        line-height: 38px !important;
+        padding: 0 12px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 38px !important;
-    padding-left: 0;
-}
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px !important;
+        padding-left: 0;
+    }
 
-.select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 36px !important;
-}
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
 
-/* Increase the height of the dropdown items */
-.select2-container .select2-results__option {
-    padding: 8px 12px;
-}
+    /* Increase the height of the dropdown items */
+    .select2-container .select2-results__option {
+        padding: 8px 12px;
+    }
 
-/* Focus state */
-.select2-container--default.select2-container--focus .select2-selection--single,
-.select2-container--default.select2-container--open .select2-selection--single {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    /* Focus state */
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Dropdown styling */
-.select2-dropdown {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
+    /* Dropdown styling */
+    .select2-dropdown {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
 
-/* Search box styling */
-.select2-search--dropdown .select2-search__field {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 6px 12px;
-    outline: none;
-}
+    /* Search box styling */
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 6px 12px;
+        outline: none;
+    }
 
-.select2-search--dropdown .select2-search__field:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-}
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
 
-/* Highlighted option */
-.select2-container--default .select2-results__option--highlighted[aria-selected] {
-    background-color: #696cff;
-    color: white;
-}
+    /* Highlighted option */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff;
+        color: white;
+    }
 
-/* Selected option */
-.select2-container--default .select2-results__option[aria-selected=true] {
-    background-color: #e7e7ff;
-    color: #696cff;
-}
+    /* Selected option */
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7e7ff;
+        color: #696cff;
+    }
 
-/* Dropdown width */
-.select2-container {
-    width: 100% !important;
-}
+    /* Dropdown width */
+    .select2-container {
+        width: 100% !important;
+    }
 
-/* DataTable Responsive Styles */
-.dataTables_wrapper .dataTables_filter input {
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.375rem;
-    border: 1px solid #d9dee3;
-}
+    /* DataTable Responsive Styles */
+    .dataTables_wrapper .dataTables_filter input {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d9dee3;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    background-color: #fff;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        background-color: #fff;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: #fff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: #fff !important;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-    color: #696cff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+        color: #696cff !important;
+    }
 
-/* Table Styles */
-.table> :not(caption)>*>* {
-    padding: 0.75rem;
-}
+    /* Table Styles */
+    .table> :not(caption)>*>* {
+        padding: 0.75rem;
+    }
 
-/* Button Styles */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+    /* Button Styles */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -273,7 +273,7 @@
                         <!-- Single Weekday -->
                         <div class="mb-3 col-md-3" id="base_weekday_price">
                            <label for="weekday_price" class="form-label">
-                              <strong>Single Base Weekday Price</strong>
+                              <strong>Single Base Weekday Price(sell)</strong>
                               <span class="text-danger">*</span>
                               <sup>
                                     <button type="button" 
@@ -286,15 +286,26 @@
                                     </button>
                                     </sup>
                            </label>
-                           <input type="number" name="weekday_price" class="form-control" placeholder="Enter Base weekday price">
-                           @error('hotel_owner_company_name')
+                           <input type="number" name="weekday_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                           @error('weekday_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="weekday_cost_price" class="form-label">
+                              <strong>Single Base Weekday Price(Cost)</strong>
+                              <span class="text-danger">*</span>
+                           </label>
+                           <input type="number" name="weekday_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('weekday_cost_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
                         <!-- Single Weekend Price -->
                         <div class="mb-3 col-md-3" id="base_weekend_price">
-                           <label for="weekend_price" class="form-label"><strong>Single Base Weekend Price</strong><span class="text-danger">*</span>
+                           <label for="weekend_price" class="form-label"><strong>Single Base Weekend Price(sell)</strong><span class="text-danger">*</span>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -306,16 +317,24 @@
                                  </button>
                               </sup>
                            </label>
-                              <input type="number" name="weekend_price" class="form-control" placeholder="Enter Base weekend price">
-                              @error('hotel_owner_company_name')
+                              <input type="number" name="weekend_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                              @error('weekend_price')
                                  <div class="text-danger mt-1">{{ $message }}</div>
                               @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="weekend_cost_price" class="form-label"><strong>Single Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
+                           <input type="number" name="weekend_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('weekend_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
                         </div>
 
                         <!-- Double Weekday -->
                         <div class="mb-3 col-md-3" id="base_weekday_price">
                            <label for="weekday_price" class="form-label">
-                              <strong>Double Base Weekday Price</strong>
+                              <strong>Double Base Weekday Price(sell)</strong>
                               <span class="text-danger">*</span>
                               <sup>
                                     <button type="button" 
@@ -328,15 +347,26 @@
                                     </button>
                                     </sup>
                            </label>
-                           <input type="number" name="double_weekday_price" class="form-control" placeholder="Enter Base weekday price">
-                           @error('hotel_owner_company_name')
+                           <input type="number" name="double_weekday_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                           @error('double_weekday_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekday_cost_price" class="form-label">
+                              <strong>Double Base Weekday Price(Cost)</strong>
+                              <span class="text-danger">*</span>
+                           </label>
+                           <input type="number" name="double_weekday_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('double_weekday_cost_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
                         <!-- Double Weekend Price -->
                         <div class="mb-3 col-md-3" id="base_weekend_price">
-                           <label for="weekend_price" class="form-label"><strong>Double Base Weekend Price</strong><span class="text-danger">*</span>
+                           <label for="weekend_price" class="form-label"><strong>Double Base Weekend Price(sell)</strong><span class="text-danger">*</span>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -348,15 +378,23 @@
                                  </button>
                               </sup>
                            </label>
-                              <input type="number" name="double_weekend_price" class="form-control" placeholder="Enter Base weekend price">
-                              @error('hotel_owner_company_name')
+                              <input type="number" name="double_weekend_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                              @error('double_weekend_price')
                                  <div class="text-danger mt-1">{{ $message }}</div>
                               @enderror
                         </div>
 
+                        <div class="mb-3 col-md-3">
+                           <label for="double_weekend_cost_price" class="form-label"><strong>Double Base Weekend Price(Cost)</strong><span class="text-danger">*</span></label>
+                           <input type="number" name="double_weekend_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                           @error('double_weekend_cost_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
                         <!-- Breakfast Price -->
                         <div class="mb-3 col-md-3">
-                           <label for="breakfast_price" class="form-label"><strong>Breakfast Price</strong>
+                           <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -368,15 +406,23 @@
                                  </button>
                               </sup>
                            </label>
-                           <input type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter breakfast price">
+                           <input type="number" step="0.01" min="0" name="breakfast_price" class="form-control" placeholder="Enter Sell Price">
                            @error('breakfast_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" name="breakfast_cost_price" class="form-control" placeholder="Enter Cost Price">
+                           @error('breakfast_cost_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
                         <!-- Lunch Price -->
                         <div class="mb-3 col-md-3">
-                           <label for="lunch_price" class="form-label"><strong>Lunch Price</strong>
+                           <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -388,15 +434,23 @@
                                  </button>
                               </sup>
                            </label>
-                           <input type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter lunch price">
+                           <input type="number" step="0.01" min="0" name="lunch_price" class="form-control" placeholder="Enter Sell Price">
                            @error('lunch_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="lunch_cost_price" class="form-label"><strong>Lunch Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" name="lunch_cost_price" class="form-control" placeholder="Enter Cost Price">
+                           @error('lunch_cost_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
 
                         <!-- Dinner Price -->
                         <div class="mb-3 col-md-3">
-                           <label for="dinner_price" class="form-label"><strong>Dinner Price</strong>
+                           <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong>
                               <sup>
                                  <button type="button" 
                                     class="info-button" 
@@ -408,8 +462,16 @@
                                  </button>
                               </sup>
                            </label>
-                           <input type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter dinner price">
+                           <input type="number" step="0.01" min="0" name="dinner_price" class="form-control" placeholder="Enter Sell Price">
                            @error('dinner_price')
+                              <div class="text-danger mt-1">{{ $message }}</div>
+                           @enderror
+                        </div>
+
+                        <div class="mb-3 col-md-3">
+                           <label for="dinner_cost_price" class="form-label"><strong>Dinner Price(Cost)</strong></label>
+                           <input type="number" step="0.01" min="0" name="dinner_cost_price" class="form-control" placeholder="Enter Cost Price">
+                           @error('dinner_cost_price')
                               <div class="text-danger mt-1">{{ $message }}</div>
                            @enderror
                         </div>
