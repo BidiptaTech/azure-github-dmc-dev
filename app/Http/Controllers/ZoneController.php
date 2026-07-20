@@ -345,7 +345,8 @@ class ZoneController extends Controller
 
         $validator = Validator::make($request->all(), [
             'zone_name' => 'required|string|max:255',
-            'zone_type' => 'required|string|in:Hotel,Attraction,Restaurant',
+            'zone_type' => 'required|array|min:1',
+            'zone_type.*' => 'required|string|in:Hotel,Attraction,Restaurant',
             'vehicle_type' => 'required|string|in:Shared,Private,Both',
             'description' => 'nullable|string',
             'city' => 'required',
@@ -379,29 +380,35 @@ class ZoneController extends Controller
             }
         }
 
-        $zone = Zone::create([
-            // 'zone_id' => (string) $zoneId,
-            'zone_name' => trim($validated['zone_name']),
-            'zone_type' => $validated['zone_type'],
-            'vehicle_type' => $validated['vehicle_type'],
-            'description' => isset($validated['description']) ? trim($validated['description']) : null,
-            'city' => (string) $validated['city'],
-            'status' => (int) $validated['status'],
-            'dmc_id' => $dmcIdForZone,
-            ...(Schema::hasColumn('zones', 'created_by') && (int) (Auth::user()->userId ?? 0) === 1
-                ? ['created_by' => Auth::user()->userId]
-                : []),
-        ]);
-        \Log::info('Zone created', [
-            'id' => $zone->id,
-            'zone_id' => $zone->zone_id,
-        ]);
-        \Log::info('Zone raw attrs', $zone->getAttributes());
-        $zone->refresh();
-        $zoneId = $zone->zone_id;
+        $zoneTypes = $validated['zone_type'];
+        $createdCount = 0;
+        $lastZone = null;
+
+        foreach ($zoneTypes as $zoneType) {
+            $zone = Zone::create([
+                'zone_name' => trim($validated['zone_name']),
+                'zone_type' => $zoneType,
+                'vehicle_type' => $validated['vehicle_type'],
+                'description' => isset($validated['description']) ? trim($validated['description']) : null,
+                'city' => (string) $validated['city'],
+                'status' => (int) $validated['status'],
+                'dmc_id' => $dmcIdForZone,
+                ...(Schema::hasColumn('zones', 'created_by') && (int) (Auth::user()->userId ?? 0) === 1
+                    ? ['created_by' => Auth::user()->userId]
+                    : []),
+            ]);
+
+            $createdCount++;
+            $lastZone = $zone;
+            \Log::info('Zone created', [
+                'zone_type' => $zoneType,
+                'zone_id' => $zone->zone_id,
+                'id' => $zone->id,
+            ]);
+        }
 
         return redirect()->route('zones.index')
-            ->with('success', 'Zone created successfully');
+            ->with('success', "Zone created successfully ({$createdCount})");
     }
 
     /**

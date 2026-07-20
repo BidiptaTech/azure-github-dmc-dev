@@ -1014,7 +1014,7 @@
                             class="{{ $isActive ? 'table-warning' : ($isCompleted ? 'table-success' : '') }}"
                             data-tour-id="{{ $tour->tour_id }}"
                             data-is-pro="{{ $tour->is_pro ?? 0 }}"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-revenue="{{ $totalAmount }}"
                             data-status="{{ $isActive ? 'Active' : ($isCompleted ? 'Complete' : 'Upcoming') }}"
@@ -1758,10 +1758,13 @@
                                     </span>
                                     <span class="created-at-line" title="Created at">
                                         <i class="ri-calendar-line"></i>
+                                        @php
+                                            $createdAt = $tour->destination_created_at ?? $tour->created_at;
+                                        @endphp
                                         <span>
-                                            {{ $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC')->format('D, M d, Y') }}
+                                            {{ $createdAt->format('D, M d, Y') }}
                                             ·
-                                            {{ $tour->created_at->timezone(auth()->user()->timezone ?? 'UTC')->format('h:i A') }}
+                                            {{ $createdAt->format('h:i A') }}
                                         </span>
                                     </span>
                                 </div>

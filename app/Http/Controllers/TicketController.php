@@ -78,9 +78,17 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
             'child_price' => 'nullable',
             'adult_price' => 'required',
             'senior_adult_price' => 'nullable',
@@ -283,9 +291,17 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
             'child_price' => 'nullable',
             'adult_price' => 'required',
             'senior_adult_price' => 'nullable',

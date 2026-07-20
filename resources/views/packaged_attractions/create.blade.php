@@ -168,22 +168,6 @@
     .btn-primary:hover {
         background: linear-gradient(45deg, #5d60ff, #7073ff);
     }
-    .price-input {
-        position: relative;
-    }
-    .price-input::before {
-        content: '$';
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #566a7f;
-        z-index: 10;
-        pointer-events: none;
-    }
-    .price-input input {
-        padding-left: 25px;
-    }
     .form-control:focus {
         border-color: #696cff;
         box-shadow: 0 0 0 0.25rem rgba(105, 108, 255, 0.25);
@@ -192,6 +176,9 @@
 @endsection
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <!-- Start of the form -->
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -271,7 +258,7 @@
                             <strong>Senior Citizen Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="senior_citizen_price" 
                                    name="senior_citizen_price" placeholder="0.00" required>
                         </div>
@@ -286,7 +273,7 @@
                             <strong>Adult Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="adult_price" 
                                    name="adult_price" placeholder="0.00" required>
                         </div>
@@ -301,11 +288,38 @@
                             <strong>Child Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="child_price" 
                                    name="child_price" placeholder="0.00" required>
                         </div>
                         @error('child_price')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vehicle_included" name="vehicle_included" value="1"
+                                   {{ old('vehicle_included') ? 'checked' : '' }}>
+                            <label class="form-check-label" for="vehicle_included">
+                                <strong>Vehicle Included</strong>
+                            </label>
+                        </div>
+                        @error('vehicle_included')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="guide_included" name="guide_included" value="1"
+                                   {{ old('guide_included') ? 'checked' : '' }}>
+                            <label class="form-check-label" for="guide_included">
+                                <strong>Guide Included</strong>
+                            </label>
+                        </div>
+                        @error('guide_included')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
