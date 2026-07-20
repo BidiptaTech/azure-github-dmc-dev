@@ -399,6 +399,8 @@
                         <tr>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Package Name & ID">Package Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Adult Price">Adult Price</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Child Price">Child Price</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Senior Price">Senior Price</th>
@@ -417,6 +419,8 @@
                                         <small class="text-muted">ID: {{ $attraction->package_attraction_id ?? 'N/A' }}</small>
                                     </div>
                                 </td>
+                                <td>{{ $attraction->list_country ?? '—' }}</td>
+                                <td>{{ $attraction->list_city ?? '—' }}</td>
                                 <td>{{ $dmcCurrency }} {{ number_format($attraction->adult_price, 2) }}</td>
                                 <td>{{ $dmcCurrency }} {{ number_format($attraction->child_price, 2) }}</td>
                                 <td>{{ $dmcCurrency }} {{ number_format($attraction->senior_citizen_price, 2) }}</td>

@@ -225,6 +225,38 @@
                     </div>
                 </div>
                 
+                @php
+                    $attractionCountries = ($attractions ?? collect())->pluck('country')->filter()->unique()->sort()->values();
+                    $attractionsByCountry = ($attractions ?? collect())->groupBy('country');
+                @endphp
+
+                <div class="row">
+                    <!-- Country Filter -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCountryFilter" class="form-label">
+                            <strong>Country</strong>
+                        </label>
+                        <select class="form-select" id="attractionCountryFilter" name="country">
+                            <option value="">All Countries</option>
+                            @foreach($attractionCountries as $country)
+                                <option value="{{ $country }}" {{ old('country', $dmcCountry ?? '') === $country ? 'selected' : '' }}>
+                                    {{ $country }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- City Filter -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCityFilter" class="form-label">
+                            <strong>City</strong>
+                        </label>
+                        <select class="form-select" id="attractionCityFilter" name="city">
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="row">
                     <!-- Attractions Selection -->
                     <div class="col-md-12 mb-3">
@@ -234,7 +266,10 @@
                         <select name="attractions[]" id="attractionsSelect" class="form-select" multiple required>
                             <option value="">Select Attractions</option>
                             @foreach($attractions ?? [] as $attraction)
-                                <option data-image="{{ $attraction->master_image }}" value="{{ $attraction->id }}">{{ $attraction->name }}</option>
+                                <option data-image="{{ $attraction->master_image }}"
+                                        data-country="{{ $attraction->country }}"
+                                        data-city="{{ $attraction->location }}"
+                                        value="{{ $attraction->id }}">{{ $attraction->name }}</option>
                             @endforeach
                         </select>
                         @error('attractions')
@@ -419,6 +454,76 @@
             console.error("Summernote plugin is not available");
         }
         
+        // Build attractions data map from blade
+        const allAttractionOptions = [];
+        $('#attractionsSelect option').each(function() {
+            if ($(this).val()) {
+                allAttractionOptions.push({
+                    id: $(this).val(),
+                    name: $(this).text(),
+                    image: $(this).data('image'),
+                    country: $(this).data('country') || '',
+                    city: $(this).data('city') || '',
+                    element: $(this).clone()
+                });
+            }
+        });
+
+        function filterAttractions() {
+            const selectedCountry = $('#attractionCountryFilter').val();
+            const selectedCity = $('#attractionCityFilter').val();
+            const currentSelected = $('#attractionsSelect').val() || [];
+
+            $('#attractionsSelect').empty();
+
+            allAttractionOptions.forEach(function(opt) {
+                const matchCountry = !selectedCountry || opt.country === selectedCountry;
+                const matchCity = !selectedCity || opt.city === selectedCity;
+                if (matchCountry && matchCity) {
+                    const el = opt.element.clone();
+                    if (currentSelected.includes(opt.id)) {
+                        el.prop('selected', true);
+                    }
+                    $('#attractionsSelect').append(el);
+                }
+            });
+
+            $('#attractionsSelect').trigger('change');
+            updateAttractionPreview();
+        }
+
+        function populateCities(country) {
+            const selectedCity = $('#attractionCityFilter').val() || @json(old('city'));
+            const cities = [...new Set(
+                allAttractionOptions
+                    .filter(o => !country || o.country === country)
+                    .map(o => o.city)
+                    .filter(c => c)
+            )].sort();
+
+            $('#attractionCityFilter').empty().append('<option value="">All Cities</option>');
+            cities.forEach(function(city) {
+                $('#attractionCityFilter').append($('<option>', {
+                    value: city,
+                    text: city,
+                    selected: selectedCity === city
+                }));
+            });
+        }
+
+        // Initialize cities for the pre-selected DMC country
+        populateCities($('#attractionCountryFilter').val());
+        filterAttractions();
+
+        $('#attractionCountryFilter').on('change', function() {
+            populateCities($(this).val());
+            filterAttractions();
+        });
+
+        $('#attractionCityFilter').on('change', function() {
+            filterAttractions();
+        });
+
         // Handle attraction selection change
         $('#attractionsSelect').on('change', function() {
             updateAttractionPreview();
