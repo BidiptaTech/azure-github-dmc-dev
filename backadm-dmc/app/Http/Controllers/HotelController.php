@@ -1167,6 +1167,15 @@ class HotelController extends Controller
             'master_image' => 'required|nullable',
             'child_with_bed' => 'nullable|numeric|min:0',
             'child_without_bed' => 'nullable|numeric|min:0',
+            'child_with_bed_cost' => 'nullable|numeric|min:0',
+            'child_without_bed_cost' => 'nullable|numeric|min:0',
+            'singleWeekdayCostPrice' => 'nullable|numeric|min:0',
+            'singleWeekendCostPrice' => 'nullable|numeric|min:0',
+            'doubleWeekdayCostPrice' => 'nullable|numeric|min:0',
+            'doubleWeekendCostPrice' => 'nullable|numeric|min:0',
+            'breakfast_cost_price' => 'nullable|numeric|min:0',
+            'lunch_cost_price' => 'nullable|numeric|min:0',
+            'dinner_cost_price' => 'nullable|numeric|min:0',
         ]);
         
         $admin_base_room = 1; // Admin creates base rooms
@@ -1215,6 +1224,10 @@ class HotelController extends Controller
         $weekendPrice = $request->baseSingleWeekendPrice ?? $request->singleWeekendPrice ?? 0;
         $doubleWeekdayPrice = $request->baseDoubleWeekdayPrice ?? $request->doubleWeekdayPrice ?? 0;
         $doubleWeekendPrice = $request->baseDoubleWeekendPrice ?? $request->doubleWeekendPrice ?? 0;
+        $weekdayCostPrice = $request->baseSingleWeekdayCostPrice ?? $request->singleWeekdayCostPrice ?? null;
+        $weekendCostPrice = $request->baseSingleWeekendCostPrice ?? $request->singleWeekendCostPrice ?? null;
+        $doubleWeekdayCostPrice = $request->baseDoubleWeekdayCostPrice ?? $request->doubleWeekdayCostPrice ?? null;
+        $doubleWeekendCostPrice = $request->baseDoubleWeekendCostPrice ?? $request->doubleWeekendCostPrice ?? null;
         
         // If this is not a base room and admin has a base room, add variant to admin base prices
         $varientPrice = $request->varient_price ?? 0;
@@ -1234,6 +1247,10 @@ class HotelController extends Controller
         $room->weekend_price = $weekendPrice;
         $room->double_weekday_price = $doubleWeekdayPrice;
         $room->double_weekend_price = $doubleWeekendPrice;
+        $room->weekday_cost_price = $weekdayCostPrice;
+        $room->weekend_cost_price = $weekendCostPrice;
+        $room->double_weekday_cost_price = $doubleWeekdayCostPrice;
+        $room->double_weekend_cost_price = $doubleWeekendCostPrice;
         $room->varient_price = $varientPrice;
         $room->dimension = $request->dimension;
         $room->children_price = $request->children_price;
@@ -1254,9 +1271,14 @@ class HotelController extends Controller
         $room->breakfast_price=$request->breakfast_price;
         $room->lunch_price=$request->lunch_price;
         $room->dinner_price=$request->dinner_price;
+        $room->breakfast_cost_price = $request->breakfast_included ? $request->breakfast_cost_price : null;
+        $room->lunch_cost_price = $request->lunch_included ? $request->lunch_cost_price : null;
+        $room->dinner_cost_price = $request->dinner_included ? $request->dinner_cost_price : null;
         $room->breakfast_included=$request->supplementary_breakfast;
         $room->child_with_bed = $request->child_with_bed;
         $room->child_without_bed = $request->child_without_bed;
+        $room->child_with_bed_cost = $request->child_with_bed_cost;
+        $room->child_without_bed_cost = $request->child_without_bed_cost;
         $is_save = $room->save();
         $room->refresh();
         // if($request->no_of_rooms){
@@ -1366,13 +1388,20 @@ class HotelController extends Controller
         $rules = [
             'event' => 'required|string',
             'event_type' => 'required|string',
-            'weekday_price' => 'required|numeric',
-            'weekend_price' => 'required|numeric',
-            'double_weekday_price' => 'required|numeric',
-            'double_weekend_price' => 'required|numeric',
-            'breakfast_price' => 'nullable|numeric',
-            'lunch_price' => 'nullable|numeric',
-            'dinner_price' => 'nullable|numeric',
+            'weekday_price' => 'required|numeric|min:0',
+            'weekday_cost_price' => 'required|numeric|min:0',
+            'weekend_price' => 'required|numeric|min:0',
+            'weekend_cost_price' => 'required|numeric|min:0',
+            'double_weekday_price' => 'required|numeric|min:0',
+            'double_weekday_cost_price' => 'required|numeric|min:0',
+            'double_weekend_price' => 'required|numeric|min:0',
+            'double_weekend_cost_price' => 'required|numeric|min:0',
+            'breakfast_price' => 'nullable|numeric|min:0',
+            'breakfast_cost_price' => 'nullable|numeric|min:0',
+            'lunch_price' => 'nullable|numeric|min:0',
+            'lunch_cost_price' => 'nullable|numeric|min:0',
+            'dinner_price' => 'nullable|numeric|min:0',
+            'dinner_cost_price' => 'nullable|numeric|min:0',
             'season_status' => 'nullable|integer',
         ];
         
@@ -1428,12 +1457,19 @@ class HotelController extends Controller
             'event_type' => $request->event_type,
             'price' => 0,
             'weekday_price' => $request->weekday_price,
+            'weekday_cost_price' => $request->weekday_cost_price,
             'weekend_price' => $request->weekend_price,
+            'weekend_cost_price' => $request->weekend_cost_price,
             'double_weekday_price' => $request->double_weekday_price,
+            'double_weekday_cost_price' => $request->double_weekday_cost_price,
             'double_weekend_price' => $request->double_weekend_price,
+            'double_weekend_cost_price' => $request->double_weekend_cost_price,
             'breakfast_price' => $request->breakfast_price ?? 0.00,
+            'breakfast_cost_price' => $request->breakfast_cost_price,
             'lunch_price' => $request->lunch_price ?? 0.00,
+            'lunch_cost_price' => $request->lunch_cost_price,
             'dinner_price' => $request->dinner_price ?? 0.00,
+            'dinner_cost_price' => $request->dinner_cost_price,
             'start_date' => $firstDate,
             'end_date' => $lastDate,
             'dmc_id' => $dmcId, // Set DMC ID based on user role
@@ -1540,12 +1576,19 @@ class HotelController extends Controller
             'event' => 'nullable|string|max:255',
             'event_type' => 'nullable|string|max:255',
             'weekday_price' => 'required|numeric|min:0',
+            'weekday_cost_price' => 'required|numeric|min:0',
             'weekend_price' => 'required|numeric|min:0',
-            'double_weekday_price' => 'required|numeric',
-            'double_weekend_price' => 'required|numeric',
-            'breakfast_price' => 'nullable|numeric',
-            'lunch_price' => 'nullable|numeric',
-            'dinner_price' => 'nullable|numeric',
+            'weekend_cost_price' => 'required|numeric|min:0',
+            'double_weekday_price' => 'required|numeric|min:0',
+            'double_weekday_cost_price' => 'required|numeric|min:0',
+            'double_weekend_price' => 'required|numeric|min:0',
+            'double_weekend_cost_price' => 'required|numeric|min:0',
+            'breakfast_price' => 'nullable|numeric|min:0',
+            'breakfast_cost_price' => 'nullable|numeric|min:0',
+            'lunch_price' => 'nullable|numeric|min:0',
+            'lunch_cost_price' => 'nullable|numeric|min:0',
+            'dinner_price' => 'nullable|numeric|min:0',
+            'dinner_cost_price' => 'nullable|numeric|min:0',
             'start_date' => 'required|date|before_or_equal:end_date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'season_status' => 'nullable|integer',
@@ -1565,12 +1608,19 @@ class HotelController extends Controller
         $rate->event_type = $request->event_type;
         $rate->price = 0; // Why is this always 0? Confirm if intentional.
         $rate->weekday_price = $request->weekday_price;
+        $rate->weekday_cost_price = $request->weekday_cost_price;
         $rate->weekend_price = $request->weekend_price;
+        $rate->weekend_cost_price = $request->weekend_cost_price;
         $rate->double_weekday_price = $request->double_weekday_price;
+        $rate->double_weekday_cost_price = $request->double_weekday_cost_price;
         $rate->double_weekend_price = $request->double_weekend_price;
+        $rate->double_weekend_cost_price = $request->double_weekend_cost_price;
         $rate->breakfast_price = $request->breakfast_price ?? 0.00;
+        $rate->breakfast_cost_price = $request->breakfast_cost_price;
         $rate->lunch_price = $request->lunch_price ?? 0.00;
+        $rate->lunch_cost_price = $request->lunch_cost_price;
         $rate->dinner_price = $request->dinner_price ?? 0.00;
+        $rate->dinner_cost_price = $request->dinner_cost_price;
         $rate->start_date = $request->start_date;
         $rate->end_date = $request->end_date;
         $rate->is_active = $request->season_status == 1 ? 1 : 0;
@@ -1715,6 +1765,15 @@ class HotelController extends Controller
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
                 'child_with_bed' => 'nullable|numeric|min:0',
                 'child_without_bed' => 'nullable|numeric|min:0',
+                'child_with_bed_cost' => 'nullable|numeric|min:0',
+                'child_without_bed_cost' => 'nullable|numeric|min:0',
+                'singleWeekdayCostPrice' => 'nullable|numeric|min:0',
+                'singleWeekendCostPrice' => 'nullable|numeric|min:0',
+                'doubleWeekdayCostPrice' => 'nullable|numeric|min:0',
+                'doubleWeekendCostPrice' => 'nullable|numeric|min:0',
+                'breakfast_cost_price' => 'nullable|numeric|min:0',
+                'lunch_cost_price' => 'nullable|numeric|min:0',
+                'dinner_cost_price' => 'nullable|numeric|min:0',
             ]);
 
             $auth_user = Auth::user();
@@ -1828,6 +1887,10 @@ class HotelController extends Controller
         $finalWeekendPrice = $request->singleWeekendPrice ?? $request->baseSingleWeekendPrice ?? 0;
         $finalDoubleWeekdayPrice = $request->doubleWeekdayPrice ?? $request->baseDoubleWeekdayPrice ?? 0;
         $finalDoubleWeekendPrice = $request->doubleWeekendPrice ?? $request->baseDoubleWeekendPrice ?? 0;
+        $finalWeekdayCostPrice = $request->singleWeekdayCostPrice ?? $request->baseSingleWeekdayCostPrice ?? null;
+        $finalWeekendCostPrice = $request->singleWeekendCostPrice ?? $request->baseSingleWeekendCostPrice ?? null;
+        $finalDoubleWeekdayCostPrice = $request->doubleWeekdayCostPrice ?? $request->baseDoubleWeekdayCostPrice ?? null;
+        $finalDoubleWeekendCostPrice = $request->doubleWeekendCostPrice ?? $request->baseDoubleWeekendCostPrice ?? null;
         
         // If this is not a base room, calculate prices based on respective base room + variant
         if (!$room->base_room && $room->varient_price > 0) {
@@ -1883,21 +1946,30 @@ class HotelController extends Controller
             'dimension' => $request->dimension,
             'double_weekday_price' => $finalDoubleWeekdayPrice,
             'double_weekend_price' => $finalDoubleWeekendPrice,
+            'weekday_cost_price' => $finalWeekdayCostPrice,
+            'weekend_cost_price' => $finalWeekendCostPrice,
+            'double_weekday_cost_price' => $finalDoubleWeekdayCostPrice,
+            'double_weekend_cost_price' => $finalDoubleWeekendCostPrice,
             'children_price' => $request->children_price,
             'breakfast' => $request->breakfast_included,
             'breakfast_type' => $request->breakfast_included ? $request->breakfast_type : null,
             'breakfast_price' => $request->breakfast_included ? $request->breakfast_price : null,
+            'breakfast_cost_price' => $request->breakfast_included ? $request->breakfast_cost_price : null,
             'lunch' => $request->lunch_included,
             'lunch_type' => $request->lunch_included ? $request->lunch_type : null,
             'lunch_price' => $request->lunch_included ? $request->lunch_price : null,
+            'lunch_cost_price' => $request->lunch_included ? $request->lunch_cost_price : null,
             'dinner' => $request->dinner_included,
             'dinner_type' => $request->dinner_included ? $request->dinner_type : null,
             'dinner_price' => $request->dinner_included ? $request->dinner_price : null,
+            'dinner_cost_price' => $request->dinner_included ? $request->dinner_cost_price : null,
             'breakfast_included' => $request->supplementary_breakfast ?? false,
             'master_image' => $master_image,
             'images' => json_encode($img_path),
             'child_with_bed' => $request->child_with_bed,
             'child_without_bed' => $request->child_without_bed,
+            'child_with_bed_cost' => $request->child_with_bed_cost,
+            'child_without_bed_cost' => $request->child_without_bed_cost,
         ]);
         
         \Log::info("Room update result", ['success' => $updateResult]);
@@ -1964,6 +2036,10 @@ class HotelController extends Controller
         $finalWeekendPrice = $request->singleWeekendPrice ?? $request->baseSingleWeekendPrice ?? 0;
         $finalDoubleWeekdayPrice = $request->doubleWeekdayPrice ?? $request->baseDoubleWeekdayPrice ?? 0;
         $finalDoubleWeekendPrice = $request->doubleWeekendPrice ?? $request->baseDoubleWeekendPrice ?? 0;
+        $finalWeekdayCostPrice = $request->singleWeekdayCostPrice ?? $request->baseSingleWeekdayCostPrice ?? null;
+        $finalWeekendCostPrice = $request->singleWeekendCostPrice ?? $request->baseSingleWeekendCostPrice ?? null;
+        $finalDoubleWeekdayCostPrice = $request->doubleWeekdayCostPrice ?? $request->baseDoubleWeekdayCostPrice ?? null;
+        $finalDoubleWeekendCostPrice = $request->doubleWeekendCostPrice ?? $request->baseDoubleWeekendCostPrice ?? null;
 
         // If this is not a base room and DMC has a base room, add variant to DMC base prices
         if (!$isBaseRoom && $dmcBaseRoom && $varientPrice > 0) {
@@ -1983,17 +2059,24 @@ class HotelController extends Controller
             'weekend_price' => $finalWeekendPrice,
             'double_weekday_price' => $finalDoubleWeekdayPrice,
             'double_weekend_price' => $finalDoubleWeekendPrice,
+            'weekday_cost_price' => $finalWeekdayCostPrice,
+            'weekend_cost_price' => $finalWeekendCostPrice,
+            'double_weekday_cost_price' => $finalDoubleWeekdayCostPrice,
+            'double_weekend_cost_price' => $finalDoubleWeekendCostPrice,
             'dimension' => $request->dimension,
             'children_price' => $request->children_price,
             'breakfast' => $request->breakfast_included,
             'breakfast_type' => $request->breakfast_included ? $request->breakfast_type : null,
             'breakfast_price' => $request->breakfast_included ? $request->breakfast_price : null,
+            'breakfast_cost_price' => $request->breakfast_included ? $request->breakfast_cost_price : null,
             'lunch' => $request->lunch_included,
             'lunch_type' => $request->lunch_included ? $request->lunch_type : null,
             'lunch_price' => $request->lunch_included ? $request->lunch_price : null,
+            'lunch_cost_price' => $request->lunch_included ? $request->lunch_cost_price : null,
             'dinner' => $request->dinner_included,
             'dinner_type' => $request->dinner_included ? $request->dinner_type : null,
             'dinner_price' => $request->dinner_included ? $request->dinner_price : null,
+            'dinner_cost_price' => $request->dinner_included ? $request->dinner_cost_price : null,
             'breakfast_included' => $request->supplementary_breakfast ?? false,
             'master_image' => $master_image,
             'images' => json_encode($imagePaths),
@@ -2006,6 +2089,8 @@ class HotelController extends Controller
             'breakfast_restaurant' => $originalRoom->breakfast_restaurant,
             'child_with_bed' => $request->child_with_bed,
             'child_without_bed' => $request->child_without_bed,
+            'child_with_bed_cost' => $request->child_with_bed_cost,
+            'child_without_bed_cost' => $request->child_without_bed_cost,
         ]);
         $is_save = $newRoom->save();
         $newRoom->refresh();
@@ -2162,10 +2247,12 @@ class HotelController extends Controller
             'adult_count' => 'nullable|integer|min:0',
             'child_count' => 'nullable|integer|min:0',
             'extra_bed' => 'nullable|boolean',
-            'extra_bed_type' => 'nullable|string',
-            'extra_bed_price' => 'nullable|numeric|min:0',
+            'extra_bed_type' => 'required_if:extra_bed,1|nullable|string',
+            'extra_bed_price' => 'required_if:extra_bed,1|nullable|numeric|min:0',
+            'extra_bed_cost_price' => 'required_if:extra_bed,1|nullable|numeric|min:0',
             'baby_cot' => 'nullable|boolean',
-            'baby_cot_price' => 'nullable|numeric|min:0',
+            'baby_cot_price' => 'required_if:baby_cot,1|nullable|numeric|min:0',
+            'baby_cot_cost_price' => 'required_if:baby_cot,1|nullable|numeric|min:0',
         ];
         
         // For admin and role_id 20, DMC selection is required
@@ -2179,11 +2266,13 @@ class HotelController extends Controller
             $request->merge([
                 'extra_bed_type' => null,
                 'extra_bed_price' => 0,
+                'extra_bed_cost_price' => null,
             ]);
         }
         if ($request->baby_cot != 1) {
             $request->merge([
                 'baby_cot_price' => 0,
+                'baby_cot_cost_price' => null,
             ]);
         }
 
@@ -2222,8 +2311,10 @@ class HotelController extends Controller
         $bed->extra_bed = $request->input('extra_bed');
         $bed->extra_bed_type = $request->input('extra_bed_type');
         $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
+        $bed->extra_bed_cost_price = $request->input('extra_bed') == 1 ? $request->input('extra_bed_cost_price') : null;
         $bed->baby_cot = $request->input('baby_cot') ?? null;
         $bed->baby_cot_price = $request->input('baby_cot_price') ?? 0;
+        $bed->baby_cot_cost_price = $request->input('baby_cot') == 1 ? $request->input('baby_cot_cost_price') : null;
         // $bed->bed_id = $bedId;
         $dmcId = CommonHelper::getDmcId($auth_user);
         // Set DMC ID based on user role
@@ -2278,10 +2369,12 @@ class HotelController extends Controller
             'adult_count' => 'nullable|integer|min:0',
             'child_count' => 'nullable|integer|min:0',
             'extra_bed' => 'nullable|boolean',
-            'extra_bed_type' => 'nullable|string',
-            'extra_bed_price' => 'nullable|numeric|min:0',
+            'extra_bed_type' => 'required_if:extra_bed,1|nullable|string',
+            'extra_bed_price' => 'required_if:extra_bed,1|nullable|numeric|min:0',
+            'extra_bed_cost_price' => 'required_if:extra_bed,1|nullable|numeric|min:0',
             'baby_cot' => 'nullable|boolean',
-            'baby_cot_price' => 'nullable|numeric|min:0',
+            'baby_cot_price' => 'required_if:baby_cot,1|nullable|numeric|min:0',
+            'baby_cot_cost_price' => 'required_if:baby_cot,1|nullable|numeric|min:0',
         ]);
 
         //If extra bed and baby cot is not available
@@ -2289,11 +2382,13 @@ class HotelController extends Controller
             $request->merge([
                 'extra_bed_type' => null,
                 'extra_bed_price' => 0,
+                'extra_bed_cost_price' => null,
             ]);
         }
         if ($request->baby_cot != 1) {
             $request->merge([
                 'baby_cot_price' => 0,
+                'baby_cot_cost_price' => null,
             ]);
         }
 
@@ -2328,8 +2423,10 @@ class HotelController extends Controller
         $bed->extra_bed = $request->input('extra_bed');
         $bed->extra_bed_type = $request->input('extra_bed_type');
         $bed->extra_bed_price = $request->input('extra_bed_price') ?? 0;
+        $bed->extra_bed_cost_price = $request->input('extra_bed') == 1 ? $request->input('extra_bed_cost_price') : null;
         $bed->baby_cot = $request->input('baby_cot') ?? null;
         $bed->baby_cot_price = $request->input('baby_cot_price') ?? 0;
+        $bed->baby_cot_cost_price = $request->input('baby_cot') == 1 ? $request->input('baby_cot_cost_price') : null;
         $bed->is_active = $request->beds_status == 1 ? 1 : 0;
         $bed->save();
 
@@ -3902,18 +3999,29 @@ class HotelController extends Controller
             'no_of_room',
             'dimension',
             'weekday_price',
+            'weekday_cost_price',
             'weekend_price',
+            'weekend_cost_price',
             'double_weekday_price',
+            'double_weekday_cost_price',
             'double_weekend_price',
+            'double_weekend_cost_price',
+            'child_with_bed',
+            'child_with_bed_cost',
+            'child_without_bed',
+            'child_without_bed_cost',
             'breakfast',
             'breakfast_type',
             'breakfast_price',
+            'breakfast_cost_price',
             'lunch',
             'lunch_type',
             'lunch_price',
+            'lunch_cost_price',
             'dinner',
             'dinner_type',
             'dinner_price',
+            'dinner_cost_price',
             'breakfast_included',
         ];
 
@@ -3925,18 +4033,29 @@ class HotelController extends Controller
                 $room->no_of_room ?? 0,
                 $room->dimension ?? '',
                 $room->weekday_price ?? 0,
+                $room->weekday_cost_price ?? '',
                 $room->weekend_price ?? 0,
+                $room->weekend_cost_price ?? '',
                 $room->double_weekday_price ?? 0,
+                $room->double_weekday_cost_price ?? '',
                 $room->double_weekend_price ?? 0,
+                $room->double_weekend_cost_price ?? '',
+                $room->child_with_bed ?? '',
+                $room->child_with_bed_cost ?? '',
+                $room->child_without_bed ?? '',
+                $room->child_without_bed_cost ?? '',
                 $room->breakfast ? 1 : 0,
                 $room->breakfast_type ?? '',
                 $room->breakfast_price ?? '',
+                $room->breakfast_cost_price ?? '',
                 $room->lunch ? 1 : 0,
                 $room->lunch_type ?? '',
                 $room->lunch_price ?? '',
+                $room->lunch_cost_price ?? '',
                 $room->dinner ? 1 : 0,
                 $room->dinner_type ?? '',
                 $room->dinner_price ?? '',
+                $room->dinner_cost_price ?? '',
                 $room->breakfast_included ? 1 : 0,
             ];
         }
