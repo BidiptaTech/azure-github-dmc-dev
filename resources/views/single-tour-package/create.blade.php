@@ -2047,6 +2047,178 @@
                         }
                         return parts.join(' + ') + ` = ${cur} ${Number(total).toFixed(2)}`;
                     };
+
+                    window.formatHotelCostSummaryRowHtml = function(label, amount, detail) {
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let amountHtml;
+                        if (typeof amount === 'string') {
+                            amountHtml = amount;
+                        } else {
+                            const amt = Number(amount) || 0;
+                            amountHtml = `${cur} ${amt.toFixed(2)}`;
+                        }
+                        return `
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between" style="color: rgba(255, 255, 255, 0.9);">
+                                    <span>${label}:</span>
+                                    <span style="font-weight: 500; color: #ffffff !important;">${amountHtml}</span>
+                                </div>
+                                ${detail ? `<div style="font-size: 0.72rem; text-align: right; color: rgba(255,255,255,0.88); line-height: 1.35;">${detail}</div>` : ''}
+                            </div>
+                        `;
+                    };
+
+                    window.formatHotelRoomCostSummaryDetail = function(hotel) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const roomAmt = (parseFloat(hotel.price) || 0) * rooms;
+
+                        let breakdown = '';
+                        if (hotel.weekdayNights || hotel.weekendNights) {
+                            let weekdayPrice = 0;
+                            let weekendPrice = 0;
+                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                const weekdayNight = hotel.priceBreakdown.find(function(n) { return !n.isWeekend; });
+                                const weekendNight = hotel.priceBreakdown.find(function(n) { return n.isWeekend; });
+                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
+                                weekendPrice = weekendNight ? weekendNight.price : 0;
+                            }
+                            if (hotel.weekdayNights && weekdayPrice > 0) {
+                                breakdown += `${hotel.weekdayNights} weekday @ ${cur} ${weekdayPrice.toFixed(2)}/night`;
+                            }
+                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
+                                breakdown += ' + ';
+                            }
+                            if (hotel.weekendNights && weekendPrice > 0) {
+                                breakdown += `${hotel.weekendNights} weekend @ ${cur} ${weekendPrice.toFixed(2)}/night`;
+                            }
+                            if (breakdown) {
+                                breakdown += ` × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                            }
+                        }
+                        if (!breakdown) {
+                            breakdown = `${cur} ${((parseFloat(hotel.pricePerNight) || 0)).toFixed(2)}/night avg × ${hotel.totalNights || 1} night(s) × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                        }
+                        return breakdown;
+                    };
+
+                    window.computeHotelBookingGrandTotal = function(hotel, cwbChildren, cnbChildren) {
+                        const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                        }
+                        let roomAndExtraCost;
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
+                            extraBedCost = 0;
+                        } else {
+                            const combined = parseFloat(hotel.combinedRoomTotal);
+                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
+                                ? combined
+                                : ((parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1)) + extraBedCost;
+                            if (Number.isFinite(combined) && combined > 0) {
+                                extraBedCost = 0;
+                            }
+                        }
+                        let mealCost = 0;
+                        if (typeof window.calculateCorrectMealCosts === 'function') {
+                            mealCost = window.calculateCorrectMealCosts(
+                                hotel.mealPlan,
+                                hotel.totalNights,
+                                hotel.selectedPersons || 1,
+                                0,
+                                hotel.mealPrices,
+                                hotel.numberOfRooms,
+                                { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                            );
+                        }
+                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithBedPrice) || 0) * (cwbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithoutBedPrice) || 0) * (cnbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        return roomAndExtraCost + mealCost + cwbCost + cnbCost;
+                    };
+
+                    window.renderHotelCostSummaryBreakdownHtml = function(hotel, cwbChildren, cnbChildren) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let html = '';
+
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Room Cost',
+                                parseFloat(hotel.customRoomPrice),
+                                `Custom / Get Price room total = ${cur} ${parseFloat(hotel.customRoomPrice).toFixed(2)}`
+                            );
+                        } else {
+                            const roomAmt = (parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1);
+                            html += window.formatHotelCostSummaryRowHtml('Room Cost', roomAmt, window.formatHotelRoomCostSummaryDetail(hotel));
+
+                            const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                            let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                            if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                            }
+                            if (extraBedCost > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                const extraPersons = (hotel.selectedPersons || 1) - maxOcc;
+                                html += window.formatHotelCostSummaryRowHtml(
+                                    'Extra Bed Cost',
+                                    extraBedCost,
+                                    `${cur} ${parseFloat(hotel.extraBedPrice).toFixed(2)} × ${extraPersons} extra person(s) × ${hotel.numberOfRooms} room(s) × ${hotel.totalNights} night(s) = ${cur} ${extraBedCost.toFixed(2)}`
+                                );
+                            }
+                        }
+
+                        if (hotel.mealPlan && !hotel.mealPlan.includes('only')) {
+                            ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                    html += window.formatHotelCostSummaryRowHtml('Breakfast (Meal)', 'Included', 'Supplement breakfast included');
+                                    return;
+                                }
+                                const amt = window.getHotelMealTypeTotal(hotel, meal);
+                                if (amt > 0) {
+                                    html += window.formatHotelCostSummaryRowHtml(
+                                        label + ' (Meal)',
+                                        amt,
+                                        window.formatHotelMealBreakdownLine(hotel, meal)
+                                    );
+                                }
+                            });
+                        }
+
+                        if ((hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cwbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child with Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        if ((hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithoutBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cnbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child without Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        return html;
+                    };
                     
                     // Function to fetch ports by country
                     window.fetchPortsByCountry = function(countryId) {
@@ -17444,113 +17616,11 @@
                                                 <i class="ri-calculator-line me-1"></i>Cost Summary:
                                             </small>
                                             <div style="font-size: 0.8rem;">
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                    <span>Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">
-                                                        ${hotel.weekdayNights || hotel.weekendNights ? (() => {
-                                                            // Calculate actual weekday and weekend prices from breakdown
-                                                            let weekdayPrice = 0;
-                                                            let weekendPrice = 0;
-                                                            
-                                                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
-                                                                // Get actual prices from breakdown
-                                                                const weekdayNight = hotel.priceBreakdown.find(n => !n.isWeekend);
-                                                                const weekendNight = hotel.priceBreakdown.find(n => n.isWeekend);
-                                                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
-                                                                weekendPrice = weekendNight ? weekendNight.price : 0;
-                                                            }
-                                                            
-                                                            let breakdown = '';
-                                                            if (hotel.weekdayNights && weekdayPrice > 0) {
-                                                                breakdown += `${hotel.weekdayNights} weekday @ ${getTourCurrency()} ${weekdayPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
-                                                                breakdown += ' + ';
-                                                            }
-                                                            if (hotel.weekendNights && weekendPrice > 0) {
-                                                                breakdown += `${hotel.weekendNights} weekend @ ${getTourCurrency()} ${weekendPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (breakdown) {
-                                                                breakdown += ` × ${hotel.numberOfRooms} room(s) = `;
-                                                            }
-                                                            return breakdown;
-                                                        })() : ''}
-                                                        ${getTourCurrency()} ${(hotel.price || 0) * hotel.numberOfRooms}
-                                                    </span>
-                                                </div>
-                                                ${hotel.roomPriceManuallyEdited && hotel.customRoomPrice ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Custom Room Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${parseFloat(hotel.customRoomPrice).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Meal Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important; text-align: right; max-width: 70%;">${window.formatHotelMealCostSummaryHtml(hotel)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy && !hotel.roomPriceManuallyEdited ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Extra Bed Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(parseFloat(hotel.extraBedCost) || (hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child with Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child without Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
+                                                ${window.renderHotelCostSummaryBreakdownHtml(hotel, cwbChildren, cnbChildren)}
                                                 <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
                                                 <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
                                                     <span>Total:</span>
-                                                    <span>${getTourCurrency()} ${(() => {
-                                                        const maxOcc = parseInt(hotel.maxOccupancy) || 0;
-                                                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
-                                                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
-                                                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * hotel.numberOfRooms * hotel.totalNights;
-                                                        }
-                                                        let roomAndExtraCost;
-                                                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
-                                                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
-                                                            extraBedCost = 0;
-                                                        } else {
-                                                            const combined = parseFloat(hotel.combinedRoomTotal);
-                                                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
-                                                                ? combined
-                                                                : ((hotel.price || 0) * hotel.numberOfRooms) + extraBedCost;
-                                                            if (Number.isFinite(combined) && combined > 0) {
-                                                                extraBedCost = 0;
-                                                            }
-                                                        }
-                                                        let mealCost = 0;
-                                                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                            mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                        } else {
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (!hotel.supplement_breakfast_included && hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        return (roomAndExtraCost + mealCost + cwbCost + cnbCost).toFixed(2);
-                                                    })()}</span>
+                                                    <span>${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
