@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('beds', function (Blueprint $table) {
             if (!Schema::hasColumn('beds', 'extra_bed_cost_price')) {
-                $table->numeric('extra_bed_cost_price', 50, 2)->nullable()->after('extra_bed_price');
+                $table->decimal('extra_bed_cost_price', 50, 2)->nullable()->after('extra_bed_price');
             }
             if (!Schema::hasColumn('beds', 'baby_cot_cost_price')) {
-                $table->numeric('baby_cot_cost_price', 50, 2)->nullable()->after('baby_cot_price');
+                $table->decimal('baby_cot_cost_price', 50, 2)->nullable()->after('baby_cot_price');
             }
         });
     }
