@@ -21,20 +21,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Laravel 11 builds the `web` group from framework defaults in
-        // bootstrap/app.php — App\Http\Kernel::$middlewareGroups is not used.
-        $middleware->web(
-            append: [
-                \App\Http\Middleware\EnsureUserIsActive::class,
-            ],
-            replace: [
-                \Illuminate\Cookie\Middleware\EncryptCookies::class => \App\Http\Middleware\EncryptCookies::class,
-                \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class => \App\Http\Middleware\VerifyCsrfToken::class,
-            ]
-        );
-
-        // Runs outermost so it still logs when CSRF throws TokenMismatch (419).
-        $middleware->prependToGroup('web', \App\Http\Middleware\TraceSessionLifecycle::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureUserIsActive::class);
 
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

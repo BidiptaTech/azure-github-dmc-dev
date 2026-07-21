@@ -408,7 +408,12 @@
                 </div>
                 <div class="col-12">
                   <div class="d-grid">
-                    <button type="submit" class="btn btn-primary py-1 auth-btn">Secure Login</button>
+                    <x-button-spinner
+                      id="secureLoginBtn"
+                      label="Secure Login"
+                      loading-text="Logging in..."
+                      class="btn btn-primary py-1 auth-btn"
+                    />
                   </div>
                 </div>
               </form>
