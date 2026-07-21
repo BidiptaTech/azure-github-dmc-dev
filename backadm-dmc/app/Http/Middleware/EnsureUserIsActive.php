@@ -20,12 +20,6 @@ class EnsureUserIsActive
             return $next($request);
         }
 
-        // Never invalidate session on auth entry points; CSRF already passed
-        // and regenerating here can strand the next form render.
-        if ($request->routeIs('login', 'logout', 'register', 'password.*')) {
-            return $next($request);
-        }
-
         $authUser = Auth::user();
         $userId = $authUser->userId ?? $authUser->id ?? null;
 

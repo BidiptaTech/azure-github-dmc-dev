@@ -154,9 +154,7 @@ return [
     |
     */
 
-    'domain' => (($domain = env('SESSION_DOMAIN')) === null || $domain === '' || $domain === 'null')
-        ? null
-        : $domain,
+    'domain' => env('SESSION_DOMAIN'),
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +167,7 @@ return [
     |
     */
 
-    'secure' => filter_var(env('SESSION_SECURE_COOKIE', false), FILTER_VALIDATE_BOOLEAN),
+    'secure' => env('SESSION_SECURE_COOKIE'),
 
     /*
     |--------------------------------------------------------------------------
@@ -197,6 +195,6 @@ return [
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    'same_site' => 'lax',
 
 ];
