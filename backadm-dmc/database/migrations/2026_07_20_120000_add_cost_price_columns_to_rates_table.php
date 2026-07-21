@@ -13,25 +13,25 @@ return new class extends Migration
     {
         Schema::table('rates', function (Blueprint $table) {
             if (!Schema::hasColumn('rates', 'weekday_cost_price')) {
-                $table->numeric('weekday_cost_price', 50, 2)->nullable()->after('weekday_price');
+                $table->decimal('weekday_cost_price', 50, 2)->nullable()->after('weekday_price');
             }
             if (!Schema::hasColumn('rates', 'weekend_cost_price')) {
-                $table->numeric('weekend_cost_price', 50, 2)->nullable()->after('weekend_price');
+                $table->decimal('weekend_cost_price', 50, 2)->nullable()->after('weekend_price');
             }
             if (!Schema::hasColumn('rates', 'double_weekday_cost_price')) {
-                $table->numeric('double_weekday_cost_price', 50, 2)->nullable()->after('double_weekday_price');
+                $table->decimal('double_weekday_cost_price', 50, 2)->nullable()->after('double_weekday_price');
             }
             if (!Schema::hasColumn('rates', 'double_weekend_cost_price')) {
-                $table->numeric('double_weekend_cost_price', 50, 2)->nullable()->after('double_weekend_price');
+                $table->decimal('double_weekend_cost_price', 50, 2)->nullable()->after('double_weekend_price');
             }
             if (!Schema::hasColumn('rates', 'breakfast_cost_price')) {
-                $table->numeric('breakfast_cost_price', 50, 2)->nullable()->after('breakfast_price');
+                $table->decimal('breakfast_cost_price', 50, 2)->nullable()->after('breakfast_price');
             }
             if (!Schema::hasColumn('rates', 'lunch_cost_price')) {
-                $table->numeric('lunch_cost_price', 50, 2)->nullable()->after('lunch_price');
+                $table->decimal('lunch_cost_price', 50, 2)->nullable()->after('lunch_price');
             }
             if (!Schema::hasColumn('rates', 'dinner_cost_price')) {
-                $table->numeric('dinner_cost_price', 50, 2)->nullable()->after('dinner_price');
+                $table->decimal('dinner_cost_price', 50, 2)->nullable()->after('dinner_price');
             }
         });
     }

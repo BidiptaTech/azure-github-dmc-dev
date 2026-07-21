@@ -374,7 +374,9 @@
               <h4 class="auth-section-title fs-5 mb-1">Secure Login</h4>
             </div>
             <div class="form-body mt-1">
-              <form class="row g-2" method="POST" action="{{ route('login') }}">
+              {{-- Relative action keeps POST on the same host as the GET (avoids
+                   localhost vs 127.0.0.1 / APP_URL host mismatch → 419 CSRF). --}}
+              <form class="row g-2" method="POST" action="/login">
               @csrf
                 <div class="col-12 auth-field">
                   <label for="inputEmailAddress" class="form-label mb-1">Email</label>
