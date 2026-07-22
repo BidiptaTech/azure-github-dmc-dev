@@ -754,6 +754,54 @@ class CityController extends Controller
     }
 
     /**
+     * Country names from the DMC's master DMC profile (comma-separated on users.country).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
      * AJAX city search for Select2 (Single/Multi City planning)
      * Returns: { results: [{id, text}] }
      */
@@ -783,15 +831,8 @@ class CityController extends Controller
             }
         }
 
-        // Resolve this DMC's countries (comma-separated on the DMC user — not Master DMC)
-        $countryNames = [];
-        if ($dmcId) {
-            $dmcUser = User::where('userId', $dmcId)->first();
-            $dmcCountry = $dmcUser?->country;
-            if ($dmcCountry) {
-                $countryNames = array_values(array_filter(array_map('trim', explode(',', $dmcCountry))));
-            }
-        }
+        // Cities scoped to all countries on the master DMC profile (multi-country multi-city)
+        $countryNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
 
         // If we cannot resolve allowed countries, do not leak global cities
         if (empty($countryNames)) {
