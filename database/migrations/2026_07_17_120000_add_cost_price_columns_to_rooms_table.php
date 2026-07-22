@@ -13,39 +13,39 @@ return new class extends Migration
     {
         Schema::table('rooms', function (Blueprint $table) {
             if (!Schema::hasColumn('rooms', 'child_with_bed')) {
-                $table->numeric('child_with_bed', 50, 2)->nullable()->after('children_price');
+                $table->decimal('child_with_bed', 50, 2)->nullable()->after('children_price');
             }
             if (!Schema::hasColumn('rooms', 'child_with_bed_cost')) {
-                $table->numeric('child_with_bed_cost', 50, 2)->nullable()->after('child_with_bed');
+                $table->decimal('child_with_bed_cost', 50, 2)->nullable()->after('child_with_bed');
             }
             if (!Schema::hasColumn('rooms', 'child_without_bed')) {
-                $table->numeric('child_without_bed', 50, 2)->nullable()->after('child_with_bed_cost');
+                $table->decimal('child_without_bed', 50, 2)->nullable()->after('child_with_bed_cost');
             }
             if (!Schema::hasColumn('rooms', 'child_without_bed_cost')) {
-                $table->numeric('child_without_bed_cost', 50, 2)->nullable()->after('child_without_bed');
+                $table->decimal('child_without_bed_cost', 50, 2)->nullable()->after('child_without_bed');
             }
 
             if (!Schema::hasColumn('rooms', 'weekday_cost_price')) {
-                $table->numeric('weekday_cost_price', 50, 2)->nullable()->after('weekday_price');
+                $table->decimal('weekday_cost_price', 50, 2)->nullable()->after('weekday_price');
             }
             if (!Schema::hasColumn('rooms', 'weekend_cost_price')) {
-                $table->numeric('weekend_cost_price', 50, 2)->nullable()->after('weekend_price');
+                $table->decimal('weekend_cost_price', 50, 2)->nullable()->after('weekend_price');
             }
             if (!Schema::hasColumn('rooms', 'double_weekday_cost_price')) {
-                $table->numeric('double_weekday_cost_price', 50, 2)->nullable()->after('double_weekday_price');
+                $table->decimal('double_weekday_cost_price', 50, 2)->nullable()->after('double_weekday_price');
             }
             if (!Schema::hasColumn('rooms', 'double_weekend_cost_price')) {
-                $table->numeric('double_weekend_cost_price', 50, 2)->nullable()->after('double_weekend_price');
+                $table->decimal('double_weekend_cost_price', 50, 2)->nullable()->after('double_weekend_price');
             }
 
             if (!Schema::hasColumn('rooms', 'breakfast_cost_price')) {
-                $table->numeric('breakfast_cost_price', 50, 2)->nullable()->after('breakfast_price');
+                $table->decimal('breakfast_cost_price', 50, 2)->nullable()->after('breakfast_price');
             }
             if (!Schema::hasColumn('rooms', 'lunch_cost_price')) {
-                $table->numeric('lunch_cost_price', 50, 2)->nullable()->after('lunch_price');
+                $table->decimal('lunch_cost_price', 50, 2)->nullable()->after('lunch_price');
             }
             if (!Schema::hasColumn('rooms', 'dinner_cost_price')) {
-                $table->numeric('dinner_cost_price', 50, 2)->nullable()->after('dinner_price');
+                $table->decimal('dinner_cost_price', 50, 2)->nullable()->after('dinner_price');
             }
         });
     }
