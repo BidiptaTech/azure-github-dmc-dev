@@ -3792,6 +3792,48 @@ class SingleTourPackageController extends Controller
     //     return CommonHelper::createId($lastId);
     // }
 
+    /**
+     * Resolve country + currency for an order (multi-country / multi-city tracking).
+     * Prefer request payload; fall back to tour destination + countries.currency.
+     */
+    private function resolveOrderCountryCurrency(Request $request, $tourId): array
+    {
+        $country = trim((string) $request->input('country', ''));
+        $currency = strtoupper(trim((string) $request->input('currency', '')));
+
+        if ($country === '' || $currency === '') {
+            $tour = Tour::where('tour_id', $tourId)->first();
+            if ($country === '' && $tour && !empty($tour->destination)) {
+                // destination may be city name or country; prefer country match first
+                $dest = trim((string) $tour->destination);
+                $countryRow = Country::where('name', $dest)->first();
+                if ($countryRow) {
+                    $country = $countryRow->name;
+                    if ($currency === '' && !empty($countryRow->currency)) {
+                        $currency = strtoupper(trim((string) $countryRow->currency));
+                    }
+                } else {
+                    $city = City::where('name', $dest)->orWhere('name', 'like', $dest . '%')->first();
+                    if ($city && !empty($city->country)) {
+                        $country = trim((string) $city->country);
+                    }
+                }
+            }
+        }
+
+        if ($currency === '' && $country !== '') {
+            $currencyFromCountry = Country::where('name', $country)->value('currency');
+            if ($currencyFromCountry) {
+                $currency = strtoupper(trim((string) $currencyFromCountry));
+            }
+        }
+
+        return [
+            'country' => $country !== '' ? $country : null,
+            'currency' => $currency !== '' ? $currency : null,
+        ];
+    }
+
     public function storeServiceOrders(Request $request)
     {
         $request->validate([
@@ -3803,7 +3845,9 @@ class SingleTourPackageController extends Controller
             'guide_data' => 'nullable|string',
             'transport_data' => 'nullable|string',
             'entry_port_data' => 'nullable|string',
-            'exit_port_data' => 'nullable|string'
+            'exit_port_data' => 'nullable|string',
+            'country' => 'nullable|string|max:255',
+            'currency' => 'nullable|string|max:10',
         ]);
 
         try {
@@ -3811,6 +3855,9 @@ class SingleTourPackageController extends Controller
 
             $tourId = $request->tour_id;
             $agentId = $request->agent_id;
+            $orderGeo = $this->resolveOrderCountryCurrency($request, $tourId);
+            $orderCountry = $orderGeo['country'];
+            $orderCurrency = $orderGeo['currency'];
                                     
             // This initial booking ID is not used since we generate unique IDs for each service
             // But we keep it for compatibility with existing logging
@@ -4027,6 +4074,8 @@ class SingleTourPackageController extends Controller
                                         'tour_id' => $tourId,
                                         'data' => [$enhancedHotelData], // Store hotel data as array
                                         'type' => $type,
+                                        'country' => $orderCountry,
+                                        'currency' => $orderCurrency,
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
                                         'remarks' => $hotelBooking['remarks'] ?? null,
@@ -4125,6 +4174,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$attraction], // Store attraction data as array
                                     'type' => $type,
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $attraction['remarks'] ?? null,
@@ -4203,6 +4254,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$restaurant], // Store restaurant data as array
                                     'type' => $type,
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $restaurant['remarks'] ?? null,
@@ -4246,6 +4299,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$guide], // Store guide data as array
                                     'type' => $type,
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $guide['remarks'] ?? null,
@@ -4318,6 +4373,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
@@ -4389,6 +4446,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
@@ -4421,6 +4480,8 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$service], // Store service data as array
                                     'type' => $type,
+                                    'country' => $orderCountry,
+                                    'currency' => $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                 ]);
