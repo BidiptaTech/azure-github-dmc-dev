@@ -1251,7 +1251,7 @@
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
                                     <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
+                                        <span class="input-group-text tour-currency-prefix" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
 
                                         <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
@@ -1275,15 +1275,22 @@
                             <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
                                 <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithBed">Child with Bed <small class="text-muted" id="childWithBedPriceLabel"></small></label>
                                     </div>
                                 </div>
                                 <div id="hotelChildWithoutBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithoutBed">Child without Bed <small class="text-muted" id="childWithoutBedPriceLabel"></small></label>
                                     </div>
+                                </div>
+                                <div class="col-12">
+                                    <small id="hotelChildPricingGuestHint" class="text-muted" style="display: none; font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                    </small>
                                 </div>
                             </div>
                             
@@ -1860,6 +1867,22 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', updateGuestLimitInfo);
+                            childrenInput.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        const infantsInputGuest = document.getElementById('infants');
+                        if (infantsInputGuest) {
+                            infantsInputGuest.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                            window.updateHotelChildCheckboxEnabledState();
                         }
                     });
                     
@@ -1934,6 +1957,267 @@
                         }
                         
                         return totalMealCost;
+                    };
+
+                    window.getHotelMealTypeTotal = function(hotel, mealType) {
+                        if (!hotel) return 0;
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast') {
+                            if (hotel.supplement_breakfast_included) return 0;
+                            if (!plan.includes('breakfast') && !plan.includes('bf')) return 0;
+                        } else if (!plan.includes(mealType)) {
+                            return 0;
+                        }
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            return (parseFloat(hotel.helperMeals[mealType]) || 0) * rooms;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return unit * persons * nights * rooms;
+                    };
+
+                    window.formatHotelMealBreakdownLine = function(hotel, mealType) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast' && hotel.supplement_breakfast_included) {
+                            return 'Included (supplement)';
+                        }
+                        if (mealType === 'breakfast' && !plan.includes('breakfast') && !plan.includes('bf')) return '';
+                        if (mealType !== 'breakfast' && !plan.includes(mealType)) return '';
+
+                        const total = window.getHotelMealTypeTotal(hotel, mealType);
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            const perRoom = parseFloat(hotel.helperMeals[mealType]) || 0;
+                            if (perRoom <= 0 && total <= 0) {
+                                return `${cur} 0.00`;
+                            }
+                            const divisor = persons * nights;
+                            const perPersonNight = divisor > 0 ? (perRoom / divisor) : 0;
+                            let line = `${cur} ${perPersonNight.toFixed(2)}/person/night × ${persons} person(s) × ${nights} night(s)`;
+                            if (rooms > 1) {
+                                line += ` × ${rooms} room(s)`;
+                            }
+                            line += ` = ${cur} ${total.toFixed(2)} (rate-based)`;
+                            return line;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return `${cur} ${unit.toFixed(2)} × ${persons} person(s) × ${nights} night(s) × ${rooms} room(s) = ${cur} ${total.toFixed(2)}`;
+                    };
+
+                    window.formatHotelMealCostSummaryHtml = function(hotel) {
+                        if (!hotel || typeof window.calculateCorrectMealCosts !== 'function') {
+                            return '';
+                        }
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const parts = [];
+                        ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                            const amt = window.getHotelMealTypeTotal(hotel, meal);
+                            if (amt > 0) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                parts.push(`${label} ${cur} ${amt.toFixed(2)}`);
+                            } else if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                parts.push('Breakfast included (supplement)');
+                            }
+                        });
+                        const total = window.calculateCorrectMealCosts(
+                            hotel.mealPlan,
+                            hotel.totalNights,
+                            hotel.selectedPersons || 1,
+                            0,
+                            hotel.mealPrices,
+                            hotel.numberOfRooms,
+                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                        );
+                        if (!parts.length) {
+                            return `${cur} ${Number(total).toFixed(2)}`;
+                        }
+                        return parts.join(' + ') + ` = ${cur} ${Number(total).toFixed(2)}`;
+                    };
+
+                    window.formatHotelCostSummaryRowHtml = function(label, amount, detail) {
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let amountHtml;
+                        if (typeof amount === 'string') {
+                            amountHtml = amount;
+                        } else {
+                            const amt = Number(amount) || 0;
+                            amountHtml = `${cur} ${amt.toFixed(2)}`;
+                        }
+                        return `
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between" style="color: rgba(255, 255, 255, 0.9);">
+                                    <span>${label}:</span>
+                                    <span style="font-weight: 500; color: #ffffff !important;">${amountHtml}</span>
+                                </div>
+                                ${detail ? `<div style="font-size: 0.72rem; text-align: right; color: rgba(255,255,255,0.88); line-height: 1.35;">${detail}</div>` : ''}
+                            </div>
+                        `;
+                    };
+
+                    window.formatHotelRoomCostSummaryDetail = function(hotel) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const roomAmt = (parseFloat(hotel.price) || 0) * rooms;
+
+                        let breakdown = '';
+                        if (hotel.weekdayNights || hotel.weekendNights) {
+                            let weekdayPrice = 0;
+                            let weekendPrice = 0;
+                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                const weekdayNight = hotel.priceBreakdown.find(function(n) { return !n.isWeekend; });
+                                const weekendNight = hotel.priceBreakdown.find(function(n) { return n.isWeekend; });
+                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
+                                weekendPrice = weekendNight ? weekendNight.price : 0;
+                            }
+                            if (hotel.weekdayNights && weekdayPrice > 0) {
+                                breakdown += `${hotel.weekdayNights} weekday @ ${cur} ${weekdayPrice.toFixed(2)}/night`;
+                            }
+                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
+                                breakdown += ' + ';
+                            }
+                            if (hotel.weekendNights && weekendPrice > 0) {
+                                breakdown += `${hotel.weekendNights} weekend @ ${cur} ${weekendPrice.toFixed(2)}/night`;
+                            }
+                            if (breakdown) {
+                                breakdown += ` × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                            }
+                        }
+                        if (!breakdown) {
+                            breakdown = `${cur} ${((parseFloat(hotel.pricePerNight) || 0)).toFixed(2)}/night avg × ${hotel.totalNights || 1} night(s) × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                        }
+                        return breakdown;
+                    };
+
+                    window.computeHotelBookingGrandTotal = function(hotel, cwbChildren, cnbChildren) {
+                        const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                        }
+                        let roomAndExtraCost;
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
+                            extraBedCost = 0;
+                        } else {
+                            const combined = parseFloat(hotel.combinedRoomTotal);
+                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
+                                ? combined
+                                : ((parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1)) + extraBedCost;
+                            if (Number.isFinite(combined) && combined > 0) {
+                                extraBedCost = 0;
+                            }
+                        }
+                        let mealCost = 0;
+                        if (typeof window.calculateCorrectMealCosts === 'function') {
+                            mealCost = window.calculateCorrectMealCosts(
+                                hotel.mealPlan,
+                                hotel.totalNights,
+                                hotel.selectedPersons || 1,
+                                0,
+                                hotel.mealPrices,
+                                hotel.numberOfRooms,
+                                { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                            );
+                        }
+                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithBedPrice) || 0) * (cwbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithoutBedPrice) || 0) * (cnbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        return roomAndExtraCost + mealCost + cwbCost + cnbCost;
+                    };
+
+                    window.renderHotelCostSummaryBreakdownHtml = function(hotel, cwbChildren, cnbChildren) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let html = '';
+
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Room Cost',
+                                parseFloat(hotel.customRoomPrice),
+                                `Custom / Get Price room total = ${cur} ${parseFloat(hotel.customRoomPrice).toFixed(2)}`
+                            );
+                        } else {
+                            const roomAmt = (parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1);
+                            html += window.formatHotelCostSummaryRowHtml('Room Cost', roomAmt, window.formatHotelRoomCostSummaryDetail(hotel));
+
+                            const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                            let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                            if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                            }
+                            if (extraBedCost > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                const extraPersons = (hotel.selectedPersons || 1) - maxOcc;
+                                html += window.formatHotelCostSummaryRowHtml(
+                                    'Extra Bed Cost',
+                                    extraBedCost,
+                                    `${cur} ${parseFloat(hotel.extraBedPrice).toFixed(2)} × ${extraPersons} extra person(s) × ${hotel.numberOfRooms} room(s) × ${hotel.totalNights} night(s) = ${cur} ${extraBedCost.toFixed(2)}`
+                                );
+                            }
+                        }
+
+                        if (hotel.mealPlan && !hotel.mealPlan.includes('only')) {
+                            ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                    html += window.formatHotelCostSummaryRowHtml('Breakfast (Meal)', 'Included', 'Supplement breakfast included');
+                                    return;
+                                }
+                                const amt = window.getHotelMealTypeTotal(hotel, meal);
+                                if (amt > 0) {
+                                    html += window.formatHotelCostSummaryRowHtml(
+                                        label + ' (Meal)',
+                                        amt,
+                                        window.formatHotelMealBreakdownLine(hotel, meal)
+                                    );
+                                }
+                            });
+                        }
+
+                        if ((hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cwbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child with Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        if ((hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithoutBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cnbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child without Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        return html;
                     };
                     
                     // Function to fetch ports by country
@@ -5750,6 +6034,12 @@
                             fd.append('entry_port_data', payload.entry_port_data || '');
                             fd.append('exit_port_data', payload.exit_port_data || '');
                             fd.append('total_price', payload.total_price || 0);
+                            if (payload.country) {
+                                fd.append('country', payload.country);
+                            }
+                            if (payload.currency) {
+                                fd.append('currency', payload.currency);
+                            }
                             const resp = await fetch(storeOrdersUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
                             if (!resp.ok) { const txt = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + txt); }
                             return await resp.json();
@@ -5824,7 +6114,14 @@
                                 const hasAny = !!(st.hotelDataField || st.attractionDataField || st.restaurantDataField ||
                                                 st.guideDataField || st.transportDataField || st.entryPortDataField || st.exitPortDataField);
 
-                                segmentInfos.push({ key, cityId, cityLabel, segCountry, stayFrom, stayTo, st, hasAny });
+                                const segCurrency = (st.segmentCurrency
+                                    || (segCountry && typeof window.getCurrencyForCountryName === 'function'
+                                        ? window.getCurrencyForCountryName(segCountry)
+                                        : '')
+                                    || (typeof getTourCurrency === 'function' ? getTourCurrency() : '')
+                                    || '').toString().trim().toUpperCase();
+
+                                segmentInfos.push({ key, cityId, cityLabel, segCountry, segCurrency, stayFrom, stayTo, st, hasAny });
 
                                 // Build CSV for the single Tour record
                                 if (cityLabel) {
@@ -5931,7 +6228,9 @@
                                         transport_data: forceServicesToSegmentStartDate(seg.st.transportDataField || '', seg.stayFrom),
                                         entry_port_data: forceServicesToSegmentStartDate(seg.st.entryPortDataField || '', seg.stayFrom),
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
-                                        total_price: 0
+                                        total_price: 0,
+                                        country: seg.segCountry || '',
+                                        currency: seg.segCurrency || ''
                                     });
 
                                     if (!result || !result.success) {
@@ -6078,6 +6377,13 @@
                         }
 
                         try {
+                            const singleOrderCountry = (typeof country !== 'undefined' && country)
+                                ? country
+                                : (document.getElementById('user_country')?.value || '');
+                            const singleOrderCurrency = (typeof getTourCurrency === 'function')
+                                ? getTourCurrency()
+                                : (document.getElementById('tour_package_currency')?.value || '');
+
                             const result = await postServiceOrders({
                                 tour_id: tourId,
                                 hotel_data: hotelData,
@@ -6087,7 +6393,9 @@
                                 transport_data: transportData,
                                 entry_port_data: entryPortData,
                                 exit_port_data: exitPortData,
-                                total_price: totalPrice
+                                total_price: totalPrice,
+                                country: singleOrderCountry,
+                                currency: singleOrderCurrency
                             });
 
                             if (result.success) {
@@ -6523,11 +6831,135 @@
     <!-- Select2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
+    @php
+        $countryCurrencyMap = $countries
+            ->filter(fn ($c) => !empty($c->name) && !empty($c->currency))
+            ->mapWithKeys(fn ($c) => [$c->name => strtoupper(trim((string) $c->currency))]);
+    @endphp
     <script>
         window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+        window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
         window.getTourCurrency = function () {
             const el = document.getElementById('tour_package_currency');
             return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+        };
+        window.getCurrencyForCountryName = function (countryName) {
+            const name = String(countryName || '').trim();
+            if (!name) {
+                return window.getTourCurrency();
+            }
+            const map = window.COUNTRY_CURRENCY_MAP || {};
+            if (map[name]) {
+                return map[name];
+            }
+            const lower = name.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return map[key];
+                }
+            }
+            return window.TOUR_PACKAGE_CURRENCY || 'SGD';
+        };
+        window.setTourPackageCurrency = function (code, options) {
+            options = options || {};
+            const cur = String(code || '').trim().toUpperCase() || 'SGD';
+            window.TOUR_PACKAGE_CURRENCY = cur;
+            const hidden = document.getElementById('tour_package_currency');
+            if (hidden) {
+                hidden.value = cur;
+            }
+            const bundle = document.getElementById('segmentServicesBundle');
+            if (bundle) {
+                bundle.querySelectorAll('.tour-currency-prefix').forEach(function (span) {
+                    span.textContent = cur;
+                });
+                bundle.querySelectorAll('.input-group-text').forEach(function (span) {
+                    const t = String(span.textContent || '').trim();
+                    if (/^[A-Z]{2,4}$/.test(t)) {
+                        span.textContent = cur;
+                    }
+                });
+            }
+            if (options.refresh !== false && typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                window.refreshTourCurrencyDisplayInBundle();
+            }
+        };
+        window.refreshTourCurrencyDisplayInBundle = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) {
+                return;
+            }
+            const cur = window.getTourCurrency();
+            const reformat = function (el) {
+                if (!el || el.tagName === 'INPUT' || !el.textContent) {
+                    return;
+                }
+                const raw = String(el.textContent).trim();
+                const m = raw.match(/(-?\d[\d,]*\.?\d*)/);
+                if (!m) {
+                    if (/0\.00/.test(raw)) {
+                        el.textContent = cur + ' 0.00';
+                    }
+                    return;
+                }
+                const num = parseFloat(m[1].replace(/,/g, ''));
+                if (isNaN(num)) {
+                    return;
+                }
+                el.textContent = cur + ' ' + num.toFixed(2);
+            };
+            root.querySelectorAll('[id$="TotalPrice"]').forEach(reformat);
+            root.querySelectorAll('span[id$="_total_price_display"], div[id$="_arrival_total_price"], div[id$="_departure_total_price"], div[id$="_other_transport_total_price"]').forEach(reformat);
+            if (typeof displaySelectedHotels === 'function') {
+                displaySelectedHotels();
+            }
+            if (typeof updatePackageTotalPriceDisplay === 'function') {
+                updatePackageTotalPriceDisplay();
+            }
+            let td = 1;
+            const r = window.multiSegmentStayRange;
+            if (r && r.start && r.end && typeof moment !== 'undefined') {
+                const diff = moment(r.end).diff(moment(r.start), 'days') + 1;
+                if (diff > 0) {
+                    td = diff;
+                }
+            }
+            for (let d = 1; d <= td; d++) {
+                if (typeof window.updateArrivalHeader === 'function') {
+                    window.updateArrivalHeader(d);
+                }
+                if (typeof window.updateDepartureHeader === 'function') {
+                    window.updateDepartureHeader(d);
+                }
+                if (typeof window.updateOtherTransportHeader === 'function') {
+                    window.updateOtherTransportHeader(d);
+                }
+                if (typeof window.updateAttractionSectionSummary === 'function') {
+                    window.updateAttractionSectionSummary(d);
+                }
+                if (typeof window.updateGuideSectionSummary === 'function') {
+                    window.updateGuideSectionSummary(d);
+                }
+                if (typeof window.updateRestaurantSectionSummary === 'function') {
+                    window.updateRestaurantSectionSummary(d);
+                }
+            }
+        };
+        window.applyTourCurrencyForSegment = function ($segment) {
+            if (typeof $ === 'undefined' || !$segment || !$segment.length) {
+                return;
+            }
+            const $opt = $segment.find('.city-select option:selected');
+            const country = String($opt.attr('data-country') || '').trim();
+            if (country) {
+                window.setTourPackageCurrency(window.getCurrencyForCountryName(country), { refresh: false });
+                return;
+            }
+            const key = String($segment.data('index'));
+            const st = (window.__segmentServiceState && key) ? window.__segmentServiceState[key] : null;
+            if (st && st.segmentCurrency) {
+                window.setTourPackageCurrency(st.segmentCurrency, { refresh: false });
+            }
         };
         window.formatTourPrice = function (amount) {
             return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
@@ -6791,6 +7223,12 @@
 
             $('#single_city').on('change select2:select select2:clear', function () {
                 window.syncSingleCityToAllServices();
+            });
+            $('#single_city').on('select2:select', function (e) {
+                const country = e.params && e.params.data && e.params.data.country;
+                if (country && typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                }
             });
 
             // Master cities (Multi City mode)
@@ -7470,6 +7908,10 @@
 
                         $svcHost.append($bundle);
                         $bundle.removeClass('d-none');
+
+                        if (typeof window.applyTourCurrencyForSegment === 'function') {
+                            window.applyTourCurrencyForSegment($segment);
+                        }
 
                         if (typeof window.restoreMultiSegmentServiceState === 'function') {
                             window.restoreMultiSegmentServiceState($segment);
@@ -9495,14 +9937,18 @@
 
             // Update all service guest fields to match main guest values
             updateAllServiceGuestFields(male, female, children, infants);
-            
+
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
+
             // Reset hotel section
             resetHotelSection();
-            
+
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
             modal.hide();
-            
+
             console.log('applyMainGuestSelection completed successfully');
         };
         
@@ -10450,7 +10896,12 @@
                     guideDataField: document.getElementById('guide_data') ? document.getElementById('guide_data').value : '',
                     transportDataField: document.getElementById('transport_data') ? document.getElementById('transport_data').value : '',
                     entryPortDataField: document.getElementById('entry_port_data') ? document.getElementById('entry_port_data').value : '',
-                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : ''
+                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : '',
+                    segmentCurrency: (typeof getTourCurrency === 'function' ? getTourCurrency() : (window.TOUR_PACKAGE_CURRENCY || 'SGD')),
+                    segmentCountry: (function () {
+                        const $opt = $segment.find('.city-select option:selected');
+                        return String($opt.attr('data-country') || '').trim();
+                    })()
                 };
             } catch (e) {
                 console.warn('saveMultiSegmentServiceState failed', e);
@@ -10462,6 +10913,9 @@
             const key = String($segment.data('index'));
             if (!key || key === 'undefined') return;
             if (!window.__segmentServiceState) window.__segmentServiceState = {};
+            if (typeof window.applyTourCurrencyForSegment === 'function') {
+                window.applyTourCurrencyForSegment($segment);
+            }
             const st = window.__segmentServiceState[key];
 
             const applyBundleFormState = function (bundleFormState) {
@@ -10621,6 +11075,9 @@
                         }
                     } catch (e) {}
                 }, 0);
+                if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                    window.refreshTourCurrencyDisplayInBundle();
+                }
                 return;
             }
 
@@ -10676,6 +11133,10 @@
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 350);
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 900);
             }
+            if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 0);
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 400);
+            }
         };
 
         // Store the previous country value to detect changes
@@ -10694,6 +11155,9 @@
             }
             
             if (selectedCountry) {
+                if (typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(selectedCountry));
+                }
                 // Get country ID from selected option
                 const countrySelect = document.getElementById('user_country');
                 const selectedOption = countrySelect.options[countrySelect.selectedIndex];
@@ -15096,7 +15560,19 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
                                 updateRoomPriceDisplay(true); // Force update when children count changes
+                            });
+                        }
+                        const infantsInputForHotel = document.getElementById('infants');
+                        if (infantsInputForHotel) {
+                            infantsInputForHotel.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                                updateRoomPriceDisplay(true);
                             });
                         }
                         
@@ -15233,6 +15709,71 @@
             }
         };
         
+        // True when main guest selection includes at least one child or infant
+        window.tourHasChildOrInfantGuests = function () {
+            const children = parseInt(document.getElementById('children')?.value || 0, 10) || 0;
+            const infants = parseInt(document.getElementById('infants')?.value || 0, 10) || 0;
+            return (children + infants) > 0;
+        };
+
+        window.updateHotelChildCheckboxEnabledState = function () {
+            const allow = window.tourHasChildOrInfantGuests();
+            const chkCwb = document.getElementById('chkChildWithBed');
+            const chkCnb = document.getElementById('chkChildWithoutBed');
+            const hint = document.getElementById('hotelChildPricingGuestHint');
+            const section = document.getElementById('hotelChildPricingSection');
+            const msg = 'Please add child first';
+
+            [chkCwb, chkCnb].forEach(function (chk) {
+                if (!chk) return;
+                chk.disabled = !allow;
+                if (!allow) {
+                    chk.checked = false;
+                    chk.title = msg;
+                } else {
+                    chk.removeAttribute('title');
+                }
+            });
+
+            const cwbWrap = document.getElementById('hotelChildWithBedWrap');
+            const cnbWrap = document.getElementById('hotelChildWithoutBedWrap');
+            [cwbWrap, cnbWrap].forEach(function (wrap) {
+                if (!wrap) return;
+                wrap.style.opacity = allow ? '1' : '0.65';
+                wrap.dataset.childPricingLocked = allow ? '0' : '1';
+            });
+
+            const sectionVisible = section && section.style.display !== 'none';
+            const hasChildPriceOption =
+                (cwbWrap && cwbWrap.style.display !== 'none') ||
+                (cnbWrap && cnbWrap.style.display !== 'none');
+            if (hint) {
+                hint.style.display = (sectionVisible && hasChildPriceOption && !allow) ? 'block' : 'none';
+            }
+
+            if (!allow && typeof updateRoomPriceDisplay === 'function') {
+                updateRoomPriceDisplay(true);
+            }
+        };
+
+        if (!window._hotelChildPricingClickBound) {
+            window._hotelChildPricingClickBound = true;
+            document.addEventListener('click', function (e) {
+                const wrap = e.target.closest('#hotelChildWithBedWrap, #hotelChildWithoutBedWrap');
+                if (!wrap || wrap.dataset.childPricingLocked !== '1') return;
+                const chk = wrap.querySelector('input[type="checkbox"]');
+                if (!chk || !chk.disabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const message = 'Please add child first';
+                if (typeof showToastr === 'function') {
+                    showToastr('info', message);
+                } else {
+                    alert(message);
+                }
+            }, true);
+        }
+
         // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
         window.updateHotelChildPricingVisibility = function(roomType) {
             const section = document.getElementById('hotelChildPricingSection');
@@ -15269,6 +15810,9 @@
             if (chkCnb) chkCnb.checked = false;
             if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? formatTourPriceParen(cwbPrice) : '';
             if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? formatTourPriceParen(cnbPrice) : '';
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
         };
 
         // Update bed types for selected room type
@@ -16755,7 +17299,12 @@
                         breakfast: Number(window.lastHotelPriceResult.breakfast_total) || 0,
                         lunch: Number(window.lastHotelPriceResult.lunch_total) || 0,
                         dinner: Number(window.lastHotelPriceResult.dinner_total) || 0,
-                        total: Number(window.lastHotelPriceResult.meal_total) || 0
+                        total: Number(window.lastHotelPriceResult.meal_total) || 0,
+                        breakdown: Array.isArray(window.lastHotelPriceResult.breakdown)
+                            ? window.lastHotelPriceResult.breakdown
+                            : [],
+                        pax: Number(window.lastHotelPriceResult.pax) || hpPax,
+                        nights: Number(window.lastHotelPriceResult.nights) || nightNumbers.length
                     };
                 }
             } catch (e) { console.warn('helperMeals signature check failed:', e); }
@@ -17209,21 +17758,27 @@
                                                 ${hotel.mealPrices ? `
                                                     <div style="font-size: 0.8rem;">
                                                         ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Breakfast:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : (hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.breakfast || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`)}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Breakfast:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'breakfast')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('lunch') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Lunch:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.lunch || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Lunch:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'lunch')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('dinner') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Dinner:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `${getTourCurrency()} ${((hotel.helperMeals.dinner || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `${getTourCurrency()} ${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = ${getTourCurrency()} ${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Dinner:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'dinner')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                     </div>
@@ -17237,132 +17792,11 @@
                                                 <i class="ri-calculator-line me-1"></i>Cost Summary:
                                             </small>
                                             <div style="font-size: 0.8rem;">
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                    <span>Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">
-                                                        ${hotel.weekdayNights || hotel.weekendNights ? (() => {
-                                                            // Calculate actual weekday and weekend prices from breakdown
-                                                            let weekdayPrice = 0;
-                                                            let weekendPrice = 0;
-                                                            
-                                                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
-                                                                // Get actual prices from breakdown
-                                                                const weekdayNight = hotel.priceBreakdown.find(n => !n.isWeekend);
-                                                                const weekendNight = hotel.priceBreakdown.find(n => n.isWeekend);
-                                                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
-                                                                weekendPrice = weekendNight ? weekendNight.price : 0;
-                                                            }
-                                                            
-                                                            let breakdown = '';
-                                                            if (hotel.weekdayNights && weekdayPrice > 0) {
-                                                                breakdown += `${hotel.weekdayNights} weekday @ ${getTourCurrency()} ${weekdayPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
-                                                                breakdown += ' + ';
-                                                            }
-                                                            if (hotel.weekendNights && weekendPrice > 0) {
-                                                                breakdown += `${hotel.weekendNights} weekend @ ${getTourCurrency()} ${weekendPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (breakdown) {
-                                                                breakdown += ` × ${hotel.numberOfRooms} room(s) = `;
-                                                            }
-                                                            return breakdown;
-                                                        })() : ''}
-                                                        ${getTourCurrency()} ${(hotel.price || 0) * hotel.numberOfRooms}
-                                                    </span>
-                                                </div>
-                                                ${hotel.roomPriceManuallyEdited && hotel.customRoomPrice ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Custom Room Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${parseFloat(hotel.customRoomPrice).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Meal Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(() => {
-                                                            if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                                return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                            }
-                                                            // Fallback calculation if function not available
-                                                            let mealCost = 0;
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                            return mealCost;
-                                                        })()}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy && !hotel.roomPriceManuallyEdited ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Extra Bed Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${(parseFloat(hotel.extraBedCost) || (hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child with Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child without Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">${getTourCurrency()} ${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
+                                                ${window.renderHotelCostSummaryBreakdownHtml(hotel, cwbChildren, cnbChildren)}
                                                 <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
                                                 <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
                                                     <span>Total:</span>
-                                                    <span>${getTourCurrency()} ${(() => {
-                                                        const maxOcc = parseInt(hotel.maxOccupancy) || 0;
-                                                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
-                                                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
-                                                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * hotel.numberOfRooms * hotel.totalNights;
-                                                        }
-                                                        let roomAndExtraCost;
-                                                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
-                                                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
-                                                            extraBedCost = 0;
-                                                        } else {
-                                                            const combined = parseFloat(hotel.combinedRoomTotal);
-                                                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
-                                                                ? combined
-                                                                : ((hotel.price || 0) * hotel.numberOfRooms) + extraBedCost;
-                                                            if (Number.isFinite(combined) && combined > 0) {
-                                                                extraBedCost = 0;
-                                                            }
-                                                        }
-                                                        let mealCost = 0;
-                                                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                            mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                        } else {
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (!hotel.supplement_breakfast_included && hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        return (roomAndExtraCost + mealCost + cwbCost + cnbCost).toFixed(2);
-                                                    })()}</span>
+                                                    <span>${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -19281,10 +19715,9 @@
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
+                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
                                                         <option value="">Select city first</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -19294,10 +19727,9 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled>
                                                         <option value="">Select city and pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                             </div>
                                         </div>
@@ -23777,10 +24209,9 @@
                                         <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
+                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
                                             <option value="">Select pickup location</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23790,10 +24221,9 @@
                                         <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled>
                                             <option value="">Select pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23841,8 +24271,7 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location...">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
@@ -27443,19 +27872,17 @@
             // Pickup field (ports)
             const ports = @json($ports ?? []);
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" style="padding-left: 45px;" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
+                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
                     <option value="">Select pickup port</option>
                     ${ports.map(port => `<option value="${port.port_id}">${port.port_name}</option>`).join('')}
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             // Dropoff field (will be populated by AJAX call)
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;" id="entry_dropoff_location_select">
+                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled id="entry_dropoff_location_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created, pickup will be populated by updateAllPortDropdowns');
@@ -27626,18 +28053,16 @@
             
             // Pickup field (hotels, attractions, restaurants - where customer is staying/visiting)
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" style="padding-left: 45px;" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
+                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;" id="exit_dropoff_port_select">
+                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created for exit port, pickup will be populated by updateAllPortDropdowns');

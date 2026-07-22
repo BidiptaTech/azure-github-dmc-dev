@@ -743,10 +743,10 @@ class MailController extends Controller
             'from_name' => $setup->From_Name ?? '',
             'support_email' => $setup->support_email ?? '',
             'support_phone' => $setup->support_phone ?? '',
-            'facebook_url' => '',
-            'twitter_url' => '',
-            'instagram_url' => '',
-            'linkedin_url' => '',
+            'facebook_url' => (int) $user->role_id === 1 ? 'https://facebook.com/yourcompany' : '',
+            'twitter_url' => (int) $user->role_id === 1 ? 'https://twitter.com/yourcompany' : '',
+            'instagram_url' => (int) $user->role_id === 1 ? 'https://instagram.com/yourcompany' : '',
+            'linkedin_url' => (int) $user->role_id === 1 ? 'https://linkedin.com/company/yourcompany' : '',
             'footer_text' => $setup->email_footer ?? '',
         ];
 

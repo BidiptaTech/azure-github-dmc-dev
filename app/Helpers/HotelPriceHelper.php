@@ -210,6 +210,9 @@ class HotelPriceHelper
                     'extra_bed_total' => round($extraBedTotal, 2),
                     'room_price'      => round($roomPrice, 2),
                     'meal_price'      => round($mealPrice, 2),
+                    'breakfast_meal'  => round($nightBreakfast, 2),
+                    'lunch_meal'      => round($nightLunch, 2),
+                    'dinner_meal'     => round($nightDinner, 2),
                     'night_total'     => round($roomPrice + $mealPrice, 2),
                 ];
             }

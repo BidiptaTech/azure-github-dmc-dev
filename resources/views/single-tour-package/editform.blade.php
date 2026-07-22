@@ -1630,6 +1630,7 @@
                                     // Default JSON payloads so controller always receives valid JSON when checked
                                     $childWithBedJson = $childWithBedData ? json_encode($childWithBedData) : json_encode(['enabled' => true]);
                                     $childWithoutBedJson = $childWithoutBedData ? json_encode($childWithoutBedData) : json_encode(['enabled' => true]);
+                                    $allowChildHotelPricing = ((int)($tour->child ?? 0) + (int)($tour->infant ?? 0)) > 0;
                                     
                                     if (!empty($rooms) && is_array($rooms)) {
                                         $firstRoom = $rooms[0] ?? [];
@@ -2570,6 +2571,9 @@
                                                             if (chkCnb) chkCnb.checked = false;
                                                             if (labelCwb) labelCwb.textContent = '';
                                                             if (labelCnb) labelCnb.textContent = '';
+                                                            if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                                window.updateEditHotelChildCheckboxEnabledState();
+                                                            }
                                                             return;
                                                         }
 
@@ -2581,6 +2585,9 @@
                                                             if (chkCnb) chkCnb.checked = false;
                                                             if (labelCwb) labelCwb.textContent = '';
                                                             if (labelCnb) labelCnb.textContent = '';
+                                                            if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                                window.updateEditHotelChildCheckboxEnabledState();
+                                                            }
                                                             return;
                                                         }
 
@@ -2614,6 +2621,10 @@
                                                                 // Restore initial checked state from PHP
                                                                 chkCnb.checked = true;
                                                             }
+                                                        }
+
+                                                        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                            window.updateEditHotelChildCheckboxEnabledState();
                                                         }
                                                     }
                                                     
@@ -3223,6 +3234,7 @@
                                                         id="child_with_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithBedJson }}"
                                                         {{ $childWithBedEnabled ? 'checked' : '' }}
+                                                        @if(!$allowChildHotelPricing) disabled @endif
                                                         onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_with_bed_{{ $hotelOrder->booking_id }}">
@@ -3243,12 +3255,18 @@
                                                         id="child_without_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithoutBedJson }}"
                                                         {{ $childWithoutBedEnabled ? 'checked' : '' }}
+                                                        @if(!$allowChildHotelPricing) disabled @endif
                                                         onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_without_bed_{{ $hotelOrder->booking_id }}">
                                                         Child without bed
                                                     </label>
                                                 </div>
+                                            </div>
+                                            <div class="col-12 hotel-child-pricing-guest-hint-wrap" id="hotel_child_pricing_guest_hint_{{ $hotelOrder->booking_id }}" style="display: none;">
+                                                <small class="text-muted" style="font-size: 0.75rem;">
+                                                    <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                                </small>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2">
@@ -6594,16 +6612,21 @@
                                     <div class="col-6" id="child_with_bed_wrap_modal" style="display: none;">
                                         <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-smile-line me-1 text-info"></i>Child w/ bed<small class="text-muted" id="child_with_bed_price_label_modal"></small></label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="child_with_bed" id="child_with_bed_modal" onchange="updateHotelModalPrice();">
+                                            <input class="form-check-input" type="checkbox" name="child_with_bed" id="child_with_bed_modal" disabled onchange="updateHotelModalPrice();">
                                             <label class="form-check-label" for="child_with_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
                                     </div>
                                     <div class="col-6" id="child_without_bed_wrap_modal" style="display: none;">
                                         <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-line me-1 text-warning"></i>Child no bed<small class="text-muted" id="child_without_bed_price_label_modal"></small></label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="child_without_bed" id="child_without_bed_modal" onchange="updateHotelModalPrice();">
+                                            <input class="form-check-input" type="checkbox" name="child_without_bed" id="child_without_bed_modal" disabled onchange="updateHotelModalPrice();">
                                             <label class="form-check-label" for="child_without_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
+                                    </div>
+                                    <div class="col-12 hotel-child-pricing-guest-hint-wrap" id="hotel_child_pricing_guest_hint_modal" style="display: none;">
+                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                            <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                        </small>
                                     </div>
                                     <div class="col-6">
                                         <label for="number_of_rooms_modal" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Rooms</label>
@@ -19798,6 +19821,109 @@
         });
     };
 
+    // True when tour guest selection includes at least one child or infant
+    window.tourHasChildOrInfantGuests = function () {
+        const children = parseInt(document.getElementById('children')?.value || 0, 10) || 0;
+        const infants = parseInt(document.getElementById('infants')?.value || 0, 10) || 0;
+        return (children + infants) > 0;
+    };
+
+    window.updateEditHotelChildCheckboxEnabledState = function () {
+        const allow = window.tourHasChildOrInfantGuests();
+        const msg = 'Please add child first';
+
+        document.querySelectorAll('input[type="checkbox"][id^="child_with_bed"], input[type="checkbox"][id^="child_without_bed"]').forEach(function (chk) {
+            const wrapId = chk.id
+                .replace(/^child_with_bed_/, 'child_with_bed_wrap_')
+                .replace(/^child_without_bed_/, 'child_without_bed_wrap_');
+            const wrap = document.getElementById(wrapId);
+
+            chk.disabled = !allow;
+            if (!allow) {
+                chk.checked = false;
+                chk.title = msg;
+            } else {
+                chk.removeAttribute('title');
+            }
+
+            if (wrap) {
+                wrap.style.opacity = allow ? '1' : '0.65';
+                wrap.dataset.childPricingLocked = allow ? '0' : '1';
+            }
+        });
+
+        document.querySelectorAll('[id^="hotel_child_pricing_guest_hint_"]').forEach(function (hint) {
+            const suffix = hint.id.replace('hotel_child_pricing_guest_hint_', '');
+            let cwb = null;
+            let cnb = null;
+            if (suffix === 'modal') {
+                cwb = document.getElementById('child_with_bed_wrap_modal');
+                cnb = document.getElementById('child_without_bed_wrap_modal');
+            } else {
+                cwb = document.getElementById('child_with_bed_wrap_' + suffix);
+                cnb = document.getElementById('child_without_bed_wrap_' + suffix);
+            }
+            const visible = (cwb && cwb.style.display !== 'none') || (cnb && cnb.style.display !== 'none');
+            hint.style.display = (!allow && visible) ? 'block' : 'none';
+        });
+
+        if (!allow) {
+            if (typeof updateHotelModalPrice === 'function') {
+                try { updateHotelModalPrice(); } catch (e) { /* ignore */ }
+            }
+            document.querySelectorAll('input[type="checkbox"][id^="child_with_bed_"]').forEach(function (chk) {
+                if (chk.id === 'child_with_bed_modal') return;
+                const bookingId = chk.id.replace('child_with_bed_', '');
+                const fn = window['updateHotelPriceGrid_' + bookingId];
+                if (typeof fn === 'function') {
+                    try { fn(true); } catch (e) { /* ignore */ }
+                }
+            });
+        }
+    };
+
+    if (!window._editHotelChildPricingClickBound) {
+        window._editHotelChildPricingClickBound = true;
+        document.addEventListener('click', function (e) {
+            const wrap = e.target.closest('[id^="child_with_bed_wrap_"], [id^="child_without_bed_wrap_"]');
+            if (!wrap || wrap.dataset.childPricingLocked !== '1') return;
+            const chk = wrap.querySelector('input[type="checkbox"]');
+            if (!chk || !chk.disabled) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const message = 'Please add child first';
+            if (typeof showNotification === 'function') {
+                showNotification(message, 'info');
+            } else if (typeof showToastr === 'function') {
+                showToastr('info', message);
+            } else {
+                alert(message);
+            }
+        }, true);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
+        }
+        const childrenInput = document.getElementById('children');
+        const infantsInput = document.getElementById('infants');
+        if (childrenInput) {
+            childrenInput.addEventListener('change', function () {
+                if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                    window.updateEditHotelChildCheckboxEnabledState();
+                }
+            });
+        }
+        if (infantsInput) {
+            infantsInput.addEventListener('change', function () {
+                if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                    window.updateEditHotelChildCheckboxEnabledState();
+                }
+            });
+        }
+    });
+
     // Function to show/hide child pricing checkboxes based on room data
     function updateModalChildPricingVisibility(room) {
         const childWithBedWrap = document.getElementById('child_with_bed_wrap_modal');
@@ -19841,6 +19967,10 @@
                 const checkbox = document.getElementById('child_without_bed_modal');
                 if (checkbox) checkbox.checked = false;
             }
+        }
+        
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
         }
     }
     
@@ -22739,6 +22869,10 @@
         updateTourGuestSummary();
         if (typeof window.syncEditFOCAfterGuestModal === 'function') {
             try { window.syncEditFOCAfterGuestModal(); } catch (e) { /* ignore */ }
+        }
+
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
         }
 
         // Close modal

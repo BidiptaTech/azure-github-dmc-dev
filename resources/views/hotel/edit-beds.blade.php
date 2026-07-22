@@ -107,9 +107,17 @@
                             <!-- extra bed price -->
                             <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
                                 <label for="extra_bed_price" class="form-label"><strong>Extra Bed
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="extra_bed_price" id="extra_bed_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->extra_bed_price }}">
+                            </div>
+                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
+                                <label for="extra_bed_cost_price" class="form-label"><strong>Extra Bed
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="extra_bed_cost_price" id="extra_bed_cost_price"
+                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->extra_bed_cost_price }}">
                             </div>
 
                             <!-- Adult Count -->
@@ -157,9 +165,17 @@
                             <!-- baby cot price -->
                             <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
                                 <label for="baby_cot_price" class="form-label"><strong>Baby Cot
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="baby_cot_price" id="baby_cot_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->baby_cot_price }}">
+                            </div>
+                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
+                                <label for="baby_cot_cost_price" class="form-label"><strong>Baby Cot
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="baby_cot_cost_price" id="baby_cot_cost_price"
+                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->baby_cot_cost_price }}">
                             </div>
                             <hr>
                         </div>
@@ -247,16 +263,25 @@
 <!-- baby cot price -->
 <script>
     const bed = @json($hotelBed);
-    // Function to toggle the visibility of the baby cot price field
+    // Function to toggle the visibility of the baby cot price fields
     const babyCotDropdown = document.getElementById("baby_cot");
-    const babyCotPriceField = document.querySelector(`.baby_cot_price`);
-    const babyCotPriceInput = babyCotPriceField.querySelector('input');
+    const babyCotPriceFields = document.querySelectorAll(`.baby_cot_price`);
     const toggleBabyCotPrice = () => {
-        if (babyCotDropdown.value === "1") {
-            babyCotPriceField.style.display = "block"; // Show price field if "Yes" is selected
-            babyCotPriceInput.value = bed.baby_cot_price;
-        } else {
-            babyCotPriceField.style.display = "none"; // Hide price field if "No" or nothing is selected
+        const sellInput = document.getElementById('baby_cot_price');
+        const costInput = document.getElementById('baby_cot_cost_price');
+        const isYes = babyCotDropdown.value === "1";
+        babyCotPriceFields.forEach(function(field) {
+            field.style.display = isYes ? "block" : "none";
+        });
+        if (sellInput) {
+            sellInput.required = isYes;
+            if (isYes) sellInput.value = bed.baby_cot_price ?? '';
+            else sellInput.value = "";
+        }
+        if (costInput) {
+            costInput.required = isYes;
+            if (isYes) costInput.value = bed.baby_cot_cost_price ?? '';
+            else costInput.value = "";
         }
     };
 
@@ -278,22 +303,28 @@
     document.addEventListener("DOMContentLoaded", () => {
         const extraBedSelect = document.getElementById('extra_bed');
         const extraBedTypeDiv = document.querySelector('.extra_bed_type');
-        const extraBedPriceDiv = document.querySelector('.extra_bed_price');
-        const extraBedPriceInput = extraBedPriceDiv.querySelector('input');
+        const extraBedPriceDivs = document.querySelectorAll('.extra_bed_price');
         const bed = @json($hotelBed);
 
         function toggleExtraBedField() {
+            const typeEl = document.getElementById('extra_bed_type');
+            const sellInput = document.getElementById('extra_bed_price');
+            const costInput = document.getElementById('extra_bed_cost_price');
+            const isYes = extraBedSelect.value === "1";
 
-
-            if (extraBedSelect.value === "1") {
-                extraBedTypeDiv.style.display = "block";
-                extraBedPriceDiv.style.display = "block";
-                extraBedPriceInput.value = bed.extra_bed_price;
-            } else {
-                extraBedTypeDiv.style.display = "none";
-                extraBedPriceDiv.style.display = "none";
-                document.getElementById('extra_bed_type').value = ""; // Clear the type field
-                document.getElementById('extra_bed_price').value = ""; // Clear the price field
+            if (extraBedTypeDiv) extraBedTypeDiv.style.display = isYes ? "block" : "none";
+            extraBedPriceDivs.forEach(function(div) { div.style.display = isYes ? "block" : "none"; });
+            if (typeEl) {
+                typeEl.required = isYes;
+                if (!isYes) typeEl.value = "";
+            }
+            if (sellInput) {
+                sellInput.required = isYes;
+                sellInput.value = isYes ? (bed.extra_bed_price ?? '') : "";
+            }
+            if (costInput) {
+                costInput.required = isYes;
+                costInput.value = isYes ? (bed.extra_bed_cost_price ?? '') : "";
             }
         }
 

@@ -58,6 +58,13 @@ class RoomsImport
                 continue;
             }
 
+            // Pad/truncate data to match header length for safer combine
+            if (count($data) < count($header)) {
+                $data = array_pad($data, count($header), '');
+            } elseif (count($data) > count($header)) {
+                $data = array_slice($data, 0, count($header));
+            }
+
             // Combine header with data to create associative array
             $row = array_combine($header, $data);
             
@@ -147,27 +154,7 @@ class RoomsImport
                 // For Admin: Update the original room
                 if (in_array($this->authUser->role_id, [1, 20])) {
                     // Admin updates their own room
-                    $room->no_of_room = $row['no_of_room'] ?? $room->no_of_room;
-                    $room->weekday_price = $row['weekday_price'];
-                    $room->weekend_price = $row['weekend_price'];
-                    $room->double_weekday_price = $row['double_weekday_price'];
-                    $room->double_weekend_price = $row['double_weekend_price'];
-
-                    // Update meal options
-                    $room->breakfast = isset($row['breakfast']) && $row['breakfast'] == 1 ? 1 : 0;
-                    $room->breakfast_type = $room->breakfast ? ($row['breakfast_type'] ?? null) : null;
-                    $room->breakfast_price = $room->breakfast ? ($row['breakfast_price'] ?? null) : null;
-
-                    $room->lunch = isset($row['lunch']) && $row['lunch'] == 1 ? 1 : 0;
-                    $room->lunch_type = $room->lunch ? ($row['lunch_type'] ?? null) : null;
-                    $room->lunch_price = $room->lunch ? ($row['lunch_price'] ?? null) : null;
-
-                    $room->dinner = isset($row['dinner']) && $row['dinner'] == 1 ? 1 : 0;
-                    $room->dinner_type = $room->dinner ? ($row['dinner_type'] ?? null) : null;
-                    $room->dinner_price = $room->dinner ? ($row['dinner_price'] ?? null) : null;
-
-                    $room->breakfast_included = isset($row['breakfast_included']) && $row['breakfast_included'] == 1 ? 1 : 0;
-
+                    $this->applyPricingFromRow($room, $row);
                     $room->save();
                 } else {
                     // For DMC: Create NEW row (don't update admin room)
@@ -180,26 +167,7 @@ class RoomsImport
 
                     if ($existingDmcRoom) {
                         // DMC already has their own room, update it
-                        $existingDmcRoom->no_of_room = $row['no_of_room'] ?? $existingDmcRoom->no_of_room;
-                        $existingDmcRoom->weekday_price = $row['weekday_price'];
-                        $existingDmcRoom->weekend_price = $row['weekend_price'];
-                        $existingDmcRoom->double_weekday_price = $row['double_weekday_price'];
-                        $existingDmcRoom->double_weekend_price = $row['double_weekend_price'];
-
-                        $existingDmcRoom->breakfast = isset($row['breakfast']) && $row['breakfast'] == 1 ? 1 : 0;
-                        $existingDmcRoom->breakfast_type = $existingDmcRoom->breakfast ? ($row['breakfast_type'] ?? null) : null;
-                        $existingDmcRoom->breakfast_price = $existingDmcRoom->breakfast ? ($row['breakfast_price'] ?? null) : null;
-
-                        $existingDmcRoom->lunch = isset($row['lunch']) && $row['lunch'] == 1 ? 1 : 0;
-                        $existingDmcRoom->lunch_type = $existingDmcRoom->lunch ? ($row['lunch_type'] ?? null) : null;
-                        $existingDmcRoom->lunch_price = $existingDmcRoom->lunch ? ($row['lunch_price'] ?? null) : null;
-
-                        $existingDmcRoom->dinner = isset($row['dinner']) && $row['dinner'] == 1 ? 1 : 0;
-                        $existingDmcRoom->dinner_type = $existingDmcRoom->dinner ? ($row['dinner_type'] ?? null) : null;
-                        $existingDmcRoom->dinner_price = $existingDmcRoom->dinner ? ($row['dinner_price'] ?? null) : null;
-
-                        $existingDmcRoom->breakfast_included = isset($row['breakfast_included']) && $row['breakfast_included'] == 1 ? 1 : 0;
-
+                        $this->applyPricingFromRow($existingDmcRoom, $row);
                         $existingDmcRoom->save();
                     } else {
                         // DMC doesn't have their own room yet - CREATE NEW ROW
@@ -223,6 +191,51 @@ class RoomsImport
         return $this->getResults();
     }
 
+    /**
+     * Apply sell + cost pricing and meal fields from a CSV row onto a room model.
+     */
+    private function applyPricingFromRow(Room $room, array $row): void
+    {
+        $room->no_of_room = $row['no_of_room'] ?? $room->no_of_room;
+        $room->weekday_price = $row['weekday_price'];
+        $room->weekend_price = $row['weekend_price'];
+        $room->double_weekday_price = $row['double_weekday_price'];
+        $room->double_weekend_price = $row['double_weekend_price'];
+        $room->weekday_cost_price = $this->nullableNumeric($row['weekday_cost_price'] ?? null);
+        $room->weekend_cost_price = $this->nullableNumeric($row['weekend_cost_price'] ?? null);
+        $room->double_weekday_cost_price = $this->nullableNumeric($row['double_weekday_cost_price'] ?? null);
+        $room->double_weekend_cost_price = $this->nullableNumeric($row['double_weekend_cost_price'] ?? null);
+        $room->child_with_bed = $this->nullableNumeric($row['child_with_bed'] ?? null);
+        $room->child_with_bed_cost = $this->nullableNumeric($row['child_with_bed_cost'] ?? null);
+        $room->child_without_bed = $this->nullableNumeric($row['child_without_bed'] ?? null);
+        $room->child_without_bed_cost = $this->nullableNumeric($row['child_without_bed_cost'] ?? null);
+
+        $room->breakfast = isset($row['breakfast']) && $row['breakfast'] == 1 ? 1 : 0;
+        $room->breakfast_type = $room->breakfast ? ($row['breakfast_type'] ?? null) : null;
+        $room->breakfast_price = $room->breakfast ? ($row['breakfast_price'] ?? null) : null;
+        $room->breakfast_cost_price = $room->breakfast ? $this->nullableNumeric($row['breakfast_cost_price'] ?? null) : null;
+
+        $room->lunch = isset($row['lunch']) && $row['lunch'] == 1 ? 1 : 0;
+        $room->lunch_type = $room->lunch ? ($row['lunch_type'] ?? null) : null;
+        $room->lunch_price = $room->lunch ? ($row['lunch_price'] ?? null) : null;
+        $room->lunch_cost_price = $room->lunch ? $this->nullableNumeric($row['lunch_cost_price'] ?? null) : null;
+
+        $room->dinner = isset($row['dinner']) && $row['dinner'] == 1 ? 1 : 0;
+        $room->dinner_type = $room->dinner ? ($row['dinner_type'] ?? null) : null;
+        $room->dinner_price = $room->dinner ? ($row['dinner_price'] ?? null) : null;
+        $room->dinner_cost_price = $room->dinner ? $this->nullableNumeric($row['dinner_cost_price'] ?? null) : null;
+
+        $room->breakfast_included = isset($row['breakfast_included']) && $row['breakfast_included'] == 1 ? 1 : 0;
+    }
+
+    private function nullableNumeric($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return is_numeric($value) ? $value : null;
+    }
+
     private function validateMealOptions($row, $rowNumber)
     {
         // Breakfast validation
@@ -233,8 +246,11 @@ class RoomsImport
             if (!in_array($row['breakfast_type'], ['Buffet', 'Set Menu'])) {
                 return "Row {$rowNumber}: Breakfast type must be 'Buffet' or 'Set Menu'.";
             }
-            if (empty($row['breakfast_price']) || !is_numeric($row['breakfast_price']) || $row['breakfast_price'] < 0) {
-                return "Row {$rowNumber}: Valid breakfast price is required when breakfast is included.";
+            if ($row['breakfast_price'] === '' || $row['breakfast_price'] === null || !is_numeric($row['breakfast_price']) || $row['breakfast_price'] < 0) {
+                return "Row {$rowNumber}: Valid breakfast sell price is required when breakfast is included.";
+            }
+            if (isset($row['breakfast_cost_price']) && $row['breakfast_cost_price'] !== '' && (!is_numeric($row['breakfast_cost_price']) || $row['breakfast_cost_price'] < 0)) {
+                return "Row {$rowNumber}: Breakfast cost price must be a valid number >= 0.";
             }
         }
 
@@ -246,8 +262,11 @@ class RoomsImport
             if (!in_array($row['lunch_type'], ['Buffet', 'Set Menu'])) {
                 return "Row {$rowNumber}: Lunch type must be 'Buffet' or 'Set Menu'.";
             }
-            if (empty($row['lunch_price']) || !is_numeric($row['lunch_price']) || $row['lunch_price'] < 0) {
-                return "Row {$rowNumber}: Valid lunch price is required when lunch is included.";
+            if ($row['lunch_price'] === '' || $row['lunch_price'] === null || !is_numeric($row['lunch_price']) || $row['lunch_price'] < 0) {
+                return "Row {$rowNumber}: Valid lunch sell price is required when lunch is included.";
+            }
+            if (isset($row['lunch_cost_price']) && $row['lunch_cost_price'] !== '' && (!is_numeric($row['lunch_cost_price']) || $row['lunch_cost_price'] < 0)) {
+                return "Row {$rowNumber}: Lunch cost price must be a valid number >= 0.";
             }
         }
 
@@ -259,8 +278,11 @@ class RoomsImport
             if (!in_array($row['dinner_type'], ['Buffet', 'Set Menu'])) {
                 return "Row {$rowNumber}: Dinner type must be 'Buffet' or 'Set Menu'.";
             }
-            if (empty($row['dinner_price']) || !is_numeric($row['dinner_price']) || $row['dinner_price'] < 0) {
-                return "Row {$rowNumber}: Valid dinner price is required when dinner is included.";
+            if ($row['dinner_price'] === '' || $row['dinner_price'] === null || !is_numeric($row['dinner_price']) || $row['dinner_price'] < 0) {
+                return "Row {$rowNumber}: Valid dinner sell price is required when dinner is included.";
+            }
+            if (isset($row['dinner_cost_price']) && $row['dinner_cost_price'] !== '' && (!is_numeric($row['dinner_cost_price']) || $row['dinner_cost_price'] < 0)) {
+                return "Row {$rowNumber}: Dinner cost price must be a valid number >= 0.";
             }
         }
 
@@ -279,10 +301,21 @@ class RoomsImport
             'weekend_price' => 'required|numeric|min:0',
             'double_weekday_price' => 'required|numeric|min:0',
             'double_weekend_price' => 'required|numeric|min:0',
+            'weekday_cost_price' => 'nullable|numeric|min:0',
+            'weekend_cost_price' => 'nullable|numeric|min:0',
+            'double_weekday_cost_price' => 'nullable|numeric|min:0',
+            'double_weekend_cost_price' => 'nullable|numeric|min:0',
+            'child_with_bed' => 'nullable|numeric|min:0',
+            'child_with_bed_cost' => 'nullable|numeric|min:0',
+            'child_without_bed' => 'nullable|numeric|min:0',
+            'child_without_bed_cost' => 'nullable|numeric|min:0',
             'breakfast' => 'nullable|in:0,1',
             'lunch' => 'nullable|in:0,1',
             'dinner' => 'nullable|in:0,1',
             'breakfast_included' => 'nullable|in:0,1',
+            'breakfast_cost_price' => 'nullable|numeric|min:0',
+            'lunch_cost_price' => 'nullable|numeric|min:0',
+            'dinner_cost_price' => 'nullable|numeric|min:0',
         ];
     }
 
@@ -295,18 +328,18 @@ class RoomsImport
             'room_type.string' => 'Room Type must be a string.',
             'no_of_room.required' => 'Number of Rooms is required.',
             'dimension.required' => 'Room Dimension is required.',
-            'weekday_price.required' => 'Weekday price is required.',
-            'weekday_price.numeric' => 'Weekday price must be a number.',
-            'weekday_price.min' => 'Weekday price must be at least 0.',
-            'weekend_price.required' => 'Weekend price is required.',
-            'weekend_price.numeric' => 'Weekend price must be a number.',
-            'weekend_price.min' => 'Weekend price must be at least 0.',
-            'double_weekday_price.required' => 'Double weekday price is required.',
-            'double_weekday_price.numeric' => 'Double weekday price must be a number.',
-            'double_weekday_price.min' => 'Double weekday price must be at least 0.',
-            'double_weekend_price.required' => 'Double weekend price is required.',
-            'double_weekend_price.numeric' => 'Double weekend price must be a number.',
-            'double_weekend_price.min' => 'Double weekend price must be at least 0.',
+            'weekday_price.required' => 'Weekday sell price is required.',
+            'weekday_price.numeric' => 'Weekday sell price must be a number.',
+            'weekday_price.min' => 'Weekday sell price must be at least 0.',
+            'weekend_price.required' => 'Weekend sell price is required.',
+            'weekend_price.numeric' => 'Weekend sell price must be a number.',
+            'weekend_price.min' => 'Weekend sell price must be at least 0.',
+            'double_weekday_price.required' => 'Double weekday sell price is required.',
+            'double_weekday_price.numeric' => 'Double weekday sell price must be a number.',
+            'double_weekday_price.min' => 'Double weekday sell price must be at least 0.',
+            'double_weekend_price.required' => 'Double weekend sell price is required.',
+            'double_weekend_price.numeric' => 'Double weekend sell price must be a number.',
+            'double_weekend_price.min' => 'Double weekend sell price must be at least 0.',
         ];
     }
 
@@ -343,30 +376,11 @@ class RoomsImport
         $newRoom = new Room();
         $newRoom->hotel_id = $originalRoom->hotel_id;
         $newRoom->room_type = $originalRoom->room_type;
-        $newRoom->no_of_room = $row['no_of_room'] ?? $originalRoom->no_of_room; // DMC can set their own no_of_room
         $newRoom->dimension = $originalRoom->dimension;
         $newRoom->children_price = $originalRoom->children_price;
         
-        // Set DMC's custom prices from CSV
-        $newRoom->weekday_price = $row['weekday_price'];
-        $newRoom->weekend_price = $row['weekend_price'];
-        $newRoom->double_weekday_price = $row['double_weekday_price'];
-        $newRoom->double_weekend_price = $row['double_weekend_price'];
-
-        // Set DMC's meal options from CSV
-        $newRoom->breakfast = isset($row['breakfast']) && $row['breakfast'] == 1 ? 1 : 0;
-        $newRoom->breakfast_type = $newRoom->breakfast ? ($row['breakfast_type'] ?? null) : null;
-        $newRoom->breakfast_price = $newRoom->breakfast ? ($row['breakfast_price'] ?? null) : null;
-
-        $newRoom->lunch = isset($row['lunch']) && $row['lunch'] == 1 ? 1 : 0;
-        $newRoom->lunch_type = $newRoom->lunch ? ($row['lunch_type'] ?? null) : null;
-        $newRoom->lunch_price = $newRoom->lunch ? ($row['lunch_price'] ?? null) : null;
-
-        $newRoom->dinner = isset($row['dinner']) && $row['dinner'] == 1 ? 1 : 0;
-        $newRoom->dinner_type = $newRoom->dinner ? ($row['dinner_type'] ?? null) : null;
-        $newRoom->dinner_price = $newRoom->dinner ? ($row['dinner_price'] ?? null) : null;
-
-        $newRoom->breakfast_included = isset($row['breakfast_included']) && $row['breakfast_included'] == 1 ? 1 : 0;
+        // Set DMC's custom prices from CSV (sell + cost)
+        $this->applyPricingFromRow($newRoom, $row);
 
         // Set ownership to parent DMC (same when upload is done by product head / PM / assistant)
         $newRoom->created_by = $dmcOwnerUserId;
