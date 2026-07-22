@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
+use App\Models\EmailsSetup;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use App\Models\Invoice;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Config;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -1529,6 +1531,10 @@ class CommonHelper
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
+
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
             // Determine which template to use based on the type
             $template = 'mails.' . $type;
             if (!view()->exists($template)) {
@@ -1599,6 +1605,9 @@ class CommonHelper
                 return 'Hotel email is not set or invalid';
             }
 
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
             $escapedBody = nl2br(e($body));
             $safeSubject = e($subject);
 
@@ -1635,6 +1644,80 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ]);
 
             return 'Email sending failed: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Apply SMTP/from settings from emails_setup for the given (or current) DMC.
+     * Returns the setup row when found, otherwise null.
+     */
+    public static function applyEmailsSetupMailConfig($dmcId = null): ?EmailsSetup
+    {
+        try {
+            if (empty($dmcId)) {
+                $user = Auth::user();
+                $dmcId = $user ? self::getDmcId($user) : null;
+                if ($user && (int) $user->role_id === 1) {
+                    $dmcId = 1;
+                }
+            }
+
+            if (empty($dmcId)) {
+                return null;
+            }
+
+            $setup = EmailsSetup::where('dmcId', $dmcId)->first();
+            if (!$setup || empty($setup->SMTP_Host)) {
+                return $setup;
+            }
+
+            self::applyRuntimeMailConfig([
+                'host' => $setup->SMTP_Host,
+                'port' => $setup->SMTP_Port,
+                'encryption' => $setup->SMTP_Encrypt,
+                'username' => $setup->SMTP_User,
+                'password' => $setup->SMTP_Pass,
+                'from_email' => $setup->From_Email,
+                'from_name' => $setup->From_Name,
+            ]);
+
+            return $setup;
+        } catch (\Exception $e) {
+            Log::warning('Failed to apply emails_setup mail config', [
+                'dmcId' => $dmcId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Override Laravel SMTP mailer config at runtime and purge cached mailer.
+     */
+    public static function applyRuntimeMailConfig(array $config): void
+    {
+        $encryption = strtolower((string) ($config['encryption'] ?? 'tls'));
+        if ($encryption === 'none' || $encryption === '') {
+            $encryption = null;
+        }
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp.transport', 'smtp');
+        Config::set('mail.mailers.smtp.host', $config['host'] ?? null);
+        Config::set('mail.mailers.smtp.port', (int) ($config['port'] ?? 587));
+        Config::set('mail.mailers.smtp.encryption', $encryption);
+        Config::set('mail.mailers.smtp.username', $config['username'] ?? null);
+        Config::set('mail.mailers.smtp.password', $config['password'] ?? null);
+
+        if (!empty($config['from_email'])) {
+            Config::set('mail.from.address', $config['from_email']);
+            Config::set('mail.from.name', $config['from_name'] ?? config('app.name'));
+        }
+
+        try {
+            app('mail.manager')->purge('smtp');
+        } catch (\Throwable $e) {
+            // Mail manager may not be bound in some contexts.
         }
     }
 
@@ -2136,6 +2219,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         array $ccEmails = [],
         array $bccEmails = []
     ): void {
+        // Use DMC-specific SMTP from emails_setup (not .env)
+        self::applyEmailsSetupMailConfig();
+
         if ($emailUuid !== null && $emailUuid !== '') {
             $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
             $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);

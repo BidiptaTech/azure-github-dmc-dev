@@ -122,6 +122,7 @@
                             </div>
 
                             <!-- Social Media Links -->
+                            @if(auth()->user()->role_id == 1)
                             <div class="row mb-4">
                                 <div class="col-12">
                                     <div class="card shadow-none bg-light border">
@@ -159,6 +160,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
 
                             <!-- Email Footer Text -->
                             <div class="row mb-4">
@@ -179,6 +181,7 @@
                             </div>
 
                             <!-- Test Email Configuration -->
+                            @if(auth()->user()->role_id == 1)
                             <div class="row mb-4">
                                 <div class="col-12">
                                     <div class="card shadow-none bg-light border">
@@ -204,6 +207,7 @@
                                     </div>
                                 </div>
                             </div>
+                            @endif
 
                             <!-- Submit Button -->
                             <div class="row">
@@ -223,6 +227,7 @@
 @endsection
 
 @section('scripts')
+@if(auth()->user()->role_id == 1)
 <script>
     $(document).ready(function() {
         // Send test email functionality
@@ -282,4 +287,5 @@
         });
     });
 </script>
+@endif
 @endsection
