@@ -1251,7 +1251,7 @@
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
                                     <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
+                                        <span class="input-group-text tour-currency-prefix" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
 
                                         <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
@@ -6034,6 +6034,12 @@
                             fd.append('entry_port_data', payload.entry_port_data || '');
                             fd.append('exit_port_data', payload.exit_port_data || '');
                             fd.append('total_price', payload.total_price || 0);
+                            if (payload.country) {
+                                fd.append('country', payload.country);
+                            }
+                            if (payload.currency) {
+                                fd.append('currency', payload.currency);
+                            }
                             const resp = await fetch(storeOrdersUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
                             if (!resp.ok) { const txt = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + txt); }
                             return await resp.json();
@@ -6108,7 +6114,14 @@
                                 const hasAny = !!(st.hotelDataField || st.attractionDataField || st.restaurantDataField ||
                                                 st.guideDataField || st.transportDataField || st.entryPortDataField || st.exitPortDataField);
 
-                                segmentInfos.push({ key, cityId, cityLabel, segCountry, stayFrom, stayTo, st, hasAny });
+                                const segCurrency = (st.segmentCurrency
+                                    || (segCountry && typeof window.getCurrencyForCountryName === 'function'
+                                        ? window.getCurrencyForCountryName(segCountry)
+                                        : '')
+                                    || (typeof getTourCurrency === 'function' ? getTourCurrency() : '')
+                                    || '').toString().trim().toUpperCase();
+
+                                segmentInfos.push({ key, cityId, cityLabel, segCountry, segCurrency, stayFrom, stayTo, st, hasAny });
 
                                 // Build CSV for the single Tour record
                                 if (cityLabel) {
@@ -6215,7 +6228,9 @@
                                         transport_data: forceServicesToSegmentStartDate(seg.st.transportDataField || '', seg.stayFrom),
                                         entry_port_data: forceServicesToSegmentStartDate(seg.st.entryPortDataField || '', seg.stayFrom),
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
-                                        total_price: 0
+                                        total_price: 0,
+                                        country: seg.segCountry || '',
+                                        currency: seg.segCurrency || ''
                                     });
 
                                     if (!result || !result.success) {
@@ -6362,6 +6377,13 @@
                         }
 
                         try {
+                            const singleOrderCountry = (typeof country !== 'undefined' && country)
+                                ? country
+                                : (document.getElementById('user_country')?.value || '');
+                            const singleOrderCurrency = (typeof getTourCurrency === 'function')
+                                ? getTourCurrency()
+                                : (document.getElementById('tour_package_currency')?.value || '');
+
                             const result = await postServiceOrders({
                                 tour_id: tourId,
                                 hotel_data: hotelData,
@@ -6371,7 +6393,9 @@
                                 transport_data: transportData,
                                 entry_port_data: entryPortData,
                                 exit_port_data: exitPortData,
-                                total_price: totalPrice
+                                total_price: totalPrice,
+                                country: singleOrderCountry,
+                                currency: singleOrderCurrency
                             });
 
                             if (result.success) {
@@ -6807,11 +6831,135 @@
     <!-- Select2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
+    @php
+        $countryCurrencyMap = $countries
+            ->filter(fn ($c) => !empty($c->name) && !empty($c->currency))
+            ->mapWithKeys(fn ($c) => [$c->name => strtoupper(trim((string) $c->currency))]);
+    @endphp
     <script>
         window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+        window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
         window.getTourCurrency = function () {
             const el = document.getElementById('tour_package_currency');
             return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+        };
+        window.getCurrencyForCountryName = function (countryName) {
+            const name = String(countryName || '').trim();
+            if (!name) {
+                return window.getTourCurrency();
+            }
+            const map = window.COUNTRY_CURRENCY_MAP || {};
+            if (map[name]) {
+                return map[name];
+            }
+            const lower = name.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return map[key];
+                }
+            }
+            return window.TOUR_PACKAGE_CURRENCY || 'SGD';
+        };
+        window.setTourPackageCurrency = function (code, options) {
+            options = options || {};
+            const cur = String(code || '').trim().toUpperCase() || 'SGD';
+            window.TOUR_PACKAGE_CURRENCY = cur;
+            const hidden = document.getElementById('tour_package_currency');
+            if (hidden) {
+                hidden.value = cur;
+            }
+            const bundle = document.getElementById('segmentServicesBundle');
+            if (bundle) {
+                bundle.querySelectorAll('.tour-currency-prefix').forEach(function (span) {
+                    span.textContent = cur;
+                });
+                bundle.querySelectorAll('.input-group-text').forEach(function (span) {
+                    const t = String(span.textContent || '').trim();
+                    if (/^[A-Z]{2,4}$/.test(t)) {
+                        span.textContent = cur;
+                    }
+                });
+            }
+            if (options.refresh !== false && typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                window.refreshTourCurrencyDisplayInBundle();
+            }
+        };
+        window.refreshTourCurrencyDisplayInBundle = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) {
+                return;
+            }
+            const cur = window.getTourCurrency();
+            const reformat = function (el) {
+                if (!el || el.tagName === 'INPUT' || !el.textContent) {
+                    return;
+                }
+                const raw = String(el.textContent).trim();
+                const m = raw.match(/(-?\d[\d,]*\.?\d*)/);
+                if (!m) {
+                    if (/0\.00/.test(raw)) {
+                        el.textContent = cur + ' 0.00';
+                    }
+                    return;
+                }
+                const num = parseFloat(m[1].replace(/,/g, ''));
+                if (isNaN(num)) {
+                    return;
+                }
+                el.textContent = cur + ' ' + num.toFixed(2);
+            };
+            root.querySelectorAll('[id$="TotalPrice"]').forEach(reformat);
+            root.querySelectorAll('span[id$="_total_price_display"], div[id$="_arrival_total_price"], div[id$="_departure_total_price"], div[id$="_other_transport_total_price"]').forEach(reformat);
+            if (typeof displaySelectedHotels === 'function') {
+                displaySelectedHotels();
+            }
+            if (typeof updatePackageTotalPriceDisplay === 'function') {
+                updatePackageTotalPriceDisplay();
+            }
+            let td = 1;
+            const r = window.multiSegmentStayRange;
+            if (r && r.start && r.end && typeof moment !== 'undefined') {
+                const diff = moment(r.end).diff(moment(r.start), 'days') + 1;
+                if (diff > 0) {
+                    td = diff;
+                }
+            }
+            for (let d = 1; d <= td; d++) {
+                if (typeof window.updateArrivalHeader === 'function') {
+                    window.updateArrivalHeader(d);
+                }
+                if (typeof window.updateDepartureHeader === 'function') {
+                    window.updateDepartureHeader(d);
+                }
+                if (typeof window.updateOtherTransportHeader === 'function') {
+                    window.updateOtherTransportHeader(d);
+                }
+                if (typeof window.updateAttractionSectionSummary === 'function') {
+                    window.updateAttractionSectionSummary(d);
+                }
+                if (typeof window.updateGuideSectionSummary === 'function') {
+                    window.updateGuideSectionSummary(d);
+                }
+                if (typeof window.updateRestaurantSectionSummary === 'function') {
+                    window.updateRestaurantSectionSummary(d);
+                }
+            }
+        };
+        window.applyTourCurrencyForSegment = function ($segment) {
+            if (typeof $ === 'undefined' || !$segment || !$segment.length) {
+                return;
+            }
+            const $opt = $segment.find('.city-select option:selected');
+            const country = String($opt.attr('data-country') || '').trim();
+            if (country) {
+                window.setTourPackageCurrency(window.getCurrencyForCountryName(country), { refresh: false });
+                return;
+            }
+            const key = String($segment.data('index'));
+            const st = (window.__segmentServiceState && key) ? window.__segmentServiceState[key] : null;
+            if (st && st.segmentCurrency) {
+                window.setTourPackageCurrency(st.segmentCurrency, { refresh: false });
+            }
         };
         window.formatTourPrice = function (amount) {
             return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
@@ -7075,6 +7223,12 @@
 
             $('#single_city').on('change select2:select select2:clear', function () {
                 window.syncSingleCityToAllServices();
+            });
+            $('#single_city').on('select2:select', function (e) {
+                const country = e.params && e.params.data && e.params.data.country;
+                if (country && typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                }
             });
 
             // Master cities (Multi City mode)
@@ -7754,6 +7908,10 @@
 
                         $svcHost.append($bundle);
                         $bundle.removeClass('d-none');
+
+                        if (typeof window.applyTourCurrencyForSegment === 'function') {
+                            window.applyTourCurrencyForSegment($segment);
+                        }
 
                         if (typeof window.restoreMultiSegmentServiceState === 'function') {
                             window.restoreMultiSegmentServiceState($segment);
@@ -10738,7 +10896,12 @@
                     guideDataField: document.getElementById('guide_data') ? document.getElementById('guide_data').value : '',
                     transportDataField: document.getElementById('transport_data') ? document.getElementById('transport_data').value : '',
                     entryPortDataField: document.getElementById('entry_port_data') ? document.getElementById('entry_port_data').value : '',
-                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : ''
+                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : '',
+                    segmentCurrency: (typeof getTourCurrency === 'function' ? getTourCurrency() : (window.TOUR_PACKAGE_CURRENCY || 'SGD')),
+                    segmentCountry: (function () {
+                        const $opt = $segment.find('.city-select option:selected');
+                        return String($opt.attr('data-country') || '').trim();
+                    })()
                 };
             } catch (e) {
                 console.warn('saveMultiSegmentServiceState failed', e);
@@ -10750,6 +10913,9 @@
             const key = String($segment.data('index'));
             if (!key || key === 'undefined') return;
             if (!window.__segmentServiceState) window.__segmentServiceState = {};
+            if (typeof window.applyTourCurrencyForSegment === 'function') {
+                window.applyTourCurrencyForSegment($segment);
+            }
             const st = window.__segmentServiceState[key];
 
             const applyBundleFormState = function (bundleFormState) {
@@ -10909,6 +11075,9 @@
                         }
                     } catch (e) {}
                 }, 0);
+                if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                    window.refreshTourCurrencyDisplayInBundle();
+                }
                 return;
             }
 
@@ -10964,6 +11133,10 @@
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 350);
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 900);
             }
+            if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 0);
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 400);
+            }
         };
 
         // Store the previous country value to detect changes
@@ -10982,6 +11155,9 @@
             }
             
             if (selectedCountry) {
+                if (typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(selectedCountry));
+                }
                 // Get country ID from selected option
                 const countrySelect = document.getElementById('user_country');
                 const selectedOption = countrySelect.options[countrySelect.selectedIndex];
