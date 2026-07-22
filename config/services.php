@@ -66,5 +66,20 @@ return [
         'timeout' => (int) env('HOTELBEDS_API_TIMEOUT', 30),
     ],
 
+    'mg_bedbank' => [
+        'base_url' => env('MG_BEDBANK_API_BASE_URL', ''),
+        'agency_code' => env('MG_BEDBANK_AGENCY_CODE', ''),
+        'username' => env('MG_BEDBANK_USERNAME', ''),
+        'password' => env('MG_BEDBANK_PASSWORD', ''),
+        'nationality' => env('MG_BEDBANK_NATIONALITY', 'SG'),
+        'country_code' => env('MG_BEDBANK_COUNTRY_CODE', ''),
+        'city_code' => env('MG_BEDBANK_CITY_CODE', ''),
+        'destination_map' => env('MG_BEDBANK_DESTINATION_MAP', ''),
+        'hotel_codes' => env('MG_BEDBANK_HOTEL_CODES', ''),
+        'currency' => env('MG_BEDBANK_CURRENCY', 'INR'),
+        'language' => env('MG_BEDBANK_LANGUAGE', 'En'),
+        'detail_level' => env('MG_BEDBANK_DETAIL_LEVEL', 'Basic'),
+        'timeout' => (int) env('MG_BEDBANK_API_TIMEOUT', 30),
+    ],
 
 ];

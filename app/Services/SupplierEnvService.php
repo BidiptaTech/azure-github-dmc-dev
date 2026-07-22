@@ -72,7 +72,14 @@ class SupplierEnvService
     {
         $values = $this->valuesFor($code);
 
-        if (in_array($code, ['hotelbeds', 'mybeds', 'mg_bedbank'], true)) {
+        if ($code === 'mg_bedbank') {
+            if (filled($values['base_url'] ?? null)
+                && filled($values['agency_code'] ?? null)
+                && filled($values['username'] ?? null)
+                && filled($values['password'] ?? null)) {
+                return true;
+            }
+        } elseif (in_array($code, ['hotelbeds', 'mybeds'], true)) {
             if (filled($values['base_url'] ?? null)
                 && filled($values['api_key'] ?? null)
                 && filled($values['api_secret'] ?? null)) {
@@ -91,6 +98,13 @@ class SupplierEnvService
             return filled(config('services.hotelbeds.base_url'))
                 && filled(config('services.hotelbeds.api_key'))
                 && filled(config('services.hotelbeds.api_secret'));
+        }
+
+        if ($code === 'mg_bedbank') {
+            return filled(config('services.mg_bedbank.base_url'))
+                && filled(config('services.mg_bedbank.agency_code'))
+                && filled(config('services.mg_bedbank.username'))
+                && filled(config('services.mg_bedbank.password'));
         }
 
         if ($code === 'sg_attractions') {
