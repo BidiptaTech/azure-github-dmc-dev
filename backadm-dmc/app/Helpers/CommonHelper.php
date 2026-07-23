@@ -1749,7 +1749,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
         elseif($auth_user->userId){
             $user = $auth_user;
-            if($user->role_id == 11){
+            if($user->role_id == 11 || $user->role_id == 20){
                 return $user->userId;
             }
             elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
