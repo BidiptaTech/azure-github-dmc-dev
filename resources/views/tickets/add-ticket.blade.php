@@ -108,8 +108,21 @@
                                         @error('name')<div class="text-danger small">{{ $message }}</div>@enderror
                                     </div>
 
+                                    <div class="col-md-2 mb-2">
+                                        <label for="profit_type" class="form-label"><strong>Profit Type</strong></label>
+                                        <select id="profit_type" name="profit_type" class="form-select form-select-sm">
+                                            <option value="flat" {{ old('profit_type', 'flat') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            <option value="percentage" {{ old('profit_type') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-2 mb-2">
+                                        <label for="profit_on_cost" class="form-label"><strong>Profit On Cost</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="profit_on_cost" name="profit_on_cost" placeholder="0.00" value="{{ old('profit_on_cost') }}">
+                                    </div>
+
                                     <div class="col-12 mt-1 mb-2">
-                                        <div class="section-title"><i class="ri-money-dollar-circle-line me-1"></i> Pricing <small class="text-muted fw-normal">(Sell = customer pays · Cost = attraction fee)</small></div>
+                                        <div class="section-title"><i class="ri-money-dollar-circle-line me-1"></i> Pricing <small class="text-muted fw-normal">(Cost = attraction fee · Sell = customer pays)</small></div>
                                         <div class="table-responsive">
                                             <table class="table table-bordered table-sm ticket-price-table">
                                                 <thead class="table-light">
@@ -119,68 +132,68 @@
                                                         <th colspan="2" class="text-center visitor-group">Foreigner</th>
                                                     </tr>
                                                     <tr>
-                                                        <th>Sell <span class="text-danger">*</span></th>
                                                         <th>Cost <span class="text-danger">*</span></th>
                                                         <th>Sell <span class="text-danger">*</span></th>
                                                         <th>Cost <span class="text-danger">*</span></th>
+                                                        <th>Sell <span class="text-danger">*</span></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     <tr>
                                                         <td><span class="badge bg-info-subtle text-info age-badge">Child</span></td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_price" name="child_price" placeholder="0.00" value="{{ old('child_price') }}" required>
-                                                            @error('child_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_cost_price" name="child_cost_price" placeholder="0.00" value="{{ old('child_cost_price') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="child_cost_price" name="child_cost_price" data-sell-target="child_price" placeholder="0.00" value="{{ old('child_cost_price') }}" required>
                                                             @error('child_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_price_nri" name="child_price_nri" placeholder="0.00" value="{{ old('child_price_nri') }}" required>
-                                                            @error('child_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="child_price" name="child_price" placeholder="0.00" value="{{ old('child_price') }}" required>
+                                                            @error('child_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="child_cost_price_nri" name="child_cost_price_nri" placeholder="0.00" value="{{ old('child_cost_price_nri') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="child_cost_price_nri" name="child_cost_price_nri" data-sell-target="child_price_nri" placeholder="0.00" value="{{ old('child_cost_price_nri') }}" required>
                                                             @error('child_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="child_price_nri" name="child_price_nri" placeholder="0.00" value="{{ old('child_price_nri') }}" required>
+                                                            @error('child_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                     </tr>
                                                     <tr>
                                                         <td><span class="badge bg-primary-subtle text-primary age-badge">Adult</span></td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_price" name="adult_price" placeholder="0.00" value="{{ old('adult_price') }}" required>
-                                                            @error('adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_cost_price" name="adult_cost_price" placeholder="0.00" value="{{ old('adult_cost_price') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="adult_cost_price" name="adult_cost_price" data-sell-target="adult_price" placeholder="0.00" value="{{ old('adult_cost_price') }}" required>
                                                             @error('adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_price_nri" name="adult_price_nri" placeholder="0.00" value="{{ old('adult_price_nri') }}" required>
-                                                            @error('adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="adult_price" name="adult_price" placeholder="0.00" value="{{ old('adult_price') }}" required>
+                                                            @error('adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="adult_cost_price_nri" name="adult_cost_price_nri" placeholder="0.00" value="{{ old('adult_cost_price_nri') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="adult_cost_price_nri" name="adult_cost_price_nri" data-sell-target="adult_price_nri" placeholder="0.00" value="{{ old('adult_cost_price_nri') }}" required>
                                                             @error('adult_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="adult_price_nri" name="adult_price_nri" placeholder="0.00" value="{{ old('adult_price_nri') }}" required>
+                                                            @error('adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                     </tr>
                                                     <tr>
                                                         <td><span class="badge bg-secondary-subtle text-secondary age-badge">Senior</span></td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_price" name="senior_adult_price" placeholder="0.00" value="{{ old('senior_adult_price') }}" required>
-                                                            @error('senior_adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_cost_price" name="senior_adult_cost_price" placeholder="0.00" value="{{ old('senior_adult_cost_price') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="senior_adult_cost_price" name="senior_adult_cost_price" data-sell-target="senior_adult_price" placeholder="0.00" value="{{ old('senior_adult_cost_price') }}" required>
                                                             @error('senior_adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="0.00" value="{{ old('senior_adult_price_nri') }}" required>
-                                                            @error('senior_adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="senior_adult_price" name="senior_adult_price" placeholder="0.00" value="{{ old('senior_adult_price') }}" required>
+                                                            @error('senior_adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                         <td>
-                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" placeholder="0.00" value="{{ old('senior_adult_cost_price_nri') }}" required>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-cost-input" id="senior_adult_cost_price_nri" name="senior_adult_cost_price_nri" data-sell-target="senior_adult_price_nri" placeholder="0.00" value="{{ old('senior_adult_cost_price_nri') }}" required>
                                                             @error('senior_adult_cost_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm ticket-price-input ticket-sell-input" id="senior_adult_price_nri" name="senior_adult_price_nri" placeholder="0.00" value="{{ old('senior_adult_price_nri') }}" required>
+                                                            @error('senior_adult_price_nri')<div class="text-danger small">{{ $message }}</div>@enderror
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -424,10 +437,78 @@
             if (isNaN(n)) return;
             el.value = Number(n.toFixed(2));
         }
+
+        function calculateSellFromCost(costValue) {
+            const profitType = ($('#profit_type').val() || 'flat').toLowerCase();
+            const profit = parseFloat(String($('#profit_on_cost').val() || '0').replace(',', '.'));
+            const cost = parseFloat(String(costValue || '0').replace(',', '.'));
+
+            if (isNaN(cost)) return '';
+
+            const profitAmount = isNaN(profit) ? 0 : profit;
+            let sell = cost;
+
+            if (profitType === 'percentage') {
+                sell = cost + (cost * profitAmount / 100);
+            } else {
+                sell = cost + profitAmount;
+            }
+
+            return Number(Math.max(0, sell).toFixed(2));
+        }
+
+        function updateSellFromCostInput(costInput) {
+            if (!costInput) return;
+            const sellId = costInput.getAttribute('data-sell-target');
+            const sellInput = sellId ? document.getElementById(sellId) : null;
+            if (!sellInput) return;
+
+            if (costInput.value === '' || costInput.value === null) {
+                return;
+            }
+
+            sellInput.value = calculateSellFromCost(costInput.value);
+            sellInput.dataset.autoFilled = '1';
+        }
+
+        function updateAllSellPricesFromCost() {
+            document.querySelectorAll('.ticket-cost-input').forEach(function (costInput) {
+                updateSellFromCostInput(costInput);
+            });
+        }
+
         document.querySelectorAll('.ticket-price-input').forEach(function (el) {
             el.addEventListener('blur', function () { clampTicketPriceInput(this); });
             if (el.value !== '') {
                 clampTicketPriceInput(el);
+            }
+        });
+
+        document.querySelectorAll('.ticket-cost-input').forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateSellFromCostInput(this);
+            });
+            costInput.addEventListener('change', function () {
+                updateSellFromCostInput(this);
+            });
+        });
+
+        document.querySelectorAll('.ticket-sell-input').forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+            });
+        });
+
+        $('#profit_type, #profit_on_cost').on('input change', function () {
+            updateAllSellPricesFromCost();
+        });
+
+        // On load, only auto-fill empty sell fields when cost already has a value
+        document.querySelectorAll('.ticket-cost-input').forEach(function (costInput) {
+            const sellId = costInput.getAttribute('data-sell-target');
+            const sellInput = sellId ? document.getElementById(sellId) : null;
+            if (sellInput && (sellInput.value === '' || sellInput.value === null) && costInput.value !== '') {
+                updateSellFromCostInput(costInput);
             }
         });
 
