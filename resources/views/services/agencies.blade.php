@@ -274,6 +274,44 @@
     <!-- / Content -->
 </div>
 
+<!-- Assign Sales User Modal -->
+<div class="modal fade" id="assignSalesDmcModal" tabindex="-1" aria-labelledby="assignSalesDmcModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="assignSalesDmcModalLabel">Assign Sales User</h5>
+                    <small class="text-muted" id="assignSalesAgencyName"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Select the sales user responsible for this agency:</p>
+
+                <div class="list-group" id="salesDmcUserOptions">
+                    @forelse(($salesDmcUsers ?? collect()) as $salesUser)
+                        <button type="button"
+                                class="list-group-item list-group-item-action sales-dmc-user-option"
+                                data-user-id="{{ $salesUser->userId }}"
+                                data-user-name="{{ $salesUser->name }}">
+                            <span>
+                                <i class="ri-user-line me-2"></i>{{ $salesUser->name }}
+                            </span>
+                        </button>
+                    @empty
+                        <div class="alert alert-warning mb-0">
+                            No eligible sales users were found under the current DMC.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Remove Agency Modal -->
 <div class="modal fade" id="removeAgencyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -323,6 +361,7 @@
 
 <script>
 let currentAgencyId = null;
+let pendingAgencySelection = null;
 const defaultAgencyCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 const csrfToken = '{{ csrf_token() }}';
 let selectedAgenciesPaginator = null;
@@ -420,11 +459,17 @@ function refreshSelectedAgencyPagination() {
 }
 
 function selectAll() {
-    document.querySelectorAll('.select-agency-btn').forEach(button => {
-        if (!button.disabled) {
-            button.click();
-        }
-    });
+    const buttons = Array.from(document.querySelectorAll('.agency-item:not(.agency-selected) .select-agency-btn'))
+        .filter(button => !button.disabled && button.closest('.agency-item')?.style.display !== 'none');
+
+    if (!buttons.length) return;
+
+    pendingAgencySelection = {
+        bulk: true,
+        buttons: buttons
+    };
+    document.getElementById('assignSalesAgencyName').textContent = `${buttons.length} agencies`;
+    new bootstrap.Modal(document.getElementById('assignSalesDmcModal')).show();
 }
 
 function deselectAll() {
@@ -509,7 +554,7 @@ function onAgencyCountryChange() {
     applyAgencyFilters();
 }
 
-function selectAgency(agencyId, agencyName, buttonEl) {
+function selectAgency(agencyId, agencyName, buttonEl, salesUserId) {
     fetch('{{ route('services.agencies.select') }}', {
         method: 'POST',
         headers: {
@@ -517,7 +562,10 @@ function selectAgency(agencyId, agencyName, buttonEl) {
             'X-CSRF-TOKEN': csrfToken,
             'Accept': 'application/json',
         },
-        body: JSON.stringify({ agency_id: agencyId })
+        body: JSON.stringify({
+            agency_id: agencyId,
+            sales_user_id: salesUserId
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -541,6 +589,12 @@ function selectAgency(agencyId, agencyName, buttonEl) {
         resetAgencyButton(buttonEl);
         showAlert('error', 'An error occurred while selecting the agency.');
     });
+}
+
+function openSalesDmcModal(agencyId, agencyName, buttonEl) {
+    pendingAgencySelection = { agencyId, agencyName, buttonEl };
+    document.getElementById('assignSalesAgencyName').textContent = agencyName;
+    new bootstrap.Modal(document.getElementById('assignSalesDmcModal')).show();
 }
 
 function removeAgency(agencyId, agencyName) {
@@ -586,8 +640,46 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.select-agency-btn').forEach(button => {
         button.addEventListener('click', function() {
             if (this.disabled) return;
-            setAgencyButtonLoading(this);
-            selectAgency(this.getAttribute('data-agency-id'), this.getAttribute('data-agency-name'), this);
+            openSalesDmcModal(
+                this.getAttribute('data-agency-id'),
+                this.getAttribute('data-agency-name'),
+                this
+            );
+        });
+    });
+
+    document.querySelectorAll('.sales-dmc-user-option').forEach(option => {
+        option.addEventListener('click', function() {
+            if (!pendingAgencySelection) return;
+
+            const selection = pendingAgencySelection;
+            const salesUserId = this.getAttribute('data-user-id');
+            const modalElement = document.getElementById('assignSalesDmcModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+
+            if (modal) modal.hide();
+
+            if (selection.bulk) {
+                selection.buttons.forEach(button => {
+                    setAgencyButtonLoading(button);
+                    selectAgency(
+                        button.getAttribute('data-agency-id'),
+                        button.getAttribute('data-agency-name'),
+                        button,
+                        salesUserId
+                    );
+                });
+            } else {
+                setAgencyButtonLoading(selection.buttonEl);
+                selectAgency(
+                    selection.agencyId,
+                    selection.agencyName,
+                    selection.buttonEl,
+                    salesUserId
+                );
+            }
+
+            pendingAgencySelection = null;
         });
     });
 
