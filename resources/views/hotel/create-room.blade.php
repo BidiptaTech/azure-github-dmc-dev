@@ -616,6 +616,23 @@
                     </div>
                 </div>
 
+                <div class="mb-3 row align-items-end g-2" id="room-profit-helper-row">
+                    <div class="col-md-3 mb-3">
+                        <label for="room_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                        <select id="room_profit_margin" class="form-select js-room-profit-type">
+                            <option value="percentage" selected>%</option>
+                            <option value="flat">Flat</option>
+                        </select>
+                        <small class="text-muted">Helper only — not saved</small>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="room_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                        <input type="number" id="room_profit_amount" class="form-control js-room-profit-amount"
+                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                        <small class="text-muted">Auto-fills Sell from Cost</small>
+                    </div>
+                </div>
+
                 <div class="mb-3 row room-child-pricing-row g-2">
                     <!-- Children Price -->
                     <div class="col mb-3">
@@ -628,23 +645,23 @@
                             <option value="2">Full Price</option>
                         </select>
                     </div>
-                    <!-- Child with bed price -->
-                    <div class="col mb-3">
-                        <label for="child_with_bed" class="form-label"><strong>Child with Bed Price(Sell)</strong></label>
-                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
+                    <!-- Child with bed: Cost then Sell -->
                     <div class="col mb-3">
                         <label for="child_with_bed_cost" class="form-label"><strong>Child with Bed Price(Cost)</strong></label>
-                        <input type="number" name="child_with_bed_cost" id="child_with_bed_cost" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                        <input type="number" name="child_with_bed_cost" id="child_with_bed_cost" class="form-control js-room-cost" data-sell-target="child_with_bed" placeholder="Enter Cost Price" min="0" step="0.01">
                     </div>
-                    <!-- Child without bed price -->
                     <div class="col mb-3">
-                        <label for="child_without_bed" class="form-label"><strong>Child without Bed Price(Sell)</strong></label>
-                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
+                        <label for="child_with_bed" class="form-label"><strong>Child with Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_with_bed" id="child_with_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
+                    <!-- Child without bed: Cost then Sell -->
                     <div class="col mb-3">
                         <label for="child_without_bed_cost" class="form-label"><strong>Child without Bed Price(Cost)</strong></label>
-                        <input type="number" name="child_without_bed_cost" id="child_without_bed_cost" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                        <input type="number" name="child_without_bed_cost" id="child_without_bed_cost" class="form-control js-room-cost" data-sell-target="child_without_bed" placeholder="Enter Cost Price" min="0" step="0.01">
+                    </div>
+                    <div class="col mb-3">
+                        <label for="child_without_bed" class="form-label"><strong>Child without Bed Price(Sell)</strong></label>
+                        <input type="number" name="child_without_bed" id="child_without_bed" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
                 </div>
 
@@ -658,8 +675,13 @@
                                 <legend>Single</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="singleWeekdayPrice" placeholder=" ">
+                                        <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekdayPrice" name="singleWeekdayPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
@@ -668,24 +690,19 @@
                                         <div class="calculation-display text-primary small mt-1" id="single-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekdayCostPrice" name="singleWeekdayCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="singleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="singleWeekendPrice" placeholder=" ">
+                                        <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="singleWeekendPrice" name="singleWeekendPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="singleWeekendPrice">Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalSingleWeekendPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="single-weekend-calc" style="display: none;"></div>
-                                    </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="singleWeekendCostPrice" name="singleWeekendCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="singleWeekendCostPrice">Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -699,8 +716,13 @@
                                 <legend>Double</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="doubleWeekdayPrice" placeholder=" ">
+                                        <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleWeekdayPrice" name="doubleWeekdayPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekdayPrice">Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
@@ -709,24 +731,19 @@
                                         <div class="calculation-display text-primary small mt-1" id="double-weekday-calc" style="display: none;"></div>
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekdayCostPrice" name="doubleWeekdayCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="doubleWeekdayCostPrice">Weekday Price(Cost)</label>
+                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="doubleWeekendPrice" placeholder=" ">
+                                        <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
                                     </div>
                                     <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleWeekendPrice" name="doubleWeekendPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleWeekendPrice">Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalDoubleWeekendPrice">0</span></span>
                                         @endif
                                         <div class="calculation-display text-primary small mt-1" id="double-weekend-calc" style="display: none;"></div>
-                                    </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="doubleWeekendCostPrice" name="doubleWeekendCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="doubleWeekendCostPrice">Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -743,7 +760,12 @@
                                 <legend>Single</legend>
                                 <div class="row g-2">
                                     <div class="col-md-6 form-floating">
-                                <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control"
+                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control js-room-cost"
+                                            data-sell-target="weekdayPrice" placeholder=" ">
+                                        <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
+                                <input type="text" id="weekdayPrice" name="baseSingleWeekdayPrice" class="form-control js-room-sell"
                                     placeholder=" " onkeyup="calculatePrice()">
                                         <label for="weekdayPrice">Base Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
@@ -752,23 +774,18 @@
                                         @endif
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekdayCostPrice" name="baseSingleWeekdayCostPrice" class="form-control"
-                                            placeholder=" ">
-                                        <label for="baseSingleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control js-room-cost"
+                                            data-sell-target="weekendPrice" placeholder=" ">
+                                        <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                     <div class="col-md-6 form-floating">
-                                <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control"
+                                <input type="text" id="weekendPrice" name="baseSingleWeekendPrice" class="form-control js-room-sell"
                                     placeholder=" " onkeyup="calculatePrice()">
                                         <label for="weekendPrice">Base Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalWeekendPrice">0</span></span>
                                         @endif
-                                    </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseSingleWeekendCostPrice" name="baseSingleWeekendCostPrice" class="form-control"
-                                            placeholder=" ">
-                                        <label for="baseSingleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -783,34 +800,34 @@
                                 <div class="row g-2">
                                     <!-- Weekday Price -->
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="doubleweekdayPrice" placeholder=" ">
+                                        <label for="baseDoubleWeekdayCostPrice">Base Weekday Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleweekdayPrice" name="baseDoubleWeekdayPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleweekdayPrice">Base Weekday Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekdayPrice">0</span></span>
                                         @endif
                                     </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekdayCostPrice" name="baseDoubleWeekdayCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="baseDoubleWeekdayCostPrice">Base Weekday Price(Cost)</label>
-                                    </div>
                                     
                                     <!-- Weekend Price -->
                                     <div class="col-md-6 form-floating">
+                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice"
+                                            class="form-control js-room-cost" data-sell-target="doubleweekendPrice" placeholder=" ">
+                                        <label for="baseDoubleWeekendCostPrice">Base Weekend Price(Cost)</label>
+                                    </div>
+                                    <div class="col-md-6 form-floating">
                                         <input type="text" id="doubleweekendPrice" name="baseDoubleWeekendPrice"
-                                            class="form-control" placeholder=" " onkeyup="calculatePrice()">
+                                            class="form-control js-room-sell" placeholder=" " onkeyup="calculatePrice()">
                                         <label for="doubleweekendPrice">Base Weekend Price(Sell)</label>
                                         @if(!empty($show_dmc_room_pricing_hints))
                                 <span class="text-primary">Your calculated price: <span
                                         id="totalBaseDoubleWeekendPrice">0</span></span>
                                         @endif
-                                    </div>
-                                    <div class="col-md-6 form-floating">
-                                        <input type="text" id="baseDoubleWeekendCostPrice" name="baseDoubleWeekendCostPrice"
-                                            class="form-control" placeholder=" ">
-                                        <label for="baseDoubleWeekendCostPrice">Base Weekend Price(Cost)</label>
                                     </div>
                                 </div>
                             </fieldset>
@@ -840,14 +857,14 @@
                         </select>
                     </div>
                     
-                    <!-- Breakfast Price - Shows when breakfast is included -->
-                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
-                        <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="breakfast_price" id="breakfast_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
+                    <!-- Breakfast Price - Shows when breakfast is included (Cost then Sell) -->
                     <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
                         <label for="breakfast_cost_price" class="form-label"><strong>Breakfast Cost Price</strong></label>
-                        <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                        <input type="number" name="breakfast_cost_price" id="breakfast_cost_price" class="form-control js-room-cost" data-sell-target="breakfast_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 breakfast-options" style="display: none;">
+                        <label for="breakfast_price" class="form-label"><strong>Breakfast Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="breakfast_price" id="breakfast_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Lunch Toggle -->
@@ -870,14 +887,14 @@
                         </select>
                     </div>
                     
-                    <!-- Lunch Price - Shows when lunch is included -->
-                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
-                        <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="lunch_price" id="lunch_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
+                    <!-- Lunch Price - Shows when lunch is included (Cost then Sell) -->
                     <div class="col-md-3 mb-3 lunch-options" style="display: none;">
                         <label for="lunch_cost_price" class="form-label"><strong>Lunch Cost Price</strong></label>
-                        <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                        <input type="number" name="lunch_cost_price" id="lunch_cost_price" class="form-control js-room-cost" data-sell-target="lunch_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 lunch-options" style="display: none;">
+                        <label for="lunch_price" class="form-label"><strong>Lunch Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="lunch_price" id="lunch_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Dinner Toggle -->
@@ -900,14 +917,14 @@
                         </select>
                     </div>
                     
-                    <!-- Dinner Price - Shows when dinner is included -->
-                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
-                        <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong><span class="text-danger">*</span></label>
-                        <input type="number" name="dinner_price" id="dinner_price" class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                    </div>
+                    <!-- Dinner Price - Shows when dinner is included (Cost then Sell) -->
                     <div class="col-md-3 mb-3 dinner-options" style="display: none;">
                         <label for="dinner_cost_price" class="form-label"><strong>Dinner Cost Price</strong></label>
-                        <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                        <input type="number" name="dinner_cost_price" id="dinner_cost_price" class="form-control js-room-cost" data-sell-target="dinner_price" placeholder="Enter Cost Price" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-3 mb-3 dinner-options" style="display: none;">
+                        <label for="dinner_price" class="form-label"><strong>Dinner Sell Price</strong><span class="text-danger">*</span></label>
+                        <input type="number" name="dinner_price" id="dinner_price" class="form-control js-room-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                     </div>
                     
                     <!-- Supplementary Breakfast Toggle -->
@@ -2436,6 +2453,73 @@ $(document).ready(function() {
             });
         });
     });
+</script>
+
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const costVal = parseFloat(cost);
+        const amtVal = parseFloat(amount);
+        const c = isNaN(costVal) ? 0 : costVal;
+        const a = isNaN(amtVal) ? 0 : amtVal;
+        if (c <= 0) return 0;
+        if (type === 'flat') return round2(c + a);
+        return round2(c + (c * a / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-room-profit-type');
+        const amountEl = document.querySelector('.js-room-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+        if (typeof calculatePrice === 'function') {
+            try { calculatePrice(); } catch (e) {}
+        }
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-room-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+
+        document.querySelectorAll('.js-room-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+
+        document.querySelectorAll('.js-room-profit-type, .js-room-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
 </script>
 
 @endsection

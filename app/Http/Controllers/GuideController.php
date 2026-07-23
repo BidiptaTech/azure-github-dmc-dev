@@ -468,31 +468,14 @@ class GuideController extends Controller
                     return redirect()->back()->withInput()->with('error', 'Profile image upload failed. Please try again.');
                 }
 
-                if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
-                    $dmc_id = $auth_user->userId;
-                    $status = 1;
-                } elseif ($auth_user->role_id == 4 || $auth_user->role_id == 23 || $auth_user->role_id == 1 || $auth_user->role_id == 2) {
-                    $dmc_id = $validated['dmc'] ?? null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
-                    $userdmc = User::where('userId', $auth_user->created_by)->first();
-                    $dmc_id = $userdmc ? $userdmc->userId : null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [75, 139], true)) {
-                    $user_product_head = User::where('userId', $auth_user->created_by)->first();
-                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
-                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [102, 140], true)) {
-                    $user_product_manager = User::where('userId', $auth_user->created_by)->first();
-                    $user_product_head = $user_product_manager ? User::where('userId', $user_product_manager->created_by)->first() : null;
-                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
-                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
-                    $status = 1;
+                // Resolve owning DMC: admins select one; DMC/multirole/staff use their DMC userId
+                $dmcRequiredRoles = [1, 2, 4, 23];
+                if (in_array((int) $auth_user->role_id, $dmcRequiredRoles, true)) {
+                    $dmc_id = $validated['dmc'] ?? $request->input('dmc');
                 } else {
-                    $dmc_id = $validated['dmc'] ?? null;
-                    $status = 1;
+                    $dmc_id = $this->resolveGuideOwnerDmcId($auth_user);
                 }
+                $status = 1;
 
                 if (!$dmc_id) {
                     return redirect()->back()->withInput()->with('error', 'DMC is missing. Please select a DMC and try again.');
@@ -1069,5 +1052,38 @@ class GuideController extends Controller
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Resolve the DMC userId that should own a guide for the current user.
+     * DMC accounts use their own userId; multirole/staff walk created_by to the parent DMC.
+     */
+    private function resolveGuideOwnerDmcId(User $authUser): ?int
+    {
+        $dmcId = CommonHelper::getDmcId($authUser);
+        if ($dmcId) {
+            return (int) $dmcId;
+        }
+
+        if (in_array((int) $authUser->role_id, [11, 20], true) || (int) $authUser->user_type === 2) {
+            return (int) $authUser->userId;
+        }
+
+        $cursor = $authUser->created_by
+            ? User::where('userId', $authUser->created_by)->first()
+            : null;
+        $guard = 0;
+        while ($cursor && $guard < 6) {
+            if (in_array((int) $cursor->role_id, [11, 20], true) || (int) $cursor->user_type === 2) {
+                return (int) $cursor->userId;
+            }
+            if (empty($cursor->created_by)) {
+                break;
+            }
+            $cursor = User::where('userId', $cursor->created_by)->first();
+            $guard++;
+        }
+
+        return null;
     }
 }
