@@ -1754,9 +1754,10 @@ class HotelController extends Controller
     public function updateroom(Request $request)
     {
         try {
+
             $request->validate([
-                'no_of_room' => 'nullable|integer',
-                'total_no_of_room' => 'nullable|integer',
+                'no_of_room' => 'nullable|numeric',
+                'total_no_of_room' => 'nullable|numeric',
                 'single_weekday_price' => 'nullable|numeric',
                 'single_weekend_price' => 'nullable|numeric',
                 'double_weekday_price' => 'nullable|numeric',
