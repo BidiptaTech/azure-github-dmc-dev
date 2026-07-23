@@ -152,7 +152,8 @@ class MealController extends Controller
         $restaurants = Restaurant::where('is_active', 1)->get();
 
         $meals = Meal::where('meal_id',$id)->first();
-        return view('meals.edit-meal', compact('meals', 'restaurants'));
+        $auth_user = Auth::user();
+        return view('meals.edit-meal', compact('meals', 'restaurants', 'auth_user'));
     }
     /*
     * Update the specified role.
