@@ -41,6 +41,19 @@ class QuotationController extends Controller
     }
 
     /**
+     * Optional country filter from query (?country=India). Empty / "all" = full tour.
+     */
+    private function resolveQuotationCountryFilter(Request $request): ?string
+    {
+        $country = trim((string) $request->query('country', ''));
+        if ($country === '' || strcasecmp($country, 'all') === 0) {
+            return null;
+        }
+
+        return CommonHelper::normalizeCountryName($country);
+    }
+
+    /**
      * Show itinerary / quotation preview with currency dropdown and embedded PDF.
      */
     public function itineraryPreview($encryptedTourId, Request $request)
@@ -55,6 +68,9 @@ class QuotationController extends Controller
         if (!$tour) {
             return redirect()->back()->with('error', 'Tour not found.');
         }
+
+        $filterCountry = $this->resolveQuotationCountryFilter($request);
+        $quotationCountries = CommonHelper::getTourQuotationCountries($tour);
 
         // Available currencies for selection (can be moved to config later)
         // At least ~50 important world currencies including key tourism markets
@@ -123,8 +139,10 @@ class QuotationController extends Controller
             'DOP', // Dominican Peso
             'JMD', // Jamaican Dollar
         ];
-        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC).
-        $defaultCurrency = CommonHelper::resolveTourDisplayCurrency($tour);
+        // Base currency = selected country currency when filtering, else tour DMC currency.
+        $defaultCurrency = $filterCountry
+            ? CommonHelper::resolveCountryDisplayCurrency($filterCountry, $tour)
+            : CommonHelper::resolveTourDisplayCurrency($tour);
         if (!in_array($defaultCurrency, $availableCurrencies, true)) {
             $defaultCurrency = 'SGD';
         }
@@ -162,6 +180,8 @@ class QuotationController extends Controller
             'citiesByCountry' => $citiesByCountry,
             'logoType' => $logoType,
             'hasAgency' => $hasAgency,
+            'filterCountry' => $filterCountry,
+            'quotationCountries' => $quotationCountries,
         ]);
     }
 
@@ -180,6 +200,9 @@ class QuotationController extends Controller
         if (!$tour) {
             return redirect()->back()->with('error', 'Tour not found.');
         }
+
+        $filterCountry = $this->resolveQuotationCountryFilter($request);
+        $quotationCountries = CommonHelper::getTourQuotationCountries($tour);
 
         $availableCurrencies = [
             'SGD',
@@ -241,8 +264,10 @@ class QuotationController extends Controller
             'DOP',
             'JMD',
         ];
-        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC).
-        $defaultCurrency = CommonHelper::resolveTourDisplayCurrency($tour);
+        // Base currency = selected country currency when filtering, else tour DMC currency.
+        $defaultCurrency = $filterCountry
+            ? CommonHelper::resolveCountryDisplayCurrency($filterCountry, $tour)
+            : CommonHelper::resolveTourDisplayCurrency($tour);
         if (!in_array($defaultCurrency, $availableCurrencies, true)) {
             $defaultCurrency = 'SGD';
         }
@@ -279,6 +304,8 @@ class QuotationController extends Controller
             'citiesByCountry' => $citiesByCountry,
             'logoType' => $logoType,
             'hasAgency' => $hasAgency,
+            'filterCountry' => $filterCountry,
+            'quotationCountries' => $quotationCountries,
         ]);
     }
 
@@ -301,6 +328,7 @@ class QuotationController extends Controller
             if (!in_array($logoType, ['dmc', 'agency'], true)) {
                 $logoType = 'dmc';
             }
+            $filterCountry = $this->resolveQuotationCountryFilter($request);
 
             // If agency-branded PDF fails, fall back to the same quotation with DMC logo and company name only.
             $logoAttempts = $logoType === 'agency' ? ['agency', 'dmc'] : ['dmc'];
@@ -313,7 +341,8 @@ class QuotationController extends Controller
                         $preview,
                         $quotationInformationHtml,
                         'single-tour-package.quotation',
-                        $attemptLogo
+                        $attemptLogo,
+                        $filterCountry
                     );
                     if ($pdfResponse) {
                         return $pdfResponse;
@@ -322,6 +351,7 @@ class QuotationController extends Controller
                     Log::warning('Itinerary PDF generation attempt failed', [
                         'tour_id' => $tourId,
                         'logo_type' => $attemptLogo,
+                        'country' => $filterCountry,
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -361,6 +391,7 @@ class QuotationController extends Controller
             if (!in_array($logoType, ['dmc', 'agency'], true)) {
                 $logoType = 'dmc';
             }
+            $filterCountry = $this->resolveQuotationCountryFilter($request);
 
             $logoAttempts = $logoType === 'agency' ? ['agency', 'dmc'] : ['dmc'];
 
@@ -372,7 +403,8 @@ class QuotationController extends Controller
                         $preview,
                         $quotationInformationHtml,
                         'single-tour-package.detailedqutation',
-                        $attemptLogo
+                        $attemptLogo,
+                        $filterCountry
                     );
                     if ($pdfResponse) {
                         return $pdfResponse;
@@ -381,6 +413,7 @@ class QuotationController extends Controller
                     Log::warning('Packaged quotation PDF generation attempt failed', [
                         'tour_id' => $tourId,
                         'logo_type' => $attemptLogo,
+                        'country' => $filterCountry,
                         'error' => $e->getMessage(),
                     ]);
                 }

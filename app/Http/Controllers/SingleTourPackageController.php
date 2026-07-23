@@ -3801,22 +3801,50 @@ class SingleTourPackageController extends Controller
         $country = trim((string) $request->input('country', ''));
         $currency = strtoupper(trim((string) $request->input('currency', '')));
 
+        // Request may send comma-separated countries for multi-destination tours — keep only a single country.
+        if ($country !== '' && str_contains($country, ',')) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $country))));
+            $country = $parts[0] ?? '';
+        }
+
         if ($country === '' || $currency === '') {
             $tour = Tour::where('tour_id', $tourId)->first();
             if ($country === '' && $tour && !empty($tour->destination)) {
-                // destination may be city name or country; prefer country match first
                 $dest = trim((string) $tour->destination);
-                $countryRow = Country::where('name', $dest)->first();
-                if ($countryRow) {
-                    $country = $countryRow->name;
-                    if ($currency === '' && !empty($countryRow->currency)) {
-                        $currency = strtoupper(trim((string) $countryRow->currency));
+                // Multi-country destination string cannot map to one country — leave null unless single part.
+                if (!str_contains($dest, ',')) {
+                    $countryRow = Country::where('name', $dest)->first();
+                    if ($countryRow) {
+                        $country = $countryRow->name;
+                        if ($currency === '' && !empty($countryRow->currency)) {
+                            $currency = strtoupper(trim((string) $countryRow->currency));
+                        }
+                    } else {
+                        $city = City::where('name', $dest)->orWhere('name', 'like', $dest . '%')->first();
+                        if ($city && !empty($city->country)) {
+                            $country = trim((string) $city->country);
+                        }
                     }
                 } else {
-                    $city = City::where('name', $dest)->orWhere('name', 'like', $dest . '%')->first();
-                    if ($city && !empty($city->country)) {
-                        $country = trim((string) $city->country);
+                    $resolved = \App\Helpers\CommonHelper::resolveDestinationPartsToCountries($dest);
+                    if (count($resolved) === 1) {
+                        $country = $resolved[0];
                     }
+                }
+            }
+        }
+
+        // Infer from first hotel/attraction payload when still empty (per-service country).
+        if ($country === '') {
+            foreach (['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'] as $payloadKey) {
+                if (!$request->filled($payloadKey)) {
+                    continue;
+                }
+                $decoded = json_decode((string) $request->input($payloadKey), true);
+                $inferred = \App\Helpers\CommonHelper::inferCountryFromOrderPayload($decoded);
+                if (!empty($inferred)) {
+                    $country = $inferred;
+                    break;
                 }
             }
         }

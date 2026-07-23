@@ -292,6 +292,32 @@
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--action-color, #475569) 38%, transparent),
                     0 0 18px color-mix(in srgb, var(--action-color, #475569) 55%, transparent);
     }
+    #toursTable .quotation-country-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    #toursTable .quotation-country-group:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    #toursTable .quotation-country-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        padding: 0 0.15rem;
+        line-height: 1.2;
+    }
+    #toursTable .quotation-country-group__actions {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.35rem;
+    }
     #toursTable .quotation-actions-flyout__links::after,
     #toursTable .invoice-actions-flyout__links::after {
         content: '';
@@ -1375,16 +1401,7 @@
                                         <button type="button" class="action-icon-badge quotation-actions-flyout__trigger" style="--action-color: #0f766e;" aria-label="Quotation" aria-haspopup="true">
                                             <i class="ri-bill-line"></i>
                                         </button>
-                                        <div class="quotation-actions-flyout__links">
-                                            <a href="{{ route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
-                                               class="action-icon-badge" style="--action-color: #0f766e;" data-tooltip="Acco + Service Quotation" target="_blank">
-                                                <i class="ri-file-list-3-line"></i>
-                                            </a>
-                                            <a href="{{ route('tour.detailed-quotation.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]) }}"
-                                               class="action-icon-badge" style="--action-color: #7c3aed;" data-tooltip="Packaged Quotation" target="_blank">
-                                                <i class="ri-stack-line"></i>
-                                            </a>
-                                        </div>
+                                        @include('bookings.partials.quotation-actions-flyout-links', ['tour' => $tour])
                                     </div>
                                     <button type="button" class="action-icon-badge" style="--action-color: #dc2626;" data-tooltip="Cancel Tour" onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', {{ json_encode($tour->display_id) }})" id="cancel-btn-{{ $tour->tour_id }}">
                                         <i class="ri-delete-bin-line"></i>

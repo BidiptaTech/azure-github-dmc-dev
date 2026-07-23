@@ -26,6 +26,7 @@ use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
+use App\Models\City;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -2575,6 +2576,201 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return $left !== '' && $right !== '' && $left === $right;
     }
 
+    /**
+     * Resolve destination string parts (countries and/or cities) into unique country names.
+     *
+     * @return list<string>
+     */
+    public static function resolveDestinationPartsToCountries(?string $destination): array
+    {
+        $parts = self::parseUserCountryList($destination);
+        if ($parts === []) {
+            return [];
+        }
+
+        $lowerParts = array_map(static fn (string $part): string => strtolower($part), $parts);
+        $knownByLower = [];
+        Country::query()
+            ->where(function ($query) use ($lowerParts) {
+                foreach ($lowerParts as $lowerPart) {
+                    $query->orWhereRaw('LOWER(name) = ?', [$lowerPart]);
+                }
+            })
+            ->pluck('name')
+            ->each(static function ($name) use (&$knownByLower) {
+                $knownByLower[strtolower((string) $name)] = (string) $name;
+            });
+
+        $cityCountries = City::query()
+            ->whereIn('name', $parts)
+            ->pluck('country', 'name');
+
+        $countries = [];
+        foreach ($parts as $part) {
+            $lower = strtolower($part);
+            if (isset($knownByLower[$lower])) {
+                $countries[$knownByLower[$lower]] = true;
+                continue;
+            }
+
+            $fromCity = trim((string) ($cityCountries[$part] ?? ''));
+            if ($fromCity !== '') {
+                $countries[self::normalizeCountryName($fromCity)] = true;
+                continue;
+            }
+
+            // Keep original label so the UI can still show a destination bucket.
+            $countries[self::normalizeCountryName($part)] = true;
+        }
+
+        return array_values(array_keys($countries));
+    }
+
+    /**
+     * Countries available for per-country quotation links for a tour.
+     *
+     * @return list<string>
+     */
+    public static function getTourQuotationCountries($tour): array
+    {
+        if (!$tour) {
+            return [];
+        }
+
+        $fromDestination = self::resolveDestinationPartsToCountries(
+            (string) ($tour->destination ?? $tour->tour_destination ?? '')
+        );
+        if ($fromDestination !== []) {
+            return $fromDestination;
+        }
+
+        // Fallback when destination is empty: distinct countries already saved on orders.
+        return Order::query()
+            ->where('tour_id', $tour->tour_id)
+            ->where('status', 1)
+            ->whereNotNull('country')
+            ->where('country', '!=', '')
+            ->distinct()
+            ->pluck('country')
+            ->map(fn ($c) => self::normalizeCountryName(trim((string) $c)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Infer country name from order JSON payload (hotel/attraction/etc).
+     */
+    public static function inferCountryFromOrderPayload($rawData): ?string
+    {
+        if (is_string($rawData)) {
+            $rawData = json_decode($rawData, true);
+        }
+        if (!is_array($rawData) || $rawData === []) {
+            return null;
+        }
+
+        $items = array_is_list($rawData) ? $rawData : [$rawData];
+        $cityCandidates = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            foreach (['country', 'Country', 'destination_country'] as $key) {
+                $value = trim((string) ($item[$key] ?? ''));
+                if ($value !== '' && !str_contains($value, ',')) {
+                    return self::normalizeCountryName($value);
+                }
+            }
+
+            $nested = $item['hotelDetails'] ?? $item['hotel_details'] ?? null;
+            if (is_array($nested)) {
+                $nestedCountry = trim((string) ($nested['country'] ?? $nested['Country'] ?? ''));
+                if ($nestedCountry !== '' && !str_contains($nestedCountry, ',')) {
+                    return self::normalizeCountryName($nestedCountry);
+                }
+                foreach (['city', 'City', 'hotel_city'] as $cityKey) {
+                    $city = trim((string) ($nested[$cityKey] ?? ''));
+                    if ($city !== '') {
+                        $cityCandidates[] = $city;
+                    }
+                }
+            }
+
+            foreach (['city', 'City', 'hotel_city', 'destination', 'destination_name'] as $cityKey) {
+                $city = trim((string) ($item[$cityKey] ?? ''));
+                if ($city !== '' && !str_contains($city, ',')) {
+                    $cityCandidates[] = $city;
+                }
+            }
+        }
+
+        foreach (array_unique($cityCandidates) as $cityName) {
+            $fromCity = City::query()->where('name', $cityName)->value('country');
+            if (!empty($fromCity)) {
+                return self::normalizeCountryName((string) $fromCity);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve the country stored on an order, falling back to payload inference.
+     */
+    public static function resolveOrderCountryName($order): ?string
+    {
+        $stored = trim((string) ($order->country ?? ''));
+        if ($stored !== '' && !str_contains($stored, ',')) {
+            return self::normalizeCountryName($stored);
+        }
+
+        return self::inferCountryFromOrderPayload($order->data ?? null);
+    }
+
+    /**
+     * Filter orders collection to a single destination country.
+     */
+    public static function filterOrdersByCountry($orders, ?string $country)
+    {
+        $country = trim((string) $country);
+        if ($country === '' || strcasecmp($country, 'all') === 0) {
+            return $orders;
+        }
+
+        return $orders->filter(function ($order) use ($country) {
+            $orderCountry = self::resolveOrderCountryName($order);
+
+            return $orderCountry !== null && self::countriesMatch($orderCountry, $country);
+        })->values();
+    }
+
+    /**
+     * Prefer currency configured for a country; fall back to tour display currency.
+     */
+    public static function resolveCountryDisplayCurrency(?string $country, $tour = null): string
+    {
+        $country = trim((string) $country);
+        if ($country !== '') {
+            $currency = Country::query()
+                ->whereRaw('LOWER(name) = ?', [strtolower(self::normalizeCountryName($country))])
+                ->value('currency');
+            $currency = strtoupper(trim((string) $currency));
+            if ($currency !== '') {
+                return $currency;
+            }
+        }
+
+        if ($tour instanceof Tour) {
+            return self::resolveTourDisplayCurrency($tour);
+        }
+
+        return 'SGD';
+    }
+
     public static function isMasterDmcUser(?User $user): bool
     {
         return $user !== null && in_array((int) $user->role_id, self::MASTER_DMC_ROLE_IDS, true);
@@ -3336,16 +3532,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
     }
 
-    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation', $logoType = 'dmc')
+    public static function downloadTourPdf($tourId, $targetCurrency = null, $preview = false, $quotationInformationHtml = null, $viewName = 'single-tour-package.quotation', $logoType = 'dmc', $filterCountry = null)
     {
         $tour = Tour::where('tour_id', $tourId)->first();
         if (!$tour) {
             return null;
         }
 
+        $filterCountry = trim((string) $filterCountry);
+        if ($filterCountry !== '' && strcasecmp($filterCountry, 'all') === 0) {
+            $filterCountry = '';
+        }
+
         // Currency handling
-        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC), not a hardcoded SGD.
-        $baseCurrency = self::resolveTourDisplayCurrency($tour);
+        // Base currency = selected country currency when filtering, else tour DMC currency.
+        $baseCurrency = $filterCountry !== ''
+            ? self::resolveCountryDisplayCurrency($filterCountry, $tour)
+            : self::resolveTourDisplayCurrency($tour);
         $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
         $exchangeRate = 1.0;
 
@@ -3360,6 +3563,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ->where('status', 1)
             ->orderBy('booking_id')
             ->get();
+
+        if ($filterCountry !== '') {
+            $orders = self::filterOrdersByCountry($orders, $filterCountry);
+        }
 
         $servicesByDate = self::groupServicesByDate($orders);
         ksort($servicesByDate);
@@ -3719,7 +3926,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         // Travel details
         $travelDetails = [
-            'destination' => $tour->destination ?? $tour->tour_destination ?? 'N/A',
+            'destination' => $filterCountry !== ''
+                ? $filterCountry
+                : ($tour->destination ?? $tour->tour_destination ?? 'N/A'),
             'travel_date_from' => $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->format('l- d/m/Y') : 'N/A',
             'travel_date_to' => $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->format('l- d/m/Y') : 'N/A',
             'duration' => 'N/A',
@@ -3738,7 +3947,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         // Calculate tour prices
-        $tourPrices = self::calculateTourPrices($tourId);
+        $tourPrices = self::calculateTourPrices($tourId, $filterCountry !== '' ? $filterCountry : null);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         
@@ -4224,7 +4433,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
      * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
      */
-    public static function calculateTourPrices($tourId)
+    public static function calculateTourPrices($tourId, $filterCountry = null)
     {
         // Check if input is display_id (string format like "DMC-ORD3107") or tour_id (integer)
         if (is_string($tourId) && (strpos($tourId, 'DMC-ORD') === 0 || strpos($tourId, 'ORD') === 0)) {
@@ -4261,6 +4470,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $orders = Order::where('tour_id', $actualTourId)
             ->where('status', 1)
             ->get();
+
+        $filterCountry = trim((string) $filterCountry);
+        if ($filterCountry !== '' && strcasecmp($filterCountry, 'all') !== 0) {
+            $orders = self::filterOrdersByCountry($orders, $filterCountry);
+        }
 
         // GROUP pricing inputs
         // IMPORTANT (project convention):

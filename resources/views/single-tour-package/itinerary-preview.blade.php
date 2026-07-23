@@ -3,11 +3,20 @@
 @section('content')
 @php
     use Illuminate\Support\Facades\Crypt;
+    $filterCountry = $filterCountry ?? null;
+    $quotationCountries = $quotationCountries ?? [];
     $itineraryPreviewBase = route('tour.itinerary.preview', ['encryptedTourId' => Crypt::encrypt($tour->tour_id)]);
-    $itineraryQuery = [
+    $itineraryQuery = array_filter([
         'currency' => $selectedCurrency,
         'logo_type' => $logoType ?? 'dmc',
-    ];
+        'country' => $filterCountry,
+    ], fn ($v) => $v !== null && $v !== '');
+    $pdfQuery = array_filter([
+        'currency' => $selectedCurrency,
+        'preview' => 1,
+        'logo_type' => $logoType ?? 'dmc',
+        'country' => $filterCountry,
+    ], fn ($v) => $v !== null && $v !== '');
 @endphp
 <style>
     #currency {
@@ -73,12 +82,15 @@
             <h4 class="mb-1">Tour Quotation Preview</h4>
             <p class="text-muted small mb-0">
                 Tour ID: {{ $tour->display_id ?? $tour->tour_id }} &mdash;
-                Destination: {{ $tour->destination ?? $tour->tour_destination ?? 'N/A' }}
+                Destination: {{ $filterCountry ?: ($tour->destination ?? $tour->tour_destination ?? 'N/A') }}
             </p>
         </div>
         <div class="col-md-6 text-md-end mt-2 mt-md-0">
             <form method="GET" action="{{ $itineraryPreviewBase }}" class="invoice-preview-actions d-flex flex-wrap align-items-center justify-content-md-end gap-2 gap-md-3">
                 <input type="hidden" name="logo_type" value="{{ $logoType ?? 'dmc' }}">
+                @if(!empty($filterCountry))
+                    <input type="hidden" name="country" value="{{ $filterCountry }}">
+                @endif
                 <div class="d-flex align-items-center gap-2">
                     <label for="currency" class="mb-0 fw-semibold text-nowrap">Currency</label>
                     <select name="currency" id="currency" class="form-select form-select-sm" style="max-width: 120px; min-width: 100px;" onchange="this.form.submit()">
@@ -105,10 +117,27 @@
         </div>
     </div>
 
-    @if($hasAgency ?? false)
+    @if(($hasAgency ?? false) || count($quotationCountries) > 1)
     <div class="row mb-3">
         <div class="col-12">
             <div class="invoice-preview-toolbar" role="toolbar" aria-label="Quotation preview options">
+                @if(count($quotationCountries) > 1)
+                <div class="toolbar-segment">
+                    <span class="toolbar-label">Country</span>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Destination country">
+                        <a href="{{ $itineraryPreviewBase }}?{{ http_build_query(array_filter(array_merge($itineraryQuery, ['country' => null]))) }}"
+                           class="btn {{ empty($filterCountry) ? 'btn-success' : 'btn-outline-secondary' }}">All</a>
+                        @foreach($quotationCountries as $qCountry)
+                            <a href="{{ $itineraryPreviewBase }}?{{ http_build_query(array_merge($itineraryQuery, ['country' => $qCountry])) }}"
+                               class="btn {{ ($filterCountry === $qCountry) ? 'btn-success' : 'btn-outline-secondary' }}">{{ $qCountry }}</a>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+                @if(($hasAgency ?? false) && count($quotationCountries) > 1)
+                    <div class="toolbar-divider"></div>
+                @endif
+                @if($hasAgency ?? false)
                 <div class="toolbar-segment">
                     <span class="toolbar-label">Company</span>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Company branding">
@@ -118,6 +147,7 @@
                            class="btn {{ ($logoType ?? 'dmc') === 'agency' ? 'btn-success' : 'btn-outline-secondary' }}">Agency</a>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -129,7 +159,7 @@
                 <div class="card-body" style="padding: 0;">
                     <iframe
                         id="quotationIframe"
-                        src="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1, 'logo_type' => $logoType ?? 'dmc']) }}"
+                        src="{{ route('tour.itinerary.pdf', array_merge(['tourId' => $tour->tour_id], $pdfQuery)) }}"
                         style="width: 100%; height: 900px; border: none;"
                     ></iframe>
                 </div>
@@ -158,9 +188,10 @@
                                 <option value="">Select Country</option>
                                 @foreach($countries ?? [] as $country)
                                     @php
-                                        $tourCountry = (string) ($tour->destination ?? $tour->tour_destination ?? '');
+                                        $selectedQuotationCountry = $filterCountry
+                                            ?: (string) ($tour->destination ?? $tour->tour_destination ?? '');
                                     @endphp
-                                    <option value="{{ $country->name }}" {{ $tourCountry === (string) $country->name ? 'selected' : '' }}>
+                                    <option value="{{ $country->name }}" {{ $selectedQuotationCountry === (string) $country->name ? 'selected' : '' }}>
                                         {{ $country->name }}
                                     </option>
                                 @endforeach
@@ -197,6 +228,7 @@
     <script>
         (function () {
             const citiesByCountry = @json($citiesByCountry ?? []);
+            const filterCountryParam = @json($filterCountry);
 
             const countrySelect = document.getElementById('quotationCountrySelect');
             const citySelect = document.getElementById('quotationCitySelect');
@@ -373,8 +405,9 @@
 
                     const key = json.quotation_info_key;
                     const itineraryLogoType = @json($logoType ?? 'dmc');
-                    const previewBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType);
-                    const downloadBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType);
+                    const countryQuery = filterCountryParam ? ('&country=' + encodeURIComponent(filterCountryParam)) : '';
+                    const previewBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency, 'preview' => 1]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType) + countryQuery;
+                    const downloadBaseUrl = '{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id, 'currency' => $selectedCurrency]) }}' + '&logo_type=' + encodeURIComponent(itineraryLogoType) + countryQuery;
 
                     const previewUrl = previewBaseUrl + '&quotation_info_key=' + encodeURIComponent(key);
                     const downloadUrl = downloadBaseUrl + '&quotation_info_key=' + encodeURIComponent(key);
