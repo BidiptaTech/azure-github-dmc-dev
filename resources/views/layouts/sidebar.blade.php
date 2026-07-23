@@ -1324,19 +1324,19 @@
                         <span class="menu-header-text" data-i18n="Tax Management">Tax Management</span>
                     </li>
 
-                    <li class="menu-item @if(Request::is('tax*')) open active @endif">
+                    <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-percent-line"></i>
                             <div data-i18n="Tax Management">Tax Management</div>
                         </a>
                         <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/settings')) open active @endif">
+                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
                                 <a href="javascript:void(0);" class="menu-link menu-toggle">
                                     <div data-i18n="Settings">Settings</div>
                                 </a>
                                 <ul class="menu-sub">
                                     <!-- Add Tax -->
-                                    <li class="menu-item @if(Request::is('tax')) active @endif">
+                                    <li class="menu-item @if((Request::is('tax') || Request::is('tax/*')) && !Request::is('tax/settings')) active @endif">
                                         <a href="{{ route('tax.index') }}" class="menu-link">
                                             <div data-i18n="Add Tax">Add Tax</div>
                                         </a>
