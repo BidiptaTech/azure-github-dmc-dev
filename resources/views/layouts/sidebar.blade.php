@@ -924,7 +924,7 @@
                             </ul>
                         </li>
 
-                        <li class="menu-item">
+                        {{-- <li class="menu-item">
                             <a href="javascript:void(0);" class="menu-link menu-toggle">
                                 <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
                             </a>
@@ -955,6 +955,13 @@
                                     </a>
                                 </li>
                             </ul>
+                        </li> --}}
+
+                        <li class="menu-item disabled">
+                            <a href="javascript:void(0);" class="menu-link"
+                            style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
+                            </a>
                         </li>
 
                         <li class="menu-item disabled">
