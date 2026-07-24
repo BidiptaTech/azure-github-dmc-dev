@@ -153,9 +153,35 @@ class TourController extends Controller
         ])->orderBy('created_at', 'desc');
         
         // Step 3: Apply role-specific filters
+        // Own agent tree OR sibling-DMC multi-country tours that include this user's/DMC country
+        // (e.g. Singapore DMC creates "Singapore, Malaysia, India" → India DMC can see it).
         if ($agent_ids !== null && $agent_ids->isNotEmpty()) {
-            // Filter by agent IDs if we have a list
-            $query->whereIn('agent_id', $agent_ids);
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+
+            $query->where(function ($q) use ($agent_ids, $country, $siblingDmcIds) {
+                $q->whereIn('agent_id', $agent_ids);
+                if ($country && count($siblingDmcIds) > 1) {
+                    $q->orWhere(function ($q2) use ($country, $siblingDmcIds) {
+                        $q2->whereIn('dmc_id', $siblingDmcIds);
+                        CommonHelper::whereDestinationContainsCountry($q2, $country, 'destination');
+                    });
+                }
+            });
+        } elseif ($agent_ids !== null && $agent_ids->isEmpty()) {
+            // Keep empty agent list behavior: no agent tours, but still allow multi-country sibling tours
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+            if ($country && count($siblingDmcIds) > 1) {
+                $query->where(function ($q) use ($country, $siblingDmcIds) {
+                    $q->whereIn('dmc_id', $siblingDmcIds);
+                    CommonHelper::whereDestinationContainsCountry($q, $country, 'destination');
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
         
         // Apply additional role-specific filtering

@@ -1589,14 +1589,16 @@
                             </li>
                         @endif
 
-                        @if($sidebarIsAdmin)
+                        @if($sidebarIsAdmin || $sidebarIsDmc)
                             <!-- Email Settings -->
                             <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                                 <a href="{{ route('mail.settings') }}" class="menu-link">
                                     <div data-i18n="Email Settings">Email Settings</div>
                                 </a>
                             </li>
+                        @endif
 
+                        @if($sidebarIsAdmin)
                             <!-- App Settings -->
                             <li class="menu-item @if(Request::is('app-management')) active @endif">
                                 <a href="{{ route('app-management.index') }}" class="menu-link">

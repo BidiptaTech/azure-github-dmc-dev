@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\CommonHelper;
 use App\Models\Agency;
 use App\Models\Country;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -442,7 +443,13 @@ class AgencyController extends Controller
             return !$agency->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.agencies', compact('availableAgencies', 'selectedAgencies'));
+        $salesDmcUsers = $this->getSalesDmcUsers($dmc_id);
+
+        return view('services.agencies', compact(
+            'availableAgencies',
+            'selectedAgencies',
+            'salesDmcUsers'
+        ));
     }
 
     /**
@@ -453,6 +460,7 @@ class AgencyController extends Controller
     {
         try {
             $agencyId = $request->input('agency_id');
+            $salesUserId = $request->input('sales_user_id');
             $user = Auth::user();
 
             $allowedRoles = [11,33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138, 128, 129, 134];
@@ -471,8 +479,30 @@ class AgencyController extends Controller
                     'message' => $e->getMessage()
                 ], 403);
             }
-            
-            
+
+            $validator = Validator::make($request->all(), [
+                'agency_id' => 'required|integer',
+                'sales_user_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $salesUser = $this->getSalesDmcUsers($dmc_id)
+                ->firstWhere('userId', (int) $salesUserId);
+
+            if (!$salesUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected sales user does not belong to this DMC.',
+                ], 422);
+            }
+
             // Find the agency
             $agency = Agency::where('agency_id', $agencyId)->first();
             if (!$agency) {
@@ -499,6 +529,9 @@ class AgencyController extends Controller
             
             // Add the DMC ID to the agency's dmc_id array
             $agency->addDmcId($dmc_id);
+
+            // Store this DMC's assigned sales user as { dmcId: userId }.
+            $agency->setSalesDmcUser($dmc_id, $salesUser->userId);
             
             // Send appropriate email based on whether this is first DMC or not
             try {
@@ -553,7 +586,10 @@ class AgencyController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Agency selected successfully!',
-                'email_sent' => isset($emailResult) && $emailResult === true
+                'email_sent' => isset($emailResult) && $emailResult === true,
+                'sales_dmc' => [
+                    (string) $dmc_id => (int) $salesUser->userId,
+                ],
             ]);
             
         } catch (\Exception $e) {
@@ -624,6 +660,48 @@ class AgencyController extends Controller
                 'message' => 'An error occurred while removing the agency.'
             ], 500);
         }
+    }
+
+    /**
+     * Return sales users in the hierarchy rooted at the given DMC.
+     */
+    private function getSalesDmcUsers($dmcId)
+    {
+        if (empty($dmcId) || is_array($dmcId)) {
+            return collect();
+        }
+
+        $salesRoleIds = [33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+        $frontier = collect([(int) $dmcId]);
+        $visited = collect([(int) $dmcId]);
+        $salesUsers = collect();
+
+        // Walk the users.created_by hierarchy so managers nested below heads
+        // are included, not only users created directly by the DMC.
+        while ($frontier->isNotEmpty()) {
+            $levelUsers = User::whereIn('created_by', $frontier->all())
+                ->whereIn('role_id', $salesRoleIds)
+                ->select('userId', 'name', 'role_id', 'created_by')
+                ->orderBy('name')
+                ->get();
+
+            $newUsers = $levelUsers->reject(function ($user) use ($visited) {
+                return $visited->contains((int) $user->userId);
+            });
+
+            if ($newUsers->isEmpty()) {
+                break;
+            }
+
+            $salesUsers = $salesUsers->concat($newUsers);
+            $frontier = $newUsers->pluck('userId')->map(fn ($id) => (int) $id);
+            $visited = $visited->merge($frontier)->unique();
+        }
+
+        return $salesUsers
+            ->unique('userId')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
     }
 
     public function getDmcIdByUserRole()
