@@ -4873,7 +4873,14 @@
             }
         }
         $remainingAmount = max(0, round($finalAmount - $totalPaid));
-        $tourCurrency = $tour->user_currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+        // Prefer enquiry_comments.currency when set; else tour user_currency; else DMC currency.
+        $enquiryCurrency = is_string($tour->enquiry_currency ?? null) ? trim($tour->enquiry_currency) : '';
+        $userCurrency = is_string($tour->user_currency ?? null) ? trim($tour->user_currency) : '';
+        $tourCurrency = $enquiryCurrency !== ''
+            ? $enquiryCurrency
+            : ($userCurrency !== ''
+                ? $userCurrency
+                : ($currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()));
     @endphp
     <script>window.tourPaymentData = window.tourPaymentData || {}; window.tourPaymentData[{{ $tour->tour_id }}] = @json($paymentData ?? []);</script>
 
@@ -4972,7 +4979,7 @@
                                             <td class="text-center" title="{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
                                             <td class="text-center fw-bold text-success">{{ isset($payment['amount']) ? number_format((float)$payment['amount'], 2) : '0.00' }}</td>
                                             <td class="text-center">{{ isset($payment['original_amount']) ? number_format((float)$payment['original_amount'], 2) : number_format((float)($payment['amount'] ?? 0), 2) }}</td>
-                                            <td class="text-center">{{ $payment['currency'] ?? $currency }}</td>
+                                            <td class="text-center">{{ $tourCurrency }}</td>
                                             <td class="text-center">{{ isset($payment['exchange_rate']) ? number_format((float)$payment['exchange_rate'], 4) : '1.0000' }}</td>
                                             <td class="text-center"><span class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span></td>
                                             <td class="text-center" title="{{ $payment['transaction_id'] ?? 'N/A' }}">{{ Str::limit($payment['transaction_id'] ?? 'N/A', 12, '…') }}</td>
@@ -4983,11 +4990,11 @@
                             </table>
                         </div>
                         <div class="row mt-2 g-1">
-                            <div class="col"><div class="card bg-secondary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Base</small><strong style="font-size: 0.85rem;">{{ number_format($baseAmount, 2) }}</strong></div></div>
-                            <div class="col"><div class="card bg-info text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Tax</small><strong style="font-size: 0.85rem;">{{ number_format($taxAmount, 2) }}</strong></div></div>
-                            <div class="col"><div class="card bg-primary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Total</small><strong style="font-size: 0.85rem;">{{ number_format($finalAmount, 2) }}</strong></div></div>
-                            <div class="col"><div class="card bg-success text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Paid</small><strong style="font-size: 0.85rem;">{{ number_format($totalPaid, 2) }}</strong></div></div>
-                            <div class="col"><div class="card bg-warning text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Remaining</small><strong style="font-size: 0.85rem;">{{ number_format($remainingAmount, 2) }}</strong></div></div>
+                            <div class="col"><div class="card bg-secondary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Base</small><strong style="font-size: 0.85rem;">{{ number_format($baseAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
+                            <div class="col"><div class="card bg-info text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Tax</small><strong style="font-size: 0.85rem;">{{ number_format($taxAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
+                            <div class="col"><div class="card bg-primary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Total</small><strong style="font-size: 0.85rem;">{{ number_format($finalAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
+                            <div class="col"><div class="card bg-success text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Paid</small><strong style="font-size: 0.85rem;">{{ number_format($totalPaid, 2) }} {{ $tourCurrency }}</strong></div></div>
+                            <div class="col"><div class="card bg-warning text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Remaining</small><strong style="font-size: 0.85rem;">{{ number_format($remainingAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
                         </div>
                     @else
                         <div class="text-center py-4">
