@@ -1361,6 +1361,13 @@
                 </div>
 
                 @if(in_array($currentMappingType, $zoneMappingTypesWithFilters))
+                @php
+                    $seedProfitMapping = collect($mappings ?? [])->first();
+                    $seedPrivateProfitType = $seedProfitMapping?->private_profit_type ?? 'percentage';
+                    $seedPrivateProfitAmount = $seedProfitMapping?->private_profit_amount ?? 0;
+                    $seedSharedProfitType = $seedProfitMapping?->shared_profit_type ?? 'percentage';
+                    $seedSharedProfitAmount = $seedProfitMapping?->shared_profit_amount ?? 0;
+                @endphp
                 <div class="row mb-3 align-items-end" id="zone-mapping-filters"
                      data-ports='@json($portsSorted ?? [])'
                      data-from-zones='@json($zoneFilterFromZones ?? [])'
@@ -1369,7 +1376,7 @@
                      data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
                      data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
                      data-cities-url="{{ route('fetch-cities-by-country') }}">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
                         <select id="mapping_filter_country" class="form-select">
                             @php $scopedCountries = $countries ?? collect(); @endphp
@@ -1379,11 +1386,35 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
                         <select id="mapping_filter_city" class="form-select">
                             <option value="">All Cities</option>
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_private_profit_type" class="form-label"><strong>Private Profit</strong></label>
+                        <select id="global_private_profit_type" name="global_private_profit_type" class="form-select js-global-private-profit-type">
+                            <option value="percentage" {{ $seedPrivateProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedPrivateProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_private_profit_amount" class="form-label"><strong>Private Amount</strong></label>
+                        <input type="number" id="global_private_profit_amount" name="global_private_profit_amount"
+                               class="form-control js-global-private-profit-amount" value="{{ $seedPrivateProfitAmount }}" step="0.01" min="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_type" class="form-label"><strong>Shared Profit</strong></label>
+                        <select id="global_shared_profit_type" name="global_shared_profit_type" class="form-select js-global-shared-profit-type">
+                            <option value="percentage" {{ $seedSharedProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedSharedProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_amount" class="form-label"><strong>Shared Amount</strong></label>
+                        <input type="number" id="global_shared_profit_amount" name="global_shared_profit_amount"
+                               class="form-control js-global-shared-profit-amount" value="{{ $seedSharedProfitAmount }}" step="0.01" min="0">
                     </div>
                 </div>
                 <script>
@@ -1680,11 +1711,11 @@
                 
                 <div class="row">
                     <div class="col-md-12">
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
+                        <div class="table-responsive zone-mapping-price-wrap">
+                            <table class="table table-bordered table-sm zone-mapping-price-table">
                                 <thead>
                                     <tr>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-from">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 From Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1703,7 +1734,7 @@
                                                 From Zone
                                             @endif
                                         </th>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-to">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 To Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1722,9 +1753,15 @@
                                                 To Zone
                                             @endif
                                         </th>
-                                        <th>Private Price</th>
-                                        <th>Shared Price</th>
-                                        <th>Actions</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Private Price</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Shared Price</th>
+                                        <th rowspan="2" class="align-middle text-center zone-col-actions">Actions</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mappingsTableBody">
@@ -1841,16 +1878,24 @@
                                                     </td>
                                                 @endif
                                                 <td>
-                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->private_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-cost" value="{{ $mapping->private_cost_price ?? $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-sell" value="{{ $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}">
-                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    <input type="number" name="shared_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-cost" value="{{ $mapping->shared_cost_price ?? $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td>
+                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-sell" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td class="zone-col-actions">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}" title="Remove">
+                                                        <i class="ri-delete-bin-line"></i>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1868,6 +1913,193 @@
                     <button type="submit" class="btn btn-primary px-4">Save Mappings</button>
                 </div>
             </form>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const table = document.getElementById('mappingsTableBody');
+                if (!table || table.dataset.costSyncBound === '1') return;
+                table.dataset.costSyncBound = '1';
+
+                function round2(n) {
+                    return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+                }
+
+                function calcSellFromCost(cost, type, amount) {
+                    const c = parseFloat(cost);
+                    const a = parseFloat(amount);
+                    const costVal = isNaN(c) ? 0 : c;
+                    const amtVal = isNaN(a) ? 0 : a;
+                    // No cost → no sell (flat amount must not apply when cost is 0)
+                    if (costVal <= 0) {
+                        return 0;
+                    }
+                    if (type === 'flat') {
+                        return round2(costVal + amtVal);
+                    }
+                    return round2(costVal + (costVal * amtVal / 100));
+                }
+
+                function globalProfit(prefix) {
+                    const typeEl = document.querySelector('.js-global-' + prefix + '-profit-type');
+                    const amountEl = document.querySelector('.js-global-' + prefix + '-profit-amount');
+                    return {
+                        type: typeEl ? typeEl.value : 'percentage',
+                        amount: amountEl ? amountEl.value : 0
+                    };
+                }
+
+                function updateSellForPrefix(row, prefix) {
+                    const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                    const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                    if (!cost || !sell) return;
+                    if (sell.dataset.userEdited === '1') return;
+                    const g = globalProfit(prefix);
+                    sell.value = calcSellFromCost(cost.value, g.type, g.amount);
+                }
+
+                function recalculateAllRows(force) {
+                    table.querySelectorAll('tr').forEach(function (row) {
+                        ['private', 'shared'].forEach(function (prefix) {
+                            const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                            if (sell && force) sell.dataset.userEdited = '';
+                            updateSellForPrefix(row, prefix);
+                        });
+                    });
+                }
+
+                function onRowPricingChange(el) {
+                    const row = el.closest('tr');
+                    if (!row) return;
+                    if (el.classList.contains('js-zone-private-sell') || el.classList.contains('js-zone-shared-sell')) {
+                        el.dataset.userEdited = '1';
+                        return;
+                    }
+                    if (el.classList.contains('js-zone-private-cost')) {
+                        const sell = row.querySelector('.js-zone-private-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'private');
+                    }
+                    if (el.classList.contains('js-zone-shared-cost')) {
+                        const sell = row.querySelector('.js-zone-shared-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'shared');
+                    }
+                }
+
+                table.addEventListener('input', function (e) {
+                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+                table.addEventListener('change', function (e) {
+                    if (e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+
+                document.querySelectorAll(
+                    '.js-global-private-profit-type, .js-global-private-profit-amount, .js-global-shared-profit-type, .js-global-shared-profit-amount'
+                ).forEach(function (el) {
+                    el.addEventListener('input', function () { recalculateAllRows(true); });
+                    el.addEventListener('change', function () { recalculateAllRows(true); });
+                });
+
+                // Cost 0 must show Sell 0 (do not leave leftover flat amounts on load)
+                table.querySelectorAll('tr').forEach(function (row) {
+                    ['private', 'shared'].forEach(function (prefix) {
+                        const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                        const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                        if (!cost || !sell) return;
+                        const costVal = parseFloat(cost.value);
+                        if (isNaN(costVal) || costVal <= 0) {
+                            sell.value = 0;
+                            sell.dataset.userEdited = '';
+                        }
+                    });
+                });
+            });
+            </script>
+
+            <style>
+                .zone-mapping-price-wrap {
+                    width: 100%;
+                    overflow-x: auto;
+                }
+                .zone-mapping-price-table {
+                    width: 100%;
+                    table-layout: fixed;
+                    margin-bottom: 0;
+                    font-size: 0.8rem;
+                }
+                .zone-mapping-price-table thead th {
+                    padding: 0.35rem 0.4rem;
+                    vertical-align: middle;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table tbody td {
+                    padding: 0.3rem 0.35rem;
+                    vertical-align: middle;
+                }
+                .zone-mapping-price-table thead th.zone-price-group-head {
+                    background: #f1f5f9;
+                    font-weight: 700;
+                    font-size: 0.78rem;
+                    border-bottom-width: 1px;
+                }
+                .zone-mapping-price-table thead th.zone-price-sub-head {
+                    background: #f8fafc;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: #475569;
+                    width: 10%;
+                }
+                .zone-mapping-price-table .zone-col-from,
+                .zone-mapping-price-table .zone-col-to {
+                    width: 28%;
+                }
+                .zone-mapping-price-table .zone-col-actions {
+                    width: 6%;
+                    text-align: center;
+                    position: sticky;
+                    right: 0;
+                    background: #fff;
+                    z-index: 2;
+                    box-shadow: -4px 0 6px rgba(0,0,0,0.04);
+                }
+                .zone-mapping-price-table thead th.zone-col-actions {
+                    background: #f8fafc;
+                    z-index: 3;
+                }
+                .zone-mapping-price-table .zone-cell-text {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    line-height: 1.25;
+                    max-width: 100%;
+                    word-break: break-word;
+                }
+                .zone-mapping-price-table .badge {
+                    font-size: 0.65rem;
+                    padding: 0.2em 0.4em;
+                    flex-shrink: 0;
+                }
+                .zone-mapping-price-table tbody td input.form-control {
+                    min-width: 0 !important;
+                    width: 100%;
+                    height: 30px;
+                    padding: 0.15rem 0.35rem;
+                    font-size: 0.78rem;
+                }
+                .zone-mapping-price-table .btn-sm {
+                    padding: 0.15rem 0.4rem;
+                    font-size: 0.72rem;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table .btn-sm i {
+                    font-size: 0.75rem;
+                }
+            </style>
 
             @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
             <form id="zoneMappingImportForm"
@@ -1935,7 +2167,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -1982,25 +2220,42 @@
                                 <td>${escapeHtml(toText)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2035,7 +2290,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2080,7 +2335,7 @@
 
                             if (!destinations.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2146,7 +2401,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2212,25 +2473,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2256,7 +2534,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2291,7 +2569,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2355,7 +2633,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2421,25 +2705,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2465,7 +2766,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2500,7 +2801,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2562,7 +2863,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2628,25 +2935,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2672,7 +2996,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2707,7 +3031,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2769,7 +3093,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2834,25 +3164,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2878,7 +3225,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate attractions for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate attractions for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2913,7 +3260,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2975,7 +3322,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -3040,25 +3393,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -3084,7 +3454,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -3119,7 +3489,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -3181,7 +3551,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -3246,25 +3622,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -3290,7 +3683,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select an <strong>Attraction</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select an <strong>Attraction</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -3325,7 +3718,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -4306,15 +4699,23 @@ if (document.readyState === 'loading') {
                     <td>${fromZoneText}</td>
                     <td>${toZoneText}</td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -4443,15 +4844,23 @@ $(document).ready(function() {
                     </div>
                 </td>
                 <td>
-                    <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                </td>
+                <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                </td>
+                <td class="zone-col-actions">
+                    <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                 </td>
             </tr>
         `;
@@ -4643,15 +5052,23 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -4902,9 +5319,15 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
             fromZoneItems = fromZoneItems || [];
             toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
             const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
             const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
             const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
@@ -4926,16 +5349,24 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>
@@ -5337,7 +5768,13 @@ $(document).ready(function() {
                                         fromZone, toZone, fromZoneText, toZoneText, 
                                         fromType, toType, fromDescription, toDescription,
                                         restoreResponse.private_price, restoreResponse.shared_price,
-                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems
+                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems,
+                                        restoreResponse.private_cost_price ?? restoreResponse.private_price,
+                                        restoreResponse.shared_cost_price ?? restoreResponse.shared_price,
+                                        restoreResponse.private_profit_type ?? 'percentage',
+                                        restoreResponse.private_profit_amount ?? 0,
+                                        restoreResponse.shared_profit_type ?? 'percentage',
+                                        restoreResponse.shared_profit_amount ?? 0
                                     );
                                     showSuccessToast("Mapping restored successfully");
                                 },
@@ -5388,9 +5825,15 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
             fromZoneItems = fromZoneItems || [];
             toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
             const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
             const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
             const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
@@ -5412,16 +5855,24 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>

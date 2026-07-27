@@ -42,7 +42,13 @@ class VehicleZoneMappingExport implements FromArray, WithHeadings, WithStyles, S
             'to_name',
             'to_type',
             'private_price',
+            'private_cost_price',
+            'private_profit_type',
+            'private_profit_amount',
             'shared_price',
+            'shared_cost_price',
+            'shared_profit_type',
+            'shared_profit_amount',
         ];
     }
 
