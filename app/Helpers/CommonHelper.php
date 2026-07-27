@@ -237,7 +237,7 @@ class CommonHelper
 
     /**
      * Upload JSON to Azure only (same file_storage setting as image_path).
-     * Skips local and S3 — returns master_value null when storage is not azure.
+     * Skips local and S3 â€” returns master_value null when storage is not azure.
      */
     public static function json_path(string $name, string $jsonContent, string $fileName, string $container = 'aiuploads'): array
     {
@@ -1750,7 +1750,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
         elseif($auth_user->userId){
             $user = $auth_user;
-            if($user->role_id == 11){
+            if($user->role_id == 11 || $user->role_id == 20){
                 return $user->userId;
             }
             elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
@@ -1770,6 +1770,169 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
         return null;
+    }
+
+
+    /**
+     * Country used for multi-country tour visibility.
+     * Prefer user_country, else first CSV segment of country.
+     * For sales staff, fall back to their parent DMC country.
+     */
+    public static function resolveUserOperatingCountry($user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $pickFirst = static function (?string $raw): ?string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return null;
+            }
+            $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+            $first = trim((string) ($parts[0] ?? ''));
+            return $first !== '' ? $first : null;
+        };
+
+        $country = $pickFirst($user->user_country ?? null)
+            ?: $pickFirst($user->country ?? null);
+
+        if ($country) {
+            return $country;
+        }
+
+        // Sales / ops: inherit DMC country (e.g. India DMC â†’ India)
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+        if ($dmcId && (int) $dmcId !== (int) ($user->userId ?? 0)) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            if ($dmcUser) {
+                return $pickFirst($dmcUser->user_country ?? null)
+                    ?: $pickFirst($dmcUser->country ?? null);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Child DMC ids under the same Master DMC as $dmcId (includes $dmcId).
+     */
+    public static function getSiblingDmcIds($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [$dmcId];
+        }
+
+        $masterDmcId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterDmcId <= 0 && (int) ($dmcUser->role_id ?? 0) === 10) {
+            $masterDmcId = $dmcId;
+        }
+
+        if ($masterDmcId <= 0) {
+            $visited = [];
+            $candidateId = (int) ($dmcUser->created_by ?? 0);
+            $safety = 0;
+            while ($candidateId > 0 && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 10) {
+                    $masterDmcId = (int) $candidate->userId;
+                    break;
+                }
+                $candidateId = (int) ($candidate->created_by ?? 0);
+                $safety++;
+            }
+        }
+
+        if ($masterDmcId <= 0) {
+            return [$dmcId];
+        }
+
+        $ids = User::where('master_dmc_id', $masterDmcId)
+            ->where('role_id', 11)
+            ->pluck('userId')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!in_array($dmcId, $ids, true)) {
+            $ids[] = $dmcId;
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Match tours.destination CSV (e.g. "Singapore, Malaysia, India") to one country.
+     */
+    public static function whereDestinationContainsCountry($query, string $country, string $column = 'destination')
+    {
+        $country = trim($country);
+        if ($country === '') {
+            return $query;
+        }
+
+        $needle = mb_strtolower($country);
+
+        return $query->whereRaw(
+            "EXISTS (
+                SELECT 1
+                FROM unnest(
+                    string_to_array(
+                        regexp_replace(LOWER(COALESCE({$column}, '')), '\\s*,\\s*', ',', 'g'),
+                        ','
+                    )
+                ) AS dest(name)
+                WHERE TRIM(dest.name) = ?
+            )",
+            [$needle]
+        );
+    }
+
+    /**
+     * Master multi-country access:
+     * - Always show tours for the user's own DMC
+     * - Also show sibling-DMC tours when destination includes this DMC/user country
+     *   Example: Singapore DMC sales creates "Singapore, Malaysia, India"
+     *            â†’ India DMC (and India sales) can see that tour
+     */
+    public static function applyTourDmcCountryAccess($query, $dmcId, $user = null, string $dmcColumn = 'tours.dmc_id', string $destinationColumn = 'tours.destination')
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return $query;
+        }
+
+        $user = $user ?: Auth::user();
+        $siblingIds = self::getSiblingDmcIds($dmcId);
+        $country = self::resolveUserOperatingCountry($user);
+
+        // No siblings / no country â†’ classic own-DMC filter
+        if (count($siblingIds) <= 1 || !$country) {
+            return $query->where($dmcColumn, $dmcId);
+        }
+
+        return $query->where(function ($q) use ($dmcId, $siblingIds, $country, $dmcColumn, $destinationColumn) {
+            $q->where($dmcColumn, $dmcId)
+                ->orWhere(function ($q2) use ($siblingIds, $country, $dmcColumn, $destinationColumn) {
+                    $q2->whereIn($dmcColumn, $siblingIds);
+                    self::whereDestinationContainsCountry($q2, $country, $destinationColumn);
+                });
+        });
     }
 
     /**
@@ -1996,7 +2159,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     * Merge every present list field (cc, cc_list, etc.) â€” empty arrays are skipped.
      *
      * @param  array<string, mixed>  $context
      * @param  list<string>  $keys
@@ -2502,7 +2665,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
             $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
@@ -2572,7 +2735,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
             self::sendHtmlEmail(
@@ -2992,7 +3155,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: $selectedDmcName;
-            $subject = 'Destination not supported — '.$requestedCountry.' — '.$dmcName;
+            $subject = 'Destination not supported â€” '.$requestedCountry.' â€” '.$dmcName;
             $html = view('email.unsupported-destination-country', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -3074,7 +3237,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
-            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
+            $subject = 'Missing travel details â€” please check and resubmit â€” '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -3441,7 +3604,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "🌍 You've Been Invited to Partner with {$dmcName} on Travclicks";
+            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
 
             // Render the email template
             try {
@@ -3569,7 +3732,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "💰 Price Negotiation Submitted - Tour {$tourDisplayId}";
+            $subject = "ðŸ’° Price Negotiation Submitted - Tour {$tourDisplayId}";
 
             // Render the email template
             try {
@@ -4593,7 +4756,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $otherServiceSingle = 0.0;
         $otherServiceDouble = 0.0;
         // Track child-specific pricing component across attraction/restaurant services
-        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -5189,7 +5352,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         }
                         // Single/double/triple prices come from the room's own pricing data
                         // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
-                        // of this specific order. So fill each slot from ANY order — first non-null wins.
+                        // of this specific order. So fill each slot from ANY order â€” first non-null wins.
                         if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
                             $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
                         }
@@ -5224,8 +5387,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         // Handle attraction and restaurant
                         //
                         // Per-pax resolution priority (per-adult unit price):
-                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  ← user override
-                        //   2. Derived from the booking's own totalPrice                ← what the user actually saved
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
+                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
                         //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
                         //
                         // The booking's totalPrice is authoritative because it represents what the user
@@ -5238,7 +5401,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
 
-                            // (1) Explicit JSON per-pax (user override) — highest priority
+                            // (1) Explicit JSON per-pax (user override) â€” highest priority
                             $jsonAdultPrice = null;
                             $jsonChildPrice = null;
                             if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
@@ -5252,7 +5415,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $jsonChildPrice = floatval($item['child_price']);
                             }
 
-                            // (3) Catalog defaults — used only as a last resort
+                            // (3) Catalog defaults â€” used only as a last resort
                             $catalogAdultPrice = null;
                             $catalogChildPrice = null;
                             if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
@@ -5316,8 +5479,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $childUnitPrice = 0;
                             }
 
-                            // Adult per pax → main totals + segregated (with hotel and other services).
-                            // Child per pax → child_sharing only (never mixed into single/double).
+                            // Adult per pax â†’ main totals + segregated (with hotel and other services).
+                            // Child per pax â†’ child_sharing only (never mixed into single/double).
                             $singleSharing = 0;
                             if ($adultCount >= 1) {
                                 if ($adultUnitPrice > 0) {
@@ -5497,7 +5660,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
         
-        // Add merged hotel buckets once (prevents 3× multiplication when same hotel/date has multiple orders)
+        // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
         $hotelSingle = 0.0;
         $hotelDouble = 0.0;
         $hotelTriple = 0.0;
@@ -5532,7 +5695,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         // Final per-head totals (supplements excluded).
         // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
-        // that don't depend on room occupancy — a guest in a triple room still consumes the
+        // that don't depend on room occupancy â€” a guest in a triple room still consumes the
         // same attractions/meals as anyone else, so the same per-pax other-services cost
         // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
         $totalSingleSharing = $hotelSingle + $otherServiceSingle;
@@ -6381,19 +6544,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     protected static function serviceIcon($type)
     {
         $map = [
-            'hotel' => '🏨',
-            'guide' => '👤',
-            'restaurant' => '🍽️',
-            'attraction' => '🎯',
-            'entry_port' => '✈️',
-            'exit_port' => '🛫',
-            'travel_point' => '🚐',
-            'travel_hourly' => '🚗',
-            'local_transport' => '🚕',
+            'hotel' => 'ðŸ¨',
+            'guide' => 'ðŸ‘¤',
+            'restaurant' => 'ðŸ½ï¸',
+            'attraction' => 'ðŸŽ¯',
+            'entry_port' => 'âœˆï¸',
+            'exit_port' => 'ðŸ›«',
+            'travel_point' => 'ðŸš',
+            'travel_hourly' => 'ðŸš—',
+            'local_transport' => 'ðŸš•',
         ];
 
         $key = strtolower($type ?? '');
-        return $map[$key] ?? '🧭';
+        return $map[$key] ?? 'ðŸ§­';
     }
 
     protected static function friendlyLabel($value, $fallback = 'N/A')

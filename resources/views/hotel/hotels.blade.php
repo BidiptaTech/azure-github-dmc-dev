@@ -229,6 +229,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .hotels-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .hotels-infinite-footer .hotels-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .hotels-infinite-footer.is-loading .hotels-scroll-loader {
+        display: inline-flex;
+    }
+
+    .hotels-infinite-footer .hotels-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .hotels-infinite-footer.is-end .hotels-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -585,6 +619,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="hotelsInfiniteFooter" class="hotels-infinite-footer">
+                    <div class="hotels-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more hotels…</span>
+                    </div>
+                    <div class="hotels-scroll-end">All hotels loaded</div>
+                </div>
                 </div>
 
             </div>
@@ -621,16 +662,22 @@
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     $(document).ready(function() {
-        $('.datatables-basic').DataTable({
+        var hotelsBatchSize = 25;
+        var hotelsTableEl = $('.datatables-basic');
+        var hotelsInfiniteLoading = false;
+
+        var hotelsTable = hotelsTableEl.DataTable({
             responsive: false,
             autoWidth: false,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: hotelsBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
             columnDefs: [
                 { targets: '.col-no',         width: '38px'  },
@@ -641,11 +688,71 @@
             ],
         });
 
-        $('#exportCopy').on('click',  function() { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        var $infiniteFooter = $('#hotelsInfiniteFooter');
+        var hotelsInfiniteGuard = false;
+
+        function updateHotelsInfiniteFooter() {
+            var info = hotelsTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            hotelsInfiniteLoading = false;
+        }
+
+        function loadMoreHotelsIfNeeded() {
+            if (hotelsInfiniteLoading) return;
+
+            var info = hotelsTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateHotelsInfiniteFooter();
+                return;
+            }
+
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            var threshold = $(document).height() - 120;
+            if (scrollBottom < threshold) return;
+
+            hotelsInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+
+            setTimeout(function() {
+                var currentInfo = hotelsTable.page.info();
+                var nextLen = Math.min(currentInfo.length + hotelsBatchSize, currentInfo.recordsDisplay);
+                hotelsTable.page.len(nextLen).draw(false);
+                updateHotelsInfiniteFooter();
+            }, 150);
+        }
+
+        hotelsTable.on('length.dt', function(e, settings, len) {
+            hotelsBatchSize = len;
+            updateHotelsInfiniteFooter();
+        });
+
+        hotelsTable.on('search.dt', function() {
+            if (hotelsInfiniteGuard) {
+                return;
+            }
+            hotelsInfiniteGuard = true;
+            hotelsTable.page.len(hotelsBatchSize).draw(false);
+            hotelsInfiniteGuard = false;
+            updateHotelsInfiniteFooter();
+        });
+
+        hotelsTable.on('draw.dt', function() {
+            if (!hotelsInfiniteGuard) {
+                updateHotelsInfiniteFooter();
+            }
+        });
+
+        $(window).on('scroll.hotelsInfinite resize.hotelsInfinite', loadMoreHotelsIfNeeded);
+        updateHotelsInfiniteFooter();
+        loadMoreHotelsIfNeeded();
+
+        $('#exportCopy').on('click',  function() { hotelsTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click',   function() { hotelsTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { hotelsTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click',   function() { hotelsTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { hotelsTable.button('.buttons-print').trigger(); });
 
         $('#dmcCompaniesModal').on('hidden.bs.modal', function() {
             $('#dmcCompaniesModalBody').html('');

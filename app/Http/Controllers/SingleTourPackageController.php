@@ -761,10 +761,34 @@ class SingleTourPackageController extends Controller
 
             $userDmcId = CommonHelper::getDmcId(Auth::user());
             $userDMC = User::where('userId', $userDmcId)->first();
-            $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+            $auto_cancel_day = (int) ($userDMC->auto_cancel_date ?? 0); // e.g. 1
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
-            $dmcId = Auth::user()->created_by;
+            // Always persist the real DMC id (not sales created_by)
+            $dmcId = $userDmcId ?: Auth::user()->created_by;
+            $masterDmcId = null;
+            if ($dmcId) {
+                $dmcUserForMaster = User::where('userId', $dmcId)->first();
+                $masterDmcId = $dmcUserForMaster->master_dmc_id ?? null;
+                if (empty($masterDmcId) && $dmcUserForMaster) {
+                    $candidateId = (int) ($dmcUserForMaster->created_by ?? 0);
+                    $visited = [];
+                    $safety = 0;
+                    while ($candidateId > 0 && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                        $visited[] = $candidateId;
+                        $candidate = User::where('userId', $candidateId)->first();
+                        if (!$candidate) {
+                            break;
+                        }
+                        if ((int) ($candidate->role_id ?? 0) === 10) {
+                            $masterDmcId = $candidate->userId;
+                            break;
+                        }
+                        $candidateId = (int) ($candidate->created_by ?? 0);
+                        $safety++;
+                    }
+                }
+            }
             
             // Get DMC taxes and store as JSON
             $taxArray = [];
@@ -825,6 +849,9 @@ class SingleTourPackageController extends Controller
                 $tour->city = ($stripped !== '' ? $stripped : $cityStr);
             }
             $tour->dmc_id = $dmcId;
+            if (!empty($masterDmcId)) {
+                $tour->master_dmc_id = $masterDmcId;
+            }
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;

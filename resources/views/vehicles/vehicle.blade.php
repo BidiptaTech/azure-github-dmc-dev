@@ -234,6 +234,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .vehicles-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .vehicles-infinite-footer .vehicles-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .vehicles-infinite-footer.is-loading .vehicles-scroll-loader {
+        display: inline-flex;
+    }
+
+    .vehicles-infinite-footer .vehicles-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .vehicles-infinite-footer.is-end .vehicles-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -525,6 +559,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="vehiclesInfiniteFooter" class="vehicles-infinite-footer">
+                    <div class="vehicles-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more vehicles…</span>
+                    </div>
+                    <div class="vehicles-scroll-end">All vehicles loaded</div>
+                </div>
                 </div>
 
             </div>
@@ -544,6 +585,70 @@
             console.warn('[vehicles] #vehiclesTable not found');
             return;
         }
+
+        var vehiclesBatchSize = 25;
+        var vehiclesInfiniteLoading = false;
+        var $infiniteFooter = $('#vehiclesInfiniteFooter');
+        var vehiclesInfiniteGuard = false;
+        var vehiclesTable;
+
+        function updateVehiclesInfiniteFooter() {
+            var info = vehiclesTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            vehiclesInfiniteLoading = false;
+        }
+
+        function loadMoreVehiclesIfNeeded() {
+            if (vehiclesInfiniteLoading) return;
+
+            var info = vehiclesTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateVehiclesInfiniteFooter();
+                return;
+            }
+
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            var threshold = $(document).height() - 120;
+            if (scrollBottom < threshold) return;
+
+            vehiclesInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+
+            setTimeout(function() {
+                var currentInfo = vehiclesTable.page.info();
+                var nextLen = Math.min(currentInfo.length + vehiclesBatchSize, currentInfo.recordsDisplay);
+                vehiclesTable.page.len(nextLen).draw(false);
+                updateVehiclesInfiniteFooter();
+            }, 150);
+        }
+
+        function bindVehiclesInfiniteScroll() {
+            vehiclesTable.off('length.dt.vehiclesInfinite search.dt.vehiclesInfinite draw.dt.vehiclesInfinite');
+            vehiclesTable.on('length.dt.vehiclesInfinite', function(e, settings, len) {
+                vehiclesBatchSize = len;
+                updateVehiclesInfiniteFooter();
+            });
+            vehiclesTable.on('search.dt.vehiclesInfinite', function() {
+                if (vehiclesInfiniteGuard) {
+                    return;
+                }
+                vehiclesInfiniteGuard = true;
+                vehiclesTable.page.len(vehiclesBatchSize).draw(false);
+                vehiclesInfiniteGuard = false;
+                updateVehiclesInfiniteFooter();
+            });
+            vehiclesTable.on('draw.dt.vehiclesInfinite', function() {
+                if (!vehiclesInfiniteGuard) {
+                    updateVehiclesInfiniteFooter();
+                }
+            });
+            $(window).off('scroll.vehiclesInfinite resize.vehiclesInfinite').on('scroll.vehiclesInfinite resize.vehiclesInfinite', loadMoreVehiclesIfNeeded);
+            updateVehiclesInfiniteFooter();
+            loadMoreVehiclesIfNeeded();
+        }
+
         $vt.on('init.dt', function () {
             console.info('[vehicles] DataTable init — driver edit buttons:', document.querySelectorAll('#vehiclesTable .driver-edit-btn').length,
                 'selects:', document.querySelectorAll('#vehiclesTable .driver-inline-select').length);
@@ -553,39 +658,44 @@
             console.warn('[vehicles] DataTable already initialized on #vehiclesTable');
             console.info('[vehicles] Driver edit buttons:', document.querySelectorAll('#vehiclesTable .driver-edit-btn').length,
                 'selects:', document.querySelectorAll('#vehiclesTable .driver-inline-select').length);
+            vehiclesTable = $vt.DataTable();
         } else {
-            $vt.DataTable({
-            responsive: false,
-            autoWidth: false,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
-            buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
-            language: {
-                search: "_INPUT_",
-                searchPlaceholder: "Search...",
-            },
-            lengthMenu: [10, 25, 50, 100],
-            pagingType: 'simple_numbers',
-            columnDefs: [
-                { targets: '.col-no',           width: '38px'  },
-                { targets: '.col-name',         width: '120px' },
-                { targets: '.col-dmc',          width: '120px' },
-                { targets: '.col-type',         width: '90px'  },
-                { targets: '.col-model',        width: '100px' },
-                { targets: '.col-capacity',     width: '65px'  },
-                { targets: '.col-plate',       width: '95px'  },
-                { targets: '.col-driver',      width: '155px' },
-                { targets: '.col-availability', width: '90px'  },
-                { targets: '.col-action',       width: '70px'  },
-                { targets: '.col-created-at',   width: '100px' },
-            ],
+            vehiclesTable = $vt.DataTable({
+                responsive: false,
+                autoWidth: false,
+                dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
+                buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search...",
+                },
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                pageLength: vehiclesBatchSize,
+                paging: true,
+                pagingType: 'simple_numbers',
+                columnDefs: [
+                    { targets: '.col-no',           width: '38px'  },
+                    { targets: '.col-name',         width: '120px' },
+                    { targets: '.col-dmc',          width: '120px' },
+                    { targets: '.col-type',         width: '90px'  },
+                    { targets: '.col-model',        width: '100px' },
+                    { targets: '.col-capacity',     width: '65px'  },
+                    { targets: '.col-plate',       width: '95px'  },
+                    { targets: '.col-driver',      width: '155px' },
+                    { targets: '.col-availability', width: '90px'  },
+                    { targets: '.col-action',       width: '70px'  },
+                    { targets: '.col-created-at',   width: '100px' },
+                ],
             });
         }
 
-        $('#exportCopy').on('click',  function() { $('#vehiclesTable').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { $('#vehiclesTable').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('#vehiclesTable').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { $('#vehiclesTable').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('#vehiclesTable').DataTable().button('.buttons-print').trigger(); });
+        bindVehiclesInfiniteScroll();
+
+        $('#exportCopy').on('click',  function() { vehiclesTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click',   function() { vehiclesTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { vehiclesTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click',   function() { vehiclesTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { vehiclesTable.button('.buttons-print').trigger(); });
     });
 </script>
 

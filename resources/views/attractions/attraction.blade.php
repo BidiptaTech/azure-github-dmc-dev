@@ -243,6 +243,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .attractions-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .attractions-infinite-footer .attractions-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .attractions-infinite-footer.is-loading .attractions-scroll-loader {
+        display: inline-flex;
+    }
+
+    .attractions-infinite-footer .attractions-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .attractions-infinite-footer.is-end .attractions-scroll-end {
+        display: block;
+    }
+
     /* Hide default DataTables buttons (we use the custom Export dropdown) */
     .dataTables_wrapper .dt-buttons {
         display: none !important;
@@ -637,6 +671,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="attractionsInfiniteFooter" class="attractions-infinite-footer">
+                    <div class="attractions-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more attractions…</span>
+                    </div>
+                    <div class="attractions-scroll-end">All attractions loaded</div>
+                </div>
                 </div>
             </div>
         </div>
@@ -695,44 +736,103 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
-            responsive: true,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
-            buttons: [
-                'copy',
-                'csv',
-                'excel',
-                'pdf',
-                'print'
-            ],
+        var attractionsBatchSize = 25;
+        var attractionsTableEl = $('.datatables-basic');
+        var attractionsInfiniteLoading = false;
+
+        var attractionsTable = attractionsTableEl.DataTable({
+            responsive: false,
+            autoWidth: false,
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
+            buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: attractionsBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
         });
 
-        // Custom export button functionality (for the dropdown)
+        var $infiniteFooter = $('#attractionsInfiniteFooter');
+        var attractionsInfiniteGuard = false;
+
+        function updateAttractionsInfiniteFooter() {
+            var info = attractionsTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            attractionsInfiniteLoading = false;
+        }
+
+        function loadMoreAttractionsIfNeeded() {
+            if (attractionsInfiniteLoading) return;
+
+            var info = attractionsTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateAttractionsInfiniteFooter();
+                return;
+            }
+
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            var threshold = $(document).height() - 120;
+            if (scrollBottom < threshold) return;
+
+            attractionsInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+
+            setTimeout(function() {
+                var currentInfo = attractionsTable.page.info();
+                var nextLen = Math.min(currentInfo.length + attractionsBatchSize, currentInfo.recordsDisplay);
+                attractionsTable.page.len(nextLen).draw(false);
+                updateAttractionsInfiniteFooter();
+            }, 150);
+        }
+
+        attractionsTable.on('length.dt', function(e, settings, len) {
+            attractionsBatchSize = len;
+            updateAttractionsInfiniteFooter();
+        });
+
+        attractionsTable.on('search.dt', function() {
+            if (attractionsInfiniteGuard) {
+                return;
+            }
+            attractionsInfiniteGuard = true;
+            attractionsTable.page.len(attractionsBatchSize).draw(false);
+            attractionsInfiniteGuard = false;
+            updateAttractionsInfiniteFooter();
+        });
+
+        attractionsTable.on('draw.dt', function() {
+            if (!attractionsInfiniteGuard) {
+                updateAttractionsInfiniteFooter();
+            }
+        });
+
+        $(window).on('scroll.attractionsInfinite resize.attractionsInfinite', loadMoreAttractionsIfNeeded);
+        updateAttractionsInfiniteFooter();
+        loadMoreAttractionsIfNeeded();
+
         $('#exportCopy').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-copy').trigger();
+            attractionsTable.button('.buttons-copy').trigger();
         });
 
         $('#exportCSV').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-csv').trigger();
+            attractionsTable.button('.buttons-csv').trigger();
         });
 
         $('#exportExcel').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-excel').trigger();
+            attractionsTable.button('.buttons-excel').trigger();
         });
 
         $('#exportPDF').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-pdf').trigger();
+            attractionsTable.button('.buttons-pdf').trigger();
         });
 
         $('#exportPrint').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-print').trigger();
+            attractionsTable.button('.buttons-print').trigger();
         });
     });
 </script>
