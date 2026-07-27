@@ -2967,12 +2967,103 @@ class HotelController extends Controller
     */
     public function updateports(Request $request)
     {
-        //dd($request->all());
         $hotel_id = $request->hotel_id;
         $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
         if (!$hotel) {
             return redirect()->back()->with('error', 'Hotel not found.');
         }
+
+        $exitEnabled = $request->boolean('enable_port_of_exit');
+        $othersEnabled = $request->boolean('enable_others');
+
+        $rules = [
+            'hotel_id' => 'required',
+        ];
+        $messages = [];
+
+        if ($exitEnabled) {
+            $exitTypes = $request->input('exit_port_name', []);
+            $exitNames = $request->input('exit_port_specific_name', []);
+            $exitLats = $request->input('exit_latitude', []);
+            $exitLngs = $request->input('exit_longitude', []);
+            $exitDists = $request->input('exit_distance', []);
+            $exitCount = max(count($exitTypes), count($exitLats), count($exitLngs), count($exitDists));
+
+            if ($exitCount === 0) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['enable_port_of_exit' => 'Please add at least one Port of Entry/Exit row, or disable the section.']);
+            }
+
+            for ($i = 0; $i < $exitCount; $i++) {
+                $rules["exit_port_name.$i"] = 'required|string|max:100';
+                $rules["exit_port_specific_name.$i"] = 'required|string|max:255';
+                $rules["exit_latitude.$i"] = ['required', 'regex:/^-?([1-8]?[0-9]\.\d{1,9}|90\.0{1,9})$/'];
+                $rules["exit_longitude.$i"] = ['required', 'regex:/^-?([1-9]?[0-9]\.\d{1,9}|1[0-7][0-9]\.\d{1,9}|180\.0{1,9})$/'];
+                $rules["exit_distance.$i"] = ['required', 'regex:/^[0-9]+(\.[0-9]{1,2})?$/'];
+
+                $messages["exit_port_name.$i.required"] = 'Port Type is required for each Entry/Exit row.';
+                $messages["exit_port_specific_name.$i.required"] = 'Port Name is required for each Entry/Exit row.';
+                $messages["exit_latitude.$i.required"] = 'Latitude is required for each Entry/Exit row.';
+                $messages["exit_latitude.$i.regex"] = 'Latitude must be a valid decimal between -90 and 90.';
+                $messages["exit_longitude.$i.required"] = 'Longitude is required for each Entry/Exit row.';
+                $messages["exit_longitude.$i.regex"] = 'Longitude must be a valid decimal between -180 and 180.';
+                $messages["exit_distance.$i.required"] = 'Distance is required for each Entry/Exit row.';
+                $messages["exit_distance.$i.regex"] = 'Distance must be a positive number with up to 2 decimals.';
+            }
+
+            // Ensure arrays are present for indexed validation
+            $request->merge([
+                'exit_port_name' => $exitTypes,
+                'exit_port_specific_name' => $exitNames,
+                'exit_latitude' => $exitLats,
+                'exit_longitude' => $exitLngs,
+                'exit_distance' => $exitDists,
+            ]);
+        }
+
+        if ($othersEnabled) {
+            $otherNames = $request->input('others_port_name', []);
+            $otherTypes = $request->input('others_type', []);
+            $otherLats = $request->input('others_latitude', []);
+            $otherLngs = $request->input('others_longitude', []);
+            $otherDists = $request->input('others_distance', []);
+            $otherCount = max(count($otherNames), count($otherTypes), count($otherLats), count($otherLngs), count($otherDists));
+
+            if ($otherCount === 0) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['enable_others' => 'Please add at least one Near By Attraction row, or disable the section.']);
+            }
+
+            for ($i = 0; $i < $otherCount; $i++) {
+                $rules["others_port_name.$i"] = 'required|string|max:255';
+                $rules["others_type.$i"] = 'required|string|max:100';
+                $rules["others_latitude.$i"] = ['required', 'regex:/^-?([1-8]?[0-9]\.\d{1,9}|90\.0{1,9})$/'];
+                $rules["others_longitude.$i"] = ['required', 'regex:/^-?([1-9]?[0-9]\.\d{1,9}|1[0-7][0-9]\.\d{1,9}|180\.0{1,9})$/'];
+                $rules["others_distance.$i"] = ['required', 'regex:/^[0-9]+(\.[0-9]{1,2})?$/'];
+
+                $messages["others_port_name.$i.required"] = 'Attraction Name is required for each row.';
+                $messages["others_type.$i.required"] = 'Attraction Type is required for each row.';
+                $messages["others_latitude.$i.required"] = 'Latitude is required for each Near By Attraction row.';
+                $messages["others_latitude.$i.regex"] = 'Latitude must be a valid decimal between -90 and 90.';
+                $messages["others_longitude.$i.required"] = 'Longitude is required for each Near By Attraction row.';
+                $messages["others_longitude.$i.regex"] = 'Longitude must be a valid decimal between -180 and 180.';
+                $messages["others_distance.$i.required"] = 'Distance is required for each Near By Attraction row.';
+                $messages["others_distance.$i.regex"] = 'Distance must be a positive number with up to 2 decimals.';
+            }
+
+            $request->merge([
+                'others_port_name' => $otherNames,
+                'others_type' => $otherTypes,
+                'others_latitude' => $otherLats,
+                'others_longitude' => $otherLngs,
+                'others_distance' => $otherDists,
+            ]);
+        }
+
+        $request->validate($rules, $messages);
+
         // Handle port of entry, exit, and others data
         $portOfEntryData = $this->processPortData(
             $request->input('port_name', []),
@@ -2983,7 +3074,6 @@ class HotelController extends Controller
         );
         $portOfExitData = $this->processPortData(
             $request->input('exit_port_name', []),
-            // Add the 2nd argument (it seems to be empty here, make sure it's necessary)
             $request->input('exit_port_specific_name', []),
             $request->input('exit_latitude', []),
             $request->input('exit_longitude', []),
@@ -2992,7 +3082,7 @@ class HotelController extends Controller
     
         $portOfOtherData = $this->processPortData(
             $request->input('others_port_name', []),
-            $request->input('others_type', []),  // Assuming the 2nd argument here is the 'type'
+            $request->input('others_type', []),
             $request->input('others_latitude', []),
             $request->input('others_longitude', []),
             $request->input('others_distance', []),
@@ -3001,20 +3091,23 @@ class HotelController extends Controller
         // Prepare update data for the hotel
         $updateData = [];
         
+        if ($exitEnabled) {
+            $updateData['port_of_exit'] = json_encode($portOfExitData);
+        } else {
+            $updateData['port_of_exit'] = json_encode([]);
+        }
+        
+        if ($othersEnabled) {
+            $updateData['others'] = json_encode($portOfOtherData);
+        } else {
+            $updateData['others'] = json_encode([]);
+        }
+
+        // Keep entry data behavior unchanged when present
         if (!empty($portOfEntryData)) {
             $updateData['port_of_entry'] = json_encode($portOfEntryData);
         }
-        
-        if (!empty($portOfExitData)) {
-            $updateData['port_of_exit'] = json_encode($portOfExitData);
-        }
-        
-        if (!empty($portOfOtherData)) {
-            $updateData['others'] = json_encode($portOfOtherData);
-        }
-
     
-        // Only update fields if there is new data
         if (!empty($updateData)) {
             $hotel->update($updateData);
         }

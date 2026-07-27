@@ -5,6 +5,7 @@
 
 @include('hotel.tapview', ['hotel' => $hotel])
 <div class="content-wrapper">
+    <x-alert />
     <div class="container-xxl flex-grow-1 container-p-y">
 
         <div class="card mb-6">
