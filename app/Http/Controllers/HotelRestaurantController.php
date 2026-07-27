@@ -982,11 +982,15 @@ class HotelRestaurantController extends Controller
         }
 
         // View expects $meals (single meal) and $restaurants; pass hotel context for Back link
+        $userDMC = $dmc_id ? User::where('userId', $dmc_id)->first() : null;
+
         return view('hotel.edit-meals', [
             'meals' => $meal,
             'restaurants' => $restaurants,
             'hotel_id' => $hotel_id,
             'dmc_id' => $dmc_id,
+            'auth_user' => $auth_user,
+            'userDMC' => $userDMC,
         ]);
     }
 
