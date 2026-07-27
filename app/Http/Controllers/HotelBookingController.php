@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
+use App\Models\Tour;
+use App\Models\Hotel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+
 use Carbon\Carbon;
 
 class HotelBookingController extends Controller
@@ -646,7 +650,8 @@ class HotelBookingController extends Controller
 
             // Get tour data
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
-            
+            $dmc_id = $tour->dmc_id;
+            $dmc = User::select('name', 'email', 'userId', 'company_name')->where('userId', $dmc_id)->first();
             // Find the restaurant booking
             $allRestaurantOrders = DB::table('orders')
                 ->where('tour_id', $tourId)
@@ -723,7 +728,7 @@ class HotelBookingController extends Controller
                         'check_out_time' => $tour->check_out_time ?? null
                     ],
                     'restaurant_booking' => [
-                        'booking_id' => $restaurantOrder->id,
+                        'booking_id' => $restaurantOrder->booking_id,
                         'restaurant_name' => $booking['restaurantName'] ?? 'Unknown Restaurant',
                         'meal_type' => $booking['mealType'] ?? 'N/A',
                         'meal_specific_type' => $booking['mealSpecificType'] ?? 'N/A',
@@ -735,10 +740,14 @@ class HotelBookingController extends Controller
                         'is_approve' => $restaurantOrder->is_approve ?? false,
                         'reference_id' => $restaurantOrder->reference_id ?? null,
                         'display_due_date' => $restaurantOrder->display_due_date ?? null,
+                        'qr_code' => $restaurantOrder->qr_code ?? null,
                         'restaurant_details' => $booking, // This contains the full JSON data
                         // Transfer Options
-                        'transfer_options' => $booking['transfer_options'] ?? null
-                    ]
+                        'transfer_options' => $booking['transfer_options'] ?? null,
+                        // Guide Options (if any guide is attached to this restaurant booking)
+                        'guide_options' => $booking['guide_options'] ?? null,
+                    ],
+                    'dmc' => $dmc,
                 ]
             ]);
 
@@ -1183,6 +1192,9 @@ class HotelBookingController extends Controller
                         // Room details
                         'rooms' => $booking['rooms'] ?? [],
                         'hotel_details' => $booking['hotelDetails'] ?? [],
+                        // Child accommodation
+                        'child_with_bed' => $booking['child_with_bed'] ?? null,
+                        'child_without_bed' => $booking['child_without_bed'] ?? null,
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null,
                         // Approval status
@@ -2634,9 +2646,20 @@ class HotelBookingController extends Controller
                 'display_due_date' => $displayDueDate
             ]);
 
+            // Send confirmation email to hotel (hotels.email) using mail-preview style subject/body
+            $emailResult = $this->sendHotelApprovalConfirmationEmail(
+                $tourId,
+                $hotelOrder,
+                $bookingIndex,
+                $referenceId
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Hotel booking approved successfully',
+                'email_sent' => $emailResult['sent'] ?? false,
+                'email_message' => $emailResult['message'] ?? null,
+                'hotel_email' => $emailResult['hotel_email'] ?? null,
                 'data' => [
                     'tour_id' => $tourId,
                     'hotel_order_id' => $hotelOrder->id,
@@ -2660,6 +2683,251 @@ class HotelBookingController extends Controller
                 'message' => 'An error occurred while approving hotel booking: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Build hotel mail subject/body (same content style as openHotelMailPreview)
+     * and send to hotels.email via CommonHelper::sendHotelApprovalEmail.
+     */
+    private function sendHotelApprovalConfirmationEmail($tourId, $hotelOrder, $bookingIndex, $referenceId): array
+    {
+        try {
+            $hotelData = json_decode($hotelOrder->data, true);
+            if (!is_array($hotelData) || !isset($hotelData[$bookingIndex])) {
+                return [
+                    'sent' => false,
+                    'message' => 'Hotel booking data not found for email',
+                    'hotel_email' => null,
+                ];
+            }
+
+            $booking = $hotelData[$bookingIndex];
+            $hotelDetails = $booking['hotelDetails'] ?? [];
+            $hotelUniqueId = $hotelDetails['hotel_id'] ?? null;
+
+            $hotel = $hotelUniqueId
+                ? Hotel::where('hotel_unique_id', $hotelUniqueId)->first()
+                : null;
+
+            $hotelEmail = $hotel->email ?? null;
+            if (empty($hotelEmail) || !filter_var($hotelEmail, FILTER_VALIDATE_EMAIL)) {
+                Log::warning('Hotel approval email skipped: hotel email missing/invalid', [
+                    'tour_id' => $tourId,
+                    'hotel_unique_id' => $hotelUniqueId,
+                    'hotel_email' => $hotelEmail,
+                ]);
+
+                return [
+                    'sent' => false,
+                    'message' => 'Hotel email is not set in hotels table',
+                    'hotel_email' => $hotelEmail,
+                ];
+            }
+
+            $tour = DB::table('tours')->where('tour_id', $tourId)->first();
+            $tourDisplayId = $tour->tour_display_id ?? $tour->display_id ?? ('Tour #' . $tourId);
+            $destination = $tour->destination ?? ($hotelDetails['location'] ?? 'N/A');
+            $agentName = 'N/A';
+
+            if (!empty($tour->agent_id)) {
+                $agent = User::where('userId', $tour->agent_id)->first();
+                if (!$agent) {
+                    $agent = DB::table('agents')->where('agent_id', $tour->agent_id)->first();
+                }
+                $agentName = $agent->name ?? ($agent->company_name ?? 'N/A');
+            }
+
+            $checkInDate = $booking['bookingDate'][0] ?? ($tour->check_in_time ?? 'N/A');
+            $checkOutDate = $booking['bookingDate'][1] ?? ($tour->check_out_time ?? 'N/A');
+            $hotelName = $hotelDetails['hotel_name']
+                ?? $hotelDetails['name']
+                ?? ($hotel->name ?? 'Hotel');
+
+            $subject = "Hotel Booking Confirmation - {$tourDisplayId} - {$destination}";
+            $body = $this->buildHotelApprovalEmailBody(
+                $tourId,
+                $tourDisplayId,
+                $destination,
+                $checkInDate,
+                $checkOutDate,
+                $agentName,
+                $hotelName,
+                $booking,
+                $referenceId
+            );
+
+            $sendResult = CommonHelper::sendHotelApprovalEmail($hotelEmail, $subject, $body);
+
+            if ($sendResult === true) {
+                return [
+                    'sent' => true,
+                    'message' => 'Confirmation email sent to hotel',
+                    'hotel_email' => $hotelEmail,
+                ];
+            }
+
+            return [
+                'sent' => false,
+                'message' => is_string($sendResult) ? $sendResult : 'Failed to send hotel email',
+                'hotel_email' => $hotelEmail,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error sending hotel approval confirmation email', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'message' => 'Email error: ' . $e->getMessage(),
+                'hotel_email' => null,
+            ];
+        }
+    }
+
+    /**
+     * Plain-text body matching openHotelMailPreview / generateFormattedHotelEmail style.
+     */
+    private function buildHotelApprovalEmailBody(
+        $tourId,
+        $tourDisplayId,
+        $destination,
+        $checkInDate,
+        $checkOutDate,
+        $agentName,
+        $hotelName,
+        array $booking,
+        $referenceId
+    ): string {
+        $formatDate = function ($date) {
+            if (empty($date) || $date === 'N/A') {
+                return 'N/A';
+            }
+            try {
+                return Carbon::parse($date)->format('d M Y');
+            } catch (\Exception $e) {
+                return (string) $date;
+            }
+        };
+
+        $WIDTH = 66;
+        $border = '┌' . str_repeat('─', $WIDTH - 2) . '┐';
+        $sectionBorder = '├' . str_repeat('─', $WIDTH - 2) . '┤';
+        $endBorder = '└' . str_repeat('─', $WIDTH - 2) . '┘';
+        $header = '╔' . str_repeat('═', $WIDTH - 2) . '╗';
+        $headerEnd = '╚' . str_repeat('═', $WIDTH - 2) . '╝';
+
+        $centerText = function ($text, $width) {
+            $text = (string) $text;
+            $len = mb_strlen($text);
+            if ($len >= $width) {
+                return mb_substr($text, 0, $width);
+            }
+            $pad = $width - $len;
+            $left = intdiv($pad, 2);
+            $right = $pad - $left;
+            return str_repeat(' ', $left) . $text . str_repeat(' ', $right);
+        };
+
+        $padRight = function ($text, $width) {
+            $text = (string) $text;
+            $len = mb_strlen($text);
+            if ($len >= $width) {
+                return mb_substr($text, 0, $width);
+            }
+            return $text . str_repeat(' ', $width - $len);
+        };
+
+        $sectionHeader = function ($title) use ($WIDTH, $centerText) {
+            return '│' . $centerText($title, $WIDTH - 2) . '│';
+        };
+
+        $row = function ($label, $value) use ($padRight) {
+            return '│ ' . $padRight($label, 16) . ' │ ' . $padRight($value, 43) . '│';
+        };
+
+        $fullRow = function ($text) use ($WIDTH, $padRight) {
+            return '│ ' . $padRight($text, $WIDTH - 4) . ' │';
+        };
+
+        $content = "Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n";
+        $content .= $header . "\n║" . $centerText('=== HOTEL BOOKING CONFIRMATION ===', $WIDTH - 2) . "║\n" . $headerEnd . "\n";
+
+        $content .= $border . "\n" . $sectionHeader('BOOKING INFORMATION') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Reference ID', $referenceId ?: $tourDisplayId) . "\n";
+        $content .= $row('Tour ID', (string) $tourId) . "\n";
+        $content .= $row('Agent', $agentName) . "\n";
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('TOUR DETAILS') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Hotel Name', $hotelName) . "\n";
+        $content .= $row('Destination', $destination) . "\n";
+        $content .= $row('Check-in Date', $formatDate($checkInDate)) . "\n";
+        $content .= $row('Check-out Date', $formatDate($checkOutDate)) . "\n";
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('SERVICE DETAILS') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Service Type', 'Hotel') . "\n";
+
+        $rooms = $booking['rooms'] ?? [];
+        if (!empty($rooms) && is_array($rooms)) {
+            $room = $rooms[0];
+            if (!empty($room['room_type'])) {
+                $content .= $row('Room Type', $room['room_type']) . "\n";
+            }
+            if (!empty($room['beds'][0]['bed_type'])) {
+                $content .= $row('Bed Type', $room['beds'][0]['bed_type']) . "\n";
+            }
+            if (!empty($room['beds'][0]['head_count'])) {
+                $content .= $row('Room Occupancy', $room['beds'][0]['head_count'] . ' person(s)') . "\n";
+            }
+            if (!empty($room['beds'][0]['selectedMeals']) && is_array($room['beds'][0]['selectedMeals'])) {
+                $mealValues = array_values($room['beds'][0]['selectedMeals']);
+                $mealType = $mealValues[0]['type'] ?? 'Room Only';
+                $content .= $row('Meal Plan', $mealType) . "\n";
+            }
+            $content .= $row('Number of Rooms', (string) count($rooms)) . "\n";
+        }
+
+        if (isset($booking['totalPrice'])) {
+            $content .= $row('Total Price', number_format((float) $booking['totalPrice'], 2)) . "\n";
+        }
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('CUSTOMER DETAILS') . "\n" . $sectionBorder . "\n";
+        if (!empty($booking['fullName'])) {
+            $content .= $row('Customer Name', $booking['fullName']) . "\n";
+        }
+        if (!empty($booking['email'])) {
+            $content .= $row('Email Address', $booking['email']) . "\n";
+        }
+        if (!empty($booking['phone'])) {
+            $phone = !empty($booking['countryCode'])
+                ? '+' . $booking['countryCode'] . ' ' . $booking['phone']
+                : $booking['phone'];
+            $content .= $row('Phone Number', $phone) . "\n";
+        }
+        if (!empty($booking['address1'])) {
+            $content .= $row('Address', $booking['address1']) . "\n";
+        }
+        if (!empty($booking['state'])) {
+            $content .= $row('State/Province', $booking['state']) . "\n";
+        }
+        if (!empty($booking['specialRequests'])) {
+            $content .= $row('Special Requests', $booking['specialRequests']) . "\n";
+        }
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('IMPORTANT NOTES') . "\n" . $sectionBorder . "\n";
+        $content .= $fullRow('• Please confirm this booking within 24 hours') . "\n";
+        $content .= $fullRow('• All timings are local time') . "\n";
+        $content .= $fullRow('• Prices are subject to availability and confirmation') . "\n";
+        $content .= $fullRow('• Terms and conditions apply') . "\n";
+        $content .= $fullRow('') . "\n";
+        $content .= $fullRow('For any queries or modifications, please contact us immediately.') . "\n";
+        $content .= $endBorder . "\n\n";
+
+        return $content;
     }
 
     /**
@@ -2733,11 +3001,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -2758,6 +3026,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3262,11 +3532,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(),
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3286,6 +3556,8 @@ class HotelBookingController extends Controller
                 'restaurant_order_id' => $restaurantOrder->id,
                 'cancel_reason' => $cancelReason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3383,11 +3655,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3408,6 +3680,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3641,11 +3915,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3666,6 +3940,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3906,11 +4182,11 @@ class HotelBookingController extends Controller
             // Soft delete the arrival booking
             $updated = DB::table('orders')
                 ->where('id', $arrivalOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚗 ARRIVAL REJECT: Failed to reject arrival order', [
@@ -3926,6 +4202,8 @@ class HotelBookingController extends Controller
                 'order_id' => $arrivalOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4163,11 +4441,11 @@ class HotelBookingController extends Controller
             // Soft delete the departure booking
             $updated = DB::table('orders')
                 ->where('id', $departureOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('✈️ DEPARTURE REJECT: Failed to reject departure order', [
@@ -4183,6 +4461,8 @@ class HotelBookingController extends Controller
                 'order_id' => $departureOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4419,11 +4699,11 @@ class HotelBookingController extends Controller
             // Soft delete the hourly booking
             $updated = DB::table('orders')
                 ->where('id', $hourlyOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ HOURLY REJECT: Failed to reject hourly order', [
@@ -4439,6 +4719,8 @@ class HotelBookingController extends Controller
                 'order_id' => $hourlyOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4672,14 +4954,14 @@ class HotelBookingController extends Controller
                 ], 400);
             }
 
-            // Soft delete the hourly booking
+            // Soft delete the point-to-point booking
             $updated = DB::table('orders')
                 ->where('id', $pointToPointOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ POINT TO POINT REJECT: Failed to reject point to point order', [
@@ -4695,6 +4977,8 @@ class HotelBookingController extends Controller
                 'order_id' => $pointToPointOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4923,11 +5207,11 @@ class HotelBookingController extends Controller
             // Soft delete the local transport booking
             $updated = DB::table('orders')
                 ->where('id', $localTransportOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚌 LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
@@ -4943,6 +5227,8 @@ class HotelBookingController extends Controller
                 'order_id' => $localTransportOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,

@@ -22,6 +22,8 @@ class Tour extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
         'taxes' => 'array',
+        'mainguest' => 'array',
+        'additionalguest' => 'array',
     ];
 
     protected static $TourStatus = [
@@ -57,11 +59,11 @@ class Tour extends Model
 
     public function dmc()
     {
-        return $this->belongsTo(User::class, 'dmc_id', 'user_id');
+        return $this->belongsTo(User::class, 'dmc_id', 'userId');
     }
 
     public function masterDmc()
     {
-        return $this->belongsTo(User::class, 'master_dmc_id', 'user_id');
+        return $this->belongsTo(User::class, 'master_dmc_id', 'userId');
     }
 }

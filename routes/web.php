@@ -4,7 +4,7 @@ use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgencyController;
 use App\Http\Controllers\BankDetailController;
 use App\Http\Controllers\BedsController;
-use App\Http\Controllers\RoomsController;
+// use App\Http\Controllers\RoomsController;
 use App\Http\Controllers\RoomtypeController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -37,30 +37,44 @@ use App\Http\Controllers\SingleTourPackageController;
 use App\Http\Controllers\HotelCategoryController;
 use App\Http\Controllers\OperationalCountryController;
 use App\Http\Controllers\TourController;
-use App\Http\Controllers\BookingAttractionController;
+// use App\Http\Controllers\BookingAttractionController;
 use App\Http\Controllers\BookingListController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\EnquiryListController;
 use App\Http\Controllers\ReportController;
-use Illuminate\Http\Request;
-use App\Models\City;
+// use Illuminate\Http\Request;
+// use App\Models\City;
 use App\Http\Controllers\SpecialDiscountController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\PortController;
 use App\Http\Controllers\ZoneController;
+use App\Http\Controllers\DefaultValueController;
 use App\Http\Controllers\JobSheetController;
+use App\Http\Controllers\CheckCurrencyController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
+use App\Http\Controllers\MISReportController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\TodaysBookingsController;
+use App\Http\Controllers\PackageBookingTemplatesController;
+use App\Http\Controllers\GuideLanguagesController;
+use App\Http\Controllers\SupplierMasterController;
 use Illuminate\Support\Facades\Artisan;
-use App\Services\AzureKeyVaultService;
-use Illuminate\Support\Facades\Mail;
+// use App\Services\AzureKeyVaultService;
+// use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
+use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\DayLevelController;
+use App\Http\Controllers\ExternalApiReceiveController;
+use App\Http\Controllers\SmartNotificationController;
+use App\Http\Controllers\AiConfigController;
+
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -68,13 +82,16 @@ use App\Helpers\CommonHelper;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
 | Here is where you can register web routes for your application. These
 | routes are loaded by the RouteServiceProvider and all of them will
 | be assigned to the "web" middleware group. Make something great!
 |
 */
 Auth::routes();
+// Browser-friendly fallback for legacy external endpoints (GET only).
+Route::get('/api/v1/external/receive', [ExternalApiReceiveController::class, 'index']);
+Route::get('/api/v1/external/received', [ExternalApiReceiveController::class, 'index']);
+
 Route::get('/clear', function () {
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
@@ -84,9 +101,43 @@ Route::get('/clear', function () {
 })->name('clear');
 
         Route::middleware(['auth'])->group(function () {
-            // Tour prices route
-            Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
+            // Guide Languages (master list used for Guides)
+            Route::get('/guide-languages', [GuideLanguagesController::class, 'index'])->name('guide-languages.index');
+            Route::post('/guide-languages', [GuideLanguagesController::class, 'store'])->name('guide-languages.store');
+            Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
+            Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
+            Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
 
+            Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
+            Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');
+            Route::get('/ai-key-words/{ai_keyword}/edit', [AiConfigController::class, 'edit'])->name('ai-key-words.edit');
+            Route::put('/ai-key-words/{ai_keyword}', [AiConfigController::class, 'update'])->name('ai-key-words.update');
+            Route::delete('/ai-key-words/{ai_keyword}', [AiConfigController::class, 'destroy'])->name('ai-key-words.destroy');
+
+            Route::get('/suppliers', [SupplierMasterController::class, 'index'])->name('suppliers.index');
+            Route::post('/suppliers', [SupplierMasterController::class, 'store'])->name('suppliers.store');
+            Route::put('/suppliers/{supplier}', [SupplierMasterController::class, 'update'])->name('suppliers.update');
+            Route::post('/suppliers/credentials/{code}', [SupplierMasterController::class, 'updateCredentials'])->name('suppliers.credentials.update');
+            Route::delete('/suppliers/{supplier}', [SupplierMasterController::class, 'destroy'])->name('suppliers.destroy');
+
+            // Tour prices route
+            Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
+            Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
+            Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
+            Route::get('/user/account-status', function () {
+                $user = Auth::user();
+                if (!$user) {
+                    return response()->json(['active' => false], 401);
+                }
+
+                $freshUser = \App\Models\User::where('userId', $user->userId)->first();
+
+                return response()->json([
+                    'active' => $freshUser && $freshUser->isAccountActive(),
+                ]);
+            })->name('user.account.status');
+            Route::get('/tour/get-tour-prices/{tourId}', [TourController::class, 'getTourPrices'])->name('tour.get-tour-prices');
+            Route::get('/check-currency',[CheckCurrencyController::class, 'checkCurrency'])->name('check-currency');
             // Tour creation route
             Route::post('/create-single-tour', [App\Http\Controllers\TourController::class, 'createTour'])->name('create.tour');
             Route::get('/', function () {
@@ -188,7 +239,7 @@ Route::get('/clear', function () {
             // Order management routes
             Route::post('/api/orders/{id}/cancel', [SingleTourPackageController::class, 'cancelOrder'])->name('api.orders.cancel');
             
-            Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
+            // Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
             Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
             Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
             Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
@@ -196,6 +247,10 @@ Route::get('/clear', function () {
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
             Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/city-plans', [EditTourController::class, 'updateCityPlans'])->name('single-tour-package.update-city-plans');
+            Route::post('/single-tour-package/{tour}/city-plans/remove', [EditTourController::class, 'removeCityPlan'])->name('single-tour-package.remove-city-plan');
+            Route::post('/single-tour-package/{tour}/services/clear', [EditTourController::class, 'clearTourServices'])->name('single-tour-package.clear-services');
+            Route::post('/single-tour-package/{tour}/guests', [EditTourController::class, 'updateGuests'])->name('single-tour-package.update-guests');
             // Service update routes via EditTourController
             Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
             Route::post('/edit-tour/attraction/{order}', [EditTourController::class, 'updateAttraction'])->name('edit-tour.update-attraction');
@@ -220,7 +275,10 @@ Route::get('/clear', function () {
             Route::get('/enquiry-form-pro/get-attractions', [EnquiryFormPro::class, 'getAttractionsByDestination'])->name('enquiry-form-pro.get-attractions');
             Route::get('/enquiry-form-pro/get-guides', [EnquiryFormPro::class, 'getGuidesByDestination'])->name('enquiry-form-pro.get-guides');
             Route::get('/enquiry-form-pro/get-zone-prices', [EnquiryFormPro::class, 'getZonePrices'])->name('enquiry-form-pro.get-zone-prices');
-            
+            Route::get('/enquiry-form-pro/get-miscellaneous', [EnquiryFormPro::class, 'getMiscellaneousItems'])->name('enquiry-form-pro.get-miscellaneous');
+            Route::get('/enquiry-form-pro/fetch-meals-by-restaurant', [EnquiryFormPro::class, 'fetchMealsByRestaurant'])->name('enquiry-form-pro.fetch-meals-by-restaurant');
+            Route::post('/enquiry-form-pro/get-hotel-price', [EnquiryFormPro::class, 'getHotelPrice'])->name('enquiry-form-pro.get-hotel-price');
+            Route::post('/create-chat', [ChatController::class, 'createChat'])->name('create-chat');
             // Debug route to check DMC data
             Route::get('/debug/dmc-data', function() {
                 $user = auth()->user();
@@ -295,13 +353,80 @@ Route::get('/clear', function () {
                 ]);
             });
             
-            Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
-                $pdfResponse = CommonHelper::downloadTourPdf($tourId);
-                if ($pdfResponse) {
-                    return $pdfResponse;
+            // Preview page for itinerary with currency selection and download button
+            Route::get('/tour/{encryptedTourId}/itinerary-preview', [\App\Http\Controllers\QuotationController::class, 'itineraryPreview'])
+                ->name('tour.itinerary.preview');
+            Route::get('/tour/{encryptedTourId}/detailed-quotation-preview', [\App\Http\Controllers\QuotationController::class, 'detailedQuotationPreview'])
+                ->name('tour.detailed-quotation.preview');
+
+            // PDF generation route (used by preview iframe and direct download)
+            Route::get('/tour/{tourId}/download-itinerary', [\App\Http\Controllers\QuotationController::class, 'downloadItinerary'])
+                ->name('tour.itinerary.pdf');
+
+            Route::get('/tour/{tourId}/download-detailed-quotation', [\App\Http\Controllers\QuotationController::class, 'downloadDetailedQuotation'])
+                ->name('tour.detailed-quotation.pdf');
+
+            // Temporarily store edited “quotation_information” for preview + PDF
+            Route::post('/tour/{tourId}/quotation-info', [\App\Http\Controllers\QuotationController::class, 'storeQuotationInfo'])
+                ->name('tour.quotation.info');
+
+            Route::get('/tour/{encryptedTourId}/email-preview', function ($encryptedTourId) {
+                try {
+                    $tourId = decrypt($encryptedTourId);
+                    $tour = \App\Models\Tour::with(['agent', 'dmc'])->where('tour_id', $tourId)->first();
+
+                    if (!$tour) {
+                        return redirect()->back()->with('error', 'Tour not found.');
+                    }
+
+                    $emailData = CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
+
+                    if (!$emailData) {
+                        $agent = $tour->agent;
+                        $agency = $agent && $agent->agency_id
+                            ? \App\Models\Agency::where('agency_id', $agent->agency_id)->first()
+                            : null;
+                        $dmcUser = $tour->dmc;
+                        if (!$dmcUser && $tour->dmc_id) {
+                            $dmcUser = \App\Models\User::where('userId', $tour->dmc_id)->first();
+                        }
+                        $dmcName = $dmcUser
+                            ? trim((string) ($dmcUser->company_name ?: $dmcUser->name ?: 'DMC'))
+                            : 'DMC';
+
+                        $emailData = CommonHelper::normalizeQuotationEmailData([
+                            'dmc_name' => $dmcName,
+                            'dmc_logo' => $dmcUser->logo ?? null,
+                            'dmc_label' => $dmcName,
+                            'dmc_contact_email' => (string) ($dmcUser->email ?? ''),
+                            'tour_display_id' => (string) ($tour->display_id ?? $tour->tour_id),
+                            'destination' => (string) ($tour->destination ?? 'N/A'),
+                            'city' => (string) ($tour->city ?? ''),
+                            'check_in_time' => $tour->check_in_time,
+                            'check_out_time' => $tour->check_out_time,
+                            'adult' => (int) ($tour->adult ?? 0),
+                            'child' => (int) ($tour->child ?? 0),
+                            'infant' => (int) ($tour->infant ?? 0),
+                            'agent_name' => (string) ($agent->name ?? ''),
+                            'agency_name' => (string) ($agency->agency_name ?? ''),
+                            'quoted_at' => $tour->created_at
+                                ? \Carbon\Carbon::parse($tour->created_at)->format('M d, Y H:i')
+                                : now()->format('M d, Y H:i'),
+                            'dashboard_link' => CommonHelper::url(),
+                        ]);
+                    }
+
+                    return view('email.quotation-confirmation', $emailData);
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    return redirect()->back()->with('error', 'Invalid tour ID.');
+                } catch (\Exception $e) {
+                    \Log::error('Quotation email preview error: ' . $e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+
+                    return redirect()->back()->with('error', 'Unable to load quotation email preview.');
                 }
-                return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
-            })->name('tour.itinerary.pdf');
+            })->name('tour.email.preview');
 
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
@@ -312,8 +437,11 @@ Route::get('/clear', function () {
             Route::post('/fetch-attraction-transfer-pricing', [SingleTourPackageController::class, 'fetchAttractionTransferPricing'])->name('fetch-attraction-transfer-pricing');
             Route::post('/fetch-restaurant-transfer-pricing', [SingleTourPackageController::class, 'fetchRestaurantTransferPricing'])->name('fetch-restaurant-transfer-pricing');
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
+            Route::post('/fetch-online-hotels', [SingleTourPackageController::class, 'fetchOnlineHotels'])->name('fetch-online-hotels');
+            Route::post('/fetch-online-attractions', [SingleTourPackageController::class, 'fetchOnlineAttractions'])->name('fetch-online-attractions');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
+            Route::post('/get-hotel-price', [SingleTourPackageController::class, 'getHotelPrice'])->name('get-hotel-price');
             Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuidesByDmc'])->name('fetch-guides-by-dmc');
             Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurantsByDmc'])->name('fetch-restaurants-by-dmc');
             Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
@@ -322,12 +450,25 @@ Route::get('/clear', function () {
             Route::get('/fetch-vehicles-by-city-dmc', [SingleTourPackageController::class, 'fetchVehiclesByCityAndDmc'])->name('fetch-vehicles-by-city-dmc');
             Route::get('/fetch-agents-by-agency', [SingleTourPackageController::class, 'fetchAgentsByAgency'])->name('fetch-agents-by-agency');
             Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService')->name('save-service');
+
+            // Multi Restaurants (auth only; controller restricts by role_id 1, 11, 20)
+            Route::get('multiRestaurant', [App\Http\Controllers\multiRestaurantController::class, 'index'])->name('multiResturant.index');
+            Route::get('multiRestaurant/create', [App\Http\Controllers\multiRestaurantController::class, 'create'])->name('multiResturant.create');
+            Route::post('multiRestaurant', [App\Http\Controllers\multiRestaurantController::class, 'store'])->name('multiResturant.store');
+            Route::get('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'show'])->name('multiResturant.show');
+            Route::get('multiRestaurant/{id}/edit', [App\Http\Controllers\multiRestaurantController::class, 'edit'])->name('multiResturant.edit');
+            Route::put('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'update'])->name('multiResturant.update');
+            Route::delete('multiRestaurant/{id}', [App\Http\Controllers\multiRestaurantController::class, 'destroy'])->name('multiResturant.destroy');
+
             // authentication check for admin
             Route::group(['middleware' => ['admin']], function () {
             
                 // Predefined Packages Routes
                 // Country → City
                 Route::get('/hotel-city/{city}', [PackageController::class, 'getHotelsByCity'])->name('hotel-city');
+                Route::get('/room-types-by-hotel/{hotelId}', [PackageController::class, 'getRoomTypesByHotel'])->name('room-types-by-hotel');
+                Route::get('/beds-by-room/{roomId}', [PackageController::class, 'getBedsByRoom'])->name('beds-by-room');
+                Route::get('/tickets-by-attraction/{attractionId}', [PackageController::class, 'getTicketsByAttraction'])->name('tickets-by-attraction');
 
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
@@ -340,6 +481,11 @@ Route::get('/clear', function () {
                 Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
                 Route::get('reports/fetch-agencies-by-dmc', [FinanceReportController::class, 'fetchAgenciesByDmc'])->name('reports.fetch-agencies-by-dmc');
                 Route::get('reports/fetch-agents-by-agency', [FinanceReportController::class, 'fetchAgentsByAgency'])->name('reports.fetch-agents-by-agency');
+
+                // Tour MIS Report
+                Route::get('mis/tours', [MISReportController::class, 'tourMIS'])->name('mis.tours');
+                Route::get('mis/tours/export', [MISReportController::class, 'tourMISExport'])->name('mis.tours.export');
+                Route::get('mis/tours/export-pdf', [MISReportController::class, 'tourMISExportPdf'])->name('mis.tours.export-pdf');
                 
                 Route::get('/cities-by-country/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
                 // City → Hotel
@@ -349,16 +495,34 @@ Route::get('/clear', function () {
                 Route::get('/guides/{city}', [PackageController::class, 'getGuidesByCity'])->name('guides-by-city');
                 // City → Restaurant
                 Route::get('/restaurants/{city}', [PackageController::class, 'getRestaurantsByCity'])->name('restaurants-by-city');
+                Route::get('/restaurant-meals-in-package/{restaurantId}', [PackageController::class, 'getMealsByRestaurant'])->name('restaurant-meals');
                 // City → Transport
                 Route::get('/get-transport/{city}', [PackageController::class, 'getTransportByCity'])->name('transport-by-city');
+                Route::get('/ports-by-country/{country}', [PackageController::class, 'getPortsByCountry'])->name('ports-by-country');
                 Route::get('/packages', [PackageController::class, 'index'])->name('packages.index');
         Route::get('/packages/create', [PackageController::class, 'create'])->name('packages.create');
+        Route::get('/packages/definition/create', [PackageController::class, 'createDefinition'])->name('packages.definition.create');
+        Route::post('/packages/definition', [PackageController::class, 'storeDefinition'])->name('packages.definition.store');
+        Route::get('/packages/definition/{package_id}/edit', [PackageController::class, 'editDefinition'])->name('packages.definition.edit');
+        Route::put('/packages/definition/{package_id}', [PackageController::class, 'updateDefinition'])->name('packages.definition.update');
         Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
-        // Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
+        Route::get('/packages/{package_id}/edit', [PackageController::class, 'edit'])->name('packages.edit');
         Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name('packages.update');
+        Route::get('/packages/booking/create/{package_id?}', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create');
+        Route::get('/packages/{package_id}/booking', [\App\Http\Controllers\PackageBookingController::class, 'create'])->name('packages.booking.create.legacy');
+        Route::get('/packages/booking/filter', [\App\Http\Controllers\PackageBookingController::class, 'filterPackages'])->name('packages.booking.filter');
+        Route::get('/packages/get-agents-by-agency', [\App\Http\Controllers\PackageBookingController::class, 'getAgentsByAgency'])
+        ->name('packages.getAgentsByAgency');
+        Route::get('/packages/booking/details/{packageId}', [\App\Http\Controllers\PackageBookingController::class, 'packageDetails'])->name('packages.booking.details');
+        Route::post('/packages/booking', [\App\Http\Controllers\PackageBookingController::class, 'store'])->name('packages.booking.store');
+        Route::get('/package-booking/{booking_id}/details', [\App\Http\Controllers\PackageBookingController::class, 'showBookingDetails'])->name('package.booking.details');
+        Route::get('/package-booking/{booking_id}/edit', [\App\Http\Controllers\PackageBookingController::class, 'edit'])->name('package.booking.edit');
+        Route::post('/package-booking/{booking_id}/update', [\App\Http\Controllers\PackageBookingController::class, 'update'])->name('package.booking.update');
+        Route::get('/packages/booking/bed-options', [\App\Http\Controllers\PackageBookingController::class, 'bedOptions'])->name('packages.booking.bed-options');
+        Route::post('/package-booking/{booking_id}/update-service-date', [\App\Http\Controllers\PackageBookingController::class, 'updateServiceTourDate'])->name('package.booking.update-service-date');
+        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
         Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
-        Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');
@@ -366,10 +530,16 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/confirm-payment', [PackageController::class, 'confirmPayment'])->name('package.confirm-payment');
         Route::post('/package-booking/{booking_id}/approve-payment', [PackageController::class, 'approvePayment'])->name('package.approve-payment');
         Route::post('/package-booking/{booking_id}/decline-payment', [PackageController::class, 'declinePayment'])->name('package.decline-payment');
+        Route::post('/package-booking/{booking_id}/update-payment', [PackageController::class, 'updatePayment'])->name('package.update-payment');
+        Route::post('/package-booking/{booking_id}/delete-payment', [PackageController::class, 'deletePayment'])->name('package.delete-payment');
         Route::post('/package-booking/{booking_id}/cancel-booking', [PackageController::class, 'cancelBooking'])->name('package.cancel-booking');
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        
+        // Default Value Routes (DMC Product Configuration)
+        Route::resource('default-values', DefaultValueController::class);
+        Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
         
         // Tax Management Routes (DMC Only)
         Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
@@ -382,6 +552,8 @@ Route::get('/clear', function () {
         
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
         Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
         Route::POST('/cancel-book', [BookingListController::class, 'cancelBooking'])->name('booking.cancel');
         Route::POST('/approve-book', [BookingListController::class, 'approveBooking'])->name('booking.approve');
@@ -393,6 +565,8 @@ Route::get('/clear', function () {
         Route::get('/countries/get-active', [ReportController::class, 'getActiveCountries'])->name('countries.get-active');
         Route::get('/reports/get-filtered-data', [ReportController::class, 'getFilteredData'])->name('reports.get-filtered-data');
         Route::post('/countries/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
+        Route::post('/countries/update-remitance-exchange', [CountryController::class, 'updateRemitanceAndExchange'])->name('countries.update-remitance-exchange');
+        Route::post('/countries/delete-remitance-exchange', [CountryController::class, 'deleteRemitanceAndExchange'])->name('countries.delete-remitance-exchange');
         Route::get('get-dmc-countries/{id}', [ReportController::class, 'getDmcCountries'])->name('get.dmc.countries');
         Route::get('get-master-dmc-countries/{id}', [ReportController::class, 'getMasterDmcCountries'])->name('get.master.dmc.countries');
         Route::get('/get-master-dmc', [ReportController::class, 'getMasterDmc'])->name('get.master.dmc');
@@ -419,16 +593,22 @@ Route::get('/clear', function () {
         Route::get('/drivers/search', [GuideController::class, 'search'])->name('drivers.search');
         
         Route::get('/get-cities', [OperationalCountryController::class, 'getCities'])->name('getCities');
+        Route::get('/ajax/cities', [CityController::class, 'ajaxCities'])->name('ajax.cities');
+        Route::get('/get-services', [ServiceController::class, 'getServices'])->name('getServices');
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
+        Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
+        Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
+        Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
         // Country and City API routes
         Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
-
+        Route::get('/get-currency-by-country', [UserController::class, 'getCurrencyByCountry'])->name('get.currency.by.country');
         Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms'])->name('get-no-of-rooms');
         Route::get('/get-rooms-by-dmc', [HotelController::class, 'getRoomsByDmc']);
         Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
@@ -529,11 +709,15 @@ Route::get('/clear', function () {
 
         // In web.php routes
         Route::post('/vehicle/map-zones', [VehicleController::class, 'mapZones'])->name('vehicle.map_zones');
+        Route::get('/vehicle/{vehicle}/zone-mappings/export', [VehicleController::class, 'exportZoneMappings'])->name('vehicle.zone_mappings.export');
+        Route::post('/vehicle/zone-mappings/import', [VehicleController::class, 'importZoneMappings'])->name('vehicle.zone_mappings.import');
 
         Route::post('/vehicle/check-mapping-exists', [VehicleController::class, 'checkMappingExists'])->name('vehicle.check_mapping_exists');
         Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');
         Route::post('/vehicle/delete-mapping', [VehicleController::class, 'deleteMappingAjax'])->name('vehicle.delete_mapping');
         Route::post('/vehicle/restore-mapping', [VehicleController::class, 'restoreMappingAjax'])->name('vehicle.restore_mapping');
+        Route::post('/vehicle/update-driver', [VehicleController::class, 'updateDriverAjax'])->name('vehicle.update_driver');
+        Route::post('/vehicle/update-plate', [VehicleController::class, 'updatePlateAjax'])->name('vehicle.update_plate');
 
         // tickets
         Route::resource('tickets', TicketController::class);
@@ -617,12 +801,20 @@ Route::get('/clear', function () {
 
         //Booking List
         Route::resource('bookinglist', BookingListController::class);
-        Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
+        // Route::get('/enquiries', [BookingListController::class, 'enquiry'])->name('bookinglist.enquiry');
         Route::get('tour-itinerary/{tourId}', [BookingListController::class, 'showItinerary'])->name('tour.itinerary');
+        Route::get('tour-itinerary/{tourId}/formatted-pdf-preview', [BookingListController::class, 'itineraryFormattedPdfPreview'])->name('bookinglist.itinerary.formatted-preview');
+        Route::post('tour-itinerary/{tourId}/formatted-pdf-info', [BookingListController::class, 'storeItineraryFormattedPdfInfo'])->name('bookinglist.itinerary.pdf.store-info');
+        Route::match(['get', 'post'], 'tour-itinerary/{tourId}/pdf-formatted', [BookingListController::class, 'downloadItineraryFormattedPdf'])->name('bookinglist.itinerary.pdf');
+        Route::get('booking-list/handover-checklist-preview/{tour_id}', [BookingListController::class, 'handoverChecklistPreview'])->name('bookinglist.handoverChecklist.preview');
+        Route::get('booking-list/handover-checklist/{tour_id}', [BookingListController::class, 'downloadHandoverChecklistPdf'])->name('bookinglist.handoverChecklist.pdf');
         Route::post('bookinglist/update-date', [BookingListController::class, 'updateDate'])->name('bookinglist.updateDate');
         Route::get('bookinglist/check-price-hide', [BookingListController::class, 'checkPriceHide'])->name('bookinglist.checkPriceHide');
 
+        // Finance reports
+        Route::get('/finance/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('finance.daily-arrival');
         Route::resource('enquirylist', EnquiryListController::class);
+        Route::get('booking-list/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('booking-list.daily-arrival');
 
         //Drivers Approval
         Route::get('driver/driver-approval', [DriverController::class, 'driverApproval'])->name('driver.approval');
@@ -682,11 +874,34 @@ Route::get('/clear', function () {
             Route::get('/bookings/follow-ups', [BookingsController::class, 'followUps'])->name('bookings.follow-ups');
             Route::get('/bookings/tentative', [BookingsController::class, 'tentative'])->name('bookings.tentative');
             Route::get('/bookings/confirmed', [BookingsController::class, 'confirmedBookings'])->name('bookings.confirmed');
+            Route::get('/bookings/dmc-exchange-rate', [BookingsController::class, 'getDmcExchangeRate'])->name('bookings.dmc-exchange-rate');
             Route::get('/bookings/definite', [BookingsController::class, 'definiteBookings'])->name('bookings.definite');
             Route::get('/bookings/actual', [BookingsController::class, 'actualBookings'])->name('bookings.actual');
+            Route::get('/bookings/today', [TodaysBookingsController::class, 'index'])->name('bookings.today');
+            Route::get('/lost-found', [\App\Http\Controllers\LostFoundController::class, 'index'])->name('lost-found.index');
+            Route::post('/lost-found/{id}/respond', [\App\Http\Controllers\LostFoundController::class, 'storeResponse'])->name('lost-found.respond');
+            Route::get('/smart-notification', [SmartNotificationController::class, 'index'])->name('smart-notification.index');
+            Route::get('/smart-notification/history', [SmartNotificationController::class, 'history'])->name('smart-notification.history');
+            Route::get('/smart-notification/recipients', [SmartNotificationController::class, 'recipients'])->name('smart-notification.recipients');
+            Route::post('/smart-notification/send', [SmartNotificationController::class, 'send'])->name('smart-notification.send');
             Route::get('/bookings/cancelled', [BookingsController::class, 'cancelledBookings'])->name('bookings.cancelled');
             Route::get('/bookings/refunds', [BookingsController::class, 'refunds'])->name('bookings.refunds');
+            
+            // Package Booking Management Routes (status templates)
+            Route::get('/package-bookings/new-enquiries', [PackageBookingTemplatesController::class, 'newEnquiries'])->name('package-bookings.new-enquiries');
+            Route::get('/package-bookings/follow-ups', [PackageBookingTemplatesController::class, 'followUps'])->name('package-bookings.follow-ups');
+            Route::get('/package-bookings/confirmed', [PackageBookingTemplatesController::class, 'confirmed'])->name('package-bookings.confirmed');
+            Route::get('/package-bookings/definite', [PackageBookingTemplatesController::class, 'definite'])->name('package-bookings.definite');
+            Route::get('/package-bookings/actual', [PackageBookingTemplatesController::class, 'actual'])->name('package-bookings.actual');
+            Route::get('/package-bookings/cancelled', [PackageBookingTemplatesController::class, 'cancelled'])->name('package-bookings.cancelled');
+            Route::get('/package-bookings/refunds', [PackageBookingTemplatesController::class, 'refunds'])->name('package-bookings.refunds');
+            Route::post('/package-bookings/agent-negotiation', [PackageBookingTemplatesController::class, 'agentNegotiation'])->name('package-bookings.agent-negotiation');
+            Route::post('/package-bookings/update-negotiation', [PackageBookingTemplatesController::class, 'updateNegotiation'])->name('package-bookings.update-negotiation');
+            Route::post('/package-bookings/cancel/{bookingId}', [PackageBookingTemplatesController::class, 'cancelBooking'])->name('package-bookings.cancel');
+            Route::post('/package-bookings/process-refund', [PackageBookingTemplatesController::class, 'processRefund'])->name('package-bookings.process-refund');
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
+            Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
+            Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
             Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
             Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
             Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
@@ -699,12 +914,17 @@ Route::get('/clear', function () {
             Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download'])->name('invoices.download');
             Route::get('/invoices/{invoiceId}/download-price-only', [InvoiceController::class, 'downloadPriceOnly'])->name('invoices.download-price-only');
             Route::get('/invoices/{invoiceId}/view', [InvoiceController::class, 'view'])->name('invoices.view');
+            Route::get('/invoices/{invoiceId}/preview', [InvoiceController::class, 'preview'])->name('invoices.preview');
+            Route::get('/invoices/{invoiceId}/pdf', [InvoiceController::class, 'invoicePdf'])->name('invoices.pdf');
             Route::post('/invoices/tour/{tourId}/generate-proforma', [InvoiceController::class, 'generateProforma'])->name('invoices.generate-proforma');
             Route::post('/invoices/tour/{tourId}/generate-final', [InvoiceController::class, 'generateFinal'])->name('invoices.generate-final');
             Route::post('/invoices/{invoiceId}/convert-to-final', [InvoiceController::class, 'convertToFinal'])->name('invoices.convert-to-final');
             Route::post('/invoices/tour/{tourId}/handle-cancellation', [InvoiceController::class, 'handleCancellation'])->name('invoices.handle-cancellation');
         Route::get('/bookings/export-tour-pdf/{tourId}', [BookingsController::class, 'exportTourPDF'])->name('bookings.export-tour-pdf');
+        Route::get('/bookings/confirmation-voucher-preview/{tourId}', [BookingsController::class, 'confirmationVoucherPreview'])->name('bookings.confirmation-voucher.preview');
+        Route::get('/bookings/confirmation-voucher/{tourId}', [BookingsController::class, 'confirmationVoucher'])->name('bookings.confirmation-voucher');
         Route::post('/bookings/cancel-tour/{tourId}', [BookingsController::class, 'cancelTour'])->name('bookings.cancel-tour');
+        Route::post('/bookings/{encryptedId}/save-qr', [BookingsController::class, 'saveQrCode'])->name('bookings.save-qr');
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
         Route::post('/booking/reject-hotel-booking', [HotelBookingController::class, 'rejectHotelBooking'])->name('booking.reject.hotel.booking');
         Route::post('/booking/approve-attraction-booking', [HotelBookingController::class, 'approveAttractionBooking'])->name('booking.approve.attraction.booking');
@@ -876,6 +1096,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
         Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
         Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        Route::post('/agents/quick-store', [AgentController::class, 'quickStore'])->name('agents.quick-store');
         
         // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
@@ -933,13 +1154,30 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
         Route::put('/app-management/update', [App\Http\Controllers\AppManagementController::class, 'update'])->name('app-management.update');
         Route::get('/app-management/settings', [App\Http\Controllers\AppManagementController::class, 'appManagementSettings'])->name('app-management.settings');
-    
+
+        // Itinerary Settings routes
+        Route::get('/itinerary_settings.pdf', [BookingListController::class, 'itinerarySettings'])->name('itinerary_settings.pdf');
+        Route::post('/itinerary_settings.pdf', [BookingListController::class, 'saveItinerarySettings'])->name('itinerary_settings.save');
+        Route::get('/itinerary_settings/fetch', [BookingListController::class, 'fetchItinerarySettings'])->name('itinerary_settings.fetch');
+        Route::get('/itinerary_settings/{id}/edit', [BookingListController::class, 'editItinerarySettings'])->name('itinerary_settings.edit');
+        Route::match(['put', 'post'], '/itinerary_settings/{id}/update', [BookingListController::class, 'updateItinerarySettings'])->name('itinerary_settings.update_route');
+        Route::delete('/itinerary_settings/{id}', [BookingListController::class, 'deleteItinerarySettings'])->name('itinerary_settings.delete');
+
+        // Quotation Settings routes
+        Route::get('/quotation_settings.pdf', [BookingListController::class, 'quotationSettings'])->name('quotation_settings.pdf');
+        Route::post('/quotation_settings.pdf', [BookingListController::class, 'saveQuotationSettings'])->name('quotation_settings.save');
+        Route::get('/quotation_settings/fetch', [BookingListController::class, 'fetchQuotationSettings'])->name('quotation_settings.fetch');
+        Route::get('/quotation_settings/{id}/edit', [BookingListController::class, 'editQuotationSettings'])->name('quotation_settings.edit');
+        Route::match(['put', 'post'], '/quotation_settings/{id}/update', [BookingListController::class, 'updateQuotationSettings'])->name('quotation_settings.update_route');
+        Route::delete('/quotation_settings/{id}', [BookingListController::class, 'deleteQuotationSettings'])->name('quotation_settings.delete');
     });
 
     //authentication check for manager (route can access admin & manager)
     Route::group(['middleware' => ['manager']], function () {
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
+        Route::post('/tour/{tourId}/delete-payment', [TourController::class, 'deletePayment'])->name('tour.delete-payment');
+        Route::post('/tour/{tourId}/update-payment', [TourController::class, 'updatePayment'])->name('tour.update-payment');
     });
 
 });    
@@ -998,15 +1236,93 @@ Route::middleware(['auth'])->group(function () {
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
     Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
     Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
+
+// Route::get('/dmcf', function () {
+//     return view('dmc/index');
+// 
+Route::get('day-level/by-city',           [DayLevelController::class, 'byCity'])
+    ->name('day-level.by-city');
+
+Route::get('day-level/hotels-by-rating',  [DayLevelController::class, 'hotelsByRating'])
+    ->name('day-level.hotels-by-rating');
+
+Route::get('day-level/rooms-by-hotel', [DayLevelController::class, 'roomsByHotel'])
+    ->name('day-level.rooms-by-hotel');
+
+Route::get('day-level/beds-by-room', [DayLevelController::class, 'bedsByRoom'])
+    ->name('day-level.beds-by-room');
+
+Route::get('day-level/meals-by-restaurant', [DayLevelController::class, 'mealsByRestaurant'])
+    ->name('day-level.meals-by-restaurant');
+
+Route::get('day-level/meal-plans-by-hotel', [DayLevelController::class, 'mealPlansByHotel'])
+    ->name('day-level.meal-plans-by-hotel');
+
+Route::get('day-level/transfer-options', [DayLevelController::class, 'transferOptions'])
+    ->name('day-level.transfer-options');
+
+Route::get('day-level/transfer-zone-price', [DayLevelController::class, 'transferZonePrice'])
+    ->name('day-level.transfer-zone-price');
+
+Route::get('day-level/tickets-by-attraction', [DayLevelController::class, 'ticketsByAttraction'])
+    ->name('day-level.tickets-by-attraction');
+
+Route::get('day-level/cities-by-country', [DayLevelController::class, 'citiesByCountry'])
+    ->name('day-level.cities-by-country');
+
+// Must be declared before resource route to avoid being captured by day-level/{day_level}
+Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'combinedJsonFile'])
+    ->name('day-level.combined-json-file');
+
+Route::patch('day-level/{day_level}/inclusion', [DayLevelController::class, 'updateInclusion'])
+    ->name('day-level.update-inclusion')
+    ->whereNumber('day_level');
+
+// Resource route AFTER
+Route::resource('day-level', DayLevelController::class)->whereNumber('day_level');
+
+// Temporary preview route for the booking-confirmation email template.
+// Loads real tour + order data (prices from order JSON, not hardcoded).
+// Usage: /preview-booking-email?tour_id=123  or  ?display_id=ORD3662
+// Without params, uses the most recent tour that has orders.
+Route::get('preview-booking-email', function (\Illuminate\Http\Request $request) {
+    $tourKey = $request->query('tour_id') ?? $request->query('display_id');
+    $tour = \App\Helpers\CommonHelper::findTourForEmailPreview($tourKey);
+
+    if (!$tour) {
+        abort(404, 'No tour found. Pass ?tour_id= or ?display_id= for a tour that has orders.');
+    }
+
+    $emailData = \App\Helpers\CommonHelper::buildBookingConfirmationEmailDataFromTour($tour);
+
+    if (!$emailData) {
+        abort(404, 'Tour #' . ($tour->display_id ?? $tour->tour_id) . ' has no orders to preview.');
+    }
+
+    return view('email.booking-confirmation', $emailData);
 });
 
-Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 
+// Temporary preview route for the quotation-confirmation email template.
+// Usage: /preview-quotation-email?tour_id=123  or  ?display_id=ORD3662
+Route::get('preview-quotation-email', function (\Illuminate\Http\Request $request) {
+    $tourKey = $request->query('tour_id') ?? $request->query('display_id');
+    $tour = \App\Helpers\CommonHelper::findTourForEmailPreview($tourKey);
 
+    if (!$tour) {
+        abort(404, 'No tour found. Pass ?tour_id= or ?display_id= for a tour that has orders.');
+    }
 
+    $emailData = \App\Helpers\CommonHelper::buildQuotationConfirmationEmailDataFromTour($tour);
 
+    if (!$emailData) {
+        abort(404, 'Tour #' . ($tour->display_id ?? $tour->tour_id) . ' has no orders to preview.');
+    }
 
+    return view('email.quotation-confirmation', $emailData);
+});
 
-
-
+Route::get('{routeName}/{name?}', [HomeController::class, 'pageView'])
+    ->where('routeName', '^(?!api$).+');
+});
 
 

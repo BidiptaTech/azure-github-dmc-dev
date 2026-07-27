@@ -6,7 +6,9 @@ use App\Helpers\CommonHelper;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\CityExploration;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -114,18 +116,18 @@ class CityController extends Controller
         }
 
         // Generate new city_id
-        $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
-        $lastCityId = $lastCity->city_id ?? 0;
-        $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
+        // $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+        // $lastCityId = $lastCity->city_id ?? 0;
+        // $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
 
-        // Ensure uniqueness of city_id
-        while (City::where('city_id', $newCityId)->exists()) {
-            $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
-        }
+        // // Ensure uniqueness of city_id
+        // while (City::where('city_id', $newCityId)->exists()) {
+        //     $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
+        // }
 
         // Generate new database ID
-        $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
-        $newId = $lastDbId + 1;
+        // $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
+        // $newId = $lastDbId + 1;
 
         // Handle image upload using CommonHelper
         $imagePath = null;
@@ -136,13 +138,13 @@ class CityController extends Controller
 
         // Create city
         $city = City::create([
-            'id' => $newId,
+            // 'id' => $newId,
             'name' => $cityName,
             'country' => $countryName,
-            'city_id' => $newCityId,
+            // 'city_id' => $newCityId,
             'image' => $imagePath,
         ]);
-
+        $city->refresh();
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -749,5 +751,115 @@ class CityController extends Controller
             return redirect()->route('cities.index')
                 ->with('error', 'Failed to delete exploration data: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Country names from the DMC's master DMC profile (comma-separated on users.country).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
+     * AJAX city search for Select2 (Single/Multi City planning)
+     * Returns: { results: [{id, text}] }
+     */
+    public function ajaxCities(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $authUser = Auth::user();
+
+        // Resolve DMC userId for logged-in user (same role mapping used in SingleTourPackageController)
+        $dmcId = null;
+        if ($authUser) {
+            if ((int) $authUser->role_id === 11) {
+                $dmcId = $authUser->userId;
+            } elseif (in_array((int) $authUser->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138], true)) {
+                $dmcId = $authUser->created_by;
+            } elseif (in_array((int) $authUser->role_id, [37, 64, 65, 66, 67, 68], true)) {
+                $salesHead = User::where('userId', $authUser->created_by)->first();
+                $dmcId = $salesHead?->created_by;
+            } elseif (in_array((int) $authUser->role_id, [38, 81, 90, 108, 117, 124, 125, 126, 127], true)) {
+                $salesManager = User::where('userId', $authUser->created_by)->first();
+                $salesHead = $salesManager ? User::where('userId', $salesManager->created_by)->first() : null;
+                $dmcId = $salesHead?->created_by;
+            } else {
+                // Fallback to direct userId if role mapping is not covered
+                $dmcId = $authUser->userId ?? null;
+            }
+        }
+
+        // Cities scoped to all countries on the master DMC profile (multi-country multi-city)
+        $countryNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
+
+        // If we cannot resolve allowed countries, do not leak global cities
+        if (empty($countryNames)) {
+            return response()->json(['results' => []]);
+        }
+
+        $cities = City::query()
+            ->whereIn('country', $countryNames)
+            ->when($q !== '', function ($query) use ($q) {
+                // Case-insensitive match regardless of DB collation.
+                $needle = mb_strtolower($q, 'UTF-8');
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . $needle . '%']);
+            })
+            ->orderBy('name')
+            ->get(['city_id', 'name', 'country']);
+
+        $results = $cities->map(function ($city) {
+            $countrySuffix = $city->country ? (' (' . $city->country . ')') : '';
+            return [
+                // Select2 compares ids as strings; force string to avoid numeric coercion edge-cases.
+                'id' => (string) $city->city_id,
+                'text' => $city->name . $countrySuffix,
+                // Exposed for tour save when country field is hidden — stored on segment city <option data-country>
+                'country' => $city->country,
+            ];
+        })->values();
+
+        return response()->json(['results' => $results]);
     }
 }

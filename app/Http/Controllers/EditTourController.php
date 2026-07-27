@@ -6,12 +6,326 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Tour;
 use App\Models\Order;
+use App\Models\Guest;
+use App\Models\Setting;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Helpers\CommonHelper;
+use App\Mail\DmcMail;
+use App\Services\FirebaseService;
 
 class EditTourController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($denied = CommonHelper::bookingFormAccessDeniedResponse('lite')) {
+                return $denied;
+            }
+
+            return $next($request);
+        });
+    }
+
+    /**
+     * Update only city plans (city_type + city string) for a tour.
+     * Used by multi-city "+" buttons to persist immediately.
+     */
+    public function updateCityPlans(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        $validated = $request->validate([
+            'city_type' => 'nullable|string|in:single,multi',
+            'city' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            if (array_key_exists('city_type', $validated) && !empty($validated['city_type'])) {
+                $tour->city_type = $validated['city_type'];
+            }
+            if (array_key_exists('city', $validated)) {
+                $tour->city = $validated['city'] ?: null;
+            }
+
+            $saved = $tour->save();
+            if (!$saved) {
+                throw new \Exception('Failed to save city plans.');
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'City plans saved.',
+                'data' => [
+                    'city_type' => $tour->city_type,
+                    'city' => $tour->city,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to update city plans', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to save city plans right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove a saved multi-city plan (city + date range) and soft-delete all services
+     * that fall within that removed stay date range.
+     *
+     * This is used by the red "×" button in multi-city mode to ensure:
+     * - the row is removed from the UI
+     * - the `tours.city` string is updated (plan removed)
+     * - services are soft-deleted (or removed from multi-service orders) for that stay range
+     */
+    public function removeCityPlan(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        $validated = $request->validate([
+            'city_display' => 'nullable|string',
+            'start' => 'required|date_format:Y-m-d',
+            'end' => 'required|date_format:Y-m-d|after_or_equal:start',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $start = Carbon::createFromFormat('Y-m-d', $validated['start'])->startOfDay();
+            $end = Carbon::createFromFormat('Y-m-d', $validated['end'])->startOfDay();
+            $cityDisplay = isset($validated['city_display']) ? trim((string) $validated['city_display']) : '';
+
+            // 1) Remove plan from tours.city string
+            $originalCity = (string) ($tour->city ?? '');
+            $newCity = $this->removeCityPlanFromCityString($originalCity, $cityDisplay, $start->format('Y-m-d'), $end->format('Y-m-d'));
+            $tour->city = $newCity !== '' ? $newCity : null;
+            $tour->city_type = $tour->city ? 'multi' : ($tour->city_type ?: 'single');
+            $tour->save();
+
+            // 2) Soft-delete services within removed stay date range
+            $affected = $this->getServicesWithinDateRange($tour->tour_id, $start, $end);
+            $deletedCount = 0;
+            if (!empty($affected)) {
+                $deletedCount = count($affected);
+                $this->deleteServicesByIndexOrOrder($affected);
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'City plan removed.',
+                'data' => [
+                    'tour_id' => $tour->tour_id,
+                    'city' => $tour->city,
+                    'deleted_services_count' => $deletedCount,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to remove city plan', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove city plan right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Clear (soft delete) ALL services (orders) for a tour.
+     * Used when the tour date range is edited to avoid inconsistent bookings.
+     */
+    public function clearTourServices(Request $request, $tour)
+    {
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            $orders = Order::where('tour_id', $tour->tour_id)->get();
+            $deletedCount = 0;
+            foreach ($orders as $order) {
+                // Soft delete whole order (services are stored in order->data)
+                $order->delete();
+                $deletedCount++;
+            }
+
+            DB::commit();
+
+            try {
+                CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tour->tour_id);
+            } catch (\Throwable $e) {
+                // ignore
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Services cleared.',
+                'data' => [
+                    'tour_id' => $tour->tour_id,
+                    'deleted_orders_count' => $deletedCount,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Failed to clear tour services', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to clear services right now.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    private function removeCityPlanFromCityString(string $raw, string $cityDisplay, string $start, string $end): string
+    {
+        $s = (string) $raw;
+        $out = [];
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+
+        // Split by commas at top-level (simple format in DB)
+        $parts = array_values(array_filter(array_map('trim', explode(',', $s))));
+        foreach ($parts as $p) {
+            if (preg_match($re, $p, $m)) {
+                $cDisp = trim((string) ($m[1] ?? ''));
+                $st = trim((string) ($m[2] ?? ''));
+                $en = trim((string) ($m[3] ?? ''));
+                $isTarget = ($st === $start && $en === $end);
+                if ($cityDisplay !== '') {
+                    $isTarget = $isTarget && ($cDisp === $cityDisplay);
+                }
+                if ($isTarget) {
+                    continue; // drop it
+                }
+                $out[] = "{$cDisp} [{$st}→{$en}]";
+            } else {
+                // Keep anything that doesn't match the expected segment pattern
+                $out[] = $p;
+            }
+        }
+        return implode(', ', $out);
+    }
+
+    /**
+     * Collect services whose booking dates fall within the given inclusive range.
+     * We rely on non-overlapping city plans; date range uniquely identifies the segment.
+     */
+    private function getServicesWithinDateRange($tourId, Carbon $startDate, Carbon $endDate): array
+    {
+        $affected = [];
+        $orders = Order::where('tour_id', $tourId)->get();
+        $start = $startDate->copy()->startOfDay();
+        $end = $endDate->copy()->startOfDay();
+
+        foreach ($orders as $order) {
+            $serviceData = $order->data;
+            if (empty($serviceData) || !is_array($serviceData)) continue;
+
+            $serviceArray = isset($serviceData[0]) ? $serviceData : [$serviceData];
+            foreach ($serviceArray as $index => $service) {
+                if (!is_array($service)) continue;
+                $dates = $this->extractServiceDates($service, $order->type);
+                if (empty($dates)) continue;
+
+                $inRange = false;
+                foreach ($dates as $d) {
+                    try {
+                        $dt = Carbon::parse($d)->startOfDay();
+                        if ($dt->betweenIncluded($start, $end)) {
+                            $inRange = true;
+                            break;
+                        }
+                    } catch (\Throwable $e) {
+                        continue;
+                    }
+                }
+                if ($inRange) {
+                    $affected[] = [
+                        'order_id' => $order->booking_id,
+                        'type' => $order->type,
+                        'name' => $this->getServiceName($order->type, $service),
+                        'index' => $index,
+                    ];
+                }
+            }
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Soft-delete whole orders or remove indexed entries from multi-service orders.
+     * (Shared behavior with deleteServicesOutsideDateRange but generalized.)
+     */
+    private function deleteServicesByIndexOrOrder(array $affectedServices): void
+    {
+        $servicesByOrder = [];
+        foreach ($affectedServices as $service) {
+            $orderId = $service['order_id'];
+            if (!isset($servicesByOrder[$orderId])) $servicesByOrder[$orderId] = [];
+            $servicesByOrder[$orderId][] = $service;
+        }
+
+        $tourIdsWithSoftDeletes = [];
+        foreach ($servicesByOrder as $orderId => $services) {
+            try {
+                $order = Order::where('booking_id', $orderId)->first();
+                if (!$order) continue;
+
+                $serviceData = $order->data;
+                if (empty($serviceData) || !is_array($serviceData)) continue;
+
+                if (isset($serviceData[0])) {
+                    $indexesToDelete = array_map(fn ($s) => $s['index'], $services);
+                    rsort($indexesToDelete);
+                    foreach ($indexesToDelete as $idx) {
+                        if (isset($serviceData[$idx])) unset($serviceData[$idx]);
+                    }
+                    $serviceData = array_values($serviceData);
+                    if (empty($serviceData)) {
+                        $order->delete();
+                        $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
+                    } else {
+                        $order->data = $serviceData;
+                        $order->save();
+                    }
+                } else {
+                    $order->delete();
+                    $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to soft delete services for removed city plan', [
+                    'order_id' => $orderId ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach (array_unique($tourIdsWithSoftDeletes) as $tid) {
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tid);
+        }
+    }
+
     /**
      * Update tour information.
      */
@@ -19,6 +333,15 @@ class EditTourController extends Controller
     {
         // Manually resolve tour by tour_id since route model binding uses 'id' by default
         $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        // Normalize so validation + DB writes always see FIT/GROUP and integer FOC (UI may send mixed case).
+        if ($request->has('tour_type')) {
+            $rawType = strtoupper(trim((string) $request->input('tour_type')));
+            $request->merge(['tour_type' => in_array($rawType, ['FIT', 'GROUP'], true) ? $rawType : 'FIT']);
+        }
+        if ($request->has('foc_size')) {
+            $request->merge(['foc_size' => max(0, (int) $request->input('foc_size'))]);
+        }
 
         $validated = $request->validate([
             'display_id' => 'nullable|string|max:255',
@@ -33,7 +356,25 @@ class EditTourController extends Controller
             'agent_id' => 'required|exists:agents,agent_id',
             'child_ages' => 'nullable|string|max:255',
             'delete_affected_services' => 'nullable|boolean', // Flag to delete services outside date range
+            'tour_type' => 'nullable|in:FIT,GROUP',
+            'foc_size' => [
+                'nullable',
+                'integer',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    $f = max(0, (int) $value);
+                    $a = max(0, (int) $request->input('adults', 0));
+                    if ($f > $a) {
+                        $fail('FOC size cannot exceed total adults.');
+                    }
+                },
+            ],
+            'discount' => 'nullable|numeric|min:0|max:1',
+            'discount_price' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
+
+        $focSizeReq = max(0, (int) $request->input('foc_size', $validated['foc_size'] ?? 0));
 
         try {
             DB::beginTransaction();
@@ -90,6 +431,16 @@ class EditTourController extends Controller
             $tour->destination = $validated['user_country'];
             $tour->check_in_time = $checkIn;
             $tour->check_out_time = $checkOut;
+
+            // Recalculate auto_cancel_date when the start date changes (reference: SingleTourPackageController::store()).
+            $startDateChanged = !$oldCheckIn || !$checkIn->equalTo($oldCheckIn);
+            if ($startDateChanged) {
+                $userDmcId = CommonHelper::getDmcId(Auth::user());
+                $userDMC = $userDmcId ? User::where('userId', $userDmcId)->first() : null;
+                $auto_cancel_day = (int) ($userDMC->auto_cancel_date ?? 0);
+                $tour->auto_cancel_date = $checkIn->copy()->subDays($auto_cancel_day)->toDateString();
+            }
+
             $tour->adult = $validated['adults'];
             $tour->child = $validated['children'];
             $tour->infant = $validated['infants'];
@@ -97,6 +448,52 @@ class EditTourController extends Controller
             $tour->female_count = $validated['female'];
             $tour->agent_id = $validated['agent_id'];
             $tour->child_ages = !empty($validated['child_ages']) ? $validated['child_ages'] : null;
+
+            $tourType = strtoupper((string) ($validated['tour_type'] ?? $tour->tour_type ?? 'FIT'));
+            $tour->tour_type = $tourType;
+            if ($tourType === 'GROUP') {
+                $tour->foc_size = $focSizeReq;
+                $tour->discount = ((float) $request->input('discount', 0) >= 1.0) ? 1.0 : 0.0;
+            } else {
+                $tour->foc_size = 0;
+                $tour->discount = 0.0;
+            }
+
+            // UI field discount_price → existing column discount_amount (ceiling, e.g. 847.64 → 848)
+            $tour->discount_amount = (float) ceil((float) ($request->input(
+                'discount_price',
+                $request->input('discount_amount', $tour->discount_amount ?? 0)
+            ) ?: 0));
+
+            // If tour date range changed, ensure multi-city plans still fit within the new tour range.
+            // Any city plan that is not fully contained in [checkIn, checkOut] is removed from tours.city,
+            // and its services are soft-deleted so city/date + services stay consistent.
+            if ($datesChanged && !empty($tour->city)) {
+                $pruned = $this->pruneCityPlansToRange((string) $tour->city, $checkIn, $checkOut);
+                if (!empty($pruned['removed'])) {
+                    foreach ($pruned['removed'] as $seg) {
+                        try {
+                            $segStart = Carbon::createFromFormat('Y-m-d', $seg['start'])->startOfDay();
+                            $segEnd = Carbon::createFromFormat('Y-m-d', $seg['end'])->startOfDay();
+                            $affected = $this->getServicesWithinDateRange($tour->tour_id, $segStart, $segEnd);
+                            if (!empty($affected)) {
+                                $this->deleteServicesByIndexOrOrder($affected);
+                                $deletedServicesCount += count($affected);
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Failed pruning services for removed city plan', [
+                                'tour_id' => $tour->tour_id ?? null,
+                                'segment' => $seg ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                }
+                $tour->city = !empty($pruned['city']) ? $pruned['city'] : null;
+                if (empty($tour->city)) {
+                    $tour->city_type = 'single';
+                }
+            }
             
             $saved = $tour->save();
             
@@ -120,6 +517,10 @@ class EditTourController extends Controller
                     'male' => $tour->male_count,
                     'female' => $tour->female_count,
                     'agent_id' => $tour->agent_id,
+                    'tour_type' => $tour->tour_type,
+                    'foc_size' => (int) ($tour->foc_size ?? 0),
+                    'discount' => (float) ($tour->discount ?? 0),
+                    'discount_amount' => (float) ($tour->discount_amount ?? 0),
                 ],
                 'deleted_services_count' => $deletedServicesCount,
             ]);
@@ -147,6 +548,724 @@ class EditTourController extends Controller
     }
 
     /**
+     * Keep only city plans fully contained inside the new tour range.
+     * Returns ['city' => string, 'removed' => array<['cityDisplay'=>..., 'start'=>..., 'end'=>...]>]
+     */
+    private function pruneCityPlansToRange(string $raw, Carbon $tourStart, Carbon $tourEnd): array
+    {
+        $s = (string) $raw;
+        $parts = array_values(array_filter(array_map('trim', explode(',', $s))));
+        $kept = [];
+        $removed = [];
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+
+        $ts = $tourStart->copy()->startOfDay();
+        $te = $tourEnd->copy()->startOfDay();
+
+        foreach ($parts as $p) {
+            if (!preg_match($re, $p, $m)) {
+                // Not a dated segment; keep as-is
+                $kept[] = $p;
+                continue;
+            }
+            $cityDisplay = trim((string) ($m[1] ?? ''));
+            $start = trim((string) ($m[2] ?? ''));
+            $end = trim((string) ($m[3] ?? ''));
+            try {
+                $ss = Carbon::createFromFormat('Y-m-d', $start)->startOfDay();
+                $ee = Carbon::createFromFormat('Y-m-d', $end)->startOfDay();
+                $fits = $ss->gte($ts) && $ee->lte($te);
+                if ($fits) {
+                    $kept[] = "{$cityDisplay} [{$start}→{$end}]";
+                } else {
+                    $removed[] = ['cityDisplay' => $cityDisplay, 'start' => $start, 'end' => $end];
+                }
+            } catch (\Throwable $e) {
+                // If parsing fails, keep it (don't risk data loss)
+                $kept[] = $p;
+            }
+        }
+
+        return [
+            'city' => implode(', ', $kept),
+            'removed' => $removed,
+        ];
+    }
+
+    /**
+     * Update only guest information (main guest + additional guests) for a tour.
+     * No validation on tour dates/pax – only guest JSON fields are touched.
+     */
+    public function updateGuests(Request $request, $tour)
+    {
+        // Resolve tour by tour_id
+        $tour = Tour::where('tour_id', $tour)->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            $mainGuestPassword = null;
+            $mainGuestEmail = null;
+            $mainGuestName = null;
+            $mainGuestCountryCode = null;
+            $mainGuestPhone = null;
+
+            // Main guest data
+            if ($request->has('mainguest')) {
+                try {
+                    $mainGuestData = $request->mainguest;
+                    if (is_string($mainGuestData) && !empty(trim($mainGuestData))) {
+                        $decoded = json_decode($mainGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $mainGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in mainguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->mainguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $mainGuestData = [];
+                        }
+                    } elseif (is_string($mainGuestData) && empty(trim($mainGuestData))) {
+                        $mainGuestData = [];
+                    } elseif (!is_array($mainGuestData)) {
+                        $mainGuestData = [];
+                    }
+
+                    // Always extract main guest fields (handle both snake_case and camelCase)
+                    $mainGuestEmail = $mainGuestData['email'] ?? $mainGuestData['Email'] ?? null;
+                    $mainGuestName = $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? null;
+                    $mainGuestCountryCode = $mainGuestData['country_code'] ?? $mainGuestData['countryCode'] ?? null;
+                    $mainGuestPhone = $mainGuestData['phone'] ?? null;
+                    if (!empty($mainGuestData['app_password'])) {
+                        $mainGuestPassword = $mainGuestData['app_password'];
+                    }
+                    // Normalize email: trim and treat empty string as null
+                    if (is_string($mainGuestEmail) && trim($mainGuestEmail) === '') {
+                        $mainGuestEmail = null;
+                    } elseif ($mainGuestEmail !== null) {
+                        $mainGuestEmail = trim((string) $mainGuestEmail);
+                    }
+                    unset($mainGuestData['app_password']);
+
+                    // Normalize salutation: remove trailing period (Mr. -> Mr)
+                    if (!empty($mainGuestData['salutation']) && is_string($mainGuestData['salutation'])) {
+                        $mainGuestData['salutation'] = rtrim($mainGuestData['salutation'], '.');
+                    }
+
+                    // Tour model casts mainguest as 'array' - assign array directly, not json_encode
+                    $tour->mainguest = !empty($mainGuestData) ? $mainGuestData : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing main guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            $additionalGuestPasswords = []; // [{name, email, contact_no, password}, ...]
+
+            // Additional guests data
+            if ($request->has('additionalguest')) {
+                try {
+                    $additionalGuestData = $request->additionalguest;
+                    if (is_string($additionalGuestData) && !empty(trim($additionalGuestData))) {
+                        $decoded = json_decode($additionalGuestData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $additionalGuestData = $decoded;
+                        } else {
+                            Log::warning('Invalid JSON in additionalguest data during updateGuests', [
+                                'error' => json_last_error_msg(),
+                                'data' => $request->additionalguest,
+                                'tour_id' => $tour->tour_id,
+                            ]);
+                            $additionalGuestData = [];
+                        }
+                    } elseif (is_string($additionalGuestData) && empty(trim($additionalGuestData))) {
+                        $additionalGuestData = [];
+                    } elseif (!is_array($additionalGuestData)) {
+                        $additionalGuestData = [];
+                    }
+
+                    // Extract passwords before saving to tour
+                    foreach ($additionalGuestData as $idx => &$guestItem) {
+                        if (!empty($guestItem['app_password'])) {
+                            $additionalGuestPasswords[] = [
+                                'name' => $guestItem['name'] ?? '',
+                                'email' => $guestItem['email'] ?? '',
+                                'contact_no' => $guestItem['contact_no'] ?? '',
+                                'password' => $guestItem['app_password'],
+                            ];
+                        }
+                        unset($guestItem['app_password']);
+                    }
+                    unset($guestItem);
+
+                    // Normalize salutation: remove trailing period (Mr. -> Mr)
+                    foreach ($additionalGuestData as &$ag) {
+                        if (!empty($ag['salutation']) && is_string($ag['salutation'])) {
+                            $ag['salutation'] = rtrim($ag['salutation'], '.');
+                        }
+                    }
+                    unset($ag);
+                    // Tour model casts additionalguest as 'array' - assign array directly, not json_encode
+                    $tour->additionalguest = !empty($additionalGuestData) ? $additionalGuestData : null;
+                } catch (\Throwable $e) {
+                    Log::error('Error processing additional guest data during updateGuests', [
+                        'error' => $e->getMessage(),
+                        'tour_id' => $tour->tour_id,
+                    ]);
+                }
+            }
+
+            $tour->save();
+            DB::commit();
+
+            // Sync Lead Guest and Additional Guests to guests table (insert or update)
+            $this->syncGuestsToGuestsTable($tour);
+
+            // After commit, handle Guest record creation and credential emails
+            // Only for Definite / Actual tours
+            $emailResults = [];
+            if (in_array($tour->tour_status ?? '', ['Definite', 'Actual'])) {
+                // Process lead guest password
+                if ($mainGuestPassword && $mainGuestEmail) {
+                    try {
+                        $guest = $this->findOrCreateGuest(
+                            $mainGuestName,
+                            $mainGuestEmail,
+                            $mainGuestCountryCode,
+                            $mainGuestPhone,
+                            $tour->tour_id,
+                            $mainGuestPassword
+                        );
+                        $this->sendGuestCredentialsEmail($guest, $mainGuestPassword, $tour->display_id ?? null);
+                        $emailResults[] = ['email' => $mainGuestEmail, 'sent' => true];
+                        Log::info('Lead guest credentials email sent from tour edit', [
+                            'guest_id' => $guest->guest_id,
+                            'email' => $mainGuestEmail,
+                            'tour_id' => $tour->tour_id,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to process lead guest credentials: ' . $e->getMessage());
+                        $emailResults[] = ['email' => $mainGuestEmail, 'sent' => false, 'error' => $e->getMessage()];
+                    }
+                }
+
+                // Process additional guest passwords
+                foreach ($additionalGuestPasswords as $ag) {
+                    if (!empty($ag['password']) && !empty($ag['name'])) {
+                        try {
+                            $guest = $this->findOrCreateGuestByName(
+                                $ag['name'],
+                                $ag['email'] ?? null,
+                                $ag['contact_no'] ?? null,
+                                $tour->tour_id,
+                                $ag['password']
+                            );
+                            // Only send email if guest has an email
+                            if ($guest->email) {
+                                $this->sendGuestCredentialsEmail($guest, $ag['password'], $tour->display_id ?? null);
+                                $emailResults[] = ['name' => $ag['name'], 'sent' => true];
+                            } else {
+                                $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => 'No email address'];
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to process additional guest credentials: ' . $e->getMessage());
+                            $emailResults[] = ['name' => $ag['name'], 'sent' => false, 'error' => $e->getMessage()];
+                        }
+                    }
+                }
+            }
+
+            // Match GuestController::update — upsert guests.guest_id onto Firebase chat node for this tour
+            $firebaseSync = $this->syncFirebasePrimaryGuestForTourFromGuestsTable($tour);
+
+            $message = 'Guest details updated successfully.';
+            if (!empty($emailResults)) {
+                $sentCount = count(array_filter($emailResults, fn($r) => $r['sent'] ?? false));
+                if ($sentCount > 0) {
+                    $message .= " Credentials email sent to {$sentCount} guest(s).";
+                } else {
+                    $failed = array_filter($emailResults, fn($r) => !($r['sent'] ?? false));
+                    $firstError = $failed[array_key_first($failed)]['error'] ?? null;
+                    $message .= " Credentials email could not be sent." . ($firstError ? " " . $firstError : "");
+                }
+            } else {
+                // Explain why credentials email was not sent (for Definite/Actual tours)
+                if (in_array($tour->tour_status ?? '', ['Definite', 'Actual'])) {
+                    if (!$mainGuestEmail && !$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter Lead Guest email and App Password to send login credentials.";
+                    } elseif (!$mainGuestEmail) {
+                        $message .= " Credentials email not sent: Lead Guest email is required.";
+                    } elseif (!$mainGuestPassword) {
+                        $message .= " Credentials email not sent: enter App Password for the lead guest to receive login credentials.";
+                    }
+                } else {
+                    $message .= " Credentials email is only sent for Definite or Actual tours.";
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'firebase_sync' => $firebaseSync,
+            ]);
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+            Log::error('Failed to update guest information', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to save guest information right now.',
+                'error' => config('app.debug') ? $exception->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Find or create a Guest record by email.
+     */
+    private function findOrCreateGuest($name, $email, $countryCode, $phone, $tourId, $plainPassword)
+    {
+        $existingGuest = Guest::where('email', $email)->first();
+        $tourIdInt = is_numeric($tourId) ? (int)$tourId : $tourId;
+
+        if ($existingGuest) {
+            // Add tour_id if not already linked
+            if (!$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            // Update password
+            $existingGuest->app_password = Hash::make($plainPassword);
+            $existingGuest->save();
+            return $existingGuest;
+        }
+
+        // Create new guest
+        $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $lastGuestId = $lastGuest->guest_id ?? 0;
+        // $guestId = CommonHelper::createId($lastGuestId);
+        // while (Guest::where('guest_id', $guestId)->exists()) {
+        //     $guestId = CommonHelper::createId($guestId);
+        // }
+
+        // Try to upload default avatar
+        $imagePath = null;
+        $defaultAvatarPath = base_path('avatar-1577909_1280.png');
+        if (file_exists($defaultAvatarPath)) {
+            try {
+                $imageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultAvatarPath, 'avatar-1577909_1280.png', 'image/png', null, true
+                );
+                $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
+                if (!empty($uploadResult['master_value'])) {
+                    $imagePath = $uploadResult['master_value'];
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error uploading guest default avatar: ' . $e->getMessage());
+            }
+        }
+
+        $guest = Guest::create([
+            // 'guest_id' => $guestId,
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name,
+            'email' => $email,
+            'country_code' => $countryCode ?? '+91',
+            'contact' => $phone,
+            'app_password' => Hash::make($plainPassword),
+            'image' => $imagePath,
+        ]);
+        $guest->refresh();
+        return $guest;
+    }
+
+    /**
+     * Find or create a Guest record by name/email (for additional guests).
+     */
+    private function findOrCreateGuestByName($name, $email, $contactNo, $tourId, $plainPassword)
+    {
+        $tourIdInt = is_numeric($tourId) ? (int)$tourId : $tourId;
+
+        // Try to find by email first (if provided), then by name + contact
+        $existingGuest = null;
+        if (!empty($email)) {
+            $existingGuest = Guest::where('email', $email)->first();
+        }
+        if (!$existingGuest) {
+            $query = Guest::where('guest_name', $name);
+            if ($contactNo) {
+                $query->where('contact', $contactNo);
+            }
+            $existingGuest = $query->first();
+        }
+
+        if ($existingGuest) {
+            if (!$existingGuest->hasTourId($tourIdInt)) {
+                $existingGuest->addTourId($tourIdInt);
+            }
+            $existingGuest->app_password = Hash::make($plainPassword);
+            // Update email if provided and guest didn't have one
+            if (!empty($email) && empty($existingGuest->email)) {
+                $existingGuest->email = $email;
+            }
+            $existingGuest->save();
+            return $existingGuest;
+        }
+
+        // Create new guest
+        $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $lastGuestId = $lastGuest->guest_id ?? 0;
+            // $guestId = CommonHelper::createId($lastGuestId);
+            // while (Guest::where('guest_id', $guestId)->exists()) {
+            //     $guestId = CommonHelper::createId($guestId);
+            // }
+
+        $imagePath = null;
+        $defaultAvatarPath = base_path('avatar-1577909_1280.png');
+        if (file_exists($defaultAvatarPath)) {
+            try {
+                $imageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultAvatarPath, 'avatar-1577909_1280.png', 'image/png', null, true
+                );
+                $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
+                if (!empty($uploadResult['master_value'])) {
+                    $imagePath = $uploadResult['master_value'];
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error uploading guest default avatar: ' . $e->getMessage());
+            }
+        }
+
+        $guest = Guest::create([
+            // 'guest_id' => $guestId,
+            'tour_id' => [$tourIdInt],
+            'guest_name' => $name,
+            'email' => $email ?: null,
+            'contact' => $contactNo,
+            'country_code' => '+91',
+            'app_password' => Hash::make($plainPassword),
+            'image' => $imagePath,
+        ]);
+        $guest->refresh();
+        return $guest;
+    }
+
+    /**
+     * Sync Lead Guest and Additional Guests from tour to guests table (insert or update).
+     */
+    private function syncGuestsToGuestsTable(Tour $tour)
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+
+        try {
+            $nextGuestId = function () {
+                $last = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
+                $id = CommonHelper::createId($last->guest_id ?? 0);
+                while (Guest::where('guest_id', $id)->exists()) {
+                    $id = CommonHelper::createId($id);
+                }
+                return $id;
+            };
+
+            // Sync Lead Guest
+            $mainguest = $tour->mainguest;
+            if (is_array($mainguest) && (!empty($mainguest['full_name']) || !empty($mainguest['fullName']) || !empty($mainguest['email']))) {
+                $fullName = $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest';
+                $email = trim((string) ($mainguest['email'] ?? $mainguest['Email'] ?? ''));
+                $phone = trim((string) ($mainguest['phone'] ?? ''));
+                $salutation = $mainguest['salutation'] ?? null;
+                if (is_string($salutation)) {
+                    $salutation = rtrim($salutation, '.'); // Remove trailing period (Mr. -> Mr)
+                }
+                $countryCode = $mainguest['country_code'] ?? $mainguest['countryCode'] ?? null;
+                $passport = $mainguest['passport'] ?? null;
+                $passportExp = !empty($mainguest['passport_exp'] ?? $mainguest['passportExpiry'] ?? null) ? ($mainguest['passport_exp'] ?? $mainguest['passportExpiry']) : null;
+
+                $existing = null;
+                if ($email !== '') {
+                    // Match by email globally: if a guest with this email already exists
+                    // (on any tour), reuse that record and just link this tour instead of
+                    // creating a duplicate. tour_id is appended below via addTourId().
+                    $existing = Guest::where('email', $email)->first();
+                }
+                if (!$existing && $fullName !== '' && $phone !== '') {
+                    $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
+                        ->where('guest_name', $fullName)
+                        ->where('contact', $phone)
+                        ->first();
+                }
+
+                $guestData = [
+                    'guest_name' => $fullName ?: 'Guest',
+                    'email' => $email ?: null,
+                    'country_code' => $countryCode ?: null,
+                    'contact' => $phone ?: null,
+                    'whatsapp_no' => $phone ?: null,
+                    'passport' => $passport,
+                    'passport_exp' => $passportExp,
+                    'salutation' => $salutation,
+                ];
+
+                if ($existing) {
+                    $existing->update($guestData);
+                    if (!$existing->hasTourId($tourIdInt)) {
+                        $existing->addTourId($tourIdInt);
+                    }
+                } else {
+                    $guestData['guest_id'] = $nextGuestId();
+                    $guestData['tour_id'] = [$tourIdInt];
+                    Guest::create($guestData);
+                }
+            }
+
+            // Sync Additional Guests
+            $additionalguest = $tour->additionalguest;
+            if (is_array($additionalguest)) {
+                foreach ($additionalguest as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $name = trim((string) ($row['name'] ?? $row['guest_name'] ?? ''));
+                    $contact = trim((string) ($row['contact_no'] ?? $row['contact'] ?? ''));
+                    if ($name === '' && $contact === '') {
+                        continue;
+                    }
+
+                    $email = trim((string) ($row['email'] ?? ''));
+                    $salutation = $row['salutation'] ?? null;
+                    if (is_string($salutation)) {
+                        $salutation = rtrim($salutation, '.');
+                    }
+                    $passport = $row['passport_no'] ?? $row['passport'] ?? null;
+                    $passportExp = !empty($row['passport_exp'] ?? null) ? $row['passport_exp'] : null;
+                    $countryCode = $row['country_code'] ?? $row['countryCode'] ?? '+91';
+
+                    $existing = null;
+                    if ($email !== '') {
+                        // Match by email globally: reuse an existing guest with this email
+                        // (on any tour) and just link this tour instead of duplicating.
+                        $existing = Guest::where('email', $email)->first();
+                    }
+                    if (!$existing && $name !== '' && $contact !== '') {
+                        $existing = Guest::whereJsonContains('tour_id', $tourIdInt)
+                            ->where('guest_name', $name)
+                            ->where('contact', $contact)
+                            ->first();
+                    }
+
+                    $guestData = [
+                        'guest_name' => $name ?: 'Guest',
+                        'email' => $email ?: null,
+                        'country_code' => $countryCode ?: null,
+                        'contact' => $contact ?: null,
+                        'whatsapp_no' => $contact ?: null,
+                        'passport' => $passport,
+                        'passport_exp' => $passportExp,
+                        'salutation' => $salutation,
+                    ];
+
+                    if ($existing) {
+                        $existing->update($guestData);
+                        if (!$existing->hasTourId($tourIdInt)) {
+                            $existing->addTourId($tourIdInt);
+                        }
+                    } else {
+                        $guestData['guest_id'] = $nextGuestId();
+                        $guestData['tour_id'] = [$tourIdInt];
+                        Guest::create($guestData);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Error syncing guests to guests table', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Resolve the lead (main) guest row for this tour using the same rules as syncGuestsToGuestsTable().
+     */
+    private function resolveLeadGuestRowForTour(Tour $tour): ?Guest
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+        $mainguest = $tour->mainguest;
+        if (!is_array($mainguest)) {
+            return null;
+        }
+        if (empty($mainguest['full_name']) && empty($mainguest['fullName']) && empty($mainguest['email'])) {
+            return null;
+        }
+
+        $fullName = $mainguest['full_name'] ?? $mainguest['fullName'] ?? 'Guest';
+        $email = trim((string) ($mainguest['email'] ?? $mainguest['Email'] ?? ''));
+        $phone = trim((string) ($mainguest['phone'] ?? ''));
+
+        if ($email !== '') {
+            $found = Guest::whereJsonContains('tour_id', $tourIdInt)->where('email', $email)->first();
+            if ($found) {
+                return $found;
+            }
+        }
+        if ($fullName !== '' && $phone !== '') {
+            return Guest::whereJsonContains('tour_id', $tourIdInt)
+                ->where('guest_name', $fullName)
+                ->where('contact', $phone)
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Upsert Firebase chat/guestId for this tour from the guests table (same service path as GuestController::syncGuestIdsToFirebase).
+     * Firebase stores one guestId per tour chat; we use the lead guest when identifiable, otherwise the lowest guest_id for this tour.
+     */
+    private function syncFirebasePrimaryGuestForTourFromGuestsTable(Tour $tour): array
+    {
+        $tourIdInt = is_numeric($tour->tour_id) ? (int) $tour->tour_id : $tour->tour_id;
+
+        $guest = $this->resolveLeadGuestRowForTour($tour);
+        if (!$guest) {
+            $guest = Guest::query()
+                ->whereJsonContains('tour_id', $tourIdInt)
+                ->orderBy('guest_id')
+                ->first();
+        }
+
+        if (!$guest) {
+            return [];
+        }
+
+        $tourRow = Tour::query()
+            ->select(['tour_id', 'dmc_id'])
+            ->where('tour_id', $tourIdInt)
+            ->first();
+
+        if (!$tourRow || empty($tourRow->dmc_id)) {
+            Log::warning('Skipping Firebase guest sync (tour edit): missing tour or DMC ID', [
+                'tour_id' => $tourIdInt,
+                'guest_id' => $guest->guest_id,
+            ]);
+
+            return [[
+                'success' => false,
+                'tour_id' => $tourIdInt,
+                'guest_id' => (int) $guest->guest_id,
+                'message' => 'Missing tour or DMC ID',
+            ]];
+        }
+
+        try {
+            $guestEmail = is_string($guest->email ?? null) ? trim($guest->email) : null;
+            if ($guestEmail === '') {
+                $guestEmail = null;
+            }
+
+            return [app(FirebaseService::class)->upsertChatGuest(
+                (int) $tourRow->tour_id,
+                (int) $tourRow->dmc_id,
+                (int) $guest->guest_id,
+                $guestEmail
+            )];
+        } catch (\Throwable $e) {
+            report($e);
+            Log::error('Firebase guest sync failed (tour edit)', [
+                'tour_id' => $tourIdInt,
+                'guest_id' => $guest->guest_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [[
+                'success' => false,
+                'tour_id' => $tourIdInt,
+                'guest_id' => (int) $guest->guest_id,
+                'message' => $e->getMessage(),
+            ]];
+        }
+    }
+
+    /**
+     * Send guest credentials email (same pattern as GuestController).
+     * Optionally accepts the current tour display ID to avoid ambiguity
+     * when a guest is linked to multiple tours.
+     */
+    private function sendGuestCredentialsEmail(Guest $guest, string $plainPassword, ?string $currentTourDisplayId = null)
+    {
+        $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+        $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+        $supportEmailSetting = Setting::where('name', 'support_email')->first();
+        $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+
+        $companyLogo = $logoSetting ? $logoSetting->value : null;
+        $companyName = $nameSetting ? $nameSetting->value : config('app.name');
+        $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
+        $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        $dmc = User::where('userId', $dmcId)->first();
+        $dmcCompanyName = $dmc->company_name ?? null;
+
+        // Prefer explicitly provided tour display ID (from the current edit context)
+        $tourDisplayId = $currentTourDisplayId;
+        if ($tourDisplayId === null && !empty($guest->tour_id)) {
+            // $guest->tour_id may be stored as a single ID or as an array of IDs
+            $tourIdValue = $guest->tour_id;
+            if (is_array($tourIdValue)) {
+                // Use the most recent/last linked tour ID
+                $tourIdValue = end($tourIdValue);
+            }
+            $tourDisplayId = Tour::where('tour_id', $tourIdValue)->value('display_id');
+        }
+
+        $emailData = [
+            'guest_name' => $guest->guest_name,
+            'email' => $guest->email,
+            'app_password' => $plainPassword,
+            'country_code' => $guest->country_code ?? '+91',
+            'contact' => $guest->contact,
+            'tour_id' => $tourDisplayId,
+            'company_name' => $companyName,
+            'company_logo' => $companyLogo,
+            'support_email' => $supportEmail,
+            'support_phone' => $supportPhone,
+            'dmc_company_name' => $dmcCompanyName,
+        ];
+
+        $html = view('mails.guest_credentials', $emailData)->render();
+
+        preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+        $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+
+        preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+
+        if (!empty($matches[0])) {
+            $extractedHtml = $matches[0];
+            $subject = 'Welcome! Your Tour Tracking Credentials';
+            $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+
+            Mail::to($guest->email)->send(new DmcMail($emailHtml, $subject));
+
+            Log::info("Guest credentials email sent successfully to: {$guest->email}", [
+                'guest_id' => $guest->guest_id,
+                'guest_name' => $guest->guest_name,
+            ]);
+            return true;
+        } else {
+            Log::error('Email container div not found in guest credentials template');
+            return false;
+        }
+    }
+
+    /**
      * Update hotel service order.
      */
     public function updateHotel(Request $request, $orderId)
@@ -169,6 +1288,10 @@ class EditTourController extends Controller
             'meal_plan' => 'nullable|string|max:255',
             'number_of_persons' => 'nullable|integer|min:1',
             'total_price' => 'nullable|numeric|min:0',
+            'child_with_bed' => 'nullable|string',
+            'child_without_bed' => 'nullable|string',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
@@ -297,6 +1420,23 @@ class EditTourController extends Controller
                 $currentPayload['days_display'] = $originalPayload['days_display'] ?? '';
             }
 
+            // Update child_with_bed and child_without_bed if provided
+            if ($request->has('child_with_bed')) {
+                $decoded = json_decode($request->input('child_with_bed'), true);
+                $currentPayload['child_with_bed'] = is_array($decoded) ? $decoded : null;
+            }
+            if ($request->has('child_without_bed')) {
+                $decoded = json_decode($request->input('child_without_bed'), true);
+                $currentPayload['child_without_bed'] = is_array($decoded) ? $decoded : null;
+            }
+            // Clear if not provided (user unchecked)
+            if (!$request->has('child_with_bed')) {
+                $currentPayload['child_with_bed'] = null;
+            }
+            if (!$request->has('child_without_bed')) {
+                $currentPayload['child_without_bed'] = null;
+            }
+
             // Step 5: Ensure hotelDetails exists and preserve all fields
             if (!isset($currentPayload['hotelDetails']) || !is_array($currentPayload['hotelDetails'])) {
                 $currentPayload['hotelDetails'] = $originalPayload['hotelDetails'] ?? [];
@@ -348,6 +1488,15 @@ class EditTourController extends Controller
             if (!array_key_exists('cancellation_charge', $currentPayload['hotelDetails'])) {
                 $currentPayload['hotelDetails']['cancellation_charge'] = $existingHotelDetails['cancellation_charge'] ?? null;
             }
+
+            if (array_key_exists('remarks', $validated)) {
+                $currentPayload['remarks'] = $validated['remarks'] ?? '';
+            } elseif ($request->has('remarks')) {
+                $currentPayload['remarks'] = $request->input('remarks', '');
+            }
+            $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
+            $currentPayload['supplement_breakfast_included'] = $request->has('supplement_breakfast_included') && $request->input('supplement_breakfast_included');
+            $currentPayload['breakfast_included_room'] = filter_var($request->input('breakfast_included_room', $currentPayload['breakfast_included_room'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
             // Step 6: Update bookingDate only if provided, otherwise preserve existing
             if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {
@@ -447,51 +1596,56 @@ class EditTourController extends Controller
                     // Get requested number of rooms
                     $requestedNumberOfRooms = isset($validated['number_of_rooms']) ? (int)$validated['number_of_rooms'] : count($rooms);
                     
-                    // Remove duplicate rooms based on room_id and bed_id combination
-                    $uniqueRooms = [];
-                    $seenRooms = [];
-                    
-                    foreach ($rooms as $room) {
-                        if (!is_array($room)) {
-                            continue;
+                    // If single room with number_of_rooms (new format), store as-is - do NOT duplicate into multiple room objects
+                    $isSingleRoomWithCount = count($rooms) === 1 && isset($rooms[0]['number_of_rooms']);
+                    if ($isSingleRoomWithCount) {
+                        $currentPayload['rooms'] = $rooms;
+                    } else {
+                        // Legacy: remove duplicate rooms based on room_id and bed_id combination
+                        $uniqueRooms = [];
+                        $seenRooms = [];
+                        
+                        foreach ($rooms as $room) {
+                            if (!is_array($room)) {
+                                continue;
+                            }
+                            
+                            $roomId = $room['room_id'] ?? null;
+                            $bedId = null;
+                            
+                            if (isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
+                                $bedId = $room['beds'][0]['bed_id'] ?? null;
+                            }
+                            
+                            $uniqueKey = $roomId . '_' . $bedId;
+                            
+                            if (!isset($seenRooms[$uniqueKey])) {
+                                $uniqueRooms[] = $room;
+                                $seenRooms[$uniqueKey] = true;
+                            }
                         }
                         
-                        $roomId = $room['room_id'] ?? null;
-                        $bedId = null;
-                        
-                        if (isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0) {
-                            $bedId = $room['beds'][0]['bed_id'] ?? null;
+                        // If requested number of rooms is greater than unique rooms, duplicate the first room
+                        if ($requestedNumberOfRooms > count($uniqueRooms) && !empty($uniqueRooms)) {
+                            $firstRoom = $uniqueRooms[0];
+                            $roomsToAdd = $requestedNumberOfRooms - count($uniqueRooms);
+                            for ($i = 0; $i < $roomsToAdd; $i++) {
+                                $duplicatedRoom = json_decode(json_encode($firstRoom), true);
+                                $uniqueRooms[] = $duplicatedRoom;
+                            }
+                        } elseif ($requestedNumberOfRooms > 0 && $requestedNumberOfRooms < count($uniqueRooms)) {
+                            $uniqueRooms = array_slice($uniqueRooms, 0, $requestedNumberOfRooms);
                         }
                         
-                        $uniqueKey = $roomId . '_' . $bedId;
-                        
-                        if (!isset($seenRooms[$uniqueKey])) {
-                            $uniqueRooms[] = $room;
-                            $seenRooms[$uniqueKey] = true;
-                        }
+                        $currentPayload['rooms'] = $uniqueRooms;
                     }
-                    
-                    // If requested number of rooms is greater than unique rooms, duplicate the first room
-                    if ($requestedNumberOfRooms > count($uniqueRooms) && !empty($uniqueRooms)) {
-                        $firstRoom = $uniqueRooms[0];
-                        $roomsToAdd = $requestedNumberOfRooms - count($uniqueRooms);
-                        for ($i = 0; $i < $roomsToAdd; $i++) {
-                            // Deep copy the first room
-                            $duplicatedRoom = json_decode(json_encode($firstRoom), true);
-                            $uniqueRooms[] = $duplicatedRoom;
-                        }
-                    } elseif ($requestedNumberOfRooms > 0 && $requestedNumberOfRooms < count($uniqueRooms)) {
-                        // If requested is less, trim to requested count
-                        $uniqueRooms = array_slice($uniqueRooms, 0, $requestedNumberOfRooms);
-                    }
-                    
-                    $currentPayload['rooms'] = $uniqueRooms;
                     $roomsUpdated = true;
                     
+                    $storedRooms = $currentPayload['rooms'] ?? [];
                     Log::info('Rooms updated from rooms_json', [
                         'order_id' => $orderId,
-                        'rooms_count' => count($uniqueRooms),
-                        'sample_room' => !empty($uniqueRooms) ? $uniqueRooms[0] : null,
+                        'rooms_count' => count($storedRooms),
+                        'sample_room' => !empty($storedRooms) ? $storedRooms[0] : null,
                     ]);
                 }
             } elseif ($request->has('room_type') || $request->has('bed_type') || $request->has('meal_plan')) {
@@ -652,6 +1806,9 @@ class EditTourController extends Controller
                 'state' => $currentPayload['state'] ?? '',
                 'zip' => $currentPayload['zip'] ?? '',
                 'specialRequests' => $currentPayload['specialRequests'] ?? '',
+                // Supplement + remarks
+                'supplement' => (bool) ($currentPayload['supplement'] ?? $currentPayload['is_supplement'] ?? false),
+                'remarks' => $currentPayload['remarks'] ?? null,
                 // Rooms array - ensure it's always an array
                 'rooms' => is_array($currentPayload['rooms'] ?? []) ? $currentPayload['rooms'] : [],
                 // Booking type and pricing (order: totalPrice, bookingType, priceMode, priceModeId)
@@ -665,6 +1822,9 @@ class EditTourController extends Controller
                 'bookingDate' => is_array($currentPayload['bookingDate'] ?? []) ? $currentPayload['bookingDate'] : [],
                 // Transfer options if provided
                 'transfer_options' => $currentPayload['transfer_options'] ?? ['transfer_required' => false],
+                // Child pricing (when child with bed / child without bed checkboxes are checked)
+                'child_with_bed' => $currentPayload['child_with_bed'] ?? null,
+                'child_without_bed' => $currentPayload['child_without_bed'] ?? null,
             ];
             
             // Ensure hotelDetails has all required fields
@@ -721,6 +1881,34 @@ class EditTourController extends Controller
 
             DB::commit();
 
+            // Append to tour track_details: hotel update or add
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $hotelDetails = $restructuredPayload['hotelDetails'] ?? [];
+                $hotelId = $hotelDetails['hotel_id'] ?? null;
+                $hotelName = $hotelDetails['hotel_name'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById(
+                    $tourId,
+                    $tourStatus,
+                    $tourStatus,
+                    null,
+                    null,
+                    null,
+                    null,
+                    $changedByName,
+                    $changedByUserId,
+                    $action,
+                    'hotel',
+                    $hotelId,
+                    $hotelName
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
@@ -759,6 +1947,7 @@ class EditTourController extends Controller
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'attraction_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'attraction_id' => 'nullable',
             'ticket_name' => 'nullable|string|max:255',
             'visit_time' => 'nullable|string|max:255',
             'adult_count' => 'nullable|integer|min:0',
@@ -766,10 +1955,14 @@ class EditTourController extends Controller
             'senior_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
             DB::beginTransaction();
+
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
@@ -829,6 +2022,10 @@ class EditTourController extends Controller
 
                 if (!empty($validated['attraction_name'])) {
                     $currentPayload['AttractionName'] = $validated['attraction_name'];
+                    $currentPayload['attraction_name'] = $validated['attraction_name'];
+                }
+                if (array_key_exists('attraction_id', $validated)) {
+                    $currentPayload['attraction_id'] = $validated['attraction_id'];
                 }
                 if (array_key_exists('ticket_name', $validated)) {
                     $currentPayload['ticketName'] = $validated['ticket_name'];
@@ -853,6 +2050,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 // Process transfer_options if provided
                 if ($request->has('transfer_options')) {
@@ -902,6 +2105,19 @@ class EditTourController extends Controller
 
             DB::commit();
 
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['attraction_name'] ?? $savedPayload['AttractionName'] ?? null;
+                $serviceId = $savedPayload['attraction_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'attraction', $serviceId, $serviceName);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
@@ -940,14 +2156,19 @@ class EditTourController extends Controller
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'guide_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'guide_id' => 'nullable',
             'package_hours' => 'nullable|string|max:255',
             'pickup_time' => 'nullable|string|max:255',
             'guest_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
         ]);
 
         try {
             DB::beginTransaction();
+
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
@@ -991,6 +2212,9 @@ class EditTourController extends Controller
                 if (!empty($validated['guide_name'])) {
                     $currentPayload['guide_name'] = $validated['guide_name'];
                 }
+                if (array_key_exists('guide_id', $validated)) {
+                    $currentPayload['guide_id'] = $validated['guide_id'];
+                }
 
                 if (array_key_exists('package_hours', $validated)) {
                     $currentPayload['hours'] = $validated['package_hours'];
@@ -1004,6 +2228,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $order->data = [$currentPayload];
                 $successMessage = 'Guide booking updated successfully.';
@@ -1016,6 +2246,19 @@ class EditTourController extends Controller
             }
 
             DB::commit();
+
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['guide_name'] ?? null;
+                $serviceId = $savedPayload['guide_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'guide', $serviceId, $serviceName);
+            }
 
             return response()->json([
                 'success' => true,
@@ -1050,11 +2293,14 @@ class EditTourController extends Controller
      */
     public function updateRestaurant(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
+
         
         $validated = $request->validate([
             'booking_data' => 'nullable|string', // Complete JSON data to replace
             'restaurant_name' => 'nullable|string|max:255', // Optional for backward compatibility
+            'restaurant_id' => 'nullable',
+            'booking_date' => 'nullable|string|max:255',
             'meal_type' => 'nullable|string|max:255',
             'meal_specific_type' => 'nullable|string|max:255',
             'time_slot' => 'nullable|string|max:255',
@@ -1062,15 +2308,20 @@ class EditTourController extends Controller
             'child_count' => 'nullable|integer|min:0',
             'total_price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
+            'supplement' => 'nullable',
             'meal_description_json' => 'nullable|string',
         ]);
 
         try {
             DB::beginTransaction();
 
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
+
             // Check if complete booking data is provided
             if (!empty($validated['booking_data'])) {
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
+                
                 $order->data = [];
                 $order->save();
 
@@ -1126,6 +2377,13 @@ class EditTourController extends Controller
 
                 if (!empty($validated['restaurant_name'])) {
                     $currentPayload['restaurantName'] = $validated['restaurant_name'];
+                    $currentPayload['restaurant_name'] = $validated['restaurant_name'];
+                }
+                if (array_key_exists('restaurant_id', $validated)) {
+                    $currentPayload['restaurant_id'] = $validated['restaurant_id'];
+                }
+                if (array_key_exists('booking_date', $validated) && $validated['booking_date'] !== null && $validated['booking_date'] !== '') {
+                    $currentPayload['bookingDate'] = $validated['booking_date'];
                 }
                 $currentPayload['mealType'] = $validated['meal_type'] ?? ($currentPayload['mealType'] ?? null);
                 $currentPayload['mealSpecificType'] = $validated['meal_specific_type'] ?? ($currentPayload['mealSpecificType'] ?? null);
@@ -1148,6 +2406,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 if (!empty($validated['meal_description_json'])) {
                     $decodedMeals = json_decode($validated['meal_description_json'], true);
@@ -1178,7 +2442,7 @@ class EditTourController extends Controller
                 $order->data = [$currentPayload];
                 $successMessage = 'Restaurant booking updated successfully.';
             }
-
+            $order->qr_code = null;
             $saved = $order->save();
 
             if (!$saved) {
@@ -1186,6 +2450,19 @@ class EditTourController extends Controller
             }
 
             DB::commit();
+
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                $serviceName = $savedPayload['restaurant_name'] ?? $savedPayload['restaurantName'] ?? null;
+                $serviceId = $savedPayload['restaurant_id'] ?? null;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, 'restaurant', $serviceId, $serviceName);
+            }
 
             return response()->json([
                 'success' => true,
@@ -1220,7 +2497,7 @@ class EditTourController extends Controller
      */
     public function updateTransport(Request $request, $orderId)
     {
-        $order = Order::findOrFail($orderId);
+        $order = Order::where('booking_id', $orderId)->firstOrFail();
         
         // First check if it's complete JSON replacement mode
         if (!empty($request->booking_data)) {
@@ -1230,6 +2507,8 @@ class EditTourController extends Controller
 
             try {
                 DB::beginTransaction();
+
+                $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
 
                 // Step 1: First clear the data column (use empty array instead of null to satisfy NOT NULL constraint)
                 $order->data = [];
@@ -1261,6 +2540,23 @@ class EditTourController extends Controller
                 }
 
                 DB::commit();
+
+                $tourId = (int) $order->tour_id;
+                $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+                if ($tourStatus !== null) {
+                    $action = $hasExistingData ? 'updated' : 'Added';
+                    $savedPayload = is_array($order->data) && isset($order->data[0]) ? $order->data[0] : (is_array($order->data) ? $order->data : []);
+                    $serviceName = $savedPayload['vehicle_name'] ?? $savedPayload['vehicles_name'] ?? $savedPayload['travel_type'] ?? 'Transport';
+                    $serviceId = $savedPayload['vehicle_id'] ?? null;
+                    $serviceType = $savedPayload['travel_type'] ?? (isset($savedPayload['exitpickup']) ? 'exit_port' : 'entry_port');
+                    if (!in_array($serviceType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+                        $serviceType = 'entry_port';
+                    }
+                    $currentUser = Auth::user();
+                    $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                    $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                    CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+                }
 
                 return response()->json([
                     'success' => true,
@@ -1300,6 +2596,8 @@ class EditTourController extends Controller
         try {
             DB::beginTransaction();
 
+            $hasExistingData = !empty($order->data) && (is_array($order->data) ? count($order->data) > 0 : (is_string($order->data) && trim($order->data) !== '' && $order->data !== '[]'));
+
             if (in_array($type, ['entry_port', 'exit_port'])) {
                 $validated = $request->validate([
                     'city' => 'nullable|string|max:255',
@@ -1307,9 +2605,14 @@ class EditTourController extends Controller
                     'dropoff_location' => 'required|string|max:255',
                     'pickup_time' => 'required|string|max:50',
                     'vehicle_name' => 'nullable|string|max:255',
+                    'vehicle_id' => 'nullable',
                     'vehicle_type' => 'nullable|string|max:50',
                     'passenger_count' => 'nullable|integer|min:1',
                     'notes' => 'nullable|string|max:1000',
+                    'remarks' => 'nullable|string|max:1000',
+                    'supplement' => 'nullable',
+                    'arrival_flight_no' => 'nullable|string|max:100',
+                    'departure_flight_no' => 'nullable|string|max:100',
                 ]);
 
                 $existingData = is_array($order->data) ? $order->data : json_decode($order->data, true);
@@ -1329,14 +2632,30 @@ class EditTourController extends Controller
                     $currentPayload['entrypickup'] = $validated['pickup_location'];
                     $currentPayload['entrydropoff'] = $validated['dropoff_location'];
                     $currentPayload['entrytime'] = $validated['pickup_time'];
+                    if (array_key_exists('arrival_flight_no', $validated)) {
+                        $currentPayload['arrival_flight_no'] = $validated['arrival_flight_no'] ?? '';
+                    } elseif ($request->has('arrival_flight_no')) {
+                        $currentPayload['arrival_flight_no'] = $request->input('arrival_flight_no', '');
+                    }
                 } else {
                     $currentPayload['exitpickup'] = $validated['pickup_location'];
                     $currentPayload['exitdropoff'] = $validated['dropoff_location'];
-                    $currentPayload['exitpickupdate'] = $validated['pickup_time'];
+                    $currentPayload['entrytime'] = $validated['pickup_time'];
+                    $currentPayload['exittime'] = $validated['pickup_time'];
+                    $currentPayload['exitpickuptime'] = $validated['pickup_time'];
+                    if (array_key_exists('departure_flight_no', $validated)) {
+                        $currentPayload['departure_flight_no'] = $validated['departure_flight_no'] ?? '';
+                    } elseif ($request->has('departure_flight_no')) {
+                        $currentPayload['departure_flight_no'] = $request->input('departure_flight_no', '');
+                    }
                 }
 
                 if (!empty($validated['vehicle_name'])) {
                     $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+                    $currentPayload['vehicle_name'] = $validated['vehicle_name'];
+                }
+                if (array_key_exists('vehicle_id', $validated)) {
+                    $currentPayload['vehicle_id'] = $validated['vehicle_id'];
                 }
 
                 if (!empty($validated['vehicle_type'])) {
@@ -1350,6 +2669,12 @@ class EditTourController extends Controller
                 if (!empty($validated['notes'])) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $successMessage = 'Transport service updated successfully.';
             }
@@ -1360,11 +2685,14 @@ class EditTourController extends Controller
                     'pickup_time' => 'required|string|max:50',
                     'pickup_date' => 'nullable|date',
                     'vehicle_name' => 'nullable|string|max:255',
+                    'vehicle_id' => 'nullable',
                     'vehicle_type' => 'nullable|string|max:50',
                     'total_price' => 'nullable|numeric|min:0',
                     'adult_count' => 'nullable|integer|min:0',
                     'child_count' => 'nullable|integer|min:0',
                     'notes' => 'nullable|string|max:1000',
+                    'remarks' => 'nullable|string|max:1000',
+                    'supplement' => 'nullable',
                 ];
 
                 if ($type === 'travel_hourly') {
@@ -1404,6 +2732,10 @@ class EditTourController extends Controller
 
                 if (array_key_exists('vehicle_name', $validated)) {
                     $currentPayload['vehicles_name'] = $validated['vehicle_name'];
+                    $currentPayload['vehicle_name'] = $validated['vehicle_name'];
+                }
+                if (array_key_exists('vehicle_id', $validated)) {
+                    $currentPayload['vehicle_id'] = $validated['vehicle_id'];
                 }
 
                 if (array_key_exists('vehicle_type', $validated)) {
@@ -1435,6 +2767,12 @@ class EditTourController extends Controller
                 if (array_key_exists('notes', $validated)) {
                     $currentPayload['notes'] = $validated['notes'];
                 }
+                if (array_key_exists('remarks', $validated)) {
+                    $currentPayload['remarks'] = $validated['remarks'] ?? '';
+                } elseif ($request->has('remarks')) {
+                    $currentPayload['remarks'] = $request->input('remarks', '');
+                }
+                $currentPayload['supplement'] = $request->has('supplement') && $request->input('supplement');
 
                 $currentPayload['travel_type'] = $type;
 
@@ -1455,6 +2793,20 @@ class EditTourController extends Controller
             }
 
             DB::commit();
+
+            $tourId = (int) $order->tour_id;
+            $tourStatus = Tour::where('tour_id', $tourId)->value('tour_status');
+            if ($tourStatus !== null) {
+                $action = $hasExistingData ? 'updated' : 'Added';
+                $savedPayload = isset($currentPayload) ? $currentPayload : (is_array($order->data) && isset($order->data[0]) ? $order->data[0] : []);
+                $serviceName = $savedPayload['vehicle_name'] ?? $savedPayload['vehicles_name'] ?? $savedPayload['travel_type'] ?? 'Transport';
+                $serviceId = $savedPayload['vehicle_id'] ?? null;
+                $serviceType = $type;
+                $currentUser = Auth::user();
+                $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+                $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+                CommonHelper::appendTourStatusTrackById($tourId, $tourStatus, $tourStatus, null, null, null, null, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName);
+            }
 
             return response()->json([
                 'success' => true,
@@ -1576,36 +2928,33 @@ class EditTourController extends Controller
                 break;
                 
             case 'attraction':
-                // Attractions have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Attractions have bookingDate (the actual booking date)
+                // visitTime is just a time range (e.g., "15:00 - 17:00"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'guide':
-                // Guides have pickupdate and entrytime
-                if (isset($service['pickupdate'])) {
+                // Guides have pickupdate and bookingDate
+                // entrytime is just a time (e.g., "1:00 AM"), not a date, so skip it
+                // Priority: bookingDate (actual booking date) > pickupdate
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
+                } elseif (isset($service['pickupdate']) && !empty($service['pickupdate'])) {
                     $dates[] = $service['pickupdate'];
                 }
-                if (isset($service['entrytime'])) {
-                    // entrytime might be datetime, extract date
-                    try {
-                        $parsed = Carbon::parse($service['entrytime']);
-                        $dates[] = $parsed->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $dates[] = $service['entrytime'];
-                    }
-                }
-                if (isset($service['bookingDate'])) {
-                    $dates[] = $service['bookingDate'];
-                }
+                // Skip entrytime as it's a time field, not a date field
                 break;
                 
             case 'restaurant':
-                // Restaurants have visitTime
-                if (isset($service['visitTime'])) {
-                    $dates[] = $service['visitTime'];
+                // Restaurants have bookingDate (the actual booking date)
+                // visitTime is just a time (e.g., "2:00 PM"), not a date, so skip it
+                if (isset($service['bookingDate']) && !empty($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
                 }
+                // Skip visitTime as it's a time field, not a date field
                 break;
                 
             case 'entry_port':
@@ -1721,6 +3070,7 @@ class EditTourController extends Controller
                     // If no services left, soft delete the order (sets deleted_at timestamp), otherwise update it
                     if (empty($serviceData)) {
                         $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                        $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                         Log::info('Soft deleted entire order - all services outside date range', [
                             'order_id' => $orderId,
                             'deleted_at' => $order->deleted_at ? $order->deleted_at->toDateTimeString() : 'N/A',
@@ -1737,6 +3087,7 @@ class EditTourController extends Controller
                 } else {
                     // Single service, soft delete the entire order (sets deleted_at timestamp)
                     $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                    $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                     Log::info('Soft deleted order - single service outside date range', [
                         'order_id' => $orderId,
                         'service_type' => $services[0]['type'],
@@ -1750,6 +3101,10 @@ class EditTourController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        foreach (array_unique($tourIdsWithSoftDeletes) as $tourId) {
+            CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
         }
     }
 }

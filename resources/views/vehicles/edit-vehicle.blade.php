@@ -1,13 +1,138 @@
+
+
 @extends('layouts.layout')
 @section('content')
 <style>
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
     }
-    .select2-container .select2-results__option {
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-results__option {
         padding: 12px 10px;
+    }
+    .zone-option-wrapper[title] {
+        cursor: help;
+        border-bottom: 1px dotted #6c757d;
+    }
+    /* Zone hover tooltip - professional card style */
+    .zone-cell-hover {
+        cursor: help;
+        border-bottom: 1px dotted #6c757d;
+        position: relative;
+    }
+    .zone-hover-tooltip {
+        position: fixed;
+        z-index: 9999;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+        padding: 10px 12px;
+        width: 248px;
+        max-height: 220px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border: 1px solid #e9ecef;
+        display: none;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f8fafc;
+    }
+    .zone-hover-tooltip::-webkit-scrollbar {
+        width: 5px;
+    }
+    .zone-hover-tooltip::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 6px;
+    }
+    .zone-hover-tooltip.show {
+        display: block;
+        pointer-events: auto;
+    }
+    .zone-hover-tooltip .tooltip-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .zone-hover-tooltip .tooltip-title-text {
+        flex: 1;
+        min-width: 0;
+        line-height: 1.3;
+    }
+    .zone-hover-tooltip .tooltip-count {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 600;
+        color: #495057;
+        background: #f1f3f5;
+        border-radius: 10px;
+        padding: 2px 8px;
+        line-height: 1.4;
+    }
+    .zone-hover-tooltip .tooltip-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .zone-hover-tooltip .tooltip-item:last-child {
+        border-bottom: none;
+    }
+    .zone-hover-tooltip .tooltip-item-img {
+        width: 32px;
+        height: 32px;
+        border-radius: 5px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid #e9ecef;
+        background: #f8f9fa;
+    }
+    .zone-hover-tooltip .tooltip-item-name {
+        font-size: 11px;
+        font-weight: 500;
+        color: #212529;
+        line-height: 1.25;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .zone-hover-tooltip .tooltip-hint {
+        font-size: 9px;
+        color: #adb5bd;
+        margin-top: 6px;
+        text-align: center;
     }
     /* Enhanced tab styling */
     .port-port-tab {
@@ -118,6 +243,11 @@
                     Edit Vehicle
                 </a>
             </li>
+            @php
+                $roleIds = [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140];     
+            @endphp
+            
+            @if(in_array(auth()->user()->role_id, $roleIds))
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ request()->has('zone_mapping') ? 'active' : '' }}" 
                    href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'port_port']) }}" 
@@ -125,6 +255,7 @@
                     Zone Mapping
                 </a>
             </li>
+            @endif
         </ul>
         
         <!-- Zone mapping subtabs, only shown when zone_mapping is active -->
@@ -220,9 +351,22 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 @if(request()->has('zone_mapping'))
-                    Map Zones for Vehicle
+                    <span class="d-flex align-items-center flex-wrap gap-2">
+                        <span>Map Zones for Vehicle</span>
+                        <span class="fw-bold text-primary">{{ $vehicle->vehicle_name }}</span>
+                        <span class="text-danger"
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              data-bs-title="Note: Vice-versa prices will be the same (Zone A → Zone B = Zone B → Zone A).">
+                            <i class="fas fa-info-circle"></i>
+                        </span>
+                        <x-currency-price-note />
+                    </span>
                 @else
-                    Edit Vehicle Details
+                    <span class="d-flex align-items-center flex-wrap gap-2">
+                        Edit Vehicle Details
+                        <x-currency-price-note />
+                    </span>
                 @endif
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -280,6 +424,38 @@
                                     @endforeach
                                 </select>
                             </div>
+
+                            <!-- Country -->
+                            <div class="col-md-3 mb-3">
+                                <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
+                                <select name="country" id="country" class="form-select" required>
+                                    @php $scopedCountries = $countries ?? collect(); @endphp
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach($scopedCountries as $c)
+                                        <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('country')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- City Name -->
+                            <div class="col-md-3 mb-3">
+                                <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
+                                <select name="city_name" id="city_name" class="form-select" required>
+                                    <option value="">Select a city</option>
+                                    @foreach($city as $c)
+                                        <option {{ $c->name == $vehicle->city ? 'selected' : '' }} value="{{ $c->name }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('city_name')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Vehicle Name -->
                                 <input type="hidden" name="vehicle_id", value="{{$vehicle->vehicle_id}}">
                             <div class="col-md-3 mb-3">
@@ -354,7 +530,7 @@
                                 @enderror
                             </div>
 
-                            <!-- Seating Capacity -->
+                            <!-- Seating Capacity-->
                             <div class="col-md-3 mb-3">
                                 <label for="seating_capacity" class="form-label"><strong>Seating
                                         Capacity</strong><span class="text-danger">*</span></label>
@@ -368,19 +544,30 @@
                                 @enderror
                             </div>
 
-                            <!-- City Name -->
+                            <!-- Seating Capacity(Arr/Dept) -->
+
                             <div class="col-md-3 mb-3">
-                                <label for="cities" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
-                                <select name="city_name" id="cities" class="form-control">
-                                    <option value="">Select a city</option>
-                                    @foreach($city as $c)
-                                        <option {{$c->name == $vehicle->city ? 'selected' : ''}} value="{{$c->name}}">{{$c->name}}</option>
-                                    @endforeach
-                                </select>
-                                @error('city_name')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                <label for="city_tour_seating_capacity" class="form-label"><strong>Seating
+                                        Capacity(Arr/Dept)</strong><span class="text-danger">*</span></label>
+                                <input value="{{$vehicle->city_tour_seating_capacity}}" type="text"
+                                    class="form-control" name="city_tour_seating_capacity" id="city_tour_seating_capacity"
+                                    placeholder="Enter Seating Capacity" required
+                                    oninput="validateSeatingCapacity(this)">
+                                <small class="validation-message text-danger" id="city_tour_seating_capacity-validation-message"></small>
+                                @error('city_tour_seating_capacity')
+                                <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <!-- City Tour No of Guides -->
+                            {{-- <div class="col-md-3 mb-3">
+                                <label for="city_tour_guides" class="form-label"><strong>No of Guides</strong><span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="city_tour_guides" id="city_tour_guides"
+                                    placeholder="Enter No of Guides" value="{{ $vehicle->city_tour_guides }}" required>
+                                @error('city_tour_guides')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div> --}}
 
                             <!-- Sharable -->
                             <!-- <div class="col-md-3 mb-3">
@@ -399,6 +586,36 @@
                                 @enderror
                             </div> -->
 
+                            <fieldset id="vehicle_profit" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Profit</h5>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="day_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="day_profit_type" name="day_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('day_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('day_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="mark_up" class="form-label"><strong>Mark up</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="mark_up" name="mark_up" placeholder="0.00" value="{{ old('mark_up') }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="night_profit_type" name="night_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('night_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('night_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge" placeholder="0.00" value="{{ old('night_surcharge') }}">
+                                    </div>
+                                </div>
+                            </fieldset>
+
                             <!-- Regular Pricing Fields -->
 
                             <fieldset id="tarrifs" class="border p-4 rounded mb-4">
@@ -406,58 +623,57 @@
                                 <fieldset id="taxi_day_charges" class="border p-4 rounded mb-4">
                                     <h5 class="card-title mb-3">Day Charges</h5>
                                     <div class="row">
-                                        <!-- Base Price -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="base_price" class="form-label"><strong>Base Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.1" class="form-control" name="base_price" value="{{ $vehicle->base_price }}" placeholder="Enter Base Price" required>
-                                            @error('base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="base_cost_price" name="base_cost_price" data-sell-target="base_price" value="{{ old('base_cost_price', $vehicle->base_cost_price) }}" placeholder="Enter Base Cost Price" required>
+                                            @error('base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per KM Below 10 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_below_10" value="{{ $vehicle->cost_per_km_below_10 }}" placeholder="Enter Cost" required>
-                                            @error('cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="base_price" name="base_price" value="{{ old('base_price', $vehicle->base_price) }}" placeholder="Enter Base Sell Price" required>
+                                            @error('base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per KM 10 to 25 -->
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10 to 25)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_10_to_25" value="{{ $vehicle->cost_per_km_10_to_25 }}" placeholder="Enter Cost" required>
-                                            @error('cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_below_10_cost_price" data-sell-target="cost_per_km_below_10" value="{{ old('per_km_below_10_cost_price', $vehicle->per_km_below_10_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            @error('per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per KM Above 25 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_above_25" value="{{ $vehicle->cost_per_km_above_25 }}" placeholder="Enter Cost" required>
-                                            @error('cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_below_10" value="{{ old('cost_per_km_below_10', $vehicle->cost_per_km_below_10) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per Hour -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_hour" class="form-label"><strong>Cost per Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_hour" value="{{ $vehicle->cost_per_hour }}" placeholder="Enter Cost" required>
-                                            @error('cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_10_to_25_cost_price" data-sell-target="cost_per_km_10_to_25" value="{{ old('per_km_10_to_25_cost_price', $vehicle->per_km_10_to_25_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            @error('per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cancel Cost -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="cancel_cost" class="form-label"><strong>Cancel Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cancel_cost" value="{{ $vehicle->cancel_cost }}" placeholder="Enter Cancel Cost" required>
-                                            @error('cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_10_to_25" value="{{ old('cost_per_km_10_to_25', $vehicle->cost_per_km_10_to_25) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_above_25_cost_price" data-sell-target="cost_per_km_above_25" value="{{ old('per_km_above_25_cost_price', $vehicle->per_km_above_25_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            @error('per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_above_25" value="{{ old('cost_per_km_above_25', $vehicle->cost_per_km_above_25) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        --}}
+                                        <div class="col-md-3 mb-3">
+                                            <label for="per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="per_hour_cost_price" name="per_hour_cost_price" data-sell-target="cost_per_hour" value="{{ old('per_hour_cost_price', $vehicle->per_hour_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            @error('per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="cost_per_hour" name="cost_per_hour" value="{{ old('cost_per_hour', $vehicle->cost_per_hour) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
                                 </fieldset>
@@ -466,175 +682,81 @@
                                 <fieldset id="taxi_night_charges" class="border p-4 rounded mb-4">
                                     <h5 class="card-title mb-3">Night Charges</h5>
                                     <div class="row">
-                                        <!-- Base Price -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_base_price" class="form-label"><strong>Base Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.1" class="form-control" name="night_base_price" value="{{ $vehicle->night_base_price }}" placeholder="Enter Base Price" required>
-                                            @error('night_base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-cost-input" id="night_base_cost_price" name="night_base_cost_price" data-sell-target="night_base_price" value="{{ old('night_base_cost_price', $vehicle->night_base_cost_price) }}" placeholder="Enter Base Cost Price" required>
+                                            @error('night_base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Night Cost per KM Below 10 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_below_10" value="{{ $vehicle->night_cost_per_km_below_10 }}" placeholder="Enter Cost for night" required>
-                                            @error('night_cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-sell-input" id="night_base_price" name="night_base_price" value="{{ old('night_base_price', $vehicle->night_base_price) }}" placeholder="Enter Base Sell Price" required>
+                                            @error('night_base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Night Cost per KM 10 to 25 -->
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_10_to_25" value="{{ $vehicle->night_cost_per_km_10_to_25 }}" placeholder="Enter Cost for night" required>
-                                            @error('night_cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_below_10_cost_price" data-sell-target="night_cost_per_km_below_10" value="{{ old('night_per_km_below_10_cost_price', $vehicle->night_per_km_below_10_cost_price) }}" placeholder="Auto-calculated" required>
+                                            @error('night_per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Night Cost per KM Above 25 -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_km_above_25" value="{{ $vehicle->night_cost_per_km_above_25 }}" placeholder="Enter Cost for night" required>
-                                            @error('night_cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_below_10" value="{{ old('night_cost_per_km_below_10', $vehicle->night_cost_per_km_below_10) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cost per Hour(Night) -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_hour" class="form-label"><strong>Cost per Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cost_per_hour" value="{{ $vehicle->night_cost_per_hour }}" placeholder="Enter Cost" required>
-                                            @error('night_cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_10_to_25_cost_price" data-sell-target="night_cost_per_km_10_to_25" value="{{ old('night_per_km_10_to_25_cost_price', $vehicle->night_per_km_10_to_25_cost_price) }}" placeholder="Auto-calculated" required>
+                                            @error('night_per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
-
-                                        <!-- Cancel Cost -->
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cancel_cost" class="form-label"><strong>Cancel Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_cancel_cost" value="{{ $vehicle->night_cancel_cost }}" placeholder="Enter Cancel Cost" required>
-                                            @error('night_cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
+                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_10_to_25" value="{{ old('night_cost_per_km_10_to_25', $vehicle->night_cost_per_km_10_to_25) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_above_25_cost_price" data-sell-target="night_cost_per_km_above_25" value="{{ old('night_per_km_above_25_cost_price', $vehicle->night_per_km_above_25_cost_price) }}" placeholder="" required>
+                                            @error('night_per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_above_25" value="{{ old('night_cost_per_km_above_25', $vehicle->night_cost_per_km_above_25) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        --}}
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" id="night_per_hour_cost_price" name="night_per_hour_cost_price" data-sell-target="night_cost_per_hour" value="{{ old('night_per_hour_cost_price', $vehicle->night_per_hour_cost_price) }}" placeholder="Enter Hourly Cost" required>
+                                            @error('night_per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" id="night_cost_per_hour" name="night_cost_per_hour" value="{{ old('night_cost_per_hour', $vehicle->night_cost_per_hour) }}" placeholder="Enter Sell Price" required>
+                                            @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
+                                </fieldset>
+
+                                <fieldset id="taxi_cancellation" class="border p-4 rounded mb-4">
+                                    <h5 class="card-title mb-3">Cancellation</h5>
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_cost" class="form-label"><strong>Cancellation Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_cost" name="cancellation_cost" value="{{ old('cancellation_cost', $vehicle->cancellation_cost ?? $vehicle->cancel_cost_price) }}" placeholder="From Base Cost Price" required>
+                                            @error('cancellation_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_sell" class="form-label"><strong>Cancellation Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_sell" name="cancellation_sell" value="{{ old('cancellation_sell', $vehicle->cancellation_sell ?? $vehicle->cancel_cost) }}" placeholder="From Base Sell Price" required>
+                                            @error('cancellation_sell')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="night_cancel_cost_price" id="night_cancel_cost_price" value="{{ old('night_cancel_cost_price', $vehicle->night_cancel_cost_price) }}">
+                                    <input type="hidden" name="night_cancel_cost" id="night_cancel_cost" value="{{ old('night_cancel_cost', $vehicle->night_cancel_cost) }}">
                                 </fieldset>
                             </fieldset>
 
-                            <!-- Sharable Price Fields -->
-                            <!-- <fieldset id="sharablePrices" class="border p-4 rounded mb-4 {{ in_array($vehicle->sharable, [2,3]) ? '' : 'd-none' }}">
-
-                                <h5 class="card-title mb-3">Shared Car Tarrifs</h5>
-                                <fieldset id="taxi_day_charges" class="border p-4 rounded mb-4">
-                                    <h5 class="card-title mb-3">Day Charges</h5>
-                                    <div class="row">
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_base_price" class="form-label"><strong>Base Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.1" class="form-control" name="sharable_base_price" value="{{ $vehicle->sharable_base_price }}" placeholder="Enter Base Price">
-                                            @error('sharable_base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_cost_per_km_below_10" value="{{ $vehicle->sharable_cost_per_km_below_10 }}" placeholder="Enter Cost">
-                                            @error('sharable_cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10 to 25)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_cost_per_km_10_to_25" value="{{ $vehicle->sharable_cost_per_km_10_to_25 }}" placeholder="Enter Cost">
-                                            @error('sharable_cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_cost_per_km_above_25" value="{{ $vehicle->sharable_cost_per_km_above_25 }}" placeholder="Enter Cost">
-                                            @error('sharable_cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_cost_per_hour" class="form-label"><strong>Cost per Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_cost_per_hour" value="{{ $vehicle->sharable_cost_per_hour }}" placeholder="Enter Cost">
-                                            @error('sharable_cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_cancel_cost" class="form-label"><strong>Cancel Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_cancel_cost" value="{{ $vehicle->sharable_cancel_cost }}" placeholder="Enter Cancel Cost">
-                                            @error('sharable_cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                </fieldset>
-                                
-                                <fieldset id="taxi_night_charges" class="border p-4 rounded mb-4">
-                                    <h5 class="card-title mb-3">Night Charges</h5>
-                                    <div class="row">
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_base_price" class="form-label"><strong>Base Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.1" class="form-control" name="sharable_night_base_price" value="{{ $vehicle->sharable_night_base_price }}" placeholder="Enter Base Price">
-                                            @error('sharable_night_base_price')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_cost_per_km_below_10" class="form-label"><strong>Cost per KM Below 10km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_night_cost_per_km_below_10" value="{{ $vehicle->sharable_night_cost_per_km_below_10 }}" placeholder="Enter Cost for night">
-                                            @error('sharable_night_cost_per_km_below_10')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_cost_per_km_10_to_25" class="form-label"><strong>Cost per KM (10km to 25km)</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_night_cost_per_km_10_to_25" value="{{ $vehicle->sharable_night_cost_per_km_10_to_25 }}" placeholder="Enter Cost for night">
-                                            @error('sharable_night_cost_per_km_10_to_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_cost_per_km_above_25" class="form-label"><strong>Cost per KM Above 25km</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_night_cost_per_km_above_25" value="{{ $vehicle->sharable_night_cost_per_km_above_25 }}" placeholder="Enter Cost for night">
-                                            @error('sharable_night_cost_per_km_above_25')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_cost_per_hour" class="form-label"><strong>Cost per Hour</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_night_cost_per_hour" value="{{ $vehicle->sharable_night_cost_per_hour }}" placeholder="Enter Cost">
-                                            @error('sharable_night_cost_per_hour')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                        
-                                        <div class="col-md-3 mb-3">
-                                            <label for="sharable_night_cancel_cost" class="form-label"><strong>Cancel Cost</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="sharable_night_cancel_cost" value="{{ $vehicle->sharable_night_cancel_cost }}" placeholder="Enter Cancel Cost">
-                                            @error('sharable_night_cancel_cost')
-                                            <div class="text-danger mt-1">{{ $message }}</div>
-                                            @enderror
-                                        </div>
-                                    </div>
-                                </fieldset>
-                            </fieldset> -->
+                            
                             <!-- Sharable Toggle Switch -->
                             <div class="col-md-3 mb-3">
                                 <label for="sharable" class="form-label d-block">
@@ -686,29 +808,6 @@
                                 }
                             </style>
                             
-                            <!-- Attraction Private Transport Price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="attraction_private_transport_price" class="form-label"><strong>Attraction Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_private_transport_price" value="{{ $vehicle->attraction_private_transport_price }}" placeholder="Enter Cost" required>
-                            </div>  
-
-                            <!-- Attraction Shared Transport Price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="attraction_shared_transport_price" class="form-label"><strong>Attraction Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="attraction_shared_transport_price" value="{{ $vehicle->attraction_shared_transport_price }}" placeholder="Enter Cost" required>
-                            </div>
-
-                            <!-- Restaurant Private Transport Price -->
-                            <div class="col-md-3 mb-3 private-fields">
-                                <label for="restaurant_private_transport_price" class="form-label"><strong>Restaurant Private Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_private_transport_price" value="{{ $vehicle->restaurant_private_transport_price }}" placeholder="Enter Cost" required>
-                            </div>  
-
-                            <!-- Restaurant Shared Transport Price -->
-                            <div class="col-md-3 mb-3 sharable-field">
-                                <label for="restaurant_shared_transport_price" class="form-label"><strong>Restaurant Shared Transport Price</strong><span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" class="form-control" name="restaurant_shared_transport_price" value="{{ $vehicle->restaurant_shared_transport_price }}" placeholder="Enter Cost" required>
-                            </div>
 
                             <div class="col-md-4">
                                 <div>
@@ -776,6 +875,493 @@
                 @csrf
                 <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
                 <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
+
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
+                @php
+                    $portsSorted = collect($ports ?? [])
+                        ->sortByDesc(fn ($p) => mb_strtolower(trim((string) ($p->port_name ?? ''))))
+                        ->values();
+
+                    $zonesSorted = collect($zones ?? [])
+                        ->sortByDesc(fn ($z) => mb_strtolower(trim((string) ($z->zone_name ?? ''))))
+                        ->values();
+
+                    $dmcIdForZoneItems = (int) ($vehicle->dmc_id ?? 0);
+                    $buildVehicleZonePayload = function ($zone) use ($dmcIdForZoneItems) {
+                        $zoneType = (string) ($zone->zone_type ?? '');
+                        $zoneId = (string) ($zone->zone_id ?? '');
+                        $items = [];
+
+                        if ($zoneType === 'Hotel') {
+                            $assigned = App\Models\Hotel::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($h) => (string) ($h->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($h) => [
+                                'name' => $h->name ?? '',
+                                'image' => ($h->main_image ?? '')
+                                    ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/')
+                                        ? $h->main_image
+                                        : asset($h->main_image))
+                                    : '',
+                            ])->values()->toArray();
+                        } elseif ($zoneType === 'Attraction') {
+                            $assigned = App\Models\Attraction::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($a) => (string) ($a->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($a) => [
+                                'name' => $a->name ?? '',
+                                'image' => ($a->master_image ?? '')
+                                    ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/')
+                                        ? $a->master_image
+                                        : asset($a->master_image))
+                                    : '',
+                            ])->values()->toArray();
+                        } elseif ($zoneType === 'Restaurant') {
+                            $assigned = App\Models\Restaurant::where('status', 1)
+                                ->where(function ($q) use ($dmcIdForZoneItems) {
+                                    $q->whereJsonContains('dmc_id', $dmcIdForZoneItems)
+                                        ->orWhereJsonContains('dmc_id', (string) $dmcIdForZoneItems);
+                                })
+                                ->get()
+                                ->filter(fn ($r) => (string) ($r->getZoneForDmc($dmcIdForZoneItems) ?? '') === $zoneId);
+                            $items = $assigned->map(fn ($r) => [
+                                'name' => $r->name ?? '',
+                                'image' => ($r->master_image ?? '')
+                                    ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/')
+                                        ? $r->master_image
+                                        : asset($r->master_image))
+                                    : '',
+                            ])->values()->toArray();
+                        }
+
+                        return [
+                            'zone_id' => $zoneId,
+                            'zone_name' => (string) ($zone->zone_name ?? ''),
+                            'zone_type' => $zoneType,
+                            'city' => (string) ($zone->city ?? ''),
+                            'description' => (string) ($zone->description ?? ''),
+                            'items' => $items,
+                        ];
+                    };
+                @endphp
+
+                <script>
+                (function () {
+                    window.VehicleZoneMappingUi = {
+                        escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        },
+                        stripHtml(str) {
+                            const el = document.createElement('div');
+                            el.innerHTML = str || '';
+                            return (el.textContent || el.innerText || '').trim();
+                        },
+                        badgeClass(zoneType) {
+                            switch (zoneType) {
+                                case 'Hotel': return 'success';
+                                case 'Attraction': return 'info';
+                                case 'Restaurant': return 'warning';
+                                default: return 'secondary';
+                            }
+                        },
+                        zoneCellHtml(zoneById, zoneId) {
+                            const z = zoneById.get(String(zoneId));
+                            const name = z ? String(z.zone_name || '').trim() : '';
+                            const desc = z ? this.stripHtml(z.description || '') : '';
+                            const zoneType = z ? (z.zone_type || 'Zone') : 'Zone';
+                            const label = name || ('Zone ID: ' + zoneId);
+                            const fullLabel = desc ? (label + ' - ' + desc) : label;
+                            const itemsJson = this.escapeHtml(JSON.stringify((z && z.items) ? z.items : []));
+                            return '<div class="d-flex align-items-center">' +
+                                '<span class="badge bg-' + this.badgeClass(zoneType) + ' me-2">' + this.escapeHtml(zoneType) + '</span>' +
+                                '<span class="zone-cell-hover" data-zone-items="' + itemsJson + '" data-zone-type="' + this.escapeHtml(zoneType) + '">' + this.escapeHtml(fullLabel) + '</span>' +
+                                '</div>';
+                        }
+                    };
+                })();
+                </script>
+
+                @php
+                    $zoneMappingTypesWithFilters = [
+                        'port_port', 'port_attraction', 'port_restaurant', 'port_hotel',
+                        'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                    ];
+                    $currentMappingType = request()->get('mapping_type');
+                    $zoneFilterFromSelectMode = 'port';
+                    $zoneFilterFromPlaceholder = '-- Select From Port --';
+                    $zoneFilterFromZones = collect();
+
+                    if ($currentMappingType === 'hotel_attraction' || $currentMappingType === 'hotel_restaurant') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Hotel --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    } elseif ($currentMappingType === 'attraction_restaurant') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Attraction --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    }
+                @endphp
+
+                @if(in_array($currentMappingType, $zoneMappingTypesWithFilters))
+                <script>
+                (function () {
+                    window.VehicleZoneMappingFilters = {
+                        ports: [],
+                        fromZones: [],
+                        fromSelectMode: 'port',
+                        fromSelectPlaceholder: '-- Select From Port --',
+                        country: '',
+                        cityId: '',
+                        cityIdsForCountry: [],
+                        _inited: false,
+                        citiesUrl: '',
+
+                        normalize(value) {
+                            return String(value ?? '').trim().toLowerCase();
+                        },
+
+                        matchesPort(port) {
+                            if (!port) return false;
+                            if (this.country && this.normalize(port.country) !== this.normalize(this.country)) {
+                                return false;
+                            }
+                            if (this.cityId && String(port.city_id ?? '') !== String(this.cityId)) {
+                                return false;
+                            }
+                            return true;
+                        },
+
+                        init(config) {
+                            this.ports = config.ports || [];
+                            this.fromZones = config.fromZones || [];
+                            this.fromSelectMode = config.fromSelectMode || 'port';
+                            this.fromSelectPlaceholder = config.fromSelectPlaceholder || '-- Select From Port --';
+                            this.country = config.selectedCountry || '';
+                            this.cityId = config.defaultCityId ? String(config.defaultCityId) : '';
+                            this.citiesUrl = config.citiesUrl || '';
+                            this._inited = true;
+
+                            const countryEl = document.getElementById('mapping_filter_country');
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!countryEl || !cityEl) return;
+
+                            const self = this;
+                            const onCountryChange = function () {
+                                self.country = this.value || '';
+                                self.cityId = '';
+                                cityEl.value = '';
+                                self.loadCitiesForCountry(self.country, function () {
+                                    self.applyToFromZoneSelect();
+                                });
+                            };
+                            const onCityChange = function () {
+                                self.cityId = this.value || '';
+                                self.applyToFromZoneSelect();
+                            };
+
+                            countryEl.addEventListener('change', onCountryChange);
+                            cityEl.addEventListener('change', onCityChange);
+
+                            if (this.country) {
+                                countryEl.value = this.country;
+                                this.loadCitiesForCountry(this.country, function () {
+                                    if (self.cityId) {
+                                        cityEl.value = self.cityId;
+                                    }
+                                    self.applyToFromZoneSelect();
+                                    document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
+                                });
+                            } else {
+                                this.applyToFromZoneSelect();
+                                document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
+                            }
+                        },
+
+                        loadCitiesForCountry(countryName, done) {
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!cityEl) {
+                                if (typeof done === 'function') done();
+                                return;
+                            }
+
+                            if (!countryName) {
+                                this.cityIdsForCountry = [];
+                                cityEl.innerHTML = '<option value="">All Cities</option>';
+                                if (typeof done === 'function') done();
+                                return;
+                            }
+
+                            cityEl.innerHTML = '<option value="">Loading cities...</option>';
+
+                            const self = this;
+                            fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
+                                headers: { 'Accept': 'application/json' }
+                            })
+                                .then(r => r.json())
+                                .then(function (response) {
+                                    const cities = response.cities || [];
+                                    self.cityIdsForCountry = cities.map(c => String(c.city_id));
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    cities.forEach(function (city) {
+                                        const opt = document.createElement('option');
+                                        opt.value = city.city_id;
+                                        opt.textContent = city.name;
+                                        cityEl.appendChild(opt);
+                                    });
+                                    if (typeof done === 'function') done();
+                                })
+                                .catch(function () {
+                                    self.cityIdsForCountry = [];
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    if (typeof done === 'function') done();
+                                });
+                        },
+
+                        getFilteredPorts() {
+                            const ports = this.ports || [];
+                            if (!this._inited) return ports;
+                            return ports.filter(p => this.matchesPort(p));
+                        },
+
+                        getFilteredZones(zones) {
+                            const list = zones || [];
+                            if (!this._inited) return list;
+
+                            return list.filter(z => {
+                                if (this.cityId) {
+                                    return String(z.city || '') === String(this.cityId);
+                                }
+                                if (this.country && this.cityIdsForCountry.length) {
+                                    return this.cityIdsForCountry.includes(String(z.city || ''));
+                                }
+                                return true;
+                            });
+                        },
+
+                        isPortInFilter(portId) {
+                            return this.getFilteredPorts().some(p => String(p.port_id) === String(portId));
+                        },
+
+                        isZoneInFilter(zoneId, zones) {
+                            return this.getFilteredZones(zones).some(z => String(z.zone_id) === String(zoneId));
+                        },
+
+                        filterExistingPortMappings(existing) {
+                            return (existing || []).filter(m =>
+                                this.isPortInFilter(m.from) && this.isPortInFilter(m.to)
+                            );
+                        },
+
+                        filterExistingPortZoneMappings(existing, toZones) {
+                            return (existing || []).filter(m =>
+                                this.isPortInFilter(m.from) && this.isZoneInFilter(m.to, toZones)
+                            );
+                        },
+
+                        filterExistingZoneZoneMappings(existing, fromZones, toZones) {
+                            return (existing || []).filter(m =>
+                                this.isZoneInFilter(m.from, fromZones) && this.isZoneInFilter(m.to, toZones)
+                            );
+                        },
+
+                        zoneOptionLabel(z) {
+                            const count = (z.items || []).length;
+                            const type = String(z.zone_type || '').toLowerCase();
+                            let countPart = '';
+                            if (type === 'hotel') {
+                                countPart = count + ' hotels';
+                            } else if (type === 'attraction') {
+                                countPart = count + ' attractions';
+                            } else if (type === 'restaurant') {
+                                countPart = count + ' restaurants';
+                            }
+                            const Ui = window.VehicleZoneMappingUi;
+                            const desc = Ui ? Ui.stripHtml(z.description || '') : String(z.description || '');
+                            const name = String(z.zone_name || 'Zone');
+                            return name + (countPart ? ' (' + countPart + ')' : '') + (desc ? ' - ' + desc : '');
+                        },
+
+                        appendZoneOption(selectEl, z, useJq) {
+                            const label = this.zoneOptionLabel(z);
+                            const itemNames = (z.items || []).map(i => i.name).filter(Boolean).join(', ');
+                            const itemImages = JSON.stringify(z.items || []);
+
+                            if (useJq) {
+                                const opt = new Option(label, z.zone_id, false, false);
+                                opt.dataset.type = z.zone_type || '';
+                                opt.dataset.description = z.description || 'No description available';
+                                opt.dataset.zoneName = z.zone_name || '';
+                                opt.dataset.itemNames = itemNames;
+                                opt.dataset.itemImages = itemImages;
+                                if (z.zone_type === 'Hotel') {
+                                    opt.dataset.hotelCount = String((z.items || []).length);
+                                } else if (z.zone_type === 'Attraction') {
+                                    opt.dataset.attractionCount = String((z.items || []).length);
+                                }
+                                selectEl.append(opt);
+                                return;
+                            }
+
+                            const opt = document.createElement('option');
+                            opt.value = z.zone_id;
+                            opt.textContent = label;
+                            opt.dataset.type = z.zone_type || '';
+                            opt.dataset.description = z.description || 'No description available';
+                            opt.dataset.zoneName = z.zone_name || '';
+                            opt.dataset.itemNames = itemNames;
+                            opt.dataset.itemImages = itemImages;
+                            if (z.zone_type === 'Hotel') {
+                                opt.dataset.hotelCount = String((z.items || []).length);
+                            } else if (z.zone_type === 'Attraction') {
+                                opt.dataset.attractionCount = String((z.items || []).length);
+                            }
+                            selectEl.appendChild(opt);
+                        },
+
+                        applyToFromZoneSelectForZones() {
+                            const fromEl = document.getElementById('from_zone');
+                            if (!fromEl) return;
+
+                            const current = fromEl.value;
+                            const filtered = this.getFilteredZones(this.fromZones || []);
+                            const placeholder = this.fromSelectPlaceholder || '-- Select --';
+                            const $from = window.jQuery ? window.jQuery(fromEl) : null;
+
+                            if ($from) {
+                                $from.empty().append(new Option(placeholder, '', true, false));
+                                filtered.forEach(z => this.appendZoneOption($from, z, true));
+                                const stillValid = filtered.some(z => String(z.zone_id) === String(current));
+                                $from.val(stillValid ? current : '').trigger('change');
+                            } else {
+                                fromEl.innerHTML = '';
+                                const placeholderOpt = document.createElement('option');
+                                placeholderOpt.value = '';
+                                placeholderOpt.textContent = placeholder;
+                                fromEl.appendChild(placeholderOpt);
+                                filtered.forEach(z => this.appendZoneOption(fromEl, z, false));
+                                const stillValid = filtered.some(z => String(z.zone_id) === String(current));
+                                fromEl.value = stillValid ? current : '';
+                                fromEl.dispatchEvent(new Event('change'));
+                            }
+
+                            document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
+                        },
+
+                        getExportParams() {
+                            const fromEl = document.getElementById('from_zone');
+                            const fromZoneId = fromEl ? String(fromEl.value || '').trim() : '';
+                            const params = new URLSearchParams();
+
+                            if (this.country) {
+                                params.set('country', this.country);
+                            }
+                            if (this.cityId) {
+                                params.set('city_id', this.cityId);
+                            }
+                            if (fromZoneId) {
+                                params.set('from_zone_id', fromZoneId);
+                            }
+
+                            return params;
+                        },
+
+                        updateExportLink() {
+                            const link = document.getElementById('zone_mapping_export_btn');
+                            if (!link) return;
+
+                            const base = link.dataset.exportUrl || link.getAttribute('href') || '';
+                            if (!base) return;
+
+                            const url = new URL(base, window.location.origin);
+                            url.searchParams.delete('country');
+                            url.searchParams.delete('city_id');
+                            url.searchParams.delete('from_zone_id');
+
+                            const params = this.getExportParams();
+                            params.forEach(function (value, key) {
+                                url.searchParams.set(key, value);
+                            });
+                            link.href = url.pathname + url.search;
+                        },
+
+                        applyToFromZoneSelect() {
+                            if (this.fromSelectMode === 'zone') {
+                                this.applyToFromZoneSelectForZones();
+                                return;
+                            }
+
+                            const fromEl = document.getElementById('from_zone');
+                            if (!fromEl) return;
+
+                            const current = fromEl.value;
+                            const filtered = this.getFilteredPorts();
+                            const $from = window.jQuery ? window.jQuery(fromEl) : null;
+
+                            if ($from) {
+                                $from.empty().append(new Option('-- Select From Port --', '', true, false));
+                                filtered.forEach(p => {
+                                    const text = `${p.port_name ?? p.port_id} - ${p.type ?? 'Unknown Type'}`.trim();
+                                    const opt = new Option(text, p.port_id, false, false);
+                                    opt.dataset.type = 'Port';
+                                    opt.dataset.description = p.type ?? 'No Type Available';
+                                    $from.append(opt);
+                                });
+                                const stillValid = filtered.some(p => String(p.port_id) === String(current));
+                                $from.val(stillValid ? current : '').trigger('change');
+                            } else {
+                                fromEl.innerHTML = '<option value="">-- Select From Port --</option>';
+                                filtered.forEach(p => {
+                                    const opt = document.createElement('option');
+                                    opt.value = p.port_id;
+                                    opt.textContent = `${p.port_name ?? p.port_id} - ${p.type ?? 'Unknown Type'}`.trim();
+                                    opt.dataset.type = 'Port';
+                                    opt.dataset.description = p.type ?? 'No Type Available';
+                                    fromEl.appendChild(opt);
+                                });
+                                const stillValid = filtered.some(p => String(p.port_id) === String(current));
+                                fromEl.value = stillValid ? current : '';
+                                fromEl.dispatchEvent(new Event('change'));
+                            }
+
+                            document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
+                        }
+                    };
+                })();
+                </script>
+                @endif
                 
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -801,15 +1387,113 @@
                         <p class="text-muted">Select zones to create transportation mapping between locations.</p>
                     </div>
                 </div>
+
+                @if(in_array($currentMappingType, $zoneMappingTypesWithFilters))
+                @php
+                    $seedProfitMapping = collect($mappings ?? [])->first();
+                    $seedPrivateProfitType = $seedProfitMapping?->private_profit_type ?? 'percentage';
+                    $seedPrivateProfitAmount = $seedProfitMapping?->private_profit_amount ?? 0;
+                    $seedSharedProfitType = $seedProfitMapping?->shared_profit_type ?? 'percentage';
+                    $seedSharedProfitAmount = $seedProfitMapping?->shared_profit_amount ?? 0;
+                @endphp
+                <div class="row mb-3 align-items-end" id="zone-mapping-filters"
+                     data-ports='@json($portsSorted ?? [])'
+                     data-from-zones='@json($zoneFilterFromZones ?? [])'
+                     data-from-select-mode="{{ $zoneFilterFromSelectMode }}"
+                     data-from-select-placeholder="{{ $zoneFilterFromPlaceholder }}"
+                     data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
+                     data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
+                     data-cities-url="{{ route('fetch-cities-by-country') }}">
+                    <div class="col-md-2">
+                        <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
+                        <select id="mapping_filter_country" class="form-select">
+                            @php $scopedCountries = $countries ?? collect(); @endphp
+                            <option value="" selected>All Countries</option>
+                            @foreach($scopedCountries as $c)
+                                <option value="{{ $c->name }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
+                        <select id="mapping_filter_city" class="form-select">
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_private_profit_type" class="form-label"><strong>Private Profit</strong></label>
+                        <select id="global_private_profit_type" name="global_private_profit_type" class="form-select js-global-private-profit-type">
+                            <option value="percentage" {{ $seedPrivateProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedPrivateProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_private_profit_amount" class="form-label"><strong>Private Amount</strong></label>
+                        <input type="number" id="global_private_profit_amount" name="global_private_profit_amount"
+                               class="form-control js-global-private-profit-amount" value="{{ $seedPrivateProfitAmount }}" step="0.01" min="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_type" class="form-label"><strong>Shared Profit</strong></label>
+                        <select id="global_shared_profit_type" name="global_shared_profit_type" class="form-select js-global-shared-profit-type">
+                            <option value="percentage" {{ $seedSharedProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedSharedProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_amount" class="form-label"><strong>Shared Amount</strong></label>
+                        <input type="number" id="global_shared_profit_amount" name="global_shared_profit_amount"
+                               class="form-control js-global-shared-profit-amount" value="{{ $seedSharedProfitAmount }}" step="0.01" min="0">
+                    </div>
+                </div>
+                <script>
+                (function () {
+                    function bootstrapZoneMappingFilters() {
+                        const holder = document.getElementById('zone-mapping-filters');
+                        if (!holder || !window.VehicleZoneMappingFilters || window.VehicleZoneMappingFilters._inited) {
+                            return;
+                        }
+
+                        let ports = [];
+                        let fromZones = [];
+                        try {
+                            ports = JSON.parse(holder.dataset.ports || '[]');
+                        } catch (e) {
+                            ports = [];
+                        }
+                        try {
+                            fromZones = JSON.parse(holder.dataset.fromZones || '[]');
+                        } catch (e) {
+                            fromZones = [];
+                        }
+
+                        window.VehicleZoneMappingFilters.init({
+                            ports: ports,
+                            fromZones: fromZones,
+                            fromSelectMode: holder.dataset.fromSelectMode || 'port',
+                            fromSelectPlaceholder: holder.dataset.fromSelectPlaceholder || '-- Select From Port --',
+                            selectedCountry: holder.dataset.selectedCountry || '',
+                            defaultCityId: holder.dataset.defaultCityId || '',
+                            citiesUrl: holder.dataset.citiesUrl || ''
+                        });
+                    }
+
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', bootstrapZoneMappingFilters);
+                    } else {
+                        bootstrapZoneMappingFilters();
+                    }
+                })();
+                </script>
+                @endif
                 
                 <!-- Zone Selection Fields with Enhanced UI -->
                 <div class="row mb-3">
                     @if(request()->get('mapping_type') == 'port_port')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>From Port</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select From Port --</option>
-                            @foreach($ports ?? [] as $port)
+                            @foreach($portsSorted as $port)
                                 <option value="{{ $port->port_id }}" 
                                         data-type="Port" 
                                         data-description="{{ $port->type ?? 'No Type Available' }}">
@@ -822,39 +1506,17 @@
                                 <div class="card-body bg-light p-3">
                                     <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Port</span>: <span id="from_zone_name_label"></span></h6>
                                     <p class="card-text" id="from_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>To Port</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select To Port --</option>
-                            @foreach($ports ?? [] as $port)
-                                <option value="{{ $port->port_id }}" 
-                                        data-type="Port" 
-                                        data-description="{{ $port->type ?? 'No Type Available' }}">
-                                    {{ $port->port_name }} - {{ $port->type ?? 'Unknown Type' }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Port</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     @elseif(request()->get('mapping_type') == 'port_attraction')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>From Port</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select From Port --</option>
-                            @foreach($ports ?? [] as $port)
+                            @foreach($portsSorted as $port)
                                 <option value="{{ $port->port_id }}" 
                                         data-type="Port" 
                                         data-description="{{ $port->type ?? 'No Type Available' }}">
@@ -867,53 +1529,17 @@
                                 <div class="card-body bg-light p-3">
                                     <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Port</span>: <span id="from_zone_name_label"></span></h6>
                                     <p class="card-text" id="from_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>To Attraction</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select To Attraction --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Attraction')
-                                    @php
-                                        // Get attractions assigned to this zone by the current DMC
-                                        $assignedAttractions = App\Models\Attraction::where('status', 1)
-                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
-                                            ->get()
-                                            ->filter(function($attraction) use ($zone) {
-                                                return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
-                                            });
-                                        $attractionCount = $assignedAttractions->count();
-                                    @endphp
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}"
-                                            data-attraction-count="{{ $attractionCount }}">
-                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Attraction</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     @elseif(request()->get('mapping_type') == 'port_restaurant')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>From Port</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select From Port --</option>
-                            @foreach($ports ?? [] as $port)
+                            @foreach($portsSorted as $port)
                                 <option value="{{ $port->port_id }}" 
                                         data-type="Port" 
                                         data-description="{{ $port->type ?? 'No Type Available' }}">
@@ -926,53 +1552,17 @@
                                 <div class="card-body bg-light p-3">
                                     <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Port</span>: <span id="from_zone_name_label"></span></h6>
                                     <p class="card-text" id="from_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                   
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>To Restaurant</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select To Restaurant --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Restaurant')
-                                    @php
-                                        // Get restaurants assigned to this zone by the current DMC
-                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
-                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
-                                            ->get()
-                                            ->filter(function($restaurant) use ($zone) {
-                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
-                                            });
-                                        $restaurantCount = $assignedRestaurants->count();
-                                    @endphp
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Restaurant</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     @elseif(request()->get('mapping_type') == 'port_hotel')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>From Port</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select From Port --</option>
-                            @foreach($ports ?? [] as $port)
+                            @foreach($portsSorted as $port)
                                 <option value="{{ $port->port_id }}" 
                                         data-type="Port" 
                                         data-description="{{ $port->type ?? 'No Type Available' }}">
@@ -989,49 +1579,13 @@
                             </div>
                         </div>
                     </div>
-                   
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>To Hotel</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select To Hotel --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Hotel')
-                                    @php
-                                        // Get hotels assigned to this zone by the current DMC
-                                        $assignedHotels = App\Models\Hotel::where('status', 1)
-                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
-                                            ->get()
-                                            ->filter(function($hotel) use ($zone) {
-                                                return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
-                                            });
-                                        $hotelCount = $assignedHotels->count();
-                                    @endphp
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
-                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Restaurant</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
                     @elseif(request()->get('mapping_type') == 'hotel_attraction')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Hotel</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select Hotel --</option>
-                            @foreach($zones ?? [] as $zone)
+                            @foreach($zonesSorted as $zone)
                                 @if($zone->zone_type == 'Hotel')
                                     @php
                                         // Get hotels assigned to this zone by the current DMC
@@ -1042,12 +1596,16 @@
                                                 return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $hotelCount = $assignedHotels->count();
+                                        $hotelNames = $assignedHotels->pluck('name')->filter()->implode(', ');
+                                        $hotelItems = $assignedHotels->map(fn($h) => ['name' => $h->name ?? '', 'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
+                                            data-hotel-count="{{ $hotelCount }}"
+                                            data-item-names="{{ e($hotelNames) }}"
+                                            data-item-images="{{ e(json_encode($hotelItems)) }}">
                                         {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1058,42 +1616,17 @@
                                 <div class="card-body bg-light p-3">
                                     <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Hotel</span>: <span id="from_zone_name_label"></span></h6>
                                     <p class="card-text" id="from_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>Attraction</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select Attraction --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Attraction')
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}">
-                                        {{ $zone->zone_name }} - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Attraction</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     @elseif(request()->get('mapping_type') == 'hotel_restaurant')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Hotel</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select Hotel --</option>
-                            @foreach($zones ?? [] as $zone)
+                            @foreach($zonesSorted as $zone)
                                 @if($zone->zone_type == 'Hotel')
                                     @php
                                         // Get hotels assigned to this zone by the current DMC
@@ -1104,12 +1637,16 @@
                                                 return $hotel->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $hotelCount = $assignedHotels->count();
+                                        $hotelNames = $assignedHotels->pluck('name')->filter()->implode(', ');
+                                        $hotelItems = $assignedHotels->map(fn($h) => ['name' => $h->name ?? '', 'image' => ($h->main_image ?? '') ? (str_starts_with($h->main_image ?? '', 'http') || str_starts_with($h->main_image ?? '', '/') ? $h->main_image : asset($h->main_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-hotel-count="{{ $hotelCount }}">
+                                            data-hotel-count="{{ $hotelCount }}"
+                                            data-item-names="{{ e($hotelNames) }}"
+                                            data-item-images="{{ e(json_encode($hotelItems)) }}">
                                         {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1124,49 +1661,13 @@
                             </div>
                         </div>
                     </div>
-                   
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select Restaurant --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Restaurant')
-                                    @php
-                                        // Get restaurants assigned to this zone by the current DMC
-                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
-                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
-                                            ->get()
-                                            ->filter(function($restaurant) use ($zone) {
-                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
-                                            });
-                                        $restaurantCount = $assignedRestaurants->count();
-                                    @endphp
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Restaurant</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
                     @elseif(request()->get('mapping_type') == 'attraction_restaurant')
-                    <div class="col-md-5">
+                    <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Attraction</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
                             <option value="">-- Select Attraction --</option>
-                            @foreach($zones ?? [] as $zone)
+                            @foreach($zonesSorted as $zone)
                                 @if($zone->zone_type == 'Attraction')
                                     @php
                                         // Get attractions assigned to this zone by the current DMC
@@ -1177,12 +1678,16 @@
                                                 return $attraction->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
                                             });
                                         $attractionCount = $assignedAttractions->count();
+                                        $attractionNames = $assignedAttractions->pluck('name')->filter()->implode(', ');
+                                        $attractionItems = $assignedAttractions->map(fn($a) => ['name' => $a->name ?? '', 'image' => ($a->master_image ?? '') ? (str_starts_with($a->master_image ?? '', 'http') || str_starts_with($a->master_image ?? '', '/') ? $a->master_image : asset($a->master_image)) : ''])->toArray();
                                     @endphp
                                     <option value="{{ $zone->zone_id }}" 
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
-                                            data-attraction-count="{{ $attractionCount }}">
+                                            data-attraction-count="{{ $attractionCount }}"
+                                            data-item-names="{{ e($attractionNames) }}"
+                                            data-item-images="{{ e(json_encode($attractionItems)) }}">
                                         {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
@@ -1198,56 +1703,47 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="col-md-5">
-                        <label for="to_zone" class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
-                        <select id="to_zone" name="to_zone" class="form-select" data-show-description="true">
-                            <option value="">-- Select Restaurant --</option>
-                            @foreach($zones ?? [] as $zone)
-                                @if($zone->zone_type == 'Restaurant')
-                                    @php
-                                        // Get restaurants assigned to this zone by the current DMC
-                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
-                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
-                                            ->get()
-                                            ->filter(function($restaurant) use ($zone) {
-                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
-                                            });
-                                        $restaurantCount = $assignedRestaurants->count();
-                                    @endphp
-                                    <option value="{{ $zone->zone_id }}" 
-                                            data-type="{{ $zone->zone_type }}" 
-                                            data-description="{{ $zone->description ?? 'No description available' }}"
-                                            data-zone-name="{{ $zone->zone_name }}"
-                                            data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
-                                    </option>
-                                @endif
-                            @endforeach
-                        </select>
-                        <div id="to_zone_description" class="mt-2 zone-description d-none">
-                            <div class="card">
-                                <div class="card-body bg-light p-3">
-                                    <h6 class="card-subtitle text-muted mb-2"><span id="to_zone_type_label">Restaurant</span>: <span id="to_zone_name_label"></span></h6>
-                                    <p class="card-text" id="to_zone_description_text"></p>
-                                </div>
-                            </div>
+                    @endif
+
+                    @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                    <div class="col-md-6 d-flex flex-column justify-content-end">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
+                            <a href="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               id="zone_mapping_export_btn"
+                               data-export-url="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               class="btn btn-outline-success px-3">
+                                <i class="ri-file-excel-2-line me-1"></i> Download Template
+                            </a>
+                            <input type="file"
+                                   class="d-none"
+                                   id="zone_mapping_import_file"
+                                   name="import_file"
+                                   form="zoneMappingImportForm"
+                                   accept=".xlsx,.xls,.csv">
+                            <button type="button"
+                                    id="zone_mapping_upload_btn"
+                                    class="btn btn-success px-3">
+                                <i class="ri-upload-2-line me-1"></i> Upload
+                            </button>
                         </div>
                     </div>
                     @endif
                     
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" id="addMapping" class="btn btn-primary w-100">Add Mapping</button>
-                    </div>
+                    @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" id="addMapping" class="btn btn-primary w-100">Add Mapping</button>
+                        </div>
+                    @endif
                 </div>
                 
                 <div class="row">
                     <div class="col-md-12">
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
+                        <div class="table-responsive zone-mapping-price-wrap">
+                            <table class="table table-bordered table-sm zone-mapping-price-table">
                                 <thead>
                                     <tr>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-from">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 From Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1266,7 +1762,7 @@
                                                 From Zone
                                             @endif
                                         </th>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-to">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 To Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1285,12 +1781,19 @@
                                                 To Zone
                                             @endif
                                         </th>
-                                        <th>Private Price</th>
-                                        <th>Shared Price</th>
-                                        <th>Actions</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Private Price</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Shared Price</th>
+                                        <th rowspan="2" class="align-middle text-center zone-col-actions">Actions</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mappingsTableBody">
+                                    @if(!in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
                                     @if(isset($mappings) && count($mappings) > 0)
                                         @foreach($mappings as $mapping)
                                             @php
@@ -1366,7 +1869,6 @@
                                                     <td>{{ $toPortName ?: 'Port ID: ' . $mapping->to_zone_id }} - {{ $toPortType }}</td>
                                                 @elseif(in_array(request()->get('mapping_type'), ['port_attraction', 'port_restaurant', 'port_hotel']))
                                                     @php
-                                                        // Find port name from ports array
                                                         $portName = '';
                                                         $portType = '';
                                                         foreach($ports as $port) {
@@ -1376,35 +1878,58 @@
                                                                 break;
                                                             }
                                                         }
+                                                        $toZoneItems = $mappingZoneItems[$mapping->mapping_id]['to'] ?? [];
                                                     @endphp
                                                     <td>{{ $portName ?: 'Port ID: ' . $mapping->from_zone_id }} - {{ $portType }}</td>
-                                                    <td>{{ $mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id }}
-                                                        - {{ $mapping->toZone?->description ?? 'No description for this zone' }}
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ ($mapping->toZone->zone_type ?? '') == 'Hotel' ? 'success' : (($mapping->toZone->zone_type ?? '') == 'Attraction' ? 'info' : 'warning') }} me-2">{{ $mapping->toZone->zone_type ?? $toType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($toZoneItems) }}" data-zone-type="{{ $mapping->toZone->zone_type ?? $toType }}">{{ strip_tags($mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->toZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
                                                 @else
-                                                    <td>{{ $mapping->fromZone->zone_name ?? 'Zone ID: ' . $mapping->from_zone_id }}
-                                                        - {{ $mapping->fromZone?->description ?? 'No description for this zone' }}
+                                                    @php
+                                                        $fromZoneItems = $mappingZoneItems[$mapping->mapping_id]['from'] ?? [];
+                                                        $toZoneItems = $mappingZoneItems[$mapping->mapping_id]['to'] ?? [];
+                                                    @endphp
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ $fromType == 'Hotel' ? 'success' : ($fromType == 'Attraction' ? 'info' : ($fromType == 'Restaurant' ? 'warning' : 'secondary')) }} me-2">{{ $fromType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($fromZoneItems) }}" data-zone-type="{{ $fromType }}">{{ strip_tags($mapping->fromZone->zone_name ?? 'Zone ID: ' . $mapping->from_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->fromZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
-                                                    <td>{{ $mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id }}
-                                                        - {{ $mapping->toZone?->description ?? 'No description for this zone' }}
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-{{ $toType == 'Hotel' ? 'success' : ($toType == 'Attraction' ? 'info' : ($toType == 'Restaurant' ? 'warning' : 'secondary')) }} me-2">{{ $toType }}</span>
+                                                            <span class="zone-cell-hover" data-zone-items="{{ json_encode($toZoneItems) }}" data-zone-type="{{ $toType }}">{{ strip_tags($mapping->toZone->zone_name ?? 'Zone ID: ' . $mapping->to_zone_id) }} - {{ html_entity_decode(strip_tags($mapping->toZone?->description ?? 'No description for this zone')) }}</span>
+                                                        </div>
                                                     </td>
                                                 @endif
                                                 <td>
-                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->private_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-cost" value="{{ $mapping->private_cost_price ?? $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-sell" value="{{ $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}">
-                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    <input type="number" name="shared_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-cost" value="{{ $mapping->shared_cost_price ?? $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td>
+                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-sell" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td class="zone-col-actions">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}" title="Remove">
+                                                        <i class="ri-delete-bin-line"></i>
                                                     </button>
                                                 </td>
                                             </tr>
                                             @endif
                                         @endforeach
+                                    @endif
                                     @endif
                                 </tbody>
                             </table>
@@ -1412,10 +1937,1865 @@
                     </div>
                 </div>
                 
-                <div class="d-flex gap-3 mt-4">
+                <div class="d-flex gap-3 mt-4 flex-wrap align-items-center">
                     <button type="submit" class="btn btn-primary px-4">Save Mappings</button>
                 </div>
             </form>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const table = document.getElementById('mappingsTableBody');
+                if (!table || table.dataset.costSyncBound === '1') return;
+                table.dataset.costSyncBound = '1';
+
+                function round2(n) {
+                    return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+                }
+
+                function calcSellFromCost(cost, type, amount) {
+                    const c = parseFloat(cost);
+                    const a = parseFloat(amount);
+                    const costVal = isNaN(c) ? 0 : c;
+                    const amtVal = isNaN(a) ? 0 : a;
+                    // No cost → no sell (flat amount must not apply when cost is 0)
+                    if (costVal <= 0) {
+                        return 0;
+                    }
+                    if (type === 'flat') {
+                        return round2(costVal + amtVal);
+                    }
+                    return round2(costVal + (costVal * amtVal / 100));
+                }
+
+                function globalProfit(prefix) {
+                    const typeEl = document.querySelector('.js-global-' + prefix + '-profit-type');
+                    const amountEl = document.querySelector('.js-global-' + prefix + '-profit-amount');
+                    return {
+                        type: typeEl ? typeEl.value : 'percentage',
+                        amount: amountEl ? amountEl.value : 0
+                    };
+                }
+
+                function updateSellForPrefix(row, prefix) {
+                    const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                    const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                    if (!cost || !sell) return;
+                    if (sell.dataset.userEdited === '1') return;
+                    const g = globalProfit(prefix);
+                    sell.value = calcSellFromCost(cost.value, g.type, g.amount);
+                }
+
+                function recalculateAllRows(force) {
+                    table.querySelectorAll('tr').forEach(function (row) {
+                        ['private', 'shared'].forEach(function (prefix) {
+                            const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                            if (sell && force) sell.dataset.userEdited = '';
+                            updateSellForPrefix(row, prefix);
+                        });
+                    });
+                }
+
+                function onRowPricingChange(el) {
+                    const row = el.closest('tr');
+                    if (!row) return;
+                    if (el.classList.contains('js-zone-private-sell') || el.classList.contains('js-zone-shared-sell')) {
+                        el.dataset.userEdited = '1';
+                        return;
+                    }
+                    if (el.classList.contains('js-zone-private-cost')) {
+                        const sell = row.querySelector('.js-zone-private-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'private');
+                    }
+                    if (el.classList.contains('js-zone-shared-cost')) {
+                        const sell = row.querySelector('.js-zone-shared-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'shared');
+                    }
+                }
+
+                table.addEventListener('input', function (e) {
+                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+                table.addEventListener('change', function (e) {
+                    if (e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+
+                document.querySelectorAll(
+                    '.js-global-private-profit-type, .js-global-private-profit-amount, .js-global-shared-profit-type, .js-global-shared-profit-amount'
+                ).forEach(function (el) {
+                    el.addEventListener('input', function () { recalculateAllRows(true); });
+                    el.addEventListener('change', function () { recalculateAllRows(true); });
+                });
+
+                // Cost 0 must show Sell 0 (do not leave leftover flat amounts on load)
+                table.querySelectorAll('tr').forEach(function (row) {
+                    ['private', 'shared'].forEach(function (prefix) {
+                        const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                        const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                        if (!cost || !sell) return;
+                        const costVal = parseFloat(cost.value);
+                        if (isNaN(costVal) || costVal <= 0) {
+                            sell.value = 0;
+                            sell.dataset.userEdited = '';
+                        }
+                    });
+                });
+            });
+            </script>
+
+            <style>
+                .zone-mapping-price-wrap {
+                    width: 100%;
+                    overflow-x: auto;
+                }
+                .zone-mapping-price-table {
+                    width: 100%;
+                    table-layout: fixed;
+                    margin-bottom: 0;
+                    font-size: 0.8rem;
+                }
+                .zone-mapping-price-table thead th {
+                    padding: 0.35rem 0.4rem;
+                    vertical-align: middle;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table tbody td {
+                    padding: 0.3rem 0.35rem;
+                    vertical-align: middle;
+                }
+                .zone-mapping-price-table thead th.zone-price-group-head {
+                    background: #f1f5f9;
+                    font-weight: 700;
+                    font-size: 0.78rem;
+                    border-bottom-width: 1px;
+                }
+                .zone-mapping-price-table thead th.zone-price-sub-head {
+                    background: #f8fafc;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: #475569;
+                    width: 10%;
+                }
+                .zone-mapping-price-table .zone-col-from,
+                .zone-mapping-price-table .zone-col-to {
+                    width: 28%;
+                }
+                .zone-mapping-price-table .zone-col-actions {
+                    width: 6%;
+                    text-align: center;
+                    position: sticky;
+                    right: 0;
+                    background: #fff;
+                    z-index: 2;
+                    box-shadow: -4px 0 6px rgba(0,0,0,0.04);
+                }
+                .zone-mapping-price-table thead th.zone-col-actions {
+                    background: #f8fafc;
+                    z-index: 3;
+                }
+                .zone-mapping-price-table .zone-cell-text {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    line-height: 1.25;
+                    max-width: 100%;
+                    word-break: break-word;
+                }
+                .zone-mapping-price-table .badge {
+                    font-size: 0.65rem;
+                    padding: 0.2em 0.4em;
+                    flex-shrink: 0;
+                }
+                .zone-mapping-price-table tbody td input.form-control {
+                    min-width: 0 !important;
+                    width: 100%;
+                    height: 30px;
+                    padding: 0.15rem 0.35rem;
+                    font-size: 0.78rem;
+                }
+                .zone-mapping-price-table .btn-sm {
+                    padding: 0.15rem 0.4rem;
+                    font-size: 0.72rem;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table .btn-sm i {
+                    font-size: 0.75rem;
+                }
+            </style>
+
+            @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+            <form id="zoneMappingImportForm"
+                  method="POST"
+                  action="{{ route('vehicle.zone_mappings.import') }}"
+                  enctype="multipart/form-data"
+                  class="d-none">
+                @csrf
+                <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
+                <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
+            </form>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const fileInput = document.getElementById('zone_mapping_import_file');
+                const uploadBtn = document.getElementById('zone_mapping_upload_btn');
+                const importForm = document.getElementById('zoneMappingImportForm');
+
+                function syncExportLink() {
+                    const F = window.VehicleZoneMappingFilters;
+                    if (F && typeof F.updateExportLink === 'function') {
+                        F.updateExportLink();
+                    }
+                }
+
+                document.addEventListener('zoneMappingFiltersChanged', syncExportLink);
+                document.addEventListener('zoneMappingFiltersReady', syncExportLink);
+                document.addEventListener('change', function (e) {
+                    if (e.target && e.target.id === 'from_zone') {
+                        syncExportLink();
+                    }
+                });
+
+                if (window.jQuery) {
+                    window.jQuery(document).on('select2:select select2:clear', '#from_zone', syncExportLink);
+                }
+
+                syncExportLink();
+
+                if (!fileInput || !uploadBtn || !importForm) return;
+
+                uploadBtn.addEventListener('click', function () {
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener('change', function () {
+                    if (!fileInput.files || !fileInput.files.length) return;
+
+                    uploadBtn.disabled = true;
+                    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Uploading...';
+
+                    importForm.submit();
+                });
+            });
+            </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'port_port')
+                @php
+                    $portPortMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Port') === 'Port') && (($m->to_zone_type ?? 'Port') === 'Port');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'port_port') return;
+
+                        const ports = @json($ports ?? []);
+                        const existing = @json($portPortMappings);
+
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function buildRow(fromId, toId) {
+                            const fromPort = portById.get(String(fromId));
+                            const toPort = portById.get(String(toId));
+
+                            const fromText = fromPort
+                                ? `${fromPort.port_name ?? fromId} - ${fromPort.type ?? ''}`.trim()
+                                : `Port ID: ${fromId}`;
+
+                            const toText = toPort
+                                ? `${toPort.port_name ?? toId} - ${toPort.type ?? ''}`.trim()
+                                : `Port ID: ${toId}`;
+
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Port');
+                            tr.setAttribute('data-to-type', 'Port');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${escapeHtml(fromText)}</td>
+                                <td>${escapeHtml(toText)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortMappings(rows);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => {
+                                tbody.appendChild(buildRow(String(m.from), String(m.to)));
+                            });
+                        }
+
+                        function renderForFromPort(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredPorts = (F ? F.getFilteredPorts() : (ports || []));
+                            const resolvePortId = (p) => (F && F.resolvePortId) ? F.resolvePortId(p) : String(p?.port_id ?? p?.id ?? '');
+
+                            const destinations = filteredPorts
+                                .slice()
+                                .filter(p => {
+                                    const portId = resolvePortId(p);
+                                    return portId && portId !== fromStr;
+                                });
+
+                            if (!destinations.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            destinations
+                                .sort((a, b) => {
+                                    const at = `${a?.port_name ?? a?.port_id ?? ''} - ${a?.type ?? ''}`.trim();
+                                    const bt = `${b?.port_name ?? b?.port_id ?? ''} - ${b?.type ?? ''}`.trim();
+                                    return bt.localeCompare(at);
+                                })
+                                .forEach(p => {
+                                    tbody.appendChild(buildRow(fromStr, resolvePortId(p)));
+                                });
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function startPortPortMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFromPort(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFromPort(getFromValue());
+                            });
+                        }
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+
+                        renderForFromPort(getFromValue());
+                        setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            startPortPortMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'port_attraction')
+                @php
+                    $portAttractionMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Port') === 'Port') && (($m->to_zone_type ?? 'Attraction') === 'Attraction');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $toAttractions = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'port_attraction') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const ports = @json($ports ?? []);
+                        const toZones = @json($toAttractions);
+                        const existing = @json($portAttractionMappings);
+
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function portText(portId) {
+                            const p = portById.get(String(portId));
+                            if (!p) return `Port ID: ${portId}`;
+                            return `${p.port_name ?? portId} - ${p.type ?? ''}`.trim();
+                        }
+
+                        function zoneText(zoneId) {
+                            const z = toById.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Port');
+                            tr.setAttribute('data-to-type', 'Attraction');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${escapeHtml(portText(fromId))}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFromPort(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
+                                .forEach(z => {
+                                    tbody.appendChild(buildRow(fromStr, String(z.zone_id)));
+                                });
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootPortAttractionMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFromPort(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFromPort(getFromValue());
+                            });
+                        }
+
+                        renderForFromPort(getFromValue());
+                        setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortAttractionMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'port_restaurant')
+                @php
+                    $portRestaurantMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Port') === 'Port') && (($m->to_zone_type ?? 'Restaurant') === 'Restaurant');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $toRestaurants = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'port_restaurant') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const ports = @json($ports ?? []);
+                        const toZones = @json($toRestaurants);
+                        const existing = @json($portRestaurantMappings);
+
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function portText(portId) {
+                            const p = portById.get(String(portId));
+                            if (!p) return `Port ID: ${portId}`;
+                            return `${p.port_name ?? portId} - ${p.type ?? ''}`.trim();
+                        }
+
+                        function zoneText(zoneId) {
+                            const z = toById.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Port');
+                            tr.setAttribute('data-to-type', 'Restaurant');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${escapeHtml(portText(fromId))}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFromPort(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootPortRestaurantMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFromPort(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFromPort(getFromValue());
+                            });
+                        }
+
+                        renderForFromPort(getFromValue());
+                        setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'port_hotel')
+                @php
+                    $portHotelMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Port') === 'Port') && (($m->to_zone_type ?? 'Hotel') === 'Hotel');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $toHotels = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'port_hotel') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const ports = @json($ports ?? []);
+                        const toZones = @json($toHotels);
+                        const existing = @json($portHotelMappings);
+
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function portText(portId) {
+                            const p = portById.get(String(portId));
+                            if (!p) return `Port ID: ${portId}`;
+                            return `${p.port_name ?? portId} - ${p.type ?? ''}`.trim();
+                        }
+
+                        function zoneText(zoneId) {
+                            const z = toById.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Port');
+                            tr.setAttribute('data-to-type', 'Hotel');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${escapeHtml(portText(fromId))}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingPortZoneMappings(rows, toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFromPort(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isPortInFilter(fromId)) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(String(b.zone_id)).localeCompare(zoneText(String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootPortHotelMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFromPort(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFromPort(getFromValue());
+                            });
+                        }
+
+                        renderForFromPort(getFromValue());
+                        setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFromPort(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortHotelMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'hotel_attraction')
+                @php
+                    $hotelAttractionMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Hotel') === 'Hotel') && (($m->to_zone_type ?? 'Attraction') === 'Attraction');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $fromHotels = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+
+                    $toAttractions = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'hotel_attraction') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const fromZones = @json($fromHotels);
+                        const toZones = @json($toAttractions);
+                        const existing = @json($hotelAttractionMappings);
+
+                        const fromById = new Map((fromZones || []).map(z => [String(z.zone_id), z]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function zoneText(map, zoneId) {
+                            const z = map.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Hotel');
+                            tr.setAttribute('data-to-type', 'Attraction');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate attractions for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFrom(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootHotelAttractionMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFrom(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFrom(getFromValue());
+                            });
+                        }
+
+                        renderForFrom(getFromValue());
+                        setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootHotelAttractionMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootHotelAttractionMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'hotel_restaurant')
+                @php
+                    $hotelRestaurantMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Hotel') === 'Hotel') && (($m->to_zone_type ?? 'Restaurant') === 'Restaurant');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $fromHotels = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+
+                    $toRestaurants = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'hotel_restaurant') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const fromZones = @json($fromHotels);
+                        const toZones = @json($toRestaurants);
+                        const existing = @json($hotelRestaurantMappings);
+
+                        const fromById = new Map((fromZones || []).map(z => [String(z.zone_id), z]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function zoneText(map, zoneId) {
+                            const z = map.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Hotel');
+                            tr.setAttribute('data-to-type', 'Restaurant');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFrom(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootHotelRestaurantMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFrom(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFrom(getFromValue());
+                            });
+                        }
+
+                        renderForFrom(getFromValue());
+                        setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootHotelRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootHotelRestaurantMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(request()->get('mapping_type') == 'attraction_restaurant')
+                @php
+                    $attractionRestaurantMappings = collect($mappings ?? [])
+                        ->filter(function ($m) {
+                            return (($m->from_zone_type ?? 'Attraction') === 'Attraction') && (($m->to_zone_type ?? 'Restaurant') === 'Restaurant');
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $fromAttractions = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+
+                    $toRestaurants = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (mappingType !== 'attraction_restaurant') return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const fromZones = @json($fromAttractions);
+                        const toZones = @json($toRestaurants);
+                        const existing = @json($attractionRestaurantMappings);
+
+                        const fromById = new Map((fromZones || []).map(z => [String(z.zone_id), z]));
+                        const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function escapeHtml(str) {
+                            return String(str)
+                                .replaceAll('&', '&amp;')
+                                .replaceAll('<', '&lt;')
+                                .replaceAll('>', '&gt;')
+                                .replaceAll('"', '&quot;')
+                                .replaceAll("'", '&#039;');
+                        }
+
+                        function zoneText(map, zoneId) {
+                            const z = map.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', 'Attraction');
+                            tr.setAttribute('data-to-type', 'Restaurant');
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+
+                            tr.innerHTML = `
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td>
+                                    <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="private_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-sell"
+                                           value="${Number(existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
+                                            ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select an <strong>Attraction</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFrom(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+
+                            filteredZones
+                                .slice()
+                                .filter(z => String(z.zone_id))
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootAttractionRestaurantMappingUi() {
+                        document.addEventListener('change', function (e) {
+                            if (e.target && e.target.id === 'from_zone') {
+                                renderForFrom(getFromValue());
+                            }
+                        });
+
+                        if (window.jQuery) {
+                            window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                renderForFrom(getFromValue());
+                            });
+                        }
+
+                        renderForFrom(getFromValue());
+                        setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootAttractionRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootAttractionRestaurantMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
             @endif
         </div>
     </div>
@@ -1441,6 +3821,19 @@
 </script>
 <script>
     $(document).ready(function() {
+        // Driver dropdown (search + select)
+        $('#driver').select2({
+            placeholder: "Search and Select Driver",
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+
         $('#city_name').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
@@ -1712,39 +4105,73 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     $(document).ready(function () {
         const dmcId = "{{ $resolvedDmcId }}";
+        const currentCity = @json($vehicle->city ?? '');
 
         // Auto-load drivers if user role resolves DMC directly
         if (dmcId) {
             loadDriversForDmc(dmcId);
         }
 
-        // If DMC dropdown is visible, load drivers and cities on change
+        // If DMC dropdown is visible, reload drivers on change
         $('#dmc').change(function () {
             const selectedDmcId = $(this).val();
-            console.log(selectedDmcId);
-            $('#city_name').html('<option value="">Loading...</option>');
             $('#driver').html('<option value="">Loading drivers...</option>');
 
             if (selectedDmcId) {
-                // Load cities
-                $.ajax({
-                    url: "{{ route('fetch.dmc_cities') }}",
-                    type: "GET",
-                    data: { country_name: selectedDmcId },
-                    success: function (response) {
-                        $('#city_name').html('<option value="">Select City</option>');
-                        $.each(response, function (key, city) {
-                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
-                        });
-                    }
-                });
-
-                // Load drivers
                 loadDriversForDmc(selectedDmcId);
             } else {
-                $('#city_name').html('<option value="">Select a DMC first</option>');
                 $('#driver').html('<option value="">Select a DMC first</option>');
             }
+        });
+
+        function loadCitiesByCountry(countryName, preserveCity) {
+            if (!countryName) {
+                $('#city_name').prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Select Country First</option>')
+                    .trigger('change');
+                return;
+            }
+
+            $('#city_name').prop('disabled', true)
+                .empty()
+                .append('<option value="">Loading cities...</option>')
+                .trigger('change');
+
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function (response) {
+                    $('#city_name').empty().append('<option value="">Select a City</option>');
+
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function (idx, city) {
+                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                        $('#city_name').prop('disabled', false);
+
+                        if (preserveCity && currentCity) {
+                            $('#city_name').val(currentCity);
+                        }
+                    } else {
+                        $('#city_name').append('<option value="">No cities available</option>');
+                    }
+
+                    $('#city_name').trigger('change');
+                },
+                error: function () {
+                    $('#city_name').prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Error loading cities</option>')
+                        .trigger('change');
+                }
+            });
+        }
+
+        $('#country').on('change', function () {
+            loadCitiesByCountry($(this).val(), false);
         });
 
         function loadDriversForDmc(dmcId) {
@@ -2128,6 +4555,257 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script>
+function initNightChargeAutoPopulate() {
+    if (!document.getElementById('auto-calculated-style')) {
+        const style = document.createElement('style');
+        style.id = 'auto-calculated-style';
+        style.textContent = `
+            .auto-calculated, .auto-calculated-sell, .auto-calculated-cost {
+                background-color: #f8f9fa !important;
+                border-left: 3px solid #17a2b8 !important;
+                transition: all 0.2s ease;
+            }
+            .auto-calculated:focus, .auto-calculated-sell:focus, .auto-calculated-cost:focus {
+                background-color: #fff !important;
+                border-left-color: #007bff !important;
+            }
+            .auto-calculated.value-updated, .auto-calculated-sell.value-updated, .auto-calculated-cost.value-updated {
+                animation: highlightUpdate 0.8s ease-in-out;
+            }
+            @keyframes highlightUpdate {
+                0% { background-color: #e8f7ff; }
+                100% { background-color: #f8f9fa; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const dayScope = document.querySelectorAll('#taxi_day_charges')[0] || document;
+    const nightScope = document.querySelectorAll('#taxi_night_charges')[0] || document;
+
+    const getNum = (el) => {
+        if (!el) return null;
+        const v = (el.value ?? '').toString().trim();
+        if (v === '') return null;
+        const n = Number.parseFloat(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const format = (n) => (Math.round(n * 100) / 100).toFixed(2);
+    const compute = (dayVal, nightBaseVal) => {
+        if (dayVal === null) return null;
+        return dayVal + (nightBaseVal ?? 0);
+    };
+
+    const setupNightGroup = ({ nightBaseName, pairs, cssClass }) => {
+        const nightBaseEl = nightScope.querySelector(`input[name="${nightBaseName}"]`);
+
+        const initAutoFlags = () => {
+            pairs.forEach(({ night }) => {
+                const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+                if (!nightEl) return;
+                nightEl.dataset.auto = '1';
+                nightEl.classList.add(cssClass);
+            });
+        };
+
+        const recalcNight = () => {
+            const nightBaseVal = getNum(nightBaseEl) ?? 0;
+            pairs.forEach(({ day, night }) => {
+                const dayEl = dayScope.querySelector(`input[name="${day}"]`);
+                const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+                if (!dayEl || !nightEl) return;
+                if ((nightEl.dataset.auto ?? '1') !== '1') return;
+
+                const computed = compute(getNum(dayEl), nightBaseVal);
+                nightEl.value = computed === null ? '' : format(computed);
+                nightEl.classList.add(cssClass, 'value-updated');
+                nightEl.dispatchEvent(new Event('input', { bubbles: true }));
+                setTimeout(() => nightEl.classList.remove('value-updated'), 800);
+            });
+        };
+
+        pairs.forEach(({ night }) => {
+            const nightEl = nightScope.querySelector(`input[name="${night}"]`);
+            if (!nightEl) return;
+            nightEl.addEventListener('input', function (e) {
+                if (e && e.isTrusted === false) return;
+                this.dataset.auto = '0';
+                this.classList.remove(cssClass);
+            });
+        });
+
+        const bindRecalc = (name, scopeEl) => {
+            const el = (scopeEl || document).querySelector(`input[name="${name}"]`);
+            if (!el) return;
+            el.addEventListener('input', () => recalcNight());
+            el.addEventListener('change', () => recalcNight());
+        };
+
+        bindRecalc(nightBaseName, nightScope);
+        pairs.forEach(({ day }) => bindRecalc(day, dayScope));
+        initAutoFlags();
+    };
+
+    setupNightGroup({
+        nightBaseName: 'night_base_price',
+        cssClass: 'auto-calculated-sell',
+        pairs: [
+            // Sell prices are calculated from night cost + Night Surcharge (see vehicle profit script)
+        ],
+    });
+
+    setupNightGroup({
+        nightBaseName: 'night_base_cost_price',
+        cssClass: 'auto-calculated-cost',
+        pairs: [
+            // { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
+            // { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
+            // { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
+            { day: 'per_hour_cost_price', night: 'night_per_hour_cost_price' },
+        ],
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNightChargeAutoPopulate);
+} else {
+    initNightChargeAutoPopulate();
+}
+</script>
+
+<script>
+(function () {
+    function parseAmount(value) {
+        const n = parseFloat(String(value || '0').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function calculateSell(costValue, typeEl, amountEl) {
+        const cost = parseAmount(costValue);
+        if (cost === null) return '';
+        const type = (typeEl?.value || 'percentage').toLowerCase();
+        const amount = parseAmount(amountEl?.value) ?? 0;
+        let sell = cost;
+        if (type === 'flat') {
+            sell = cost + amount;
+        } else {
+            sell = cost + (cost * amount / 100);
+        }
+        return Number(Math.max(0, sell).toFixed(2));
+    }
+
+    function updateSellFromCost(costInput, typeEl, amountEl) {
+        if (!costInput) return;
+        const sellId = costInput.getAttribute('data-sell-target');
+        const sellInput = sellId ? document.getElementById(sellId) || document.querySelector(`input[name="${sellId}"]`) : null;
+        if (!sellInput) return;
+        if (costInput.value === '' || costInput.value === null) return;
+        sellInput.value = calculateSell(costInput.value, typeEl, amountEl);
+        sellInput.dataset.autoFilled = '1';
+        if (sellInput.name === 'base_price' || sellInput.id === 'base_price') {
+            syncCancellationFromBase();
+        }
+    }
+
+    function updateGroup(costSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            updateSellFromCost(costInput, typeEl, amountEl);
+        });
+    }
+
+    function syncCancellationFromBase() {
+        const baseCost = document.getElementById('base_cost_price') || document.querySelector('input[name="base_cost_price"]');
+        const baseSell = document.getElementById('base_price') || document.querySelector('input[name="base_price"]');
+        const cancelCost = document.getElementById('cancellation_cost') || document.querySelector('input[name="cancellation_cost"]');
+        const cancelSell = document.getElementById('cancellation_sell') || document.querySelector('input[name="cancellation_sell"]');
+        const nightCancelCost = document.getElementById('night_cancel_cost_price');
+        const nightCancelSell = document.getElementById('night_cancel_cost');
+
+        if (baseCost && cancelCost && (cancelCost.dataset.manual !== '1')) {
+            cancelCost.value = baseCost.value;
+        }
+        if (baseSell && cancelSell && (cancelSell.dataset.manual !== '1')) {
+            cancelSell.value = baseSell.value;
+        }
+        if (cancelCost && nightCancelCost) nightCancelCost.value = cancelCost.value;
+        if (cancelSell && nightCancelSell) nightCancelSell.value = cancelSell.value;
+    }
+
+    function bindGroup(costSelector, sellSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+            costInput.addEventListener('change', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        document.querySelectorAll(sellSelector).forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+                if (this.name === 'base_price' || this.id === 'base_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        if (typeEl) typeEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        if (amountEl) {
+            amountEl.addEventListener('input', function () { updateGroup(costSelector, typeId, amountId); });
+            amountEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindGroup('.vehicle-day-cost-input', '.vehicle-day-sell-input', 'day_profit_type', 'mark_up');
+        bindGroup('.vehicle-night-cost-input', '.vehicle-night-sell-input', 'night_profit_type', 'night_surcharge');
+
+        const cancelCost = document.getElementById('cancellation_cost');
+        const cancelSell = document.getElementById('cancellation_sell');
+        if (cancelCost) {
+            if (cancelCost.value !== '') cancelCost.dataset.manual = '1';
+            cancelCost.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelCost = document.getElementById('night_cancel_cost_price');
+                if (nightCancelCost) nightCancelCost.value = this.value;
+            });
+        }
+        if (cancelSell) {
+            if (cancelSell.value !== '') cancelSell.dataset.manual = '1';
+            cancelSell.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelSell = document.getElementById('night_cancel_cost');
+                if (nightCancelSell) nightCancelSell.value = this.value;
+            });
+        }
+
+        syncCancellationFromBase();
+        if (cancelCost && cancelCost.value) {
+            const nightCancelCost = document.getElementById('night_cancel_cost_price');
+            if (nightCancelCost && !nightCancelCost.value) nightCancelCost.value = cancelCost.value;
+        }
+        if (cancelSell && cancelSell.value) {
+            const nightCancelSell = document.getElementById('night_cancel_cost');
+            if (nightCancelSell && !nightCancelSell.value) nightCancelSell.value = cancelSell.value;
+        }
+    });
+})();
+</script>
+
 
 @else
 <!-- Zone mapping scripts -->
@@ -2176,15 +4854,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${fromZoneText}</td>
                     <td>${toZoneText}</td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -2313,15 +4999,23 @@ $(document).ready(function() {
                     </div>
                 </td>
                 <td>
-                    <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                </td>
+                <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                </td>
+                <td class="zone-col-actions">
+                    <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                 </td>
             </tr>
         `;
@@ -2407,15 +5101,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -2506,15 +5207,23 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -2625,15 +5334,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -2690,6 +5406,10 @@ $(document).ready(function() {
             const toType = $('#to_zone option:selected').data('type') || 'Port'; // Default to Port for port mappings
             const fromDescription = $('#from_zone option:selected').data('description') || 'No description available';
             const toDescription = $('#to_zone option:selected').data('description') || 'No description available';
+            let fromZoneItems = $('#from_zone option:selected').data('item-images') || [];
+            let toZoneItems = $('#to_zone option:selected').data('item-images') || [];
+            if (typeof fromZoneItems === 'string') try { fromZoneItems = JSON.parse(fromZoneItems); } catch(e) { fromZoneItems = []; }
+            if (typeof toZoneItems === 'string') try { toZoneItems = JSON.parse(toZoneItems); } catch(e) { toZoneItems = []; }
             const vehicleId = $('input[name="vehicle_id"]').val();
             const mappingType = $('input[name="mapping_type"]').val();
             
@@ -2736,7 +5456,7 @@ $(document).ready(function() {
                             addMappingRowToTable(
                                 fromZone, toZone, fromZoneText, toZoneText, 
                                 fromType, toType, fromDescription, toDescription,
-                            0, 0, response.mapping_id
+                            0, 0, response.mapping_id, fromZoneItems, toZoneItems
                             );
                             showSuccessToast("Mapping added successfully");
                     } else {
@@ -2754,40 +5474,67 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId) {
-            // Create new row with zone badges, tooltips, and mapping ID
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
+            fromZoneItems = fromZoneItems || [];
+            toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
+            const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
+            const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
+            const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
+            const toSpan = toItemsAttr ? '<span class="zone-cell-hover"' + toItemsAttr + '>' + toZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(toDescription) + '">' + toZoneText + '</span>';
+            const existingById = mappingId ? $('#mappingsTableBody').find('tr[data-mapping-id="' + String(mappingId) + '"]') : $();
+            const existingByPair = $('#mappingsTableBody').find('tr[data-from="' + String(fromZone) + '"][data-to="' + String(toZone) + '"][data-from-type="' + String(fromType) + '"][data-to-type="' + String(toType) + '"]');
             const newRow = `
                 <tr data-from="${fromZone}" data-to="${toZone}" data-from-type="${fromType}" data-to-type="${toType}" data-mapping-id="${mappingId}">
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(fromDescription)}">${fromZoneText}</span>
+                            ${fromSpan}
                         </div>
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(toDescription)}">${toZoneText}</span>
+                            ${toSpan}
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>
             `;
             
-            // Add to table
-            $('#mappingsTableBody').append(newRow);
+            // Replace existing row (avoid duplicate mapping_id / pair)
+            if (existingById.length) {
+                existingById.first().replaceWith(newRow);
+            } else if (existingByPair.length) {
+                existingByPair.first().replaceWith(newRow);
+            } else {
+                $('#mappingsTableBody').append(newRow);
+            }
             
             // Initialize tooltips on the new row
             $('[data-bs-toggle="tooltip"]').tooltip();
@@ -2970,37 +5717,38 @@ $(document).ready(function() {
         // Initialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
         
-        // Update existing mappings in the table to use the new UI style
+        // Update existing mappings - preserve zone-cell-hover (server-rendered), only fix delete button
         $('#mappingsTableBody tr').each(function() {
-            const fromType = $(this).data('from-type');
-            const toType = $(this).data('to-type');
             const mappingId = $(this).data('mapping-id');
-            
-            // Update first cell (from zone)
-            const fromCell = $(this).find('td:first');
-            const fromText = fromCell.text().trim();
-            fromCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                    <span>${fromText}</span>
-                </div>
-            `);
-            
-            // Update second cell (to zone)
-            const toCell = $(this).find('td:eq(1)');
-            const toText = toCell.text().trim();
-            toCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                    <span>${toText}</span>
-                </div>
-            `);
-            
-            // Update delete button to include mapping ID
             const deleteButton = $(this).find('.remove-mapping');
             if (deleteButton.length && !deleteButton.data('mapping-id')) {
                 deleteButton.attr('data-mapping-id', mappingId);
             }
+        });
+        
+        // Zone hover tooltip - show items with images on hover
+        const $tooltip = $('#zoneHoverTooltip');
+        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#e9ecef" width="40" height="40"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="10">No img</text></svg>');
+        $(document).on('mouseenter', '.zone-cell-hover', function(e) {
+            let items = $(this).attr('data-zone-items');
+            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
+            const zoneType = $(this).attr('data-zone-type') || 'Item';
+            const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+            let html = '<div class="tooltip-title">' + label + ' in this zone</div>';
+            if (!items || !items.length) {
+                html += '<div class="tooltip-item"><span class="tooltip-item-name text-muted">No ' + label.toLowerCase() + ' assigned</span></div>';
+            } else {
+                items.forEach(function(item) {
+                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + item.image.replace(/^\/+/, '') : defaultImg);
+                    html += '<div class="tooltip-item"><img class="tooltip-item-img" src="' + imgSrc + '" alt=""><span class="tooltip-item-name">' + escapeHtml(item.name || '') + '</span></div>';
+                });
+            }
+            $tooltip.html(html).addClass('show');
+            const rect = this.getBoundingClientRect();
+            $tooltip.css({ left: rect.left + (rect.width/2) - 160, top: rect.bottom + 8 });
+        });
+        $(document).on('mouseleave', '.zone-cell-hover', function() {
+            $tooltip.removeClass('show');
         });
     });
 </script> --}}
@@ -3015,15 +5763,22 @@ $(document).ready(function() {
             templateResult: formatZoneOption
         });
         
-        // Format the dropdown options to show zone types
+        // Format the dropdown options to show zone types and item names on hover
         function formatZoneOption(zone) {
             if (!zone.id) return zone.text;
             
             const zoneType = $(zone.element).data('type');
-            return $(`<span>
+            const itemNames = $(zone.element).data('item-names');
+            const $span = $(`<span class="zone-option-wrapper">
                 <span class="badge bg-${getZoneTypeBadgeColor(zoneType)} me-2">${zoneType}</span>
                 ${zone.text}
             </span>`);
+            if (itemNames) {
+                const label = zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+                $span.attr('title', label + ' in this zone: ' + itemNames);
+                $span.css('cursor', 'help');
+            }
+            return $span;
         }
         
         // Get color for zone type badge
@@ -3080,6 +5835,10 @@ $(document).ready(function() {
             const toType = $('#to_zone option:selected').data('type') || 'Unknown';
             const fromDescription = $('#from_zone option:selected').data('description') || 'No description available';
             const toDescription = $('#to_zone option:selected').data('description') || 'No description available';
+            let fromZoneItems = $('#from_zone option:selected').data('item-images') || [];
+            let toZoneItems = $('#to_zone option:selected').data('item-images') || [];
+            if (typeof fromZoneItems === 'string') try { fromZoneItems = JSON.parse(fromZoneItems); } catch(e) { fromZoneItems = []; }
+            if (typeof toZoneItems === 'string') try { toZoneItems = JSON.parse(toZoneItems); } catch(e) { toZoneItems = []; }
             const vehicleId = $('input[name="vehicle_id"]').val();
 
             function showToast(message, type = 'danger') {
@@ -3141,7 +5900,9 @@ $(document).ready(function() {
                     _token: "{{ csrf_token() }}",
                     vehicle_id: vehicleId,
                     from_zone_id: fromZone,
-                    to_zone_id: toZone
+                    to_zone_id: toZone,
+                    from_zone_type: fromType,
+                    to_zone_type: toType
                 },
                 success: function(response) {
                     // Remove loading indicator
@@ -3162,7 +5923,13 @@ $(document).ready(function() {
                                         fromZone, toZone, fromZoneText, toZoneText, 
                                         fromType, toType, fromDescription, toDescription,
                                         restoreResponse.private_price, restoreResponse.shared_price,
-                                        restoreResponse.mapping_id
+                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems,
+                                        restoreResponse.private_cost_price ?? restoreResponse.private_price,
+                                        restoreResponse.shared_cost_price ?? restoreResponse.shared_price,
+                                        restoreResponse.private_profit_type ?? 'percentage',
+                                        restoreResponse.private_profit_amount ?? 0,
+                                        restoreResponse.shared_profit_type ?? 'percentage',
+                                        restoreResponse.shared_profit_amount ?? 0
                                     );
                                     showSuccessToast("Mapping restored successfully");
                                 },
@@ -3193,7 +5960,7 @@ $(document).ready(function() {
                             addMappingRowToTable(
                                 fromZone, toZone, fromZoneText, toZoneText, 
                                 fromType, toType, fromDescription, toDescription,
-                                0, 0, addResponse.mapping_id
+                                0, 0, addResponse.mapping_id, fromZoneItems, toZoneItems
                             );
                             showSuccessToast("Mapping added successfully");
                         },
@@ -3213,40 +5980,67 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId) {
-            // Create new row with zone badges, tooltips, and mapping ID
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
+            fromZoneItems = fromZoneItems || [];
+            toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
+            const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
+            const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
+            const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
+            const toSpan = toItemsAttr ? '<span class="zone-cell-hover"' + toItemsAttr + '>' + toZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(toDescription) + '">' + toZoneText + '</span>';
+            const existingById = mappingId ? $('#mappingsTableBody').find('tr[data-mapping-id="' + String(mappingId) + '"]') : $();
+            const existingByPair = $('#mappingsTableBody').find('tr[data-from="' + String(fromZone) + '"][data-to="' + String(toZone) + '"][data-from-type="' + String(fromType) + '"][data-to-type="' + String(toType) + '"]');
             const newRow = `
                 <tr data-from="${fromZone}" data-to="${toZone}" data-from-type="${fromType}" data-to-type="${toType}" data-mapping-id="${mappingId}">
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(fromDescription)}">${fromZoneText}</span>
+                            ${fromSpan}
                         </div>
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
                             <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                            <span data-bs-toggle="tooltip" title="${escapeHtml(toDescription)}">${toZoneText}</span>
+                            ${toSpan}
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>
             `;
             
-            // Add to table
-            $('#mappingsTableBody').append(newRow);
+            // Replace existing row (avoid duplicate mapping_id / pair)
+            if (existingById.length) {
+                existingById.first().replaceWith(newRow);
+            } else if (existingByPair.length) {
+                existingByPair.first().replaceWith(newRow);
+            } else {
+                $('#mappingsTableBody').append(newRow);
+            }
             
             // Initialize tooltips on the new row
             $('[data-bs-toggle="tooltip"]').tooltip();
@@ -3429,38 +6223,86 @@ $(document).ready(function() {
         // Initialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
         
-        // Update existing mappings in the table to use the new UI style
+        // Update existing mappings - preserve zone-cell-hover (server-rendered), only fix delete button
         $('#mappingsTableBody tr').each(function() {
-            const fromType = $(this).data('from-type');
-            const toType = $(this).data('to-type');
             const mappingId = $(this).data('mapping-id');
-            
-            // Update first cell (from zone)
-            const fromCell = $(this).find('td:first');
-            const fromText = fromCell.text().trim();
-            fromCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(fromType)} me-2">${fromType}</span>
-                    <span>${fromText}</span>
-                </div>
-            `);
-            
-            // Update second cell (to zone)
-            const toCell = $(this).find('td:eq(1)');
-            const toText = toCell.text().trim();
-            toCell.html(`
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-${getZoneTypeBadgeColor(toType)} me-2">${toType}</span>
-                    <span>${toText}</span>
-                </div>
-            `);
-            
-            // Update delete button to include mapping ID
             const deleteButton = $(this).find('.remove-mapping');
             if (deleteButton.length && !deleteButton.data('mapping-id')) {
                 deleteButton.attr('data-mapping-id', mappingId);
             }
         });
+        
+        // Zone hover tooltip - compact panel, scroll inside tooltip without scrolling page
+        if (!$('#zoneHoverTooltip').length) $('body').append('<div id="zoneHoverTooltip" class="zone-hover-tooltip"></div>');
+        const $zoneTooltip = $('#zoneHoverTooltip');
+        const defaultImg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect fill="#e9ecef" width="32" height="32"/><text x="50%" y="50%" fill="#adb5bd" text-anchor="middle" dy=".3em" font-size="8">No img</text></svg>');
+        let hideTid = null;
+        let tooltipWheelBound = false;
+        function scheduleHide() {
+            if (hideTid) clearTimeout(hideTid);
+            hideTid = setTimeout(function() {
+                $zoneTooltip.removeClass('show');
+                if (tooltipWheelBound) {
+                    document.removeEventListener('wheel', handleTooltipWheel, { capture: true });
+                    tooltipWheelBound = false;
+                }
+                hideTid = null;
+            }, 300);
+        }
+        function cancelHide() { if (hideTid) { clearTimeout(hideTid); hideTid = null; } }
+        function scrollTooltipBy(delta) {
+            const el = $zoneTooltip[0];
+            if (!el) return;
+            const maxScroll = el.scrollHeight - el.clientHeight;
+            if (maxScroll <= 0) return;
+            el.scrollTop = Math.max(0, Math.min(el.scrollTop + delta, maxScroll));
+        }
+        function handleTooltipWheel(e) {
+            if (!$zoneTooltip.hasClass('show')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY !== undefined ? e.deltaY : (e.wheelDelta ? -e.wheelDelta / 3 : 0);
+            scrollTooltipBy(delta);
+        }
+        function zoneItemsLabel(zoneType) {
+            return zoneType === 'Hotel' ? 'Hotels' : (zoneType === 'Attraction' ? 'Attractions' : (zoneType === 'Restaurant' ? 'Restaurants' : 'Items'));
+        }
+        function buildZoneTooltipHtml(items, zoneType) {
+            const label = zoneItemsLabel(zoneType);
+            const count = (items && items.length) ? items.length : 0;
+            let html = '<div class="tooltip-title"><span class="tooltip-title-text">' + label + ' in this zone</span>';
+            if (count > 0) html += '<span class="tooltip-count">' + count + '</span>';
+            html += '</div>';
+            if (!items || !items.length) {
+                html += '<div class="tooltip-item"><span class="tooltip-item-name text-muted">No ' + label.toLowerCase() + ' assigned</span></div>';
+            } else {
+                items.forEach(function(item) {
+                    const imgSrc = (item.image && (item.image.startsWith('http') || item.image.startsWith('/'))) ? item.image : (item.image ? '{{ url("/") }}/' + String(item.image).replace(/^\/+/, '') : defaultImg);
+                    html += '<div class="tooltip-item"><img class="tooltip-item-img" src="' + imgSrc + '" alt=""><span class="tooltip-item-name">' + escapeHtml(item.name || '') + '</span></div>';
+                });
+                if (count > 4) html += '<div class="tooltip-hint">Scroll for more</div>';
+            }
+            return html;
+        }
+        function showZoneTooltip($el) {
+            cancelHide();
+            let items = $el.attr('data-zone-items');
+            try { items = items ? JSON.parse(items) : []; } catch(x) { items = []; }
+            const zoneType = $el.attr('data-zone-type') || 'Item';
+            $zoneTooltip.html(buildZoneTooltipHtml(items, zoneType)).addClass('show');
+            const rect = $el[0].getBoundingClientRect();
+            const left = Math.max(8, Math.min(rect.left + (rect.width / 2) - 124, window.innerWidth - 256));
+            $zoneTooltip.css({ left: left + 'px', top: (rect.bottom + 4) + 'px' });
+            if (!tooltipWheelBound) {
+                document.addEventListener('wheel', handleTooltipWheel, { capture: true, passive: false });
+                tooltipWheelBound = true;
+            }
+        }
+        $zoneTooltip.on('mouseenter', cancelHide).on('mouseleave', scheduleHide);
+        $(document).on('mouseenter', '.zone-cell-hover, .zone-select-hover-option', function() {
+            showZoneTooltip($(this));
+        });
+        $(document).on('mouseleave', '.zone-cell-hover, .zone-select-hover-option', scheduleHide);
     });
 </script>
 @endif

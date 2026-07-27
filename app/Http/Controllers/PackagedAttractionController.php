@@ -72,8 +72,62 @@ class PackagedAttractionController extends Controller
             $dmc_id = $user_product_head->created_by;
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
         }
+
+        $packagedAttractions = $this->appendListCountryCity($packagedAttractions);
         
         return view('packaged_attractions.list', compact('packagedAttractions'));
+    }
+
+    /**
+     * Set list_country / list_city on each package for the index view.
+     *
+     * @param  \Illuminate\Support\Collection|array<int, PackagedAttraction>  $packagedAttractions
+     * @return \Illuminate\Support\Collection|array<int, PackagedAttraction>
+     */
+    private function appendListCountryCity($packagedAttractions)
+    {
+        if (! $packagedAttractions instanceof \Illuminate\Support\Collection) {
+            $packagedAttractions = collect($packagedAttractions);
+        }
+
+        if ($packagedAttractions->isEmpty()) {
+            return $packagedAttractions;
+        }
+
+        $firstAttractionIds = [];
+        foreach ($packagedAttractions as $package) {
+            $ids = json_decode($package->attractions, true) ?? [];
+            if (! empty($ids[0])) {
+                $firstAttractionIds[] = $ids[0];
+            }
+        }
+
+        $attractionMap = Attraction::whereIn('id', array_unique($firstAttractionIds))
+            ->get()
+            ->keyBy('id');
+
+        return $packagedAttractions->map(function ($package) use ($attractionMap) {
+            $country = trim((string) ($package->country ?? ''));
+            $city = trim((string) ($package->city ?? ''));
+
+            if ($country === '' || $city === '') {
+                $ids = json_decode($package->attractions, true) ?? [];
+                $first = $attractionMap->get($ids[0] ?? null);
+                if ($first) {
+                    if ($country === '') {
+                        $country = trim((string) ($first->country ?? ''));
+                    }
+                    if ($city === '') {
+                        $city = trim((string) ($first->location ?? ''));
+                    }
+                }
+            }
+
+            $package->list_country = $country !== '' ? $country : null;
+            $package->list_city = $city !== '' ? $city : null;
+
+            return $package;
+        });
     }
 
     /**
@@ -105,11 +159,14 @@ class PackagedAttractionController extends Controller
             $attractions = Attraction::where('is_active', 1)
             ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
             ->get();
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $dmcCountry = $dmcUser?->country ?? $dmcUser?->user_country ?? null;
         }
         else{
             $attractions = Attraction::where('is_active', 1)->get();
+            $dmcCountry = null;
         }
-        return view('packaged_attractions.create', compact('attractions'));
+        return view('packaged_attractions.create', compact('attractions', 'dmcCountry'));
     }
 
     /**
@@ -158,12 +215,12 @@ class PackagedAttractionController extends Controller
                 $dmc_id = $user_product_head_dmc->userId;
             }
             // Generate unique package ID
-            $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
-            $package_max_id = $lastPackage->package_attraction_id ?? 0;
-            $packageId = CommonHelper::createId($package_max_id);
-            while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
-                $packageId = CommonHelper::createId($packageId);
-            }
+            // $lastPackage = PackagedAttraction::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $package_max_id = $lastPackage->package_attraction_id ?? 0;
+            // $packageId = CommonHelper::createId($package_max_id);
+            // while (PackagedAttraction::where('package_attraction_id', $packageId)->exists()) {
+            //     $packageId = CommonHelper::createId($packageId);
+            // }
             
             
             // Process images - keep existing images and add new ones
@@ -187,17 +244,24 @@ class PackagedAttractionController extends Controller
             // Create packaged attraction
             $packagedAttraction = PackagedAttraction::create([
                 'name' => $request->package_attraction_name,
-                'package_attraction_id' => $packageId,
+                'country' => $request->country,
+                'city' => $request->city,
+                // 'package_attraction_id' => $packageId,
                 'attractions' => json_encode($request->attractions),
                 'senior_citizen_price' => $request->senior_citizen_price,
                 'adult_price' => $request->adult_price,
                 'child_price' => $request->child_price,
+                'vehicle_included' => $request->boolean('vehicle_included'),
+                'guide_included' => $request->boolean('guide_included'),
                 'description' => $request->description,
                 'image' => !empty($allImages) ? json_encode($allImages) : null,
                 'dmc_id' => $dmc_id,
                 'status' => $request->status ?? 1,
                 'created_by' => auth()->user()->userId,
             ]);
+
+            $packagedAttraction->refresh();
+            $packageAttractionId = $packagedAttraction->package_attraction_id;
 
             return redirect()->route('packaged-attractions.index')
                 ->with('success', 'Packaged attraction created successfully.');
@@ -227,8 +291,37 @@ class PackagedAttractionController extends Controller
     {
         $packageAttractionId = Crypt::decrypt($id);
         $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
-        $attractions = Attraction::where('status', 1)->get();
-        return view('packaged_attractions.edit', compact('packagedAttraction', 'attractions'));
+
+        $user = auth()->user();
+        $dmc_id = null;
+        if ($user->role_id == 11 || $user->role_id == 20) {
+            $dmc_id = $user->userId;
+        } elseif ($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138) {
+            $userdmc = User::where('userId', $user->created_by)->first();
+            $dmc_id = $userdmc->userId;
+        } elseif ($user->role_id == 74 || $user->role_id == 139) {
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        } elseif ($user->role_id == 93 || $user->role_id == 140) {
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $dmc_id = $user_product_head_dmc->userId;
+        }
+
+        if ($dmc_id) {
+            $attractions = Attraction::where('is_active', 1)
+                ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
+                ->get();
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $dmcCountry = $dmcUser?->country ?? $dmcUser?->user_country ?? null;
+        } else {
+            $attractions = Attraction::where('is_active', 1)->get();
+            $dmcCountry = null;
+        }
+
+        return view('packaged_attractions.edit', compact('packagedAttraction', 'attractions', 'dmcCountry'));
     }
 
     /**
@@ -258,10 +351,14 @@ class PackagedAttractionController extends Controller
             $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
             $updateData = [
                 'name' => $request->package_attraction_name,
+                'country' => $request->country,
+                'city' => $request->city,
                 'attractions' => json_encode($request->attractions),
                 'senior_citizen_price' => $request->senior_citizen_price,
                 'adult_price' => $request->adult_price,
                 'child_price' => $request->child_price,
+                'vehicle_included' => $request->boolean('vehicle_included'),
+                'guide_included' => $request->boolean('guide_included'),
                 'description' => $request->description,
                 'status' => $request->status ?? $packagedAttraction->status,
                 'updated_by' => auth()->user()->userId,

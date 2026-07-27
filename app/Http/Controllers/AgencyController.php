@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\CommonHelper;
 use App\Models\Agency;
 use App\Models\Country;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -67,7 +68,7 @@ class AgencyController extends Controller
             'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
-            'id_card_type' => 'string|max:255',
+            // 'id_card_type' => 'string|max:255',
             'card_number' => 'string|max:50',
             'agency_logo' => 'required|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
@@ -122,7 +123,7 @@ class AgencyController extends Controller
                 'contact_person' => $request->input('contact_person'),
                 'address' => $request->input('address'),
                 'postal_code' => $request->input('postal_code'),
-                'id_card_type' => $request->input('id_card_type'),
+                // 'id_card_type' => $request->input('id_card_type'),
                 'card_number' => $request->input('card_number'),
                 'branches' => $this->normalizeBranches($request->input('branches', [])),
                 'logo' => $logoPath,
@@ -145,17 +146,17 @@ class AgencyController extends Controller
         }
 
         // Generate unique agency_id following the same pattern as AgentController
-        $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
-        $agency_max_id = $lastAgency->agency_id ?? 1;
-        $agencyId = CommonHelper::createId($agency_max_id);
+        // $lastAgency = Agency::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $agency_max_id = $lastAgency->agency_id ?? 1;
+        // $agencyId = CommonHelper::createId($agency_max_id);
         
-        while (Agency::where('agency_id', $agencyId)->exists()) {
-            $agencyId = CommonHelper::createId($agencyId);
-        }
+        // while (Agency::where('agency_id', $agencyId)->exists()) {
+        //     $agencyId = CommonHelper::createId($agencyId);
+        // }
 
         // Create new agency
         $agency = new Agency();
-        $agency->agency_id = $agencyId;
+        // $agency->agency_id = $agencyId;
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
@@ -165,17 +166,18 @@ class AgencyController extends Controller
         $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
-        $agency->id_card_type = $request->input('id_card_type');
+        // $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
         $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->logo = $logoPath;
         $agency->created_by = Auth::user()->userId;
         $agency->dmc_id = is_array($dmc_id) ? $dmc_id : [$dmc_id];
-
-        if ($agency->save()) {
+        $isSaved = $agency->save();
+        $agency->refresh();
+        if ($isSaved) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
         }
-        return redirect()->back()->with('error', 'Failed to create agency. Please try again.');
+        return redirect()->back()->withInput()->with('error', 'Failed to create agency. Please try again.');
     }
 
     /**
@@ -214,7 +216,7 @@ class AgencyController extends Controller
             'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
-            'id_card_type' => 'string|max:255',
+            // 'id_card_type' => 'string|max:255',
             'card_number' => 'string|max:50',
             'agency_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
@@ -254,7 +256,7 @@ class AgencyController extends Controller
         $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
-        $agency->id_card_type = $request->input('id_card_type');
+        // $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
         $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->updated_by = Auth::user()->userId;
@@ -441,7 +443,13 @@ class AgencyController extends Controller
             return !$agency->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.agencies', compact('availableAgencies', 'selectedAgencies'));
+        $salesDmcUsers = $this->getSalesDmcUsers($dmc_id);
+
+        return view('services.agencies', compact(
+            'availableAgencies',
+            'selectedAgencies',
+            'salesDmcUsers'
+        ));
     }
 
     /**
@@ -452,6 +460,7 @@ class AgencyController extends Controller
     {
         try {
             $agencyId = $request->input('agency_id');
+            $salesUserId = $request->input('sales_user_id');
             $user = Auth::user();
 
             $allowedRoles = [11,33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138, 128, 129, 134];
@@ -470,8 +479,30 @@ class AgencyController extends Controller
                     'message' => $e->getMessage()
                 ], 403);
             }
-            
-            
+
+            $validator = Validator::make($request->all(), [
+                'agency_id' => 'required|integer',
+                'sales_user_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $salesUser = $this->getSalesDmcUsers($dmc_id)
+                ->firstWhere('userId', (int) $salesUserId);
+
+            if (!$salesUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The selected sales user does not belong to this DMC.',
+                ], 422);
+            }
+
             // Find the agency
             $agency = Agency::where('agency_id', $agencyId)->first();
             if (!$agency) {
@@ -498,6 +529,9 @@ class AgencyController extends Controller
             
             // Add the DMC ID to the agency's dmc_id array
             $agency->addDmcId($dmc_id);
+
+            // Store this DMC's assigned sales user as { dmcId: userId }.
+            $agency->setSalesDmcUser($dmc_id, $salesUser->userId);
             
             // Send appropriate email based on whether this is first DMC or not
             try {
@@ -552,7 +586,10 @@ class AgencyController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Agency selected successfully!',
-                'email_sent' => isset($emailResult) && $emailResult === true
+                'email_sent' => isset($emailResult) && $emailResult === true,
+                'sales_dmc' => [
+                    (string) $dmc_id => (int) $salesUser->userId,
+                ],
             ]);
             
         } catch (\Exception $e) {
@@ -623,6 +660,48 @@ class AgencyController extends Controller
                 'message' => 'An error occurred while removing the agency.'
             ], 500);
         }
+    }
+
+    /**
+     * Return sales users in the hierarchy rooted at the given DMC.
+     */
+    private function getSalesDmcUsers($dmcId)
+    {
+        if (empty($dmcId) || is_array($dmcId)) {
+            return collect();
+        }
+
+        $salesRoleIds = [33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+        $frontier = collect([(int) $dmcId]);
+        $visited = collect([(int) $dmcId]);
+        $salesUsers = collect();
+
+        // Walk the users.created_by hierarchy so managers nested below heads
+        // are included, not only users created directly by the DMC.
+        while ($frontier->isNotEmpty()) {
+            $levelUsers = User::whereIn('created_by', $frontier->all())
+                ->whereIn('role_id', $salesRoleIds)
+                ->select('userId', 'name', 'role_id', 'created_by')
+                ->orderBy('name')
+                ->get();
+
+            $newUsers = $levelUsers->reject(function ($user) use ($visited) {
+                return $visited->contains((int) $user->userId);
+            });
+
+            if ($newUsers->isEmpty()) {
+                break;
+            }
+
+            $salesUsers = $salesUsers->concat($newUsers);
+            $frontier = $newUsers->pluck('userId')->map(fn ($id) => (int) $id);
+            $visited = $visited->merge($frontier)->unique();
+        }
+
+        return $salesUsers
+            ->unique('userId')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
     }
 
     public function getDmcIdByUserRole()

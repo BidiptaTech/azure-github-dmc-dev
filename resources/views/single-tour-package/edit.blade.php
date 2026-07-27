@@ -1,5 +1,9 @@
 @extends('layouts.layout')
 @section('content')
+<!-- SweetAlert2 for remove service confirmation -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('single-tour-package.partials.remove-service-alert-js')
     @php
         // Get current user information
         $currentUser = auth()->user();
@@ -68,9 +72,11 @@
         } elseif ($currentUserRole == 125) { // AOM (Assistant Operation Manager)
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
+        $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>window.hasNegotiationHistory = @json($hasNegotiationHistory);</script>
     
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
@@ -9816,18 +9822,15 @@
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
         
-        if (confirm(`Are you sure you want to remove this ${serviceType} service?`)) {
+        showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
             
-            // Get CSRF token
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             if (!csrfToken) {
                 console.error('CSRF token not found');
                 showNotification('CSRF token not found. Please refresh the page.', 'error');
                 return;
             }
-            
-            console.log('CSRF Token:', csrfToken);
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             
@@ -9838,13 +9841,8 @@
                     'X-CSRF-TOKEN': csrfToken
                 }
             })
-            .then(response => {
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Response data:', data);
                 if (data.success) {
                     showNotification(`${serviceType} service removed successfully`, 'success');
                     setTimeout(() => location.reload(), 1500);
@@ -9856,7 +9854,7 @@
                 console.error(`Error removing ${serviceType} service:`, error);
                 showNotification(`Error removing ${serviceType} service: ${error.message}`, 'error');
             });
-        }
+        }, window.hasNegotiationHistory);
     }
     
     // Initialize page functionality

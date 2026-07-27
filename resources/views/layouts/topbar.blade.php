@@ -2,11 +2,6 @@
 <div class="layout-page">
 <!-- Navbar -->
 <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
-      <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0   d-xl-none ">
-        <a class="nav-item nav-link px-0 me-xl-6" href="javascript:void(0)">
-          <i class="ri-menu-fill ri-22px"></i>
-        </a>
-      </div>
       <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
         <!-- Search -->
         {{-- <div class="navbar-nav align-items-center">
@@ -27,15 +22,71 @@
                      style="padding: 8px 12px; border-radius: 12px; transition: all 0.3s ease; border: 1px solid transparent;">
                       
                       <!-- User Avatar with Status Indicator -->
+                     @php
+                         $currentUser = Auth::user();
+ 
+                         // 1) Employee profile image (highest priority)
+                         $employeeAvatarRaw = $currentUser?->profile_image ?: null;
+ 
+                         // 2) Company branding logo (same hierarchical logic as sidebar)
+                         $brandUser = $currentUser;
+                         if ($currentUser) {
+                             $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+                             if (!empty($dmcId)) {
+                                 $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
+                                 if ($dmcUser) {
+                                     $brandUser = $dmcUser;
+                                 }
+                             }
+                         }
+ 
+                         $masterLogo = \App\Helpers\CommonHelper::masterSettingsName('logo')['master_value'] ?? '';
+                         $companyLogoRaw = trim((string) ($brandUser->logo ?? ''));
+                         if ($companyLogoRaw === '') {
+                             $companyLogoRaw = trim((string) $masterLogo);
+                         }
+ 
+                         // 3) Random default avatar from: public/assets/img/avatars (png)
+ 
+                         // Random default avatar from: public/assets/img/avatars
+                         $avatarDir = public_path('assets/img/avatars');
+                         $avatarFiles = \Illuminate\Support\Facades\File::exists($avatarDir)
+                             ? collect(\Illuminate\Support\Facades\File::files($avatarDir))
+                                 ->filter(fn ($f) => strtolower($f->getExtension()) === 'png')
+                                 ->values()
+                             : collect();
+ 
+                         $avatarCacheBust = \Illuminate\Support\Str::random(10);
+                         $randomDefaultAvatarSrc = $avatarFiles->isNotEmpty()
+                             ? (asset('assets/img/avatars/' . $avatarFiles->random()->getFilename()) . '?r=' . $avatarCacheBust)
+                             : asset('assets/images/users/avatar-1.jpg');
+ 
+                         $toSrc = function (?string $raw): ?string {
+                             $raw = $raw !== null ? trim($raw) : '';
+                             if ($raw === '') {
+                                 return null;
+                             }
+                             return \Illuminate\Support\Str::startsWith($raw, ['http://', 'https://', 'data:image/'])
+                                 ? $raw
+                                 : asset(ltrim($raw, '/'));
+                         };
+ 
+                         $employeeAvatarSrc = $toSrc($employeeAvatarRaw);
+                         $companyLogoSrc = $toSrc($companyLogoRaw);
+ 
+                         // Final: employee avatar -> company logo -> random avatar
+                         $userAvatarSrc = $employeeAvatarSrc ?: ($companyLogoSrc ?: $randomDefaultAvatarSrc);
+                     @endphp
                       <div class="position-relative me-3">
-                          <img src="{{ env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                         <img src="{{ $userAvatarSrc }}" 
                                width="42" height="42" 
                                class="rounded-circle shadow-sm border border-2 border-primary" 
                                alt="user-image"
-                               style="object-fit: cover;">
+                               style="object-fit: contain; object-position: center; background-color: #ffffff; transform: scale(1.12);">
                           <!-- Online Status Indicator -->
                           <div class="position-absolute bottom-0 end-0 bg-success rounded-circle border border-2 border-white" 
-                               style="width: 12px; height: 12px;"></div>
+                               style="width: 12px; height: 12px;">
+                            </div>
                       </div>
                       
                       <!-- User Info -->
@@ -69,14 +120,14 @@
                       <!-- User Profile Header -->
                       <div class="bg-gradient-primary text-white p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                           <div class="d-flex align-items-center">
-                              <img src="{{ env('APP_URL') . '/assets/images/users/avatar-1.jpg' }}" 
+                              <img src="{{ $userAvatarSrc }}" 
                                    width="60" height="60" 
-                                   class="rounded-circle shadow border border-3 border-white me-3" 
+                                   class="rounded-circle shadow border border-2 border-white me-3" 
                                    alt="user-image"
-                                   style="object-fit: cover;">
+                                   style="object-fit: contain; object-position: center; background-color: #ffffff; transform: scale(1.12);">
                               <div class="flex-grow-1">
                                   <h6 class="mb-1 fw-bold">{{ Auth::user()->name }}</h6>
-                                  <p class="mb-1 opacity-75" style="font-size: 0.9rem;">
+                                  <p class="mb-1 opacity-75" style="font-size: 0.85rem; line-height: 1.2;">
                                       {{ Auth::user()->company_name ?? 'No Company' }}
                                   </p>
                                   <small class="opacity-75">
@@ -137,28 +188,41 @@
                               </div>
                           </div> --}}
 
-                          <!-- Back to Admin Button -->
+                          <!-- Back to Admin & Profile -->
                           @if(session()->has('login_stack') && count(session('login_stack')) > 0)
-                          <div class="mb-3">
+                          <div class="mb-3 row g-2">
+                            <div class="col-12">
                               <a href="{{ route('admin.revertPreviousUser') }}" 
-                                 class="dropdown-item d-flex align-items-center justify-content-center gap-2 p-3 rounded-3 border border-primary text-primary" 
-                                 style="transition: all 0.3s ease;">
-                                  <i class="ri-arrow-go-back-line"></i>
-                                  <span class="fw-semibold">Back to Previous User</span>
+                                 class="topbar-action-btn topbar-action-btn-outline d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
+                                  <i class="ri-arrow-go-back-line" style="font-size: 1.1rem;"></i>
+                                  <span class="fw-semibold small">Switch Back</span>
                               </a>
+                            </div>
+                            
                           </div>
                           @endif
 
                           <!-- Sign Out Button -->
-                          <form method="POST" action="{{ route('logout') }}" class="d-block">
-                              @csrf
-                              <button type="submit" 
-                                      class="dropdown-item btn btn-danger d-flex align-items-center justify-content-center gap-2 w-100 p-3 rounded-3" 
-                                      style="transition: all 0.3s ease;">
-                                  <i class="ri-logout-box-r-line"></i>
-                                  <span class="fw-semibold">Sign Out</span>
-                              </button>
-                          </form>
+                          <div class="mb-3 row g-2">
+                            <div class="col-6">
+                              <a href="{{ route('user.profile') }}" 
+                                 class="topbar-action-btn topbar-action-btn-primary d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none">
+                                  <i class="ri-user-line" style="font-size: 1.1rem;"></i>
+                                  <span class="fw-semibold small">Profile</span>
+                              </a>
+                            </div>
+                          <div class="col-6">
+                            <form method="POST" action="{{ route('logout') }}" class="d-block">
+                                @csrf
+                                <button type="submit" 
+                                        class="topbar-action-btn btn-danger d-flex align-items-center justify-content-center gap-2 w-100 py-2 px-3 rounded-3 text-decoration-none" 
+                                        style="transition: all 0.3s ease;">
+                                    <i class="ri-logout-box-r-line"></i>
+                                    <span class="fw-semibold small">Sign Out</span>
+                                </button>
+                            </form>
+                          </div>
+                          </div>
                       </div>
                   </div>
               </div>
@@ -182,6 +246,35 @@
 
 .dropdown-item:hover {
     background-color: rgba(0,0,0,0.05) !important;
+    transform: translateY(-1px);
+}
+
+/* Topbar action buttons (Back to Previous User / Profile) */
+.topbar-action-btn {
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+}
+.topbar-action-btn-outline {
+    color: #5a67d8;
+    background-color: rgba(90, 103, 216, 0.08);
+    border-color: rgba(90, 103, 216, 0.35);
+}
+.topbar-action-btn-outline:hover {
+    color: #434190;
+    background-color: rgba(90, 103, 216, 0.14);
+    border-color: #5a67d8;
+    box-shadow: 0 2px 8px rgba(90, 103, 216, 0.2);
+    transform: translateY(-1px);
+}
+.topbar-action-btn-primary {
+    color: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+}
+.topbar-action-btn-primary:hover {
+    color: #fff;
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     transform: translateY(-1px);
 }
 

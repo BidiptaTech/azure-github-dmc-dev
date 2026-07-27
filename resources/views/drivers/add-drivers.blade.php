@@ -1060,8 +1060,8 @@ $(document).ready(function() {
     // Get the user's role ID
     var userRoleId = {{ auth()->user()->role_id }};
     
-    // Get the current user's country if they are a DMC
-    var userCountry = "{{ auth()->user()->role_id == 11 ? auth()->user()->country : '' }}";
+    // Country/city can be preloaded by controller for several roles
+    var userCountry = @json($userCountry ?? '');
     var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
     
     // Initialize Select2 for city (disabled until country is selected)

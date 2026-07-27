@@ -29,11 +29,10 @@
         </div>
 
         <!-- Selected Restaurants Section -->
-        @if(isset($selectedRestaurants) && count($selectedRestaurants) > 0)
-        <div class="card mb-4" id="selectedRestaurantsSection">
+        <div class="card mb-4 {{ (!isset($selectedRestaurants) || count($selectedRestaurants) === 0) ? 'd-none' : '' }}" id="selectedRestaurantsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Selected Restaurants ({{ count($selectedRestaurants) }})</h5>
+                    <h5 class="mb-0" id="selectedRestaurantsTitle">Selected Restaurants ({{ isset($selectedRestaurants) ? count($selectedRestaurants) : 0 }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -63,7 +62,7 @@
                             </tr>
                         </thead>
                         <tbody id="selectedRestaurantsBody">
-                            @foreach($selectedRestaurants as $restaurant)
+                            @foreach(($selectedRestaurants ?? []) as $restaurant)
                                 <tr class="selected-restaurant-row" data-restaurant-id="{{ $restaurant->restaurant_id }}" data-name="{{ strtolower($restaurant->name) }}" data-location="{{ strtolower($restaurant->city) }}, {{ strtolower($restaurant->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -113,7 +112,6 @@
                 </div>
             </div>
         </div>
-        @endif
 
         <!-- Available Restaurants Section -->
         <div class="card">
@@ -126,6 +124,7 @@
             </div>
             
             <div class="card-body">
+                <div id="availableRestaurantsAlerts"></div>
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         {{ session('success') }}
@@ -163,7 +162,18 @@
                 <div class="row" id="restaurantsContainer">
                     @if(isset($availableRestaurants) && count($availableRestaurants) > 0)
                         @foreach($availableRestaurants as $restaurant)
-                            <div class="col-lg-3 col-md-6 mb-3 restaurant-item" data-restaurant-name="{{ strtolower($restaurant->name) }}" data-country="{{ strtolower($restaurant->country) }}" data-city="{{ strtolower($restaurant->city) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 restaurant-item"
+                                 data-restaurant-id="{{ $restaurant->restaurant_id }}"
+                                 data-restaurant-id-encrypted="{{ Crypt::encrypt($restaurant->restaurant_id) }}"
+                                 data-display-name="{{ $restaurant->name }}"
+                                 data-master-image="{{ $restaurant->master_image }}"
+                                 data-display-city="{{ $restaurant->city }}"
+                                 data-display-country="{{ $restaurant->country }}"
+                                 data-cuisine="{{ $restaurant->cuisine }}"
+                                 data-edit-url="{{ route('restaurant.edit', Crypt::encrypt($restaurant->restaurant_id)) }}"
+                                 data-restaurant-name="{{ strtolower($restaurant->name) }}"
+                                 data-country="{{ strtolower($restaurant->country) }}"
+                                 data-city="{{ strtolower($restaurant->city) }}">
                                 <div class="card h-100 restaurant-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -312,6 +322,92 @@
 <script>
 let currentRestaurantId = null;
 const defaultRestaurantCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+const csrfToken = '{{ csrf_token() }}';
+let selectedRestaurantsPaginator = null;
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function resetRestaurantButton(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.remove('d-none');
+    if (btnLoader) btnLoader.classList.add('d-none');
+    btn.disabled = false;
+}
+
+function setRestaurantButtonLoading(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.add('d-none');
+    if (btnLoader) btnLoader.classList.remove('d-none');
+    btn.disabled = true;
+}
+
+function updateSelectedRestaurantCount() {
+    const count = document.querySelectorAll('#selectedRestaurantsBody .selected-restaurant-row').length;
+    const title = document.getElementById('selectedRestaurantsTitle');
+    const section = document.getElementById('selectedRestaurantsSection');
+    if (title) title.textContent = `Selected Restaurants (${count})`;
+    if (section) section.classList.toggle('d-none', count === 0);
+}
+
+function buildSelectedRestaurantRowFromItem(item) {
+    const restaurantId = item.getAttribute('data-restaurant-id');
+    const name = item.getAttribute('data-display-name') || '';
+    const city = item.getAttribute('data-display-city') || '';
+    const country = item.getAttribute('data-display-country') || '';
+    const cuisine = item.getAttribute('data-cuisine') || '';
+    const masterImage = item.getAttribute('data-master-image') || '';
+    const editUrl = item.getAttribute('data-edit-url') || '#';
+    const cuisineLabel = cuisine ? escapeHtml(cuisine) : 'Various';
+    const imageHtml = masterImage
+        ? `<img src="${escapeHtml(masterImage)}" alt="${escapeHtml(name)}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">`
+        : `<div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="ri-restaurant-2-line text-muted"></i></div>`;
+
+    const row = document.createElement('tr');
+    row.className = 'selected-restaurant-row';
+    row.setAttribute('data-restaurant-id', restaurantId);
+    row.setAttribute('data-name', name.toLowerCase());
+    row.setAttribute('data-location', `${city}, ${country}`.toLowerCase());
+    row.innerHTML = `
+        <td><div class="d-flex align-items-center">${imageHtml}<div><strong>${escapeHtml(name)}</strong></div></div></td>
+        <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
+        <td><span class="badge bg-label-info">${cuisineLabel}</span></td>
+        <td>
+            <div class="btn-group" role="group">
+                <a href="${editUrl}" class="btn btn-sm btn-outline-primary"><i class="ri-edit-line me-1"></i>Edit</a>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-restaurant-btn"
+                        data-restaurant-id="${escapeHtml(restaurantId)}" data-restaurant-name="${escapeHtml(name)}">
+                    <i class="ri-delete-bin-line me-1"></i>Remove
+                </button>
+            </div>
+        </td>`;
+    return row;
+}
+
+function addRestaurantToSelectedTable(item) {
+    const restaurantId = item.getAttribute('data-restaurant-id');
+    if (document.querySelector(`#selectedRestaurantsBody .selected-restaurant-row[data-restaurant-id="${restaurantId}"]`)) return;
+    const tbody = document.getElementById('selectedRestaurantsBody');
+    if (!tbody) return;
+    tbody.insertBefore(buildSelectedRestaurantRowFromItem(item), tbody.firstChild);
+    item.classList.add('restaurant-selected');
+}
+
+function removeRestaurantFromSelectedTable(restaurantId) {
+    const row = document.querySelector(`#selectedRestaurantsBody .selected-restaurant-row[data-restaurant-id="${restaurantId}"]`);
+    if (row) row.remove();
+}
+
+function refreshSelectedRestaurantPagination() {
+    if (selectedRestaurantsPaginator) selectedRestaurantsPaginator.refresh(1);
+}
 
 function selectAll() {
     document.querySelectorAll('.select-restaurant-btn').forEach(button => {
@@ -337,6 +433,11 @@ function applyRestaurantFilters() {
     let visibleCount = 0;
 
     items.forEach(item => {
+        if (item.classList.contains('restaurant-selected')) {
+            item.style.display = 'none';
+            return;
+        }
+
         const name = item.getAttribute('data-restaurant-name') || '';
         const country = item.getAttribute('data-country') || '';
         const city = item.getAttribute('data-city') || '';
@@ -398,7 +499,73 @@ function onRestaurantCountryChange() {
     applyRestaurantFilters();
 }
 
-// Document ready
+function selectRestaurant(encryptedRestaurantId, restaurantName, buttonEl) {
+    fetch('{{ route('services.restaurants.select') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ restaurant_id: encryptedRestaurantId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const item = buttonEl ? buttonEl.closest('.restaurant-item') : null;
+            if (item) {
+                addRestaurantToSelectedTable(item);
+                item.style.display = 'none';
+            }
+            updateSelectedRestaurantCount();
+            refreshSelectedRestaurantPagination();
+            applyRestaurantFilters();
+            showAlert('success', data.message || `${restaurantName} has been selected successfully!`);
+        } else {
+            resetRestaurantButton(buttonEl);
+            showAlert('error', data.message || 'An error occurred while selecting the restaurant.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resetRestaurantButton(buttonEl);
+        showAlert('error', 'An error occurred while selecting the restaurant.');
+    });
+}
+
+function removeRestaurant(restaurantId, restaurantName) {
+    fetch('{{ route('services.restaurants.remove') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ restaurant_id: restaurantId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            removeRestaurantFromSelectedTable(restaurantId);
+            const item = document.querySelector(`.restaurant-item[data-restaurant-id="${restaurantId}"]`);
+            if (item) {
+                item.classList.remove('restaurant-selected');
+                resetRestaurantButton(item.querySelector('.select-restaurant-btn'));
+            }
+            updateSelectedRestaurantCount();
+            refreshSelectedRestaurantPagination();
+            applyRestaurantFilters();
+            showAlert('success', data.message || `${restaurantName} has been removed successfully!`);
+        } else {
+            showAlert('error', data.message || 'An error occurred while removing the restaurant.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred while removing the restaurant.');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -406,145 +573,78 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Restaurant selection functionality
     document.querySelectorAll('.select-restaurant-btn').forEach(button => {
         button.addEventListener('click', function() {
-            const restaurantId = this.getAttribute('data-restaurant-id');
-            const restaurantName = this.getAttribute('data-restaurant-name');
-            try { localStorage.setItem('last_selected_restaurant_id', String(restaurantId)); } catch (e) {}
-            
-            // Show loading state
-            const btnText = this.querySelector('.btn-text');
-            const btnLoader = this.querySelector('.btn-loader');
-            btnText.classList.add('d-none');
-            btnLoader.classList.remove('d-none');
-            this.disabled = true;
-            
-            // Make AJAX request
-            fetch('{{ route('services.restaurants.select') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    restaurant_id: restaurantId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showAlert('success', data.message);
-                    // Reload page after short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showAlert('error', data.message);
-                    // Reset button state
-                    btnText.classList.remove('d-none');
-                    btnLoader.classList.add('d-none');
-                    this.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('error', 'An error occurred while selecting the restaurant.');
-                // Reset button state
-                btnText.classList.remove('d-none');
-                btnLoader.classList.add('d-none');
-                this.disabled = false;
-            });
+            if (this.disabled) return;
+            setRestaurantButtonLoading(this);
+            selectRestaurant(this.getAttribute('data-restaurant-id'), this.getAttribute('data-restaurant-name'), this);
         });
     });
 
-    // Restaurant removal functionality
-    document.querySelectorAll('.remove-restaurant-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            currentRestaurantId = this.getAttribute('data-restaurant-id');
-            const restaurantName = this.getAttribute('data-restaurant-name');
-            
-            document.getElementById('removeRestaurantName').textContent = restaurantName;
-            
-            const modal = new bootstrap.Modal(document.getElementById('removeRestaurantModal'));
-            modal.show();
-        });
+    document.addEventListener('click', function(event) {
+        const removeBtn = event.target.closest('.remove-restaurant-btn');
+        if (!removeBtn || !document.getElementById('selectedRestaurantsBody')?.contains(removeBtn)) return;
+        currentRestaurantId = removeBtn.getAttribute('data-restaurant-id');
+        document.getElementById('removeRestaurantName').textContent = removeBtn.getAttribute('data-restaurant-name');
+        new bootstrap.Modal(document.getElementById('removeRestaurantModal')).show();
     });
 
-    // Confirm removal
     document.getElementById('confirmRemoveRestaurant').addEventListener('click', function() {
         if (!currentRestaurantId) return;
-        
-        // Make AJAX request
-        fetch('{{ route('services.restaurants.remove') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                restaurant_id: currentRestaurantId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Hide modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('removeRestaurantModal'));
-                modal.hide();
-                
-                // Show success message
-                showAlert('success', data.message);
-                
-                // Reload page after short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showAlert('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('error', 'An error occurred while removing the restaurant.');
-        });
+        const restaurantName = document.getElementById('removeRestaurantName').textContent;
+        removeRestaurant(currentRestaurantId, restaurantName);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('removeRestaurantModal'));
+        if (modal) modal.hide();
     });
     // Populate country dropdown
     const countrySelect = document.getElementById('restaurantCountrySelect');
     const items = document.querySelectorAll('.restaurant-item');
+    const allowedCountriesFromServer = @json($allowedCountries ?? []);
+    const normalizedAllowed = Array.isArray(allowedCountriesFromServer)
+        ? allowedCountriesFromServer
+            .map(c => String(c || '').trim())
+            .filter(Boolean)
+            .map(c => c.toLowerCase())
+        : [];
+
     const countrySet = new Set();
-    items.forEach(item => {
-        const c = item.getAttribute('data-country');
-        if (c) countrySet.add(c);
-    });
+    if (normalizedAllowed.length > 0) {
+        normalizedAllowed.forEach(c => countrySet.add(c));
+    } else {
+        items.forEach(item => {
+            const c = item.getAttribute('data-country');
+            if (c) countrySet.add(c);
+        });
+    }
     Array.from(countrySet).sort().forEach(country => {
         const opt = document.createElement('option');
         opt.value = country;
         opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
         countrySelect.appendChild(opt);
     });
-    if (defaultRestaurantCountry && Array.from(countrySet).includes(defaultRestaurantCountry)) {
+    // Only auto-filter to user's country when there's a single option.
+    // Otherwise show all Master DMC countries by default.
+    if (defaultRestaurantCountry && countrySet.size === 1 && Array.from(countrySet).includes(defaultRestaurantCountry)) {
         countrySelect.value = defaultRestaurantCountry;
         onRestaurantCountryChange();
+    } else {
+        applyRestaurantFilters();
     }
 
     // Selected Restaurants: client-side pagination + search
     const selectedBody = document.getElementById('selectedRestaurantsBody');
     if (selectedBody) {
-        const rows = Array.from(selectedBody.querySelectorAll('.selected-restaurant-row'));
         const pagination = document.getElementById('selectedRestaurantsPagination');
         const searchInput = document.getElementById('selectedRestaurantSearch');
         const pageSizeSelect = document.getElementById('selectedRestaurantPageSize');
 
         function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+        function getAllRows() { return Array.from(selectedBody.querySelectorAll('.selected-restaurant-row')); }
         function getFilteredRows() {
             const term = (searchInput.value || '').toLowerCase();
-            return rows.filter(r => {
+            return getAllRows().filter(r => {
                 if (!term) return true;
-                const name = r.getAttribute('data-name') || '';
-                const loc = r.getAttribute('data-location') || '';
-                return name.includes(term) || loc.includes(term);
+                return (r.getAttribute('data-name') || '').includes(term) || (r.getAttribute('data-location') || '').includes(term);
             });
         }
         function renderPagination(total, page, pageSize) {
@@ -562,8 +662,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return li;
             };
             pagination.appendChild(createItem('«', Math.max(1, page-1), page===1));
-            for (let i = 1; i <= Math.max(1, Math.ceil(total / pageSize)); i++) pagination.appendChild(createItem(String(i), i, false, i===page));
-            pagination.appendChild(createItem('»', Math.min(Math.max(1, Math.ceil(total / pageSize)), page+1), page===Math.max(1, Math.ceil(total / pageSize))));
+            for (let i = 1; i <= totalPages; i++) pagination.appendChild(createItem(String(i), i, false, i===page));
+            pagination.appendChild(createItem('»', Math.min(totalPages, page+1), page===totalPages));
         }
         function render(page=1) {
             const pageSize = getPageSize();
@@ -573,18 +673,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const safePage = Math.min(Math.max(1, page), totalPages);
             const start = (safePage - 1) * pageSize;
             const end = start + pageSize;
-            rows.forEach(r => r.classList.add('d-none'));
+            getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
             renderPagination(total, safePage, pageSize);
         }
-        try {
-            const lastId = localStorage.getItem('last_selected_restaurant_id');
-            if (lastId) {
-                const row = rows.find(r => String(r.getAttribute('data-restaurant-id')) === String(lastId));
-                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
-                localStorage.removeItem('last_selected_restaurant_id');
-            }
-        } catch (e) {}
+        selectedRestaurantsPaginator = { refresh(page = 1) { render(page); } };
         render(1);
         searchInput.addEventListener('input', () => render(1));
         pageSizeSelect.addEventListener('change', () => render(1));
@@ -593,24 +686,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showAlert(type, message) {
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-    const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    // Insert at the top of the card body
-    const cardBody = document.querySelector('.card-body');
-    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        const alert = cardBody.querySelector('.alert');
-        if (alert) {
-            alert.remove();
-        }
-    }, 5000);
+    const alertHtml = `<div class="alert ${alertClass} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    const alertContainer = document.getElementById('availableRestaurantsAlerts');
+    if (!alertContainer) return;
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    setTimeout(() => { const alert = alertContainer.querySelector('.alert'); if (alert) alert.remove(); }, 5000);
 }
 </script>
 @endsection 

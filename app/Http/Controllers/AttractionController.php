@@ -17,6 +17,7 @@ use App\Helpers\CommonHelper;
 use App\Models\Country;
 use App\Models\City;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class AttractionController extends Controller
 {
@@ -315,6 +316,7 @@ class AttractionController extends Controller
                 'afternoon_opening' => 'required',
                 'night_opening' => 'required',
                 'evening_opening' => 'required',
+                'attraction_type' => 'required|integer|in:1,2',
             ], [
                 // Custom error messages for each field
                 'name.required' => 'The attraction name is required',
@@ -342,6 +344,9 @@ class AttractionController extends Controller
                 'afternoon_opening.required' => 'Afternoon opening status is required',
                 'night_opening.required' => 'Night opening status is required',
                 'evening_opening.required' => 'Evening opening status is required',
+                'attraction_type.required' => 'Type of attraction is required',
+                'attraction_type.integer' => 'Type of attraction data type mismatch',
+                'attraction_type.in' => 'Type of attraction value mismatch',
             ]);
         // } catch (\Illuminate\Validation\ValidationException $e) {
         //     return redirect()
@@ -351,12 +356,12 @@ class AttractionController extends Controller
         // }
 
         $auth_user = Auth::user();
-        $lastAttraction = Attraction::withTrashed()->orderBy('created_at', 'desc')->first();
-        $attraction_max_id = $lastAttraction->attraction_id ?? 0;
-        $attractionId = CommonHelper::createId($attraction_max_id);
-        while (Attraction::where('attraction_id', $attractionId)->exists()) {
-            $attractionId = CommonHelper::createId($attractionId);
-        }
+        // $lastAttraction = Attraction::withTrashed()->orderBy('created_at', 'desc')->first();
+        // $attraction_max_id = $lastAttraction->attraction_id ?? 0;
+        // $attractionId = CommonHelper::createId($attraction_max_id);
+        // while (Attraction::where('attraction_id', $attractionId)->exists()) {
+        //     $attractionId = CommonHelper::createId($attractionId);
+        // }
 
         $imagePaths = [];
         if ($request->hasFile('all_images')) {
@@ -436,7 +441,7 @@ class AttractionController extends Controller
         $attraction->description = $request->input('description');
         $attraction->remarks = $request->input('remarks');
         $attraction->terms_conditions = $request->input('terms_conditions');
-        $attraction->attraction_id = $attractionId;
+        // $attraction->attraction_id = $attractionId;
         $attraction->status = 1;
         // $attraction->dmc_id = $dmc_id ?? 0;
         $attraction->is_active = $request->input('attraction_status') == 1 ? 1 : 0;
@@ -450,12 +455,14 @@ class AttractionController extends Controller
         $attraction->senior_min_age = $request->senior_min_age;
         $attraction->child_max_age = $request->child_end_age;
         $attraction->senior_adult_price = 0;
+        $attraction->attraction_type = $request->input('attraction_type');
         $attraction->save();
+        $attraction->refresh();
 
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 74, 93])) {
         //     return view('attractions.thankyou');
         // }
-        return redirect()->route('tickets.add_ticket', Crypt::encrypt($attractionId))->with('success', 'Attraction added successfully!');
+        return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction->attraction_id))->with('success', 'Attraction added successfully!');
     }
 
     /*
@@ -570,7 +577,7 @@ class AttractionController extends Controller
         $attraction->senior_min_age = $request->senior_min_age;
         $attraction->child_max_age = $request->child_end_age;
         $attraction->senior_adult_price = 0;
-
+        $attraction->attraction_type = $request->input('attraction_type');
         $attraction->save();
 
         return redirect()->route('attraction.index')->with('success', 'Attraction details updated successfully.');
@@ -633,7 +640,7 @@ class AttractionController extends Controller
     */
     public function attractionCalendar($attraction_id)
     {
-        $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+        $attraction = Attraction::where('attraction_id', Crypt::decrypt($attraction_id))->first();
         $close_days = $attraction->close_days;
         $close_dates = $attraction->close_dates;
         return view('attractions.calendar', compact('attraction_id', 'attraction', 'close_days', 'close_dates'));
@@ -680,10 +687,57 @@ class AttractionController extends Controller
             return redirect()->back()->with('error', 'You do not have permission to access this page.');
         }
 
-        // Get all available attractions
-        $allAttractions = Attraction::where('status', 1)
-                                   ->orderBy('created_at', 'desc')
-                                   ->get();
+        // Resolve Master DMC for this user (to read multiple countries from master record)
+        $masterDmcId = $user->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $dmcUser = User::where('userId', $dmc_id)->first();
+            $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        }
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $user->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (! $candidate) break;
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmc_id)->first();
+        $masterDmcCountries = [];
+        if ($masterDmc && !empty($masterDmc->country)) {
+            $masterDmcCountries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        // Get all available attractions (Travclicks/platform + Master DMC countries)
+        $allAttractionsQuery = Attraction::where('status', 1)->orderBy('created_at', 'desc');
+        if (Schema::hasColumn('attractions', 'user_type')) {
+            $allAttractionsQuery->where('user_type', 1);
+        }
+        if (!empty($masterDmcCountries) && Schema::hasColumn('attractions', 'country')) {
+            $allAttractionsQuery->whereIn('country', $masterDmcCountries);
+        }
+
+        $allAttractions = $allAttractionsQuery->get();
+
+        // Country dropdown should show only countries that actually exist in the Travclicks results
+        $allowedCountries = $allAttractions
+            ->pluck('country')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         
         // Filter attractions that are selected by the current DMC
         $selectedAttractions = $allAttractions->filter(function($attraction) use ($dmc_id) {
@@ -695,7 +749,7 @@ class AttractionController extends Controller
             return !$attraction->hasSelectedByDmc($dmc_id);
         });
 
-        return view('services.attractions', compact('availableAttractions', 'selectedAttractions'));
+        return view('services.attractions', compact('availableAttractions', 'selectedAttractions', 'allowedCountries'));
     }
 
     /**

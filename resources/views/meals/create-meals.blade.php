@@ -12,6 +12,27 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
+    .meal-price-list {
+        font-size: 0.78rem;
+        line-height: 1.45;
+        min-width: 170px;
+    }
+    .meal-price-list__title {
+        font-weight: 700;
+        color: #566a7f;
+        margin-bottom: 0.2rem;
+    }
+    .meal-price-list__row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        color: #697a8d;
+    }
+    .meal-price-list__row span:last-child {
+        font-weight: 600;
+        color: #384551;
+        white-space: nowrap;
+    }
 </style>
 
 <!-- Start of the form -->
@@ -38,7 +59,10 @@
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Meal
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Meal
+                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                </span>
                 <div class="d-flex gap-2">
                     {{-- @if(auth()->user()->role_id == '11')
                         <a href="{{ route('meals.bulk_upload_for_restaurant', $current_restaurant->restaurant_id) }}" 
@@ -81,7 +105,7 @@
                                             @if($dmcUsers->count() > 0)
                                                 <option value="">Select DMC</option>
                                                 @foreach($dmcUsers as $dmc)
-                                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                                    <option value="{{ $dmc->userId }}" data-currency="{{ $dmc->currency ?? '' }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                                                 @endforeach
                                             @else
                                                 <option value="">No DMCs available for this restaurant</option>
@@ -149,6 +173,19 @@
                                     @enderror
                                 </div>
 
+                                <div class="col-md-2 mb-3">
+                                    <label for="profit_type" class="form-label"><strong>Profit Type</strong></label>
+                                    <select id="profit_type" name="profit_type" class="form-select form-select-sm">
+                                        <option value="flat" {{ old('profit_type', 'flat') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        <option value="percentage" {{ old('profit_type') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2 mb-3">
+                                    <label for="profit_on_cost" class="form-label"><strong>Profit On Cost</strong></label>
+                                    <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="profit_on_cost" name="profit_on_cost" placeholder="0.00" value="{{ old('profit_on_cost') }}">
+                                </div>
+
                                 <!-- Item Name -->
                                 <div class="col-md-3 mb-3" id="item_name_container" style="display: none;">
                                     <label for="name" class="form-label"><strong>Item Name</strong><span class="text-danger">*</span></label>
@@ -157,10 +194,24 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <!-- Item Price -->
+
+                                <!-- Item Cost Price -->
+                                <div class="col-md-3 mb-3" id="item_cost_price_container" style="display: none;">
+                                    <label for="item_cost_price" class="form-label"><strong>Item Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-cost-input" id="item_cost_price" name="item_cost_price"
+                                           data-sell-target="price"
+                                           placeholder="Enter Item Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="item_cost_price-validation-message"></small>
+                                    @error('item_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Item Sell Price -->
                                 <div class="col-md-3 mb-3" id="item_price_container" style="display: none;">
-                                    <label for="price" class="form-label"><strong>Item Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="price" name="price" 
+                                    <label for="price" class="form-label"><strong>Item Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-sell-input" id="price" name="price"
                                            placeholder="Enter Item Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="price-validation-message"></small>
@@ -168,11 +219,24 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                
-                                <!-- Adult Price -->
+
+                                <!-- Adult Cost Price -->
+                                <div class="col-md-3 mb-3" id="adult_cost_price_container" style="display: none;">
+                                    <label for="adult_cost_price" class="form-label"><strong>Adult Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-cost-input" id="adult_cost_price" name="adult_cost_price"
+                                           data-sell-target="adult_price"
+                                           placeholder="Enter Adult Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="adult_cost_price-validation-message"></small>
+                                    @error('adult_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Adult Sell Price -->
                                 <div class="col-md-3 mb-3" id="adult_price_container" style="display: none;">
-                                    <label for="adult_price" class="form-label"><strong>Adult Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="adult_price" name="adult_price" 
+                                    <label for="adult_price" class="form-label"><strong>Adult Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-sell-input" id="adult_price" name="adult_price"
                                            placeholder="Enter Adult Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="adult_price-validation-message"></small>
@@ -181,10 +245,23 @@
                                     @enderror
                                 </div>
 
-                                <!-- Child Price -->
+                                <!-- Child Cost Price -->
+                                <div class="col-md-3 mb-3" id="child_cost_price_container" style="display: none;">
+                                    <label for="child_cost_price" class="form-label"><strong>Child Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-cost-input" id="child_cost_price" name="child_cost_price"
+                                           data-sell-target="child_price"
+                                           placeholder="Enter Child Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="child_cost_price-validation-message"></small>
+                                    @error('child_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Sell Price -->
                                 <div class="col-md-3 mb-3" id="child_price_container" style="display: none;">
-                                    <label for="child_price" class="form-label"><strong>Child Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="child_price" name="child_price" 
+                                    <label for="child_price" class="form-label"><strong>Child Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-sell-input" id="child_price" name="child_price"
                                            placeholder="Enter Child Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="child_price-validation-message"></small>
@@ -296,6 +373,7 @@
                                 {{-- <th>Item Name</th> --}}
                                 <th>Beverage</th>
                                 <th>Type</th>
+                                <th>Price</th>
                                 {{-- <th>Item Description</th> --}}
                                 <th>Status</th>
                                 @if(hasPermission('edit meal') || hasPermission('delete meal'))
@@ -304,6 +382,14 @@
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $formatMealPrice = function ($value) {
+                                    if ($value === null || $value === '') {
+                                        return '—';
+                                    }
+                                    return is_numeric($value) ? number_format((float) $value, 2) : $value;
+                                };
+                            @endphp
                             @foreach($meals as $key => $meal)
                                 <tr>
                                     <td>{{ ++$key }}</td>
@@ -347,12 +433,25 @@
                                         @if($meal->type == 1)
                                             Buffet
                                         @elseif($meal->type == 2)
-                                            Set Buffet
+                                            Set Menu
                                         @elseif($meal->type == 3)
                                             A-La-carte
                                         @else
                                             Unknown
                                         @endif
+                                    </td>
+                                    <td>
+                                        <div class="meal-price-list">
+                                            <div class="meal-price-list__title">Price:</div>
+                                            @if(in_array((int) $meal->type, [1, 2], true))
+                                                <div class="meal-price-list__row"><span>Adult cost price-</span><span>{{ $formatMealPrice($meal->adult_cost_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Adult sell price-</span><span>{{ $formatMealPrice($meal->adult_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Child cost price-</span><span>{{ $formatMealPrice($meal->child_cost_price) }}</span></div>
+                                                <div class="meal-price-list__row"><span>Child sell price-</span><span>{{ $formatMealPrice($meal->child_price) }}</span></div>
+                                            @else
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </div>
                                     </td>
                                     {{-- <td>
                                         {{$meal->item_description}}
@@ -426,7 +525,8 @@
 <!-- End of the form -->
 @endsection
 
-@section('scripts') 
+@section('scripts')
+@include('components.currency-price-note-dmc-script')
 {{-- <script>
         document.addEventListener('DOMContentLoaded', () => {
         const toggleVisibility = (checkboxId, fieldId) => {
@@ -477,57 +577,62 @@
         var itemNameContainer = document.getElementById("item_name_container");
         var itemFileContainer = document.getElementById("item_file_container");
         var itemPriceContainer = document.getElementById("item_price_container");
+        var itemCostPriceContainer = document.getElementById("item_cost_price_container");
         var adultPriceContainer = document.getElementById("adult_price_container");
+        var adultCostPriceContainer = document.getElementById("adult_cost_price_container");
         var childPriceContainer = document.getElementById("child_price_container");
+        var childCostPriceContainer = document.getElementById("child_cost_price_container");
         var vegContainer = document.getElementById("veg_container");
         var vegSelect = document.getElementById("veg_type");
 
         var itemNameInput = document.querySelector("input[name='name']");
         var itemFileInput = document.querySelector("input[name='item_file']");
         var itemPriceInput = document.querySelector("input[name='price']");
+        var itemCostPriceInput = document.querySelector("input[name='item_cost_price']");
         var adultPriceInput = document.querySelector("input[name='adult_price']");
+        var adultCostPriceInput = document.querySelector("input[name='adult_cost_price']");
         var childPriceInput = document.querySelector("input[name='child_price']");
+        var childCostPriceInput = document.querySelector("input[name='child_cost_price']");
 
-        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu
+        if (mealType === "1" || mealType === "2") { // Buffet or Set Menu — same Adult/Child cost & sell fields
             itemFileContainer.style.display = "block";
             itemNameContainer.style.display = "none";
-            
-            if(mealType === "1"){
-                adultPriceContainer.style.display = "block";
-                childPriceContainer.style.display = "block";
-                vegContainer.style.display = "none";
-                itemPriceContainer.style.display = "none";
-                vegSelect.removeAttribute("required");
-                itemNameInput.removeAttribute("required");
-                itemPriceInput.removeAttribute("required");
-                // Set validation for adult and child prices
-                adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
-                childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
-            }
-            else{
-                adultPriceContainer.style.display = "none";
-                childPriceContainer.style.display = "none";
-                itemPriceContainer.style.display = "block";
-                vegContainer.style.display = "block";
 
-                
-                // Set validation for item price
-                itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
-            }
+            adultPriceContainer.style.display = "block";
+            childPriceContainer.style.display = "block";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
+            vegContainer.style.display = "none";
+            itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            vegSelect.removeAttribute("required");
+            itemNameInput.removeAttribute("required");
+            itemPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
+
+            adultPriceInput.dataset.interacted = adultPriceInput.value.trim() === '' ? "true" : "false";
+            childPriceInput.dataset.interacted = childPriceInput.value.trim() === '' ? "true" : "false";
+            if (adultCostPriceInput) adultCostPriceInput.dataset.interacted = adultCostPriceInput.value.trim() === '' ? "true" : "false";
+            if (childCostPriceInput) childCostPriceInput.dataset.interacted = childCostPriceInput.value.trim() === '' ? "true" : "false";
 
             // Clear hidden fields
             itemNameInput.value = "";
+            if (itemPriceInput) itemPriceInput.value = "";
+            if (itemCostPriceInput) itemCostPriceInput.value = "";
 
-            // Set required attribute correctly
             itemFileInput.removeAttribute("required");
             itemNameInput.removeAttribute("required");
             itemPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
         } else if (mealType === "3") { // A-La-Carte
             itemFileContainer.style.display = "none";
             itemNameContainer.style.display = "block";
             itemPriceContainer.style.display = "block";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
             adultPriceContainer.style.display = "none";
             childPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
             vegContainer.style.display = "block";
             // Clear hidden file input
             itemFileInput.value = "";
@@ -535,24 +640,39 @@
             // Set required attribute correctly
             itemNameInput.setAttribute("required", "required");
             itemPriceInput.setAttribute("required", "required");
+            if (itemCostPriceInput) itemCostPriceInput.setAttribute("required", "required");
             itemFileInput.removeAttribute("required");
             
             // Set validation for item price
             itemPriceInput.dataset.interacted = itemPriceInput.value.trim() === '' ? "true" : "false";
+            if (itemCostPriceInput) itemCostPriceInput.dataset.interacted = itemCostPriceInput.value.trim() === '' ? "true" : "false";
         } else { // Default case (no selection)
             itemFileContainer.style.display = "none";
             itemNameContainer.style.display = "none";
             itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            adultPriceContainer.style.display = "none";
+            childPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
 
             // Clear all fields
             itemNameInput.value = "";
             itemFileInput.value = "";
             itemPriceInput.value = "";
+            if (itemCostPriceInput) itemCostPriceInput.value = "";
+            if (adultPriceInput) adultPriceInput.value = "";
+            if (childPriceInput) childPriceInput.value = "";
+            if (adultCostPriceInput) adultCostPriceInput.value = "";
+            if (childCostPriceInput) childCostPriceInput.value = "";
 
             // Remove required attributes
             itemNameInput.removeAttribute("required");
             itemFileInput.removeAttribute("required");
             itemPriceInput.removeAttribute("required");
+            if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");
+            if (adultCostPriceInput) adultCostPriceInput.removeAttribute("required");
+            if (childCostPriceInput) childCostPriceInput.removeAttribute("required");
         }
     }
 </script>
@@ -753,6 +873,14 @@
             });
         }
         @endif
+
+        if (dmcSelect) {
+            dmcSelect.addEventListener('change', function () {
+                if (typeof updateCurrencyPriceNoteFromDmc === 'function') {
+                    updateCurrencyPriceNoteFromDmc(this);
+                }
+            });
+        }
         
         // Show/hide submit button based on DMC selection
         if (dmcSelect && submitBtn) {
@@ -772,6 +900,9 @@
         const adultPriceInput = document.querySelector("input[name='adult_price']");
         const childPriceInput = document.querySelector("input[name='child_price']");
         const itemPriceInput = document.querySelector("input[name='price']");
+        const itemCostPriceInput = document.querySelector("input[name='item_cost_price']");
+        const adultCostPriceInput = document.querySelector("input[name='adult_cost_price']");
+        const childCostPriceInput = document.querySelector("input[name='child_cost_price']");
         
         // Add ID and validation message elements for each price field
         if (adultPriceInput) {
@@ -839,6 +970,28 @@
             // Clear classes initially
             itemPriceInput.classList.remove('is-valid', 'is-invalid');
         }
+
+        const setupCostValidation = (inputEl, id) => {
+            if (!inputEl) return;
+            inputEl.id = id;
+            if (!document.getElementById(`${id}-validation-message`)) {
+                inputEl.insertAdjacentHTML('afterend', `<small class="validation-message" id="${id}-validation-message"></small>`);
+            }
+            inputEl.dataset.interacted = "false";
+            inputEl.addEventListener('input', function() { validatePrice(this); });
+            inputEl.addEventListener('focus', function() { this.dataset.focused = "true"; });
+            inputEl.addEventListener('blur', function() {
+                if (this.dataset.focused === "true") {
+                    this.dataset.interacted = "true";
+                    validatePrice(this);
+                }
+            });
+            inputEl.classList.remove('is-valid', 'is-invalid');
+        };
+
+        setupCostValidation(itemCostPriceInput, 'item_cost_price');
+        setupCostValidation(adultCostPriceInput, 'adult_cost_price');
+        setupCostValidation(childCostPriceInput, 'child_cost_price');
         
         // Call toggleFields to ensure proper initial state
         toggleFields();
@@ -877,6 +1030,85 @@
         } else {
             console.error('Bootstrap is not available');
         }
+    });
+</script>
+
+<script>
+    function calculateMealSellFromCost(costValue) {
+        const profitType = (document.getElementById('profit_type')?.value || 'flat').toLowerCase();
+        const profit = parseFloat(String(document.getElementById('profit_on_cost')?.value || '0').replace(',', '.'));
+        const cost = parseFloat(String(costValue || '0').replace(',', '.'));
+
+        if (isNaN(cost)) return '';
+
+        const profitAmount = isNaN(profit) ? 0 : profit;
+        let sell = cost;
+
+        if (profitType === 'percentage') {
+            sell = cost + (cost * profitAmount / 100);
+        } else {
+            sell = cost + profitAmount;
+        }
+
+        return Number(Math.max(0, sell).toFixed(2));
+    }
+
+    function updateMealSellFromCostInput(costInput) {
+        if (!costInput) return;
+        const sellId = costInput.getAttribute('data-sell-target');
+        const sellInput = sellId ? document.getElementById(sellId) : null;
+        if (!sellInput) return;
+
+        if (costInput.value === '' || costInput.value === null) {
+            return;
+        }
+
+        sellInput.value = calculateMealSellFromCost(costInput.value);
+        sellInput.dataset.autoFilled = '1';
+        if (typeof validatePrice === 'function') {
+            validatePrice(sellInput);
+        }
+    }
+
+    function updateAllMealSellPricesFromCost() {
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            updateMealSellFromCostInput(costInput);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateMealSellFromCostInput(this);
+            });
+            costInput.addEventListener('change', function () {
+                updateMealSellFromCostInput(this);
+            });
+        });
+
+        document.querySelectorAll('.meal-sell-input').forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+            });
+        });
+
+        const profitTypeEl = document.getElementById('profit_type');
+        const profitOnCostEl = document.getElementById('profit_on_cost');
+        if (profitTypeEl) {
+            profitTypeEl.addEventListener('change', updateAllMealSellPricesFromCost);
+        }
+        if (profitOnCostEl) {
+            profitOnCostEl.addEventListener('input', updateAllMealSellPricesFromCost);
+            profitOnCostEl.addEventListener('change', updateAllMealSellPricesFromCost);
+        }
+
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            const sellId = costInput.getAttribute('data-sell-target');
+            const sellInput = sellId ? document.getElementById(sellId) : null;
+            if (sellInput && (sellInput.value === '' || sellInput.value === null) && costInput.value !== '') {
+                updateMealSellFromCostInput(costInput);
+            }
+        });
     });
 </script>
 @endsection

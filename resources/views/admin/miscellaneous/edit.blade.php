@@ -1,5 +1,6 @@
 @extends('layouts.layout')
 @section('title', 'Edit Miscellaneous Item')
+@php use Illuminate\Support\Facades\Crypt; @endphp
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -8,7 +9,7 @@
             <h5 class="mb-0">Edit Miscellaneous Item</h5>
         </div>
         <div class="card-body">
-            <form action="{{ route('miscellaneous.update', $item->mis_id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('miscellaneous.update', Crypt::encrypt($item->mis_id)) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 
@@ -60,20 +61,28 @@
                 
                 <div class="mb-3">
                     <label for="image" class="form-label">Image</label>
-                    @if($item->image)
-                        <div class="mb-2">
-                            <img src="{{ asset('storage/' . $item->image) }}" 
-                                 alt="{{ $item->item_name }}" 
-                                 style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid #ddd;">
-                            <p class="text-muted small mt-1">Current image (upload new to replace)</p>
-                        </div>
-                    @endif
                     <input type="file" 
                            class="form-control @error('image') is-invalid @enderror" 
                            id="image" 
                            name="image" 
                            accept="image/*">
-                    <small class="text-muted">Supported formats: JPEG, PNG, JPG, GIF, WEBP (Max: 2MB)</small>
+                    <input type="hidden" name="remove_image" id="remove_image" value="0">
+                    <div id="image-preview" class="mt-2 {{ $item->image ? '' : 'd-none' }}">
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="position-relative">
+                                <img id="image-preview-img" 
+                                     src="{{ $item->image ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image)) : '' }}" 
+                                     data-default-src="{{ $item->image ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image)) : '' }}"
+                                     alt="{{ $item->item_name }}" 
+                                     style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <button type="button" id="image-remove" class="btn btn-sm btn-danger position-absolute rounded-circle p-0 d-flex align-items-center justify-content-center" 
+                                        style="width: 24px; height: 24px; top: -8px; right: -8px; z-index: 10; cursor: pointer; border: 2px solid #fff;" title="Remove image">
+                                    <i class="ri-close-line" style="font-size: 12px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-1">Supported formats: JPEG, PNG, JPG, GIF, WEBP (Max: 2MB)</small>
                     @error('image')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -91,5 +100,40 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var fileInput = document.getElementById('image');
+    var removeImageInput = document.getElementById('remove_image');
+    var preview = document.getElementById('image-preview');
+    var previewImg = document.getElementById('image-preview-img');
+    var removeBtn = document.getElementById('image-remove');
+    var defaultSrc = previewImg.getAttribute('data-default-src') || '';
+
+    fileInput.addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            removeImageInput.value = '0';
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                previewImg.src = ev.target.result;
+                preview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(this.files[0]);
+        } else if (!defaultSrc || removeImageInput.value === '1') {
+            preview.classList.add('d-none');
+        }
+    });
+
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInput.value = '';
+            removeImageInput.value = '1';
+            preview.classList.add('d-none');
+            previewImg.src = '';
+        });
+    }
+});
+</script>
 @endsection
 

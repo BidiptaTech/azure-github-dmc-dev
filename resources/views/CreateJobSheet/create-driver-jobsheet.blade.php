@@ -76,16 +76,54 @@
         color: #4a4a4a;
         font-weight: 600;
         border-bottom: 2px solid #efefef;
-        padding: 12px 10px;
+        padding: 6px 8px;
+        font-size: 11px;
     }
     
     .table td {
-        padding: 12px 10px;
+        padding: 6px 8px;
         vertical-align: middle;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+    
+    /* Ensure DataTables cells compact */
+    table.dataTable#tourOrdersTable thead th,
+    table.dataTable#tourOrdersTable tbody td {
+        padding: 6px 8px !important;
     }
     
     .table tbody tr:hover {
         background-color: #f9f9f9;
+    }
+    
+    /* Horizontal scroll for job sheet table */
+    .card-body .table-responsive {
+        overflow-x: auto !important;
+    }
+    
+    /* Fix scrollX header/body column alignment: same box model and borders */
+    #tourOrdersTable,
+    #tourOrdersTable thead th,
+    #tourOrdersTable tbody td,
+    .dataTables_scrollHeadInner table,
+    .dataTables_scrollHeadInner table th {
+        box-sizing: border-box !important;
+    }
+    .dataTables_scrollHeadInner table th {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        /*border: 1px solid #f2f2f2;*/
+        border-bottom: 2px solid #efefef;
+    }
+    
+    /* Smaller font for table content */
+    #tourOrdersTable {
+        font-size: 11px;
+    }
+    
+    #tourOrdersTable .select2-container {
+        font-size: 11px;
     }
     
     /* Better Select2 styling */
@@ -123,6 +161,8 @@
     .select2-dropdown {
         border-color: #e2e5ec;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        z-index: 9999 !important;
+        min-width: 200px;
     }
     
     /* Custom alert styling */
@@ -164,6 +204,55 @@
         right: 20px;
         z-index: 9999;
         width: 300px;
+    }
+
+    /* Assign Vehicle / Driver: view (read-only text + pen) vs edit (dropdown) */
+    .assign-vehicle-cell,
+    .assign-driver-cell {
+        min-width: 160px;
+    }
+    .assign-vehicle-view,
+    .assign-driver-view {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        min-height: 32px;
+    }
+    .assign-vehicle-text,
+    .assign-driver-text {
+        flex: 1;
+        padding: 6px 0;
+        color: #333;
+    }
+    .assign-vehicle-text.empty,
+    .assign-driver-text.empty {
+        color: #999;
+        font-style: italic;
+    }
+    .assign-vehicle-edit-btn,
+    .assign-driver-edit-btn {
+        flex-shrink: 0;
+        padding: 4px 8px;
+        color: #6777ef;
+        border: 1px solid #e2e5ec;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .assign-vehicle-edit-btn:hover,
+    .assign-driver-edit-btn:hover {
+        background: #f8f9fa;
+        color: #5568d3;
+    }
+    .assign-vehicle-edit,
+    .assign-driver-edit {
+        display: none;
+        min-width: 180px;
+    }
+    .assign-vehicle-edit.is-active,
+    .assign-driver-edit.is-active {
+        display: block;
     }
 </style>
 
@@ -210,25 +299,32 @@
                         <input type="hidden" name="tourId" id="hiddenTourId" value="">
                         <input type="hidden" name="date" id="hiddenDate" value="">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover" id="tourOrdersTable">
+                            <table class="table table-bordered table-hover table-sm" id="tourOrdersTable">
                                 <thead>
                                     <tr>
                                         <th>Tour ID</th>
                                         <th>Pickup Time</th>
+                                        <th>Guest Name</th>
+                                        <th>Guest Mobile No</th>
+                                        <th>Adults</th>
+                                        <th>Child</th>
+                                        <th>Infant</th>
+                                        <th>Transfer Type</th>
+                                        <th>Transport Type</th>
                                         <th>Pickup Location</th>
                                         <th>Pickup Zone</th>
                                         <th>Dropoff Location</th>
                                         <th>Dropoff Zone</th>
+                                        <th>Reference No</th>
+                                        <th>Remarks</th>
                                         <th>Vehicle</th>
-                                        <th>Assign Vehicle</th>
                                         <th>Assign Driver</th>
-                                        <th>Order Type</th>
-                                        <th>Tour Type</th>
+                                        <th>Assign Vehicle</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
                                     <tr>
-                                        <td colspan="11" class="text-center">Loading data...</td>
+                                        <td colspan="18" class="text-center">Loading data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -248,9 +344,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- DataTables Responsive CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.bootstrap5.min.css">
 <!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap5.min.js"></script>
+<!-- DataTables Responsive JS -->
+<script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.0/js/responsive.bootstrap5.min.js"></script>
 
 <script>
 // Define route URLs using Blade
@@ -281,6 +382,30 @@ $(document).ready(function() {
         return orderTypeMap[orderType] || orderType;
     }
     
+    /** Resolved jobsheet date: hidden field, visible input, or flatpickr default (tomorrow). */
+    function getSelectedJobsheetDate() {
+        const hidden = ($('#hiddenDate').val() || '').trim();
+        if (hidden) {
+            return hidden;
+        }
+        const visible = ($('#dateSelect').val() || '').trim();
+        if (visible) {
+            return visible;
+        }
+        if (datePicker && datePicker.selectedDates && datePicker.selectedDates.length) {
+            return datePicker.formatDate(datePicker.selectedDates[0], 'Y-m-d');
+        }
+        return '';
+    }
+
+    function syncHiddenDateFromPicker(dateStr) {
+        const resolved = (dateStr || getSelectedJobsheetDate() || '').trim();
+        if (resolved) {
+            $('#hiddenDate').val(resolved);
+        }
+        return resolved;
+    }
+
     // Custom alert function
     function showAlert(type, message) {
         // Create the alert element
@@ -329,69 +454,98 @@ $(document).ready(function() {
                 
                 tableHTML += `
                     <tr>
-                        <td>${item.tour_id || 'N/A'}</td>
+                        <td>${item.display_id || item.tour_id || 'N/A'}</td>
                         <td>${dataItem.entrytime || 'N/A'}</td>
+                        <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                        <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                        <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                        <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                        <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
+                        <td>${formatOrderType(item.type) || 'N/A'}</td>
+                        <td>${dataItem.type || 'N/A'}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${item.pickup_zone || 'N/A'}</td>
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
+                        <td>${item.display_id || item.tour_id || 'N/A'}</td>
+                        <td>$</td>
                         <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
-                        <td>
-                            <select class="form-control vehicle-select" 
-                                name="vehicle_id[${index}]" 
-                                data-order-id="${item.id || ''}" 
-                                data-tour-id="${item.tour_id || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                data-type="${dataItem.type || ''}">
-                                <option value="">Select Vehicle</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialVehicles.length) {
-                                        initialVehicles.forEach(vehicle => {
-                                            const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                            const vehicleDisplay = vehicle.vehicle_plate_no 
-                                                ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
-                                                : vehicle.vehicle_name;
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
-                                        });
-                                    }
-                                    return options;
-                                })()}
-                            </select>
-                        </td>
-                        <td>
-                            <select class="form-control driver-select" 
-                                name="driver_id[${index}]" 
-                                data-order-id="${item.id || ''}" 
-                                data-tour-id="${item.tour_id || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                data-type="${dataItem.type || ''}">
-                                <option value="">Select Driver</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialDrivers.length) {
-                                        initialDrivers.forEach(driver => {
-                                            const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
-                                            const driverDisplay = driver.license_no 
-                                                ? `${driver.name} - ${driver.license_no}` 
-                                                : driver.name;
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driverDisplay}</option>`;
-                                        });
-                                    }
-                                    return options;
-                                })()}
-                            </select>
-                            <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
+                        <td class="assign-driver-cell">
+                            <div class="assign-driver-view">
+                                <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_driver_id) return 'Not Assigned';
+                                    const d = initialDrivers.find(dr => dr.driver_id == item.assigned_driver_id);
+                                    if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
+                                    return 'Driver #' + item.assigned_driver_id;
+                                })()}</span>
+                                <button type="button" class="assign-driver-edit-btn" title="Edit driver" aria-label="Edit driver"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-driver-edit">
+                                <select class="form-control driver-select" 
+                                    name="driver_id[${index}]" 
+                                    data-order-id="${item.booking_id || ''}" 
+                                    data-tour-id="${item.tour_id || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                    data-type="${dataItem.type || ''}">
+                                    <option value="">Select Driver</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialDrivers.length) {
+                                            initialDrivers.forEach(driver => {
+                                                const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
+                                                const driverDisplay = driver.license_no 
+                                                    ? `${driver.name} - ${driver.license_no}` 
+                                                    : driver.name;
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driverDisplay}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
+                            <input type="hidden" name="order_id[${index}]" value="${item.booking_id || ''}">
                             <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
-                        <td>${formatOrderType(item.type) || 'N/A'}</td>
-                        <td>${dataItem.type || 'N/A'}</td>
+                        <td class="assign-vehicle-cell">
+                            <div class="assign-vehicle-view">
+                                <span class="assign-vehicle-text ${!(item.assigned_vehicle_id) ? 'empty' : ''}">${(function() {
+                                    if (!item.assigned_vehicle_id) return 'Not Assigned';
+                                    const v = initialVehicles.find(vh => vh.vehicle_id == item.assigned_vehicle_id);
+                                    if (v) return v.vehicle_plate_no ? v.vehicle_name + ' - ' + v.vehicle_plate_no : v.vehicle_name;
+                                    return 'Vehicle #' + item.assigned_vehicle_id;
+                                })()}</span>
+                                <button type="button" class="assign-vehicle-edit-btn" title="Edit vehicle" aria-label="Edit vehicle"><i class="fas fa-pen"></i></button>
+                            </div>
+                            <div class="assign-vehicle-edit">
+                                <select class="form-control vehicle-select" 
+                                    name="vehicle_id[${index}]" 
+                                    data-order-id="${item.booking_id || ''}" 
+                                    data-tour-id="${item.tour_id || ''}"
+                                    data-order-type="${item.type || ''}"
+                                    data-entry-time="${dataItem.entrytime || ''}"
+                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                    data-type="${dataItem.type || ''}">
+                                    <option value="">Select Vehicle</option>
+                                    ${(function() {
+                                        let options = '';
+                                        if (initialVehicles.length) {
+                                            initialVehicles.forEach(vehicle => {
+                                                const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                                const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                    ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                    : vehicle.vehicle_name;
+                                                options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                            });
+                                        }
+                                        return options;
+                                    })()}
+                                </select>
+                            </div>
+                        </td>
                     </tr>`;
             });
             
@@ -404,7 +558,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -421,6 +575,9 @@ $(document).ready(function() {
         dateFormat: "Y-m-d",
         disableMobile: "true",
         defaultDate: tomorrow,
+        onReady: function(selectedDates, dateStr, instance) {
+            syncHiddenDateFromPicker(dateStr || (selectedDates[0] ? instance.formatDate(selectedDates[0], 'Y-m-d') : ''));
+        },
         onChange: function(selectedDates, dateStr) {
             // Load orders based on selected date
             loadOrdersByDate(dateStr);
@@ -428,13 +585,16 @@ $(document).ready(function() {
         enabled: true
     });
 
+    // Default date is shown in #dateSelect but onChange does not run until user changes it — sync hidden field now.
+    syncHiddenDateFromPicker(datePicker.formatDate(tomorrow, 'Y-m-d'));
+
     // Function to load orders by date
     function loadOrdersByDate(date) {
         // Clean up any existing DataTable
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
@@ -443,7 +603,7 @@ $(document).ready(function() {
         $('#hiddenDate').val(date);
         
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date), {
             method: 'GET',
@@ -486,66 +646,95 @@ $(document).ready(function() {
                         
                         tableHTML += `
                             <tr>
-                                <td>${item.tour_id || 'N/A'}</td>
+                                <td>${item.display_id || item.tour_id || 'N/A'}</td>
                                 <td>${dataItem.entrytime || 'N/A'}</td>
+                                <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
+                                <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
+                                <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
+                                <td>${dataItem.childCount || dataItem.children || '0'}</td>
+                                <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
+                                <td>${formatOrderType(item.type) || 'N/A'}</td>
+                                <td>${dataItem.type || 'N/A'}</td>
                                 <td>${dataItem.entrypickup || 'N/A'}</td>
                                 <td>${item.pickup_zone || 'N/A'}</td>
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
                                 <td>${item.dropoff_zone || 'N/A'}</td>
+                                <td>${item.display_id || item.tour_id || 'N/A'}</td>
+                                <td>${item.remarks || 'N/A'}</td>
                                 <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
-                                <td>
-                                    <select class="form-control vehicle-select" 
-                                        name="vehicle_id[${index}]" 
-                                        data-order-id="${item.id || ''}" 
-                                        data-tour-id="${item.tour_id || ''}"
-                                        data-order-type="${item.type || ''}"
-                                        data-entry-time="${dataItem.entrytime || ''}"
-                                        data-entrypickup="${dataItem.entrypickup || ''}"
-                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                        data-type="${dataItem.type || ''}">
-                                        <option value="">Select Vehicle</option>
-                                        ${(function() {
-                                            let options = '';
-                                            if (response.vehicles && response.vehicles.length) {
-                                                response.vehicles.forEach(vehicle => {
-                                                    const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                                    const vehicleDisplay = vehicle.vehicle_plate_no 
-                                                        ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
-                                                        : vehicle.vehicle_name;
-                                                    options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
-                                                });
-                                            }
-                                            return options;
-                                        })()}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-control driver-select" 
-                                        name="driver_id[${index}]" 
-                                        data-order-id="${item.id || ''}" 
-                                        data-tour-id="${item.tour_id || ''}"
-                                        data-order-type="${item.type || ''}"
-                                        data-entry-time="${dataItem.entrytime || ''}"
-                                        data-entrypickup="${dataItem.entrypickup || ''}"
-                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                        data-type="${dataItem.type || ''}">
-                                        <option value="">Select Driver</option>
-                                        ${(function() {
-                                            let options = '';
-                                            if (response.drivers && response.drivers.length) {
-                                                response.drivers.forEach(driver => {
-                                                    const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
-                                                    options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name} - ${driver.license_no} </option>`;
-                                                });
-                                            }
-                                            return options;
-                                        })()}
-                                    </select>
+                                <td class="assign-driver-cell">
+                                    <div class="assign-driver-view">
+                                        <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
+                                            if (!item.assigned_driver_id) return 'Not Assigned';
+                                            const d = response.drivers && response.drivers.find(dr => dr.driver_id == item.assigned_driver_id);
+                                            if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
+                                            return 'Driver #' + item.assigned_driver_id;
+                                        })()}</span>
+                                        <button type="button" class="assign-driver-edit-btn" title="Edit driver" aria-label="Edit driver"><i class="fas fa-pen"></i></button>
+                                    </div>
+                                    <div class="assign-driver-edit">
+                                        <select class="form-control driver-select" 
+                                            name="driver_id[${index}]" 
+                                            data-order-id="${item.booking_id || ''}" 
+                                            data-tour-id="${item.tour_id || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                            data-type="${dataItem.type || ''}">
+                                            <option value="">Select Driver</option>
+                                            ${(function() {
+                                                let options = '';
+                                                if (response.drivers && response.drivers.length) {
+                                                    response.drivers.forEach(driver => {
+                                                        const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
+                                                        options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name} - ${driver.license_no} </option>`;
+                                                    });
+                                                }
+                                                return options;
+                                            })()}
+                                        </select>
+                                    </div>
                                     <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                                     <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                 </td>
-                                <td>${formatOrderType(item.type) || 'N/A'}</td>
-                                <td>${dataItem.type || 'N/A'}</td>
+                                <td class="assign-vehicle-cell">
+                                    <div class="assign-vehicle-view">
+                                        <span class="assign-vehicle-text ${!(item.assigned_vehicle_id) ? 'empty' : ''}">${(function() {
+                                            if (!item.assigned_vehicle_id) return 'Not Assigned';
+                                            const v = response.vehicles && response.vehicles.find(vh => vh.vehicle_id == item.assigned_vehicle_id);
+                                            if (v) return v.vehicle_plate_no ? v.vehicle_name + ' - ' + v.vehicle_plate_no : v.vehicle_name;
+                                            return 'Vehicle #' + item.assigned_vehicle_id;
+                                        })()}</span>
+                                        <button type="button" class="assign-vehicle-edit-btn" title="Edit vehicle" aria-label="Edit vehicle"><i class="fas fa-pen"></i></button>
+                                    </div>
+                                    <div class="assign-vehicle-edit">
+                                        <select class="form-control vehicle-select" 
+                                            name="vehicle_id[${index}]" 
+                                            data-order-id="${item.booking_id || ''}" 
+                                            data-tour-id="${item.tour_id || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                            data-type="${dataItem.type || ''}">
+                                            <option value="">Select Vehicle</option>
+                                            ${(function() {
+                                                let options = '';
+                                                if (response.vehicles && response.vehicles.length) {
+                                                    response.vehicles.forEach(vehicle => {
+                                                        const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                                        const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                            ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                            : vehicle.vehicle_name;
+                                                        options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                                    });
+                                                }
+                                                return options;
+                                            })()}
+                                        </select>
+                                    </div>
+                                </td>
                             </tr>`;
                     });
                     
@@ -558,14 +747,14 @@ $(document).ready(function() {
                     // Initialize DataTable after content is loaded
                     initializeDataTable();
                 } else {
-                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">No orders found for this date</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
             } else {
                 const errorMessage = response.message || 'Error loading orders';
                 console.error('Error:', errorMessage);
                 showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+                $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Error loading orders</td></tr>');
                 $('#exportOrdersBtn').hide();
             }
         })
@@ -573,7 +762,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="18" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -618,20 +807,27 @@ $(document).ready(function() {
                            !$('#tourOrdersTableBody tr td[colspan]').length;
             
             if (hasData) {
-                // Initialize DataTable with minimal options
-                $('#tourOrdersTable').DataTable({
+                // Initialize DataTable with horizontal scroll (no responsive toggle)
+                var dt = $('#tourOrdersTable').DataTable({
                     paging: true,
                     ordering: true,
                     info: true,
                     searching: true,
+                    responsive: false,
+                    scrollX: true,
+                    autoWidth: false,
                     columnDefs: [
-                        { orderable: false, targets: [7, 8] }  // Disable sorting on Assign Vehicle and Assign Driver columns
-                    ]
+                        { orderable: false, targets: [16, 17] }  // Disable sorting on Assign Driver and Assign Vehicle columns
+                    ],
+                    drawCallback: function() {
+                        // Recalculate column widths so scroll header aligns with body
+                        setTimeout(function() { dt.columns().adjust(); }, 0);
+                    }
                 });
                 
                 // Set the flag
                 dataTableInitialized = true;
-                console.log("DataTable initialized successfully");
+                console.log("DataTable initialized successfully with responsive mode");
             } else {
                 console.log("No data available, skipping DataTable initialization");
             }
@@ -643,35 +839,9 @@ $(document).ready(function() {
     // Function to initialize Select2 on driver and vehicle dropdowns
     function initializeSelect2() {
         try {
-            // Destroy existing Select2 instances first
-            $('.driver-select').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
-                }
-            });
-            $('.vehicle-select').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
-                }
-            });
-            
-            // Initialize Select2 on driver dropdowns
-            $('.driver-select').select2({
-                placeholder: "Select Driver",
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
-            });
-            
-            // Initialize Select2 on vehicle dropdowns
-            $('.vehicle-select').select2({
-                placeholder: "Select Vehicle",
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#tourOrdersTable').parent()
-            });
-            
-            console.log("Select2 initialized successfully");
+            // Vehicle and driver selects are initialized on pen-click (assign-vehicle-edit-btn / assign-driver-edit-btn)
+            // so we do not init them here. Other Select2 dropdowns can be added below if needed.
+            console.log("Select2 init (vehicle/driver use pen-click init)");
         } catch (e) {
             console.error("Select2 initialization error:", e);
         }
@@ -693,41 +863,53 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 11) {
+            if (cells.length < 18) {
                 return; // Skip incomplete rows
             }
             
-            // Extract data directly from the table cells
+            // Extract data directly from the table cells (column order: 0=Tour ID, 1=Pickup Time, ... 14=Remarks, 15=Vehicle, 16=Assign Driver, 17=Assign Vehicle)
             const tourId = $(cells[0]).text().trim();
             const pickupTime = $(cells[1]).text().trim();
-            const pickupLocation = $(cells[2]).text().trim();
-            const pickupZone = $(cells[3]).text().trim();
-            const dropoffLocation = $(cells[4]).text().trim();
-            const dropoffZone = $(cells[5]).text().trim();
-            const vehicle = $(cells[6]).text().trim();
-            const orderType = $(cells[9]).text().trim(); // Already formatted by formatOrderType()
-            const tourType = $(cells[10]).text().trim();
+            const guestName = $(cells[2]).text().trim();
+            const guestMobile = $(cells[3]).text().trim();
+            const adults = $(cells[4]).text().trim();
+            const child = $(cells[5]).text().trim();
+            const infant = $(cells[6]).text().trim();
+            const orderType = $(cells[7]).text().trim();
+            const tourType = $(cells[8]).text().trim();
+            const pickupLocation = $(cells[9]).text().trim();
+            const pickupZone = $(cells[10]).text().trim();
+            const dropoffLocation = $(cells[11]).text().trim();
+            const dropoffZone = $(cells[12]).text().trim();
+            const referenceNo = $(cells[13]).text().trim();
+            const remarks = $(cells[14]).text().trim();
+            const vehicle = $(cells[15]).text().trim();
+            const driverSelect = $(cells[16]).find('.driver-select');
+            const vehicleSelect = $(cells[17]).find('.vehicle-select');
             
-            // Get selected vehicle and driver from the dropdowns
-            const vehicleSelect = $(cells[7]).find('.vehicle-select');
-            const driverSelect = $(cells[8]).find('.driver-select');
-            
-            const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
             const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
+            const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
             excelData.push({
                 'Tour ID': tourId,
                 'Pickup Time': pickupTime,
+                'Guest Name': guestName,
+                'Guest Mobile No': guestMobile,
+                'Adults': adults,
+                'Child': child,
+                'Infant': infant,
+                'Transfer Type': orderType,
+                'Transport Type': tourType,
                 'Pickup Location': pickupLocation,
                 'Pickup Zone': pickupZone,
                 'Dropoff Location': dropoffLocation,
                 'Dropoff Zone': dropoffZone,
+                'Reference No': referenceNo,
+                'Remarks': remarks,
                 'Vehicle': vehicle,
-                'Assigned Vehicle': assignedVehicle,
-                'Assigned Driver': assignedDriver,
-                'Order Type': orderType,
-                'Tour Type': tourType
+                'Assign Driver': assignedDriver,
+                'Assign Vehicle': assignedVehicle
             });
         });
         
@@ -751,7 +933,7 @@ $(document).ready(function() {
             XLSX.utils.book_append_sheet(wb, ws, "Driver Jobsheet");
             
             // Get date for filename
-            const selectedDate = $('#dateSelect').val();
+            const selectedDate = getSelectedJobsheetDate();
             const fileName = `driver_jobsheet_${selectedDate}.xlsx`;
             
             // Export to file
@@ -771,7 +953,7 @@ $(document).ready(function() {
         e.preventDefault();
         
         const formData = new FormData();
-        formData.append('date', $('#dateSelect').val());
+        formData.append('date', getSelectedJobsheetDate());
         formData.append('dmc_id', $('#dmc_id').val());
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
@@ -792,7 +974,7 @@ $(document).ready(function() {
             if (data.success) {
                 showAlert('success', data.message);
                 // Load orders to show the latest data
-                loadOrdersByDate($('#dateSelect').val());
+                loadOrdersByDate(getSelectedJobsheetDate());
             } else {
                 showAlert('error', data.message);
             }
@@ -826,7 +1008,7 @@ $(document).ready(function() {
             if (data.success) {
                 showAlert('success', data.message);
                 // Refresh the orders to show the latest assignments
-                loadOrdersByDate($('#hiddenDate').val());
+                loadOrdersByDate(getSelectedJobsheetDate());
             } else {
                 showAlert('error', data.message);
             }
@@ -835,6 +1017,58 @@ $(document).ready(function() {
             console.error('Error saving assignments:', error);
             showAlert('error', 'An error occurred while saving assignments: ' + error.message);
         });
+    });
+
+    // Pen icon: show dropdown for Assign Vehicle, then collapse back to text on close
+    $(document).on('click', '.assign-vehicle-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-vehicle-cell');
+        const $view = $cell.find('.assign-vehicle-view');
+        const $edit = $cell.find('.assign-vehicle-edit');
+        const $select = $cell.find('.vehicle-select').first();
+        $view.hide();
+        $edit.addClass('is-active').show();
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Vehicle",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('body')
+            });
+            $select.on('select2:close', function() {
+                const selectedText = $select.find('option:selected').text();
+                $cell.find('.assign-vehicle-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $edit.removeClass('is-active').hide();
+                $view.show();
+            });
+        }
+        $select.select2('open');
+    });
+
+    // Pen icon: show dropdown for Assign Driver, then collapse back to text on close
+    $(document).on('click', '.assign-driver-edit-btn', function() {
+        const $btn = $(this);
+        const $cell = $btn.closest('.assign-driver-cell');
+        const $view = $cell.find('.assign-driver-view');
+        const $edit = $cell.find('.assign-driver-edit');
+        const $select = $cell.find('.driver-select').first();
+        $view.hide();
+        $edit.addClass('is-active').show();
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            $select.select2({
+                placeholder: "Select Driver",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('body')
+            });
+            $select.on('select2:close', function() {
+                const selectedText = $select.find('option:selected').text();
+                $cell.find('.assign-driver-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $edit.removeClass('is-active').hide();
+                $view.show();
+            });
+        }
+        $select.select2('open');
     });
 
     // Handle driver selection change
@@ -870,7 +1104,7 @@ $(document).ready(function() {
         const type = $select.data('type');
         const orderId = $select.data('order-id');
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
-        const date = $('#hiddenDate').val();
+        const date = getSelectedJobsheetDate();
         const dmcId = $('#dmc_id').val();
         
         console.log('=== Driver Change Handler ===');
@@ -985,7 +1219,7 @@ $(document).ready(function() {
         const type = $select.data('type') || '';
         const orderId = $select.data('order-id');
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
-        const date = $('#hiddenDate').val() || $('#dateSelect').val();
+        const date = getSelectedJobsheetDate();
         const dmcId = $('#dmc_id').val();
         
         // Set flag

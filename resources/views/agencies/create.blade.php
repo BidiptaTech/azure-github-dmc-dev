@@ -420,11 +420,11 @@
                     <h6 class="mb-2 text-success">How to create an agency:</h6>
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Fill in the head office information below (marked with "Head Office" badge)</li>
-                        <li><strong>Step 2:</strong> Select country first, then city and Govt. ID card types will auto-populate with search functionality</li>
-                        <li><strong>Step 3:</strong> Choose appropriate ID card type and enter card number for verification</li>
-                        <li><strong>Step 4:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
-                        <li><strong>Step 5:</strong> Each branch requires all fields including ID card details</li>
-                        <li><strong>Step 6:</strong> Review and submit to create the agency</li>
+                        {{-- <li><strong>Step 2:</strong> Select country first, then city and Govt. ID card types will auto-populate with search functionality</li> --}}
+                        <li><strong>Step 2:</strong> Enter License number for verification</li>
+                        <li><strong>Step 3:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
+                        <li><strong>Step 4:</strong> Each branch requires all fields including License number</li>
+                        <li><strong>Step 5:</strong> Review and submit to create the agency</li>
                     </ul>
                 </div>
             </div>
@@ -557,8 +557,13 @@
                             <select class="form-select select2 @error('city') is-invalid @enderror" 
                                     id="city" 
                                     name="city" 
+                                    data-old-city="{{ old('city') }}"
                                     required>
-                                <option value="">Select country first...</option>
+                                @if(old('city'))
+                                    <option value="{{ old('city') }}" selected>{{ old('city') }}</option>
+                                @else
+                                    <option value="">Select country first...</option>
+                                @endif
                             </select>
                             @error('city')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -586,7 +591,7 @@
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="agency_logo" class="form-label">
                                 <i class="ri-image-line text-primary"></i>
-                                Agency Logo
+                                Agency Logo <span class="text-danger">*</span>
                             </label>
                             <input type="file" 
                                    class="form-control @error('agency_logo') is-invalid @enderror" 
@@ -622,7 +627,7 @@
                         </div>
 
                         <!-- ID Card Type -->
-                        <div class="col-lg-6 col-md-6 mb-3">
+                        {{-- <div class="col-lg-6 col-md-6 mb-3">
                             <label for="id_card_type" class="form-label">
                                 <i class="ri-bank-card-line text-primary"></i>
                                 Govt. ID Card Type <span class="text-danger">*</span>
@@ -635,20 +640,20 @@
                             @error('id_card_type')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                        </div>
+                        </div> --}}
 
-                        <!-- Card Number -->
+                        <!-- License Number -->
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="card_number" class="form-label">
                                 <i class="ri-hashtag text-primary"></i>
-                                Card Number <span class="text-danger">*</span>
+                                License Number <span class="text-danger">*</span>
                             </label>
                             <input type="text" 
                                    class="form-control @error('card_number') is-invalid @enderror" 
                                    id="card_number" 
                                    name="card_number" 
                                    value="{{ old('card_number') }}" 
-                                   placeholder="Enter ID card number">
+                                   placeholder="Enter License number">
                             @error('card_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -785,6 +790,7 @@
                     </label>
                     <select class="form-select select2 branch-city" 
                             name="branches[INDEX][city]" 
+                            data-old-city=""
                             required>
                         <option value="">Select country first...</option>
                     </select>
@@ -803,7 +809,7 @@
                 </div>
 
                 <!-- ID Card Type -->
-                <div class="col-lg-6 col-md-6 mb-3">
+                {{-- <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-bank-card-line text-primary"></i>
                         Govt. ID Card Type <span class="text-danger">*</span>
@@ -812,18 +818,18 @@
                             name="branches[INDEX][id_card_type]">
                         <option value="">Select country first to load card types...</option>
                     </select>
-                </div>
+                </div> --}}
 
-                <!-- Card Number -->
+                <!-- License Number -->
                 <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-hashtag text-primary"></i>
-                        Card Number <span class="text-danger">*</span>
+                        License Number <span class="text-danger">*</span>
                     </label>
                     <input type="text" 
                            class="form-control" 
                            name="branches[INDEX][card_number]" 
-                           placeholder="Enter ID card number">
+                           placeholder="Enter License number">
                 </div>
 
                 <!-- Address -->
@@ -963,6 +969,12 @@ $(document).ready(function() {
                         $(citySelector).append('<option disabled>No cities found for this country</option>');
                         showNotification('No cities found for ' + country, 'warning');
                     }
+
+                    // Restore old city after reload (head office + branch)
+                    const oldCity = $(citySelector).data('old-city');
+                    if (oldCity) {
+                        $(citySelector).val(oldCity);
+                    }
                     
                     // Refresh Select2
                     $(citySelector).trigger('change');
@@ -1033,7 +1045,7 @@ $(document).ready(function() {
     }
 
     // Add Branch functionality
-    $('#addBranchBtn').on('click', function() {
+    function addBranchSection(prefill) {
         const template = document.getElementById('branchTemplate').content.cloneNode(true);
         
         // Update all INDEX placeholders with actual index
@@ -1045,7 +1057,7 @@ $(document).ready(function() {
         });
 
         // Generate and set unique branch UID
-        $(template).find('.branch-uid-field').val(generateBranchUid());
+        $(template).find('.branch-uid-field').val((prefill && prefill.branch_uid) ? prefill.branch_uid : generateBranchUid());
 
         // Add to container
         $('#branchesContainer').append(template);
@@ -1059,6 +1071,18 @@ $(document).ready(function() {
         initializeSelect2(countrySelect, 'Search for country...');
         initializeSelect2(citySelect, 'Search for city...');
         initializeSelect2(cardTypeSelect, 'Search for card type...');
+
+        // Prefill branch fields (old() restore)
+        if (prefill) {
+            branchContainer.find('input[name="branches[' + branchIndex + '][email]"]').val(prefill.email || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][phone]"]').val(prefill.phone || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][postal_code]"]').val(prefill.postal_code || '');
+            branchContainer.find('input[name="branches[' + branchIndex + '][card_number]"]').val(prefill.card_number || '');
+            branchContainer.find('textarea[name="branches[' + branchIndex + '][address]"]').val(prefill.address || '');
+
+            // Keep desired city on the select so it can be applied after AJAX loads options
+            citySelect.data('old-city', prefill.city || '');
+        }
         
         // Add change handler for branch country
         countrySelect.on('change', function() {
@@ -1068,17 +1092,47 @@ $(document).ready(function() {
             loadCitiesForElement(correspondingCitySelect, selectedCountry);
             loadCardTypesForElement(correspondingCardTypeSelect, selectedCountry);
         });
+
+        // Apply prefill country (will trigger city load + old-city restore)
+        if (prefill && prefill.country) {
+            countrySelect.val(prefill.country).trigger('change');
+        }
         
         branchIndex++;
         updateBranchCounter();
-        
+        return branchContainer;
+    }
+
+    $('#addBranchBtn').on('click', function() {
+        const branchContainer = addBranchSection(null);
+
         // Smooth scroll to new branch
         $('html, body').animate({
             scrollTop: branchContainer.offset().top - 100
         }, 500);
-        
+
         showNotification('Branch office section added successfully!', 'success');
     });
+
+    // Restore old() values after validation error (head office + branches)
+    const oldCountry = @json(old('country'));
+    const oldCity = @json(old('city'));
+    if (oldCountry) {
+        // Ensure the city is restored after AJAX loads
+        if (oldCity) {
+            $('#city').data('old-city', oldCity);
+        }
+        loadCitiesForElement('#city', oldCountry);
+        loadCardTypesForElement('#id_card_type', oldCountry);
+    }
+
+    const oldBranches = @json(old('branches', []));
+    if (Array.isArray(oldBranches) && oldBranches.length > 0) {
+        oldBranches.forEach(function(br) {
+            addBranchSection(br || {});
+        });
+        showNotification('Restored branch details from previous input', 'info');
+    }
 
     // Remove Branch functionality
     $(document).on('click', '.remove-branch-btn', function() {

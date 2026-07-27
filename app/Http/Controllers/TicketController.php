@@ -78,12 +78,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
 
@@ -109,50 +126,58 @@ class TicketController extends Controller
         }
 
         // Generate a unique 8-digit ticket ID
-        $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
-        $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-        $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+        // $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
+        // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+        // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
         
         // Ensure it's at least 8 digits
         DB::beginTransaction();
 
         try{
-            do {
-                // Lock the latest ticket row to avoid race condition
-                $lastTicket = Ticket::withTrashed()
-                    ->orderBy('ticket_id', 'desc')
-                    ->lockForUpdate()
-                    ->first();
+            // do {
+            //     // Lock the latest ticket row to avoid race condition
+            //     $lastTicket = Ticket::withTrashed()
+            //         ->orderBy('ticket_id', 'desc')
+            //         ->lockForUpdate()
+            //         ->first();
 
-                // Start from 10000000 if no ticket exists
-                $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-                $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+            //     // Start from 10000000 if no ticket exists
+            //     // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+            //     // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
 
-            } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
+            // } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
             
             // Create a new ticket
             $ticket = new Ticket();
-            $ticket->ticket_id = $ticketMaxId;
+            // $ticket->ticket_id = $ticketMaxId;
             $ticket->name = $request->name;
             $ticket->description = $request->description;
             $ticket->remarks = $request->remarks;
             $ticket->terms_conditions = $request->terms_conditions;
             $ticket->child_price = $request->child_price;
+            $ticket->child_cost_price = $request->child_cost_price;
             $ticket->adult_price = $request->adult_price;
+            $ticket->adult_cost_price = $request->adult_cost_price;
             $ticket->senior_adult_price = $request->senior_adult_price;
+            $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
             $ticket->child_price_nri = $request->child_price_nri;
+            $ticket->child_cost_price_nri = $request->child_cost_price_nri;
             $ticket->adult_price_nri = $request->adult_price_nri;
+            $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
             $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+            $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
             $ticket->status = $request->status ? 1 : 0;
             $ticket->created_by = Auth::user()->userId ?? null;
             $ticket->dmc_id = $dmc_id;
             $ticket->attraction_id = $attraction_id;
             $ticket->save();
+            $ticket->refresh();
 
             DB::commit();
             return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            dd($e);
             return redirect()->back()->with('error', 'Failed to create ticket.');
         }
     }
@@ -192,7 +217,7 @@ class TicketController extends Controller
                 $dmcUsers = User::where('role_id', 11)
                     ->where('user_type', 2)
                     ->whereIn('userId', $attractionDmcIds)
-                    ->select('userId', 'name', 'company_name')
+                    ->select('userId', 'name', 'company_name', 'currency')
                     ->orderBy('company_name', 'asc')
                     ->get();
             }
@@ -251,7 +276,11 @@ class TicketController extends Controller
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
-        return view('tickets.edit-ticket', compact('ticket'));
+
+        // Needed for currency-price-note on the edit ticket page
+        $auth_user = Auth::user();
+
+        return view('tickets.edit-ticket', compact('ticket', 'auth_user'));
     }
 
     /**
@@ -266,12 +295,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
         $ticket_id = Crypt::decrypt($ticket_id);
@@ -286,11 +332,17 @@ class TicketController extends Controller
         $ticket->remarks = $request->remarks;
         $ticket->terms_conditions = $request->terms_conditions;
         $ticket->child_price = $request->child_price;
+        $ticket->child_cost_price = $request->child_cost_price;
         $ticket->adult_price = $request->adult_price;
+        $ticket->adult_cost_price = $request->adult_cost_price;
         $ticket->senior_adult_price = $request->senior_adult_price;
+        $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
         $ticket->child_price_nri = $request->child_price_nri;
+        $ticket->child_cost_price_nri = $request->child_cost_price_nri;
         $ticket->adult_price_nri = $request->adult_price_nri;
+        $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
         $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+        $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
         $ticket->status = $request->has('status') ? 1 : 0;
         $ticket->updated_by = Auth::user()->userId ?? null;
         

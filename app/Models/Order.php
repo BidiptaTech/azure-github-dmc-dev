@@ -20,6 +20,32 @@ class Order extends Model
     
     // Automatically load the tour relationship when retrieving orders
     protected $with = ['tour'];
+
+    protected static function booted()
+    {
+        static::saving(function (Order $order) {
+            if (empty($order->country)) {
+                $inferred = \App\Helpers\CommonHelper::inferCountryFromOrderPayload($order->data ?? null);
+                if (empty($inferred) && !empty($order->tour_id)) {
+                    $destination = Tour::where('tour_id', $order->tour_id)->value('destination');
+                    $countries = \App\Helpers\CommonHelper::resolveDestinationPartsToCountries((string) $destination);
+                    if (count($countries) === 1) {
+                        $inferred = $countries[0];
+                    }
+                }
+                if (!empty($inferred)) {
+                    $order->country = $inferred;
+                }
+            }
+
+            if (empty($order->currency) && !empty($order->country) && !str_contains((string) $order->country, ',')) {
+                $currency = Country::where('name', $order->country)->value('currency');
+                if (!empty($currency)) {
+                    $order->currency = strtoupper(trim((string) $currency));
+                }
+            }
+        });
+    }
     
     public function toArray()
     {

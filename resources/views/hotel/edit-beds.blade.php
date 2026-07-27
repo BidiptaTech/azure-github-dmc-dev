@@ -77,6 +77,21 @@
                                     name="max_occupancy" id="max-occupancy" class="form-control"
                                     placeholder="Enter maximum occupancy">
                             </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                <select id="bed_profit_margin" class="form-select js-bed-profit-type">
+                                    <option value="percentage" selected>%</option>
+                                    <option value="flat">Flat</option>
+                                </select>
+                                <small class="text-muted">Helper only — not saved</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                <input type="number" id="bed_profit_amount" class="form-control js-bed-profit-amount"
+                                       value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                <small class="text-muted">Auto-fills Sell from Cost</small>
+                            </div>
                             
                             <div class="col-md-3 mb-3">
                                 <label for="extra_bed" class="form-label"><strong>Extra
@@ -104,12 +119,21 @@
                                 </select>
                             </div>
 
-                            <!-- extra bed price -->
+                            <!-- extra bed price: Cost then Sell -->
+                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
+                                <label for="extra_bed_cost_price" class="form-label"><strong>Extra Bed
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="extra_bed_cost_price" id="extra_bed_cost_price"
+                                    class="form-control js-bed-cost" data-sell-target="extra_bed_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->extra_bed_cost_price }}">
+                            </div>
                             <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
                                 <label for="extra_bed_price" class="form-label"><strong>Extra Bed
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="extra_bed_price" id="extra_bed_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->extra_bed_price }}">
                             </div>
 
                             <!-- Adult Count -->
@@ -154,12 +178,21 @@
                                 </select>
                             </div>
 
-                            <!-- baby cot price -->
+                            <!-- baby cot price: Cost then Sell -->
+                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
+                                <label for="baby_cot_cost_price" class="form-label"><strong>Baby Cot
+                                        Price(Cost)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="baby_cot_cost_price" id="baby_cot_cost_price"
+                                    class="form-control js-bed-cost" data-sell-target="baby_cot_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->baby_cot_cost_price }}">
+                            </div>
                             <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
                                 <label for="baby_cot_price" class="form-label"><strong>Baby Cot
-                                        Price</strong><span class="text-danger">*</span></label>
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="baby_cot_price" id="baby_cot_price"
-                                    class="form-control" placeholder="Enter Price">
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01"
+                                    value="{{ $hotelBed->baby_cot_price }}">
                             </div>
                             <hr>
                         </div>
@@ -247,16 +280,25 @@
 <!-- baby cot price -->
 <script>
     const bed = @json($hotelBed);
-    // Function to toggle the visibility of the baby cot price field
+    // Function to toggle the visibility of the baby cot price fields
     const babyCotDropdown = document.getElementById("baby_cot");
-    const babyCotPriceField = document.querySelector(`.baby_cot_price`);
-    const babyCotPriceInput = babyCotPriceField.querySelector('input');
+    const babyCotPriceFields = document.querySelectorAll(`.baby_cot_price`);
     const toggleBabyCotPrice = () => {
-        if (babyCotDropdown.value === "1") {
-            babyCotPriceField.style.display = "block"; // Show price field if "Yes" is selected
-            babyCotPriceInput.value = bed.baby_cot_price;
-        } else {
-            babyCotPriceField.style.display = "none"; // Hide price field if "No" or nothing is selected
+        const sellInput = document.getElementById('baby_cot_price');
+        const costInput = document.getElementById('baby_cot_cost_price');
+        const isYes = babyCotDropdown.value === "1";
+        babyCotPriceFields.forEach(function(field) {
+            field.style.display = isYes ? "block" : "none";
+        });
+        if (sellInput) {
+            sellInput.required = isYes;
+            if (isYes) sellInput.value = bed.baby_cot_price ?? '';
+            else sellInput.value = "";
+        }
+        if (costInput) {
+            costInput.required = isYes;
+            if (isYes) costInput.value = bed.baby_cot_cost_price ?? '';
+            else costInput.value = "";
         }
     };
 
@@ -278,22 +320,28 @@
     document.addEventListener("DOMContentLoaded", () => {
         const extraBedSelect = document.getElementById('extra_bed');
         const extraBedTypeDiv = document.querySelector('.extra_bed_type');
-        const extraBedPriceDiv = document.querySelector('.extra_bed_price');
-        const extraBedPriceInput = extraBedPriceDiv.querySelector('input');
+        const extraBedPriceDivs = document.querySelectorAll('.extra_bed_price');
         const bed = @json($hotelBed);
 
         function toggleExtraBedField() {
+            const typeEl = document.getElementById('extra_bed_type');
+            const sellInput = document.getElementById('extra_bed_price');
+            const costInput = document.getElementById('extra_bed_cost_price');
+            const isYes = extraBedSelect.value === "1";
 
-
-            if (extraBedSelect.value === "1") {
-                extraBedTypeDiv.style.display = "block";
-                extraBedPriceDiv.style.display = "block";
-                extraBedPriceInput.value = bed.extra_bed_price;
-            } else {
-                extraBedTypeDiv.style.display = "none";
-                extraBedPriceDiv.style.display = "none";
-                document.getElementById('extra_bed_type').value = ""; // Clear the type field
-                document.getElementById('extra_bed_price').value = ""; // Clear the price field
+            if (extraBedTypeDiv) extraBedTypeDiv.style.display = isYes ? "block" : "none";
+            extraBedPriceDivs.forEach(function(div) { div.style.display = isYes ? "block" : "none"; });
+            if (typeEl) {
+                typeEl.required = isYes;
+                if (!isYes) typeEl.value = "";
+            }
+            if (sellInput) {
+                sellInput.required = isYes;
+                sellInput.value = isYes ? (bed.extra_bed_price ?? '') : "";
+            }
+            if (costInput) {
+                costInput.required = isYes;
+                costInput.value = isYes ? (bed.extra_bed_cost_price ?? '') : "";
             }
         }
 
@@ -560,4 +608,65 @@ const attachOccupancyListeners = (occupancyId, adultId, childId) => {
     });
 </script>
 <!-- End Toggle Force Child Count -->
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const c = parseFloat(cost);
+        const a = parseFloat(amount);
+        const costVal = isNaN(c) ? 0 : c;
+        const amtVal = isNaN(a) ? 0 : a;
+        if (costVal <= 0) return 0;
+        if (type === 'flat') return round2(costVal + amtVal);
+        return round2(costVal + (costVal * amtVal / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-bed-profit-type');
+        const amountEl = document.querySelector('.js-bed-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+        document.querySelectorAll('.js-bed-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+        document.querySelectorAll('.js-bed-profit-type, .js-bed-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
+</script>
 @endsection

@@ -168,22 +168,6 @@
     .btn-primary:hover {
         background: linear-gradient(45deg, #5d60ff, #7073ff);
     }
-    .price-input {
-        position: relative;
-    }
-    .price-input::before {
-        content: '$';
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #566a7f;
-        z-index: 10;
-        pointer-events: none;
-    }
-    .price-input input {
-        padding-left: 25px;
-    }
     .form-control:focus {
         border-color: #696cff;
         box-shadow: 0 0 0 0.25rem rgba(105, 108, 255, 0.25);
@@ -225,12 +209,18 @@
 @endsection
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <!-- Start of the form -->
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Edit Packaged Attraction
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Edit Packaged Attraction
+                    <x-currency-price-note />
+                </span>
                 <a href="{{ route('packaged-attractions.index') }}" class="btn btn-sm btn-outline-light">
                     <i class="fas fa-arrow-left me-1"></i> Back
                 </a>
@@ -270,6 +260,45 @@
                     </div>
                 </div>
                 
+                @php
+                    $selectedAttractions = json_decode($packagedAttraction->attractions, true) ?? [];
+                    $selectedAttractionIds = array_map('strval', $selectedAttractions);
+                    $attractionCountries = ($attractions ?? collect())->pluck('country')->filter()->unique()->sort()->values();
+                    $filterCountry = old('country', $packagedAttraction->country ?? $dmcCountry ?? '');
+                    $filterCity = old('city', $packagedAttraction->city ?? '');
+                @endphp
+
+                <div class="row">
+                    <!-- Country (read-only on edit) -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCountryFilter" class="form-label">
+                            <strong>Country</strong>
+                        </label>
+                        <input type="hidden" name="country" value="{{ $filterCountry }}">
+                        <select class="form-select bg-light" id="attractionCountryFilter" disabled aria-readonly="true" tabindex="-1">
+                            <option value="">All Countries</option>
+                            @foreach($attractionCountries as $country)
+                                <option value="{{ $country }}" {{ $filterCountry === $country ? 'selected' : '' }}>
+                                    {{ $country }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Country cannot be changed when editing a package.</small>
+                    </div>
+
+                    <!-- City (read-only on edit) -->
+                    <div class="col-md-4 mb-3">
+                        <label for="attractionCityFilter" class="form-label">
+                            <strong>City</strong>
+                        </label>
+                        <input type="hidden" name="city" value="{{ $filterCity }}">
+                        <select class="form-select bg-light" id="attractionCityFilter" disabled aria-readonly="true" tabindex="-1">
+                            <option value="">All Cities</option>
+                        </select>
+                        <small class="text-muted">City cannot be changed when editing a package.</small>
+                    </div>
+                </div>
+
                 <div class="row">
                     <!-- Attractions Selection -->
                     <div class="col-md-12 mb-3">
@@ -278,14 +307,13 @@
                         </label>
                         <select name="attractions[]" id="attractionsSelect" class="form-select" multiple required>
                             <option value="">Select Attractions</option>
-                            @php
-                                $selectedAttractions = json_decode($packagedAttraction->attractions, true) ?? [];
-                            @endphp
                             @foreach($attractions ?? [] as $attraction)
-                                <option 
-                                    data-image="{{ $attraction->master_image }}" 
+                                <option
+                                    data-image="{{ $attraction->master_image }}"
+                                    data-country="{{ $attraction->country }}"
+                                    data-city="{{ $attraction->location }}"
                                     value="{{ $attraction->id }}"
-                                    {{ in_array($attraction->id, $selectedAttractions) ? 'selected' : '' }}
+                                    {{ in_array((string) $attraction->id, $selectedAttractionIds, true) ? 'selected' : '' }}
                                 >
                                     {{ $attraction->name }}
                                 </option>
@@ -312,7 +340,7 @@
                             <strong>Senior Citizen Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="senior_citizen_price" 
                                    name="senior_citizen_price" placeholder="0.00" value="{{ $packagedAttraction->senior_citizen_price }}" required>
                         </div>
@@ -327,7 +355,7 @@
                             <strong>Adult Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="adult_price" 
                                    name="adult_price" placeholder="0.00" value="{{ $packagedAttraction->adult_price }}" required>
                         </div>
@@ -342,11 +370,38 @@
                             <strong>Child Price</strong><span class="text-danger">*</span>
                         </label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">{{ $dmcCurrency }}</span>
                             <input type="number" step="0.01" class="form-control" id="child_price" 
                                    name="child_price" placeholder="0.00" value="{{ $packagedAttraction->child_price }}" required>
                         </div>
                         @error('child_price')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="vehicle_included" name="vehicle_included" value="1"
+                                   {{ old('vehicle_included', $packagedAttraction->vehicle_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="vehicle_included">
+                                <strong>Vehicle Included</strong>
+                            </label>
+                        </div>
+                        @error('vehicle_included')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="guide_included" name="guide_included" value="1"
+                                   {{ old('guide_included', $packagedAttraction->guide_included) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="guide_included">
+                                <strong>Guide Included</strong>
+                            </label>
+                        </div>
+                        @error('guide_included')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -475,9 +530,69 @@
             console.error("Summernote plugin is not available");
         }
         
-        // Update attractions preview on page load
-        updateAttractionPreview();
-        
+        const savedFilterCity = @json($filterCity);
+
+        // Build attractions data map from blade
+        const allAttractionOptions = [];
+        $('#attractionsSelect option').each(function() {
+            if ($(this).val()) {
+                allAttractionOptions.push({
+                    id: String($(this).val()),
+                    name: $(this).text(),
+                    image: $(this).data('image'),
+                    country: $(this).data('country') || '',
+                    city: $(this).data('city') || '',
+                    element: $(this).clone()
+                });
+            }
+        });
+
+        function filterAttractions() {
+            const selectedCountry = $('#attractionCountryFilter').val();
+            const selectedCity = $('#attractionCityFilter').val();
+            const currentSelected = ($('#attractionsSelect').val() || []).map(String);
+
+            $('#attractionsSelect').empty();
+
+            allAttractionOptions.forEach(function(opt) {
+                const matchCountry = !selectedCountry || opt.country === selectedCountry;
+                const matchCity = !selectedCity || opt.city === selectedCity;
+                const keepSelected = currentSelected.includes(opt.id);
+                if (keepSelected || (matchCountry && matchCity)) {
+                    const el = opt.element.clone();
+                    if (currentSelected.includes(opt.id)) {
+                        el.prop('selected', true);
+                    }
+                    $('#attractionsSelect').append(el);
+                }
+            });
+
+            $('#attractionsSelect').trigger('change');
+            updateAttractionPreview();
+        }
+
+        function populateCities(country) {
+            const selectedCity = $('#attractionCityFilter').val() || savedFilterCity;
+            const cities = [...new Set(
+                allAttractionOptions
+                    .filter(o => !country || o.country === country)
+                    .map(o => o.city)
+                    .filter(c => c)
+            )].sort();
+
+            $('#attractionCityFilter').empty().append('<option value="">All Cities</option>');
+            cities.forEach(function(city) {
+                $('#attractionCityFilter').append($('<option>', {
+                    value: city,
+                    text: city,
+                    selected: selectedCity === city
+                }));
+            });
+        }
+
+        populateCities($('#attractionCountryFilter').val());
+        filterAttractions();
+
         // Handle attraction selection change
         $('#attractionsSelect').on('change', function() {
             updateAttractionPreview();

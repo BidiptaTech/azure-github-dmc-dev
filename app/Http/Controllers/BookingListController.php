@@ -3,15 +3,596 @@
 namespace App\Http\Controllers;
 
 use App\Models\Agent;
+use App\Models\BankDetail;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Tour;
+use App\Models\Country;
+use App\Models\City;
+use App\Models\ItinerarySetting;
+use App\Models\QuotationSetting;
 use App\Helpers\CommonHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\CurrencyService;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\QueryException;
+
 class BookingListController extends Controller
 {
+    public function itinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $selectedCountry = (string) $request->get('country', '');
+            $selectedCity = (string) $request->get('city', '');
+
+            $currentSetting = null;
+            if ($selectedCountry !== '' && $selectedCity !== '') {
+                $currentSetting = ItinerarySetting::where('dmc_id', $dmcId)
+                    ->where('country', $selectedCountry)
+                    ->where('city', $selectedCity)
+                    ->first();
+            }
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings', [
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => $selectedCountry,
+                'selectedCity' => $selectedCity,
+                'itineraryInformationHtml' => $currentSetting ? (string) ($currentSetting->itinerary_information ?? '') : '',
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Itinerary settings index failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to load itinerary settings. Please try again. '.$e->getMessage());
+        }
+    }
+
+    public function saveItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+            $itineraryInformationHtml = $validated['itinerary_information'] ?? null;
+
+            DB::beginTransaction();
+            try {
+                $last = ItinerarySetting::withTrashed()->orderBy('itinerary_setting_id', 'desc')->first();
+                // $lastId = (int) ($last->itinerary_setting_id ?? 0);
+                // $newId = CommonHelper::createId($lastId);
+
+                $setting = new ItinerarySetting();
+                // $setting->itinerary_setting_id = $newId;
+                $setting->dmc_id = $dmcId;
+                $setting->country = $country;
+                $setting->city = $city;
+                $setting->itinerary_information = $itineraryInformationHtml;
+
+                $setting->save();
+                $setting->refresh();
+                DB::commit();
+                return redirect()
+                    ->route('itinerary_settings.pdf')
+                    ->with('success', 'Itinerary settings saved successfully.');
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save itinerary settings. '.$e->getMessage())->withInput();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Save itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to save itinerary settings. Please try again. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function fetchItinerarySettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+            ]);
+
+            $setting = ItinerarySetting::where('dmc_id', $dmcId)
+                ->where('country', $validated['country'])
+                ->where('city', $validated['city'])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'found' => (bool) $setting,
+                'data' => [
+                    'itinerary_information' => $setting ? (string) ($setting->itinerary_information ?? '') : '',
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Fetch itinerary settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Unable to load itinerary settings. '.$e->getMessage()], 500);
+        }
+    }
+
+    public function editItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $allSettings = ItinerarySetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.itinerary_settings_edit', [
+                'setting' => $setting,
+                'encryptedId' => Crypt::encryptString((string) $setting->itinerary_setting_id),
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => (string) ($setting->country ?? ''),
+                'selectedCity' => (string) ($setting->city ?? ''),
+                'itineraryInformationHtml' => (string) ($setting->itinerary_information ?? ''),
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Edit itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to load itinerary setting for editing. '.$e->getMessage());
+        }
+    }
+
+    public function updateItinerarySettings(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+
+            $setting->country = $country;
+            $setting->city = $city;
+            $setting->itinerary_information = $validated['itinerary_information'] ?? null;
+            $setting->save();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary settings updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Update itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to update itinerary settings. '.$e->getMessage())->withInput();
+        }
+    }
+
+    public function deleteItinerarySettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = ItinerarySetting::where('itinerary_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $setting->delete();
+
+            return redirect()
+                ->route('itinerary_settings.pdf')
+                ->with('success', 'Itinerary setting deleted successfully.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Delete itinerary settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('itinerary_settings.pdf')->with('error', 'Unable to delete itinerary setting. '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Quotation Settings (mirrors ItinerarySettings)
+     */
+    public function quotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $selectedCountry = (string) $request->get('country', '');
+            $selectedCity = (string) $request->get('city', '');
+
+            $currentSetting = null;
+            if ($selectedCountry !== '' && $selectedCity !== '') {
+                $currentSetting = QuotationSetting::where('dmc_id', $dmcId)
+                    ->where('country', $selectedCountry)
+                    ->where('city', $selectedCity)
+                    ->first();
+            }
+
+            $allSettings = QuotationSetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.quotation_settings', [
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => $selectedCountry,
+                'selectedCity' => $selectedCity,
+                'quotationInformationHtml' => $currentSetting ? (string) ($currentSetting->quotation_information ?? '') : '',
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Quotation settings index failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to load quotation settings. Please try again. ' . $e->getMessage());
+        }
+    }
+
+    public function saveQuotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'quotation_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+            $quotationInformationHtml = $validated['quotation_information'] ?? null;
+
+            DB::beginTransaction();
+            try {
+                $last = QuotationSetting::withTrashed()->orderBy('quotation_setting_id', 'desc')->first();
+                // $lastId = (int) ($last->quotation_setting_id ?? 0);
+                // $newId = CommonHelper::createId($lastId);
+
+                $setting = new QuotationSetting();
+                // $setting->quotation_setting_id = $newId;
+                $setting->dmc_id = $dmcId;
+                $setting->country = $country;
+                $setting->city = $city;
+                $setting->quotation_information = $quotationInformationHtml;
+                $setting->save();
+                $setting->refresh();
+                DB::commit();
+                return redirect()
+                    ->route('quotation_settings.pdf')
+                    ->with('success', 'Quotation settings saved successfully.');
+            }
+            catch (\Illuminate\Validation\QueryException $e) {
+                DB::rollBack();
+                Log::error('Save quotation settings failed query exception', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save quotation settings. query exception');
+            }
+             catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Save quotation settings failed inside', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                return redirect()->back()->with('error', 'Failed to save quotation settings. Check if quotation setting already exists for this DMC, country and city.')->withInput();
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Save quotation settings failed outsider', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to save quotation settings. Please try again. ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function fetchQuotationSettings(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+            ]);
+
+            $setting = QuotationSetting::where('dmc_id', $dmcId)
+                ->where('country', $validated['country'])
+                ->where('city', $validated['city'])
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'found' => (bool) $setting,
+                'data' => [
+                    'quotation_information' => $setting ? (string) ($setting->quotation_information ?? '') : '',
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Fetch quotation settings failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => 'Unable to load quotation settings. ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function editQuotationSettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+            $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+            $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+                return $group->pluck('name')->values();
+            })->toArray();
+
+            $allSettings = QuotationSetting::where('dmc_id', $dmcId)
+                ->orderBy('country')
+                ->orderBy('city')
+                ->get();
+
+            return view('bookingList.quotation_settings_edit', [
+                'setting' => $setting,
+                'encryptedId' => Crypt::encryptString((string) $setting->quotation_setting_id),
+                'countries' => $countries,
+                'citiesByCountry' => $citiesByCountry,
+                'selectedCountry' => (string) ($setting->country ?? ''),
+                'selectedCity' => (string) ($setting->city ?? ''),
+                'quotationInformationHtml' => (string) ($setting->quotation_information ?? ''),
+                'allSettings' => $allSettings,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Edit quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('quotation_settings.pdf')->with('error', 'Unable to load quotation setting for editing. ' . $e->getMessage());
+        }
+    }
+
+    public function updateQuotationSettings(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'quotation_information' => 'nullable|string',
+            ]);
+
+            $country = trim($validated['country']);
+            $city = trim($validated['city']);
+
+            $setting->country = $country;
+            $setting->city = $city;
+            $setting->quotation_information = $validated['quotation_information'] ?? null;
+            $setting->save();
+
+            return redirect()
+                ->route('quotation_settings.pdf')
+                ->with('success', 'Quotation settings updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Update quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'Unable to update quotation settings. ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function deleteQuotationSettings($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        try {
+            $id = (int) Crypt::decryptString((string) $id);
+        } catch (\Throwable $e) {
+            abort(404);
+        }
+
+        try {
+            $dmcId = CommonHelper::getDmcId($user);
+            if ($dmcId === null) {
+                $dmcId = $user->userId;
+            }
+
+            $setting = QuotationSetting::where('quotation_setting_id', $id)
+                ->where('dmc_id', $dmcId)
+                ->firstOrFail();
+
+            $setting->delete();
+
+            return redirect()
+                ->route('quotation_settings.pdf')
+                ->with('success', 'Quotation setting deleted successfully.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
+        } catch (\Throwable $e) {
+            Log::error('Delete quotation settings failed', ['id' => $id, 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('quotation_settings.pdf')->with('error', 'Unable to delete quotation setting. ' . $e->getMessage());
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -1020,6 +1601,12 @@ class BookingListController extends Controller
         
         // Fetch all bookings for the specified tour
         $tour = Tour::where('tour_id', $tourId)->first();
+        
+        // If tour doesn't exist, redirect back
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+        
         $user_dmc = null;
         if ($tour && $tour->dmc_id) {
             $user_dmc = User::select('name', 'email', 'phone', 'company_name','logo', 'country', 'city', 'address')->where('userId', $tour->dmc_id)->first();
@@ -1097,7 +1684,11 @@ class BookingListController extends Controller
                     'address' => ($agency && $agency->address) ? $agency->address : '',
                     'contact_person' => ($agency && $agency->contact_person) ? $agency->contact_person : ($agent->name ?? ''),
                     'phone' => ($agency && $agency->phone) ? $agency->phone : ($agent->phone ?? ''),
-                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? '')
+                    'email' => ($agency && $agency->email) ? $agency->email : ($agent->email ?? ''),
+                    'agent_name' => ($agent->name ?? ''),
+                    'agent_phone' => ($agent->phone ?? ''),
+                    'agent_email' => ($agent->email ?? ''),
+                    'agent_address' => ($agent->address ?? ''),
                 ];
             }
         }
@@ -1111,42 +1702,43 @@ class BookingListController extends Controller
         });
         }])->where('tour_id', $tourId)->first();
 
-        if (!$bookings->count()) {
-            return redirect()->back()->with('error', 'No itinerary found for this tour.');
-        }
-        
-        // Format the bookings data
-        $bookings = $this->formatBookings($bookings);
-        
-        // Group bookings by date for itinerary display
+        // Initialize itineraryByDate as empty array
         $itineraryByDate = [];
-        foreach ($bookings as $booking) {
-            $data = $booking->data_decoded;
-            
-            // Extract date from the booking data
-            $date = null;
-            if (isset($data[0]['bookingDate'])) {
-                if (is_array($data[0]['bookingDate'])) {
-                    $date = $data[0]['bookingDate'][0] ?? null;
-                } else {
-                    $date = $data[0]['bookingDate'] ?? null;
-                }
-            } elseif (isset($data[0]['pickupdate'])) {
-                $date = $data[0]['pickupdate'];
-            } elseif (isset($data[0]['exitpickupdate'])) {
-                $date = $data[0]['exitpickupdate'];
-            }
-            
-            if ($date) {
-                if (!isset($itineraryByDate[$date])) {
-                    $itineraryByDate[$date] = [];
-                }
-                $itineraryByDate[$date][] = $booking;
-            }
-        }
         
-        // Sort dates
-        ksort($itineraryByDate);
+        // Only process bookings if they exist
+        if ($bookings->count() > 0) {
+            // Format the bookings data
+            $bookings = $this->formatBookings($bookings);
+            
+            // Group bookings by date for itinerary display
+            foreach ($bookings as $booking) {
+                $data = $booking->data_decoded;
+                
+                // Extract date from the booking data
+                $date = null;
+                if (isset($data[0]['bookingDate'])) {
+                    if (is_array($data[0]['bookingDate'])) {
+                        $date = $data[0]['bookingDate'][0] ?? null;
+                    } else {
+                        $date = $data[0]['bookingDate'] ?? null;
+                    }
+                } elseif (isset($data[0]['pickupdate'])) {
+                    $date = $data[0]['pickupdate'];
+                } elseif (isset($data[0]['exitpickupdate'])) {
+                    $date = $data[0]['exitpickupdate'];
+                }
+                
+                if ($date) {
+                    if (!isset($itineraryByDate[$date])) {
+                        $itineraryByDate[$date] = [];
+                    }
+                    $itineraryByDate[$date][] = $booking;
+                }
+            }
+            
+            // Sort dates
+            ksort($itineraryByDate);
+        }
         
         // Get DMC price_hide setting based on user hierarchy
         $priceHide = 1; // Default to show prices
@@ -1161,14 +1753,1292 @@ class BookingListController extends Controller
                 }
             }
         }
+        
+        // Extract passengers from tour's mainguest and additionalguest columns
+        $allPassengers = [];
+        
+        // Extract main guest from mainguest column
+        if (!empty($tour->mainguest)) {
+            try {
+                $mainguestData = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguestData) && !empty($mainguestData)) {
+                    $mainGuest = [
+                        'salutation' => $mainguestData['salutation'] ?? 'Mr',
+                        'first_name' => $mainguestData['full_name'] ?? '',
+                        'name' => $mainguestData['full_name'] ?? '',
+                        'passenger_type' => $mainguestData['passenger_type'] ?? 'Adult',
+                        'gender' => $mainguestData['gender'] ?? 'M',
+                        'mobile_phone' => $mainguestData['phone'] ?? '',
+                        'phone' => $mainguestData['phone'] ?? '',
+                        'email' => $mainguestData['email'] ?? '',
+                    ];
+                    // Add country code to phone if available
+                    if (!empty($mainguestData['country_code']) && !empty($mainGuest['phone'])) {
+                        $mainGuest['mobile_phone'] = '+' . $mainguestData['country_code'] . ' ' . $mainGuest['phone'];
+                        $mainGuest['phone'] = '+' . $mainguestData['country_code'] . ' ' . $mainGuest['phone'];
+                    }
+                    $allPassengers[] = $mainGuest;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse mainguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Extract additional guests from additionalguest column
+        if (!empty($tour->additionalguest)) {
+            try {
+                $additionalGuestsData = is_string($tour->additionalguest) ? json_decode($tour->additionalguest, true) : $tour->additionalguest;
+                if (is_array($additionalGuestsData)) {
+                    // Check if it's an array of guests or a single guest object
+                    if (isset($additionalGuestsData[0]) && is_array($additionalGuestsData[0])) {
+                        // Array of guests
+                        foreach ($additionalGuestsData as $guestData) {
+                            if (is_array($guestData) && !empty($guestData)) {
+                                $additionalGuest = [
+                                    'salutation' => $guestData['salutation'] ?? 'Mr',
+                                    'first_name' => $guestData['full_name'] ?? $guestData['name'] ?? '',
+                                    'name' => $guestData['full_name'] ?? $guestData['name'] ?? '',
+                                    'passenger_type' => $guestData['passenger_type'] ?? 'Adult',
+                                    'gender' => $guestData['gender'] ?? 'M',
+                                    'mobile_phone' => $guestData['phone'] ?? '',
+                                    'phone' => $guestData['phone'] ?? '',
+                                    'email' => $guestData['email'] ?? '',
+                                ];
+                                // Add country code to phone if available
+                                if (!empty($guestData['country_code']) && !empty($additionalGuest['phone'])) {
+                                    $additionalGuest['mobile_phone'] = '+' . $guestData['country_code'] . ' ' . $additionalGuest['phone'];
+                                    $additionalGuest['phone'] = '+' . $guestData['country_code'] . ' ' . $additionalGuest['phone'];
+                                }
+                                $allPassengers[] = $additionalGuest;
+                            }
+                        }
+                    } else {
+                        // Single guest object
+                        if (is_array($additionalGuestsData) && !empty($additionalGuestsData)) {
+                            $additionalGuest = [
+                                'salutation' => $additionalGuestsData['salutation'] ?? 'Mr',
+                                'first_name' => $additionalGuestsData['full_name'] ?? $additionalGuestsData['name'] ?? '',
+                                'name' => $additionalGuestsData['full_name'] ?? $additionalGuestsData['name'] ?? '',
+                                'passenger_type' => $additionalGuestsData['passenger_type'] ?? 'Adult',
+                                'gender' => $additionalGuestsData['gender'] ?? 'M',
+                                'mobile_phone' => $additionalGuestsData['phone'] ?? '',
+                                'phone' => $additionalGuestsData['phone'] ?? '',
+                                'email' => $additionalGuestsData['email'] ?? '',
+                            ];
+                            // Add country code to phone if available
+                            if (!empty($additionalGuestsData['country_code']) && !empty($additionalGuest['phone'])) {
+                                $additionalGuest['mobile_phone'] = '+' . $additionalGuestsData['country_code'] . ' ' . $additionalGuest['phone'];
+                                $additionalGuest['phone'] = '+' . $additionalGuestsData['country_code'] . ' ' . $additionalGuest['phone'];
+                            }
+                            $allPassengers[] = $additionalGuest;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to parse additionalguest data from tour', [
+                    'tour_id' => $tourId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
             'tourDetails' => $tourDetails,
             'priceHide' => $priceHide,
             'user_dmc' => $user_dmc,
-            'agent_info' => $agent_info
+            'agent_info' => $agent_info,
+            'allPassengers' => $allPassengers,
         ]);
+    }
+
+    /**
+     * Formatted itinerary PDF preview page (iframe + DMC/Agency branding; download opens country/city + extra fields modal like quotation).
+     */
+    public function itineraryFormattedPdfPreview(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Invalid tour reference.');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        $countries = Country::where('is_active', 1)->orderBy('name', 'asc')->get();
+        $cities = City::whereNull('deleted_at')->orderBy('name', 'asc')->get(['name', 'country']);
+        $citiesByCountry = $cities->groupBy(fn ($c) => (string) ($c->country ?? ''))->map(function ($group) {
+            return $group->pluck('name')->values();
+        })->toArray();
+
+        $defaultItineraryInformationHtml = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? 0);
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $defaultItineraryInformationHtml = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
+        return view('bookingList.itinerary-formatted-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tourId,
+            'countries' => $countries,
+            'citiesByCountry' => $citiesByCountry,
+            'defaultItineraryInformationHtml' => $defaultItineraryInformationHtml,
+        ]);
+    }
+
+    /**
+     * Store optional itinerary PDF sections (rich text + text blocks) for GET-based PDF generation via short cache key.
+     */
+    public function storeItineraryFormattedPdfInfo(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid tour.'], 404);
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return response()->json(['success' => false, 'message' => 'Tour not found.'], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'country' => 'required|string|max:255',
+                'city' => 'required|string|max:255',
+                'itinerary_information' => 'nullable|string|max:200000',
+                'emergency_contact' => 'nullable|string|max:50000',
+                'sic_timing' => 'nullable|string|max:50000',
+                'meeting_points' => 'nullable|string|max:50000',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid input.'], 422);
+        }
+
+        $payload = [
+            'itinerary_information' => (string) ($validated['itinerary_information'] ?? ''),
+            'emergency_contact' => (string) ($validated['emergency_contact'] ?? ''),
+            'sic_timing' => (string) ($validated['sic_timing'] ?? ''),
+            'meeting_points' => (string) ($validated['meeting_points'] ?? ''),
+        ];
+
+        $key = 'itinerary_pdf_info_' . Str::random(40);
+        Cache::put($key, json_encode($payload), now()->addMinutes(10));
+
+        return response()->json([
+            'success' => true,
+            'itinerary_pdf_info_key' => $key,
+        ]);
+    }
+
+    private function itineraryFormattedPdfPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Itinerary PDF preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the preview page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Download itinerary as PDF in the formatted layout (company header, hotel table, daily breakdown).
+     * GET: preview=1 streams inline; optional itinerary_pdf_info_key loads extra sections from cache.
+     * POST: legacy form submit with body fields (still supported).
+     */
+    public function downloadItineraryFormattedPdf(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Invalid tour.');
+            }
+
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Tour not found.');
+            }
+
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $data = $this->buildItineraryPdfData($tourIdPlain);
+        if (!$data) {
+            if ($request->boolean('preview', false)) {
+                return $this->itineraryFormattedPdfPreviewErrorResponse('Tour not found or no itinerary data.');
+            }
+
+            return redirect()->back()->with('error', 'Tour not found or no itinerary data.');
+        }
+
+        $extras = $this->resolveItineraryFormattedPdfExtras($request, $tour);
+        $data['emergency_contact'] = $extras['emergency_contact'];
+        $data['sic_timing'] = $extras['sic_timing'];
+        $data['meeting_points'] = $extras['meeting_points'];
+        $data['itinerary_information'] = $extras['itinerary_information'];
+
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $pdfData = $this->applyItineraryFormattedPdfHeaderBranding($data, $tour, $attemptLogo);
+                $pdf = Pdf::loadView('bookingList.itinerary-pdf', $pdfData)
+                    ->setPaper('a4', 'portrait');
+                $filename = 'Itinerary_' . ($pdfData['tourDetails']->display_id ?? $tourIdPlain) . '.pdf';
+
+                if ($preview) {
+                    return $pdf->stream($filename);
+                }
+
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                Log::warning('Formatted itinerary PDF generation attempt failed', [
+                    'tour_id' => $tourIdPlain,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::error('Formatted itinerary PDF failed after all logo attempts', [
+            'tour_id' => $tourIdPlain,
+            'requested_logo_type' => $requestedLogo,
+        ]);
+
+        if ($preview) {
+            return $this->itineraryFormattedPdfPreviewErrorResponse('Unable to generate itinerary PDF.');
+        }
+
+        return redirect()->back()->with('error', 'Failed to generate PDF.');
+    }
+
+    /**
+     * Handover checklist preview page (iframe + DMC/Agency branding, same pattern as tour quotation preview).
+     * Route passes encrypted tour id in path (same as downloadHandoverChecklistPdf).
+     */
+    public function handoverChecklistPreview($tour_id, Request $request)
+    {
+        try {
+            $tourId = Crypt::decrypt($tour_id);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        return view('bookingList.handover-checklist-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tour_id,
+        ]);
+    }
+
+    /**
+     * When the handover PDF iframe fails, return a small HTML page instead of redirecting into the iframe.
+     */
+    private function handoverChecklistPdfPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Handover checklist preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the outer page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Download or stream Handover Acknowledgement Checklist PDF.
+     * Query: preview=1|0, logo_type=dmc|agency
+     * Route passes tour_id in encrypted form.
+     */
+    public function downloadHandoverChecklistPdf(Request $request, $tour_id)
+    {
+        try {
+            $tourId = Crypt::decrypt($tour_id);
+        } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->handoverChecklistPdfPreviewErrorResponse('Invalid tour.');
+            }
+
+            return redirect()->back()->with('error', 'Invalid tour.');
+        }
+
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $data = $this->buildHandoverChecklistData($tourId, $attemptLogo);
+                if (!$data) {
+                    continue;
+                }
+
+                $pdf = Pdf::loadView('bookingList.handover-checklist-pdf', $data)
+                    ->setPaper('a4', 'portrait');
+                $filename = 'Handover_Checklist_' . ($data['display_id'] ?? $tourId) . '.pdf';
+
+                if ($preview) {
+                    return $pdf->stream($filename);
+                }
+
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                Log::warning('Handover Checklist PDF generation attempt failed', [
+                    'tour_id' => $tourId,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::error('Handover Checklist PDF failed after all logo attempts', [
+            'tour_id' => $tourId,
+            'requested_logo_type' => $requestedLogo,
+        ]);
+
+        if ($preview) {
+            return $this->handoverChecklistPdfPreviewErrorResponse('Unable to generate handover checklist PDF.');
+        }
+
+        return redirect()->back()->with('error', 'Tour not found or failed to generate PDF.');
+    }
+
+    /**
+     * Build data for the handover acknowledgement checklist PDF.
+     *
+     * @param  string  $logoType  Requested header branding: dmc|agency (falls back if no agency on tour).
+     */
+    private function buildHandoverChecklistData($tourId, string $logoType = 'dmc')
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        if ($dmcId === null) {
+            $dmcId = $tour->dmc_id;
+        }
+
+        $dmc = new \stdClass();
+        $dmc->company_name = config('app.name');
+        $dmc->name = '';
+        $dmc->address = $dmc->phone = $dmc->tel = $dmc->fax = $dmc->email = $dmc->website = $dmc->logo = null;
+
+        if ($dmcId) {
+            $userDmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address')
+                ->where('userId', $dmcId)->first();
+            if ($userDmc) {
+                $dmc->company_name = $userDmc->company_name ?? $userDmc->name ?? config('app.name');
+                $dmc->name = $userDmc->name ?? '';
+                $dmc->address = $userDmc->address ?? null;
+                $dmc->phone = $userDmc->phone ?? null;
+                $dmc->tel = $userDmc->tel ?? $userDmc->phone ?? null;
+                $dmc->fax = $userDmc->fax ?? null;
+                $dmc->email = $userDmc->email ?? null;
+                $dmc->website = $userDmc->website ?? null;
+                $dmc->logo = $userDmc->logo ?? null;
+                if ($dmc->logo && !str_starts_with($dmc->logo, 'data:image')) {
+                    try {
+                        $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                        $imageContent = @file_get_contents($dmc->logo, false, $context);
+                        if ($imageContent !== false) {
+                            $imageInfo = @getimagesizefromstring($imageContent);
+                            if ($imageInfo !== false) {
+                                $dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning('Handover checklist DMC logo base64 failed: ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+
+        $guest_name = 'N/A';
+        $nationality = 'N/A';
+        if (!empty($tour->mainguest)) {
+            try {
+                $mainguest = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+                if (is_array($mainguest) && !empty($mainguest)) {
+                    $guest_name = $mainguest['full_name'] ?? $mainguest['name'] ?? 'N/A';
+                    $nationality = $mainguest['nationality'] ?? 'N/A';
+                }
+            } catch (\Exception $e) {
+                // ignore
+            }
+        }
+
+        $destination = $tour->destination ?? '';
+        if ($destination === '' && $tour->tour_id) {
+            $firstOrder = Order::where('tour_id', $tourId)->where('bookingType', 'booking')->where('status', 1)->first();
+            if ($firstOrder && $firstOrder->data) {
+                $decoded = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
+                $first = is_array($decoded) && isset($decoded[0]) ? $decoded[0] : $decoded;
+                if (is_array($first)) {
+                    $destination = $first['destination'] ?? $first['hotelDetails']['location'] ?? '';
+                }
+            }
+        }
+
+        $adults = (int) ($tour->adult ?? 0);
+        $cwb = 0;
+        $cnb = 0;
+
+        $hotelOrders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('type', 'hotel')
+            ->where('status', 1)
+            ->get();
+
+        foreach ($hotelOrders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) {
+                continue;
+            }
+            $first = isset($data[0]) ? $data[0] : $data;
+            if (!is_array($first)) {
+                continue;
+            }
+            if (isset($first['child_with_bed']['children'])) {
+                $cwb += (int) $first['child_with_bed']['children'];
+            }
+            if (isset($first['child_without_bed']['children'])) {
+                $cnb += (int) $first['child_without_bed']['children'];
+            }
+        }
+
+        $getScalarString = function ($value, string $default = ''): string {
+            if (is_array($value)) {
+                $value = $value[0] ?? null;
+            }
+            if (is_object($value)) {
+                return $default;
+            }
+            return (string)($value ?? $default);
+        };
+
+        $parseServiceDate = function ($value): ?string {
+            if (is_array($value)) {
+                $value = $value[0] ?? null;
+            }
+            if (empty($value) || is_array($value) || is_object($value)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($value)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        };
+
+        $getServiceTypeLabel = function (string $orderType): string {
+            return match ($orderType) {
+                'attraction' => 'Sightseeing',
+                'restaurant' => 'Meal Voucher',
+                'hotel' => 'Hotel',
+                'guide' => 'Guide',
+                'entry_port' => 'Airport Arrival',
+                'exit_port' => 'Airport Departure',
+                'travel_hourly' => 'Travel Hourly',
+                'travel_point' => 'Transfer',
+                'local_transport', 'local_transfer' => 'Point to Point',
+                'miscellaneous' => 'Miscellaneous',
+                default => ucfirst(str_replace('_', ' ', $orderType)),
+            };
+        };
+
+        $extractOrderServiceDate = function (string $orderType, array $booking) use ($parseServiceDate): ?string {
+            return match ($orderType) {
+                'hotel' => $parseServiceDate($booking['bookingDate'][0] ?? ($booking['checkIn'] ?? ($booking['check_in_date'] ?? null))),
+                'exit_port' => $parseServiceDate($booking['exitpickupdate'] ?? ($booking['pickupdate'] ?? ($booking['bookingDate'] ?? null))),
+                'entry_port', 'travel_hourly', 'travel_point', 'local_transport', 'local_transfer', 'guide'
+                    => $parseServiceDate($booking['pickupdate'] ?? ($booking['bookingDate'] ?? null)),
+                'attraction', 'restaurant'
+                    => $parseServiceDate($booking['bookingDate'] ?? ($booking['date'] ?? null)),
+                default => $parseServiceDate($booking['bookingDate'] ?? ($booking['date'] ?? ($booking['pickupdate'] ?? null))),
+            };
+        };
+
+        $buildServiceMainRow = function (string $orderType, array $booking) use ($getScalarString): string {
+            return match ($orderType) {
+                'attraction' => $getScalarString($booking['AttractionName'] ?? ($booking['attractionName'] ?? ($booking['attraction_name'] ?? null)), 'Attraction'),
+                'restaurant' => (function () use ($booking, $getScalarString) {
+                    $adultCount = (int)($booking['adultCount'] ?? ($booking['adults'] ?? 0));
+                    $childCount = (int)($booking['childCount'] ?? ($booking['children'] ?? 0));
+                    $pax = $adultCount + $childCount;
+                    $mealType = $getScalarString($booking['mealType'] ?? ($booking['mealSpecificType'] ?? ($booking['meal_type'] ?? null)), 'Meal');
+                    $restaurantName = $getScalarString($booking['restaurantName'] ?? ($booking['restaurant_name'] ?? ($booking['name'] ?? null)), 'Restaurant');
+                    return $mealType . ' for ' . $pax . ' members @ ' . $restaurantName;
+                })(),
+                'hotel' => (function () use ($booking, $getScalarString) {
+                    $hotelName = $getScalarString($booking['hotelDetails']['hotel_name'] ?? ($booking['hotel_name'] ?? null), 'Hotel');
+                    $bookingDates = $booking['bookingDate'] ?? [];
+                    if (!is_array($bookingDates)) {
+                        $bookingDates = [$bookingDates];
+                    }
+                    $checkIn = $bookingDates[0] ?? ($booking['checkIn'] ?? ($booking['check_in_date'] ?? null));
+                    $checkOut = $bookingDates[1] ?? ($booking['checkOut'] ?? ($booking['check_out_date'] ?? null));
+                    if (!empty($checkIn) && !empty($checkOut)) {
+                        return $hotelName . ' (' . $checkIn . ' - ' . $checkOut . ')';
+                    }
+                    return $hotelName;
+                })(),
+                'guide' => (function () use ($booking, $getScalarString) {
+                    $guideName = $getScalarString($booking['guide_name'] ?? ($booking['name'] ?? null), 'Guide');
+                    $hours = $getScalarString($booking['hours'] ?? ($booking['service_hours'] ?? null));
+                    return $hours !== '' ? ($guideName . ' - ' . $hours . 'H') : $guideName;
+                })(),
+                'entry_port' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null)), 'Transfer');
+                    $bookingType = $getScalarString($booking['type'] ?? null, 'Private');
+                    $pickup = $getScalarString($booking['entrypickup'] ?? null);
+                    $dropoff = $getScalarString($booking['entrydropoff'] ?? null);
+                    $service = 'Arrival Transfer (' . $vehicle . ' - ' . $bookingType . ' - One Way)';
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                'exit_port' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null)), 'Transfer');
+                    $bookingType = $getScalarString($booking['type'] ?? null, 'Private');
+                    $pickup = $getScalarString($booking['exitpickup'] ?? null);
+                    $dropoff = $getScalarString($booking['exitdropoff'] ?? null);
+                    $service = 'Departure Transfer (' . $vehicle . ' - ' . $bookingType . ' - One Way)';
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                'local_transport', 'local_transfer', 'travel_hourly', 'travel_point' => (function () use ($booking, $getScalarString) {
+                    $vehicle = $getScalarString($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
+                    $bookingType = $getScalarString($booking['type'] ?? null);
+                    $pickup = $getScalarString($booking['entrypickup'] ?? null);
+                    $dropoff = $getScalarString($booking['entrydropoff'] ?? ($booking['dropoffLocation'] ?? null));
+                    $service = $bookingType !== '' ? ($vehicle . ' - ' . $bookingType) : $vehicle;
+                    if ($pickup !== '' && $dropoff !== '') {
+                        $service .= '<br>' . e($pickup) . ' to ' . e($dropoff);
+                    }
+                    return $service;
+                })(),
+                default => $getScalarString($booking['name'] ?? null, 'Service'),
+            };
+        };
+
+        $buildServiceSubrows = function (string $orderType, array $booking) use ($getScalarString): array {
+            if ($orderType !== 'attraction') {
+                return [];
+            }
+
+            $subrows = [];
+            $ticketName = $getScalarString($booking['ticketName'] ?? ($booking['ticket_name'] ?? null));
+            if ($ticketName !== '') {
+                $subrows[] = '# ' . $ticketName;
+            }
+
+            $ticketDetails = $booking['ticket_details'] ?? null;
+            if (is_array($ticketDetails)) {
+                $ticketLabel = $getScalarString($ticketDetails['ticket_name'] ?? ($ticketDetails['name'] ?? null));
+                if ($ticketLabel !== '' && $ticketLabel !== $ticketName) {
+                    $subrows[] = '# ' . $ticketLabel;
+                }
+            }
+
+            $includedTickets = $booking['includedTickets'] ?? ($booking['included_tickets'] ?? null);
+            if (is_array($includedTickets)) {
+                foreach ($includedTickets as $includedTicket) {
+                    if (!is_array($includedTicket)) {
+                        continue;
+                    }
+                    $includedTicketName = $getScalarString($includedTicket['ticketName'] ?? ($includedTicket['name'] ?? null));
+                    if ($includedTicketName !== '') {
+                        $subrows[] = '# ' . $includedTicketName;
+                    }
+                }
+            }
+
+            return array_values(array_unique($subrows));
+        };
+
+        $ticketCoupons = [];
+        $serviceOrders = Order::where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('status', 1)
+            ->whereNull('deleted_at')
+            ->orderBy('booking_id')
+            ->get();
+
+        foreach ($serviceOrders as $order) {
+            $decodedData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($decodedData) || empty($decodedData)) {
+                continue;
+            }
+
+            $bookings = (isset($decodedData[0]) && is_array($decodedData[0])) ? $decodedData : [$decodedData];
+            foreach ($bookings as $booking) {
+                if (!is_array($booking)) {
+                    continue;
+                }
+
+                $serviceDate = $extractOrderServiceDate((string)$order->type, $booking);
+                if (!$serviceDate) {
+                    continue;
+                }
+
+                $serviceTypeLabel = $getServiceTypeLabel((string)$order->type);
+                $serviceMainHtml = $buildServiceMainRow((string)$order->type, $booking);
+
+                $ticketCoupons[] = [
+                    'service_date' => $serviceDate,
+                    'is_approve' => (bool) ($order->is_approve ?? false),
+                    'service_type' => $serviceTypeLabel,
+                    'service' => $serviceMainHtml,
+                    'is_subrow' => false,
+                ];
+
+                foreach ($buildServiceSubrows((string)$order->type, $booking) as $subrowText) {
+                    $ticketCoupons[] = [
+                        'service_date' => $serviceDate,
+                        'is_approve' => (bool) ($order->is_approve ?? false),
+                        'service_type' => '',
+                        'service' => e($subrowText),
+                        'is_subrow' => true,
+                    ];
+                }
+            }
+        }
+
+        usort($ticketCoupons, function ($a, $b) {
+            $dA = $a['service_date'] ?? '';
+            $dB = $b['service_date'] ?? '';
+            return strcmp($dA, $dB);
+        });
+
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Handover checklist header DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
+        return [
+            'tourId' => $tourId,
+            'tourDetails' => $tour,
+            'display_id' => $tour->display_id ?? $tourId,
+            'dmc' => $dmc,
+            'guest_name' => $guest_name,
+            'nationality' => $nationality,
+            'destination' => $destination,
+            'arrival_date' => $tour->check_in_time ?? null,
+            'adults' => $adults,
+            'cwb' => $cwb,
+            'cnb' => $cnb,
+            'ticketCoupons' => $ticketCoupons,
+            'logoType' => $normalizedLogo,
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
+        ];
+    }
+
+    /**
+     * Build data for the formatted itinerary PDF (hotels, days with time/description/type rows).
+     */
+    private function buildItineraryPdfData($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $user_dmc = null;
+        $displayId = null;
+        if ($tour->dmc_id) {
+            $user_dmc = User::select('name', 'email', 'phone', 'company_name', 'logo', 'country', 'city', 'address', 'company_reg_no', 'licence_no','company_code')
+                ->where('userId', $tour->dmc_id)->first();
+            
+            $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
+            $ordPart = trim((string) preg_replace('/^DMC-/', '', $rawDisplayId));
+            if ($ordPart === '') {
+                $ordPart = trim($rawDisplayId);
+            }
+            
+            $createdById = $tour->created_by;
+            $createdByUser = User::select('user_code')->where('userId', $createdById)->first();
+            $createdByCode = $createdByUser ? trim((string) $createdByUser->user_code) : '';
+            
+            $dmcCompanyCodeTrimmed = trim((string) $user_dmc->company_code);
+            $prefixParts = [];
+            if (!empty($dmcCompanyCodeTrimmed)) {
+                $prefixParts[] = $dmcCompanyCodeTrimmed;
+            }
+            if (!empty($createdByCode)) {
+                $prefixParts[] = $createdByCode;
+            }
+    
+            $displayId = !empty($prefixParts)
+                ? (implode('/', $prefixParts) . '/' . $ordPart)
+                : $ordPart;
+
+            if ($user_dmc && $user_dmc->logo && !str_starts_with($user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $agent_info = null;
+        $agent_id = $tour->agent_id ?? (Order::where('tour_id', $tourId)->where('bookingType', 'booking')->value('agent_id'));
+        if ($agent_id) {
+            $agent = Agent::with('agency')->where('agent_id', $agent_id)->first();
+            if ($agent) {
+                $agency = $agent->agency;
+                $agent_info = [
+                    'company_name' => ($agency && $agency->agency_name) ? $agency->agency_name : '',
+                    'agent_name' => $agent->name ?? '',
+                ];
+            }
+        }
+
+        $tourDetails = Tour::with(['booking' => function ($q) {
+            $q->where(function ($q2) {
+                $q2->where('type', '!=', 'hotel')->orWhere('status', '!=', 2);
+            });
+        }])->where('tour_id', $tourId)->first();
+
+        $bookings = Order::with('tour')
+            ->where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('status', 1)
+            ->orderByDesc('booking_id')
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            $pdfHotels = [];
+            $pdfDays = [];
+        } else {
+            $bookings = $this->formatBookings($bookings);
+            $itineraryByDate = [];
+            foreach ($bookings as $booking) {
+                $data = $booking->data_decoded;
+                $first = $data[0] ?? [];
+                $date = null;
+                if (isset($first['bookingDate'])) {
+                    $date = is_array($first['bookingDate']) ? ($first['bookingDate'][0] ?? null) : $first['bookingDate'];
+                } elseif (isset($first['pickupdate'])) {
+                    $date = $first['pickupdate'];
+                } elseif (isset($first['exitpickupdate'])) {
+                    $date = $first['exitpickupdate'];
+                }
+                if ($date) {
+                    $dateStr = \Carbon\Carbon::parse($date)->format('Y-m-d');
+                    if (!isset($itineraryByDate[$dateStr])) {
+                        $itineraryByDate[$dateStr] = [];
+                    }
+                    $itineraryByDate[$dateStr][] = $booking;
+                }
+                // Hotel: expand by check-in/check-out range
+                if (strtolower($booking->type ?? '') === 'hotel' && isset($first['bookingDate']) && is_array($first['bookingDate']) && count($first['bookingDate']) >= 2) {
+                    $checkIn = \Carbon\Carbon::parse($first['bookingDate'][0]);
+                    $checkOut = \Carbon\Carbon::parse($first['bookingDate'][1]);
+                    $current = $checkIn->copy();
+                    while ($current->lt($checkOut)) {
+                        $d = $current->format('Y-m-d');
+                        if (!isset($itineraryByDate[$d])) {
+                            $itineraryByDate[$d] = [];
+                        }
+                        $itineraryByDate[$d][] = $booking;
+                        $current->addDay();
+                    }
+                }
+            }
+            ksort($itineraryByDate);
+
+            $pdfHotels = $this->buildPdfHotels($bookings);
+            $pdfDays = $this->buildPdfDays($itineraryByDate, $tourDetails);
+        }
+
+        $startDate = $tourDetails && $tourDetails->check_in_time ? \Carbon\Carbon::parse($tourDetails->check_in_time) : null;
+        $endDate = $tourDetails && $tourDetails->check_out_time ? \Carbon\Carbon::parse($tourDetails->check_out_time) : null;
+        if (!$startDate && !empty($pdfDays)) {
+            $firstKey = array_key_first($pdfDays);
+            $startDate = \Carbon\Carbon::parse($firstKey);
+        }
+        if (!$endDate && !empty($pdfDays)) {
+            $lastKey = array_key_last($pdfDays);
+            $endDate = \Carbon\Carbon::parse($lastKey);
+        }
+
+        $dmcId = CommonHelper::getDmcId(auth()->user());
+        if ($dmcId === null && $tour) {
+            $dmcId = $tour->dmc_id;
+        }
+        $terms_and_conditions = '';
+        if ($dmcId) {
+            $bankDetail = BankDetail::where('dmc_id', $dmcId)->where('is_active', 1)->first();
+            
+            if ($bankDetail && !empty($bankDetail->terms_and_conditions)) {
+                $terms_and_conditions = $bankDetail->terms_and_conditions;
+            }
+        }
+        
+        return [
+            'tourId' => $tourId,
+            'tourDetails' => $tourDetails,
+            'display_id' => $displayId,
+            'user_dmc' => $user_dmc,
+            'agent_info' => $agent_info ?? [],
+            'adults' => $tourDetails->adult ?? 0,
+            'pdfHotels' => $pdfHotels ?? [],
+            'pdfDays' => $pdfDays ?? [],
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'terms_and_conditions' => $terms_and_conditions,
+        ];
+    }
+
+    private function defaultItineraryPdfExtrasForTour(Tour $tour): array
+    {
+        $info = '';
+        $tourDmcId = (int) ($tour->dmc_id ?? 0);
+        $defaultCountry = trim((string) ($tour->destination ?? ''));
+        $defaultCity = trim((string) ($tour->city ?? ''));
+        if ($tourDmcId > 0 && $defaultCountry !== '' && $defaultCity !== '') {
+            $setting = ItinerarySetting::where('dmc_id', $tourDmcId)
+                ->where('country', $defaultCountry)
+                ->where('city', $defaultCity)
+                ->first();
+            $info = $setting ? (string) ($setting->itinerary_information ?? '') : '';
+        }
+
+        return [
+            'emergency_contact' => '',
+            'sic_timing' => '',
+            'meeting_points' => '',
+            'itinerary_information' => $info,
+        ];
+    }
+
+    private function resolveItineraryFormattedPdfExtras(Request $request, Tour $tour): array
+    {
+        $default = $this->defaultItineraryPdfExtrasForTour($tour);
+        $keys = ['emergency_contact', 'sic_timing', 'meeting_points', 'itinerary_information'];
+
+        $cacheKey = (string) $request->query('itinerary_pdf_info_key', '');
+        if ($cacheKey !== '') {
+            $raw = Cache::get($cacheKey);
+            if ($raw !== null) {
+                $decoded = is_array($raw) ? $raw : json_decode((string) $raw, true);
+                if (is_array($decoded)) {
+                    $picked = array_intersect_key($decoded, array_flip($keys));
+
+                    return array_merge($default, $picked);
+                }
+            }
+        }
+
+        if ($request->isMethod('post')) {
+            return [
+                'emergency_contact' => (string) $request->input('emergency_contact', ''),
+                'sic_timing' => (string) $request->input('sic_timing', ''),
+                'meeting_points' => (string) $request->input('meeting_points', ''),
+                'itinerary_information' => (string) $request->input('itinerary_information', ''),
+            ];
+        }
+
+        return $default;
+    }
+
+    private function applyItineraryFormattedPdfHeaderBranding(array $data, Tour $tour, string $logoType): array
+    {
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Itinerary formatted PDF DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
+        return array_merge($data, [
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
+            'logoType' => $normalizedLogo,
+        ]);
+    }
+
+    private function buildPdfHotels($bookings)
+    {
+        $hotels = [];
+        $seen = [];
+        foreach ($bookings as $booking) {
+            if (strtolower($booking->type ?? '') !== 'hotel') {
+                continue;
+            }
+            $data = $booking->data_decoded[0] ?? [];
+            $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? null;
+            if (!$name) {
+                continue;
+            }
+            $bookingDate = $data['bookingDate'] ?? null;
+            $checkIn = $checkOut = null;
+            if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                $checkIn = $bookingDate[0];
+                $checkOut = $bookingDate[1];
+            } elseif (is_array($bookingDate) && count($bookingDate) === 1) {
+                $checkIn = $bookingDate[0];
+                $checkOut = $bookingDate[0];
+            } else {
+                $checkIn = $bookingDate;
+                $checkOut = $bookingDate;
+            }
+            $key = $name . '|' . $checkIn;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $nights = 1;
+            if ($checkIn && $checkOut) {
+                $nights = \Carbon\Carbon::parse($checkIn)->diffInDays(\Carbon\Carbon::parse($checkOut));
+            }
+            $remarks = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? '';
+            $hotels[] = [
+                'name' => $name,
+                'check_in' => $checkIn,
+                'check_out' => $checkOut,
+                'nights' => $nights,
+                'remarks' => $remarks,
+            ];
+        }
+        usort($hotels, function ($a, $b) {
+            return strcmp($a['check_in'] ?? '', $b['check_in'] ?? '');
+        });
+        return $hotels;
+    }
+
+    private function buildPdfDays($itineraryByDate, $tourDetails)
+    {
+        $days = [];
+        foreach ($itineraryByDate as $dateStr => $dayBookings) {
+            $rows = [];
+            $entryPorts = [];
+            $exitPorts = [];
+            $hotels = [];
+            $regular = [];
+
+            foreach ($dayBookings as $booking) {
+                $data = $booking->data_decoded[0] ?? [];
+                $type = strtolower($booking->type ?? '');
+                if ($type === 'hotel') {
+                    $bdate = $data['bookingDate'] ?? null;
+                    $checkOut = is_array($bdate) && isset($bdate[1]) ? $bdate[1] : $bdate;
+                    if ($checkOut && \Carbon\Carbon::parse($checkOut)->format('Y-m-d') === $dateStr) {
+                        continue; // skip checkout-only day
+                    }
+                    if (($data['stay_type'] ?? '') === 'checkout') {
+                        continue;
+                    }
+                }
+
+                $timeSlot = $data['timeslot'] ?? $data['time'] ?? $data['pickuptime'] ?? $data['exitpickuptime'] ?? $data['visitTime'] ?? $data['entrytime'] ?? '00:00';
+                $sortTime = $timeSlot;
+                if (preg_match('/(\d{1,2}):(\d{2})\s*(AM|PM)?/i', $timeSlot, $m)) {
+                    $h = (int)$m[1];
+                    $min = (int)($m[2] ?? 0);
+                    if (!empty($m[3]) && strtoupper($m[3]) === 'PM' && $h < 12) {
+                        $h += 12;
+                    }
+                    if (!empty($m[3]) && strtoupper($m[3]) === 'AM' && $h === 12) {
+                        $h = 0;
+                    }
+                    $sortTime = sprintf('%02d:%02d', $h, $min);
+                }
+
+                $row = $this->bookingToPdfRow($booking, $data, $type, $dateStr);
+                if (!$row) {
+                    continue;
+                }
+                $row['sort_time'] = $sortTime;
+                if ($type === 'entry port' || $type === 'entry_port') {
+                    $entryPorts[] = $row;
+                } elseif ($type === 'exit port' || $type === 'exit_port') {
+                    $exitPorts[] = $row;
+                } elseif ($type === 'hotel') {
+                    $hotels[] = $row;
+                } else {
+                    $regular[] = $row;
+                }
+            }
+
+            $cmp = function ($a, $b) {
+                return strcmp($a['sort_time'], $b['sort_time']);
+            };
+            usort($entryPorts, $cmp);
+            usort($exitPorts, $cmp);
+            usort($hotels, $cmp);
+            usort($regular, $cmp);
+
+            $isFirst = empty($days);
+            $isLast = ($dateStr === array_key_last($itineraryByDate));
+            $all = [];
+            if ($isFirst) {
+                $all = array_merge($all, $entryPorts);
+            }
+            // Hotels are shown only in the hotel table at the top, not in the day-wise itinerary
+            $all = array_merge($all, $regular);
+            if ($isLast) {
+                $all = array_merge($all, $exitPorts);
+            }
+
+            foreach ($all as $r) {
+                unset($r['sort_time']);
+                $rows[] = $r;
+            }
+
+            $days[$dateStr] = [
+                'date_label' => \Carbon\Carbon::parse($dateStr)->format('d M Y, l'),
+                'rows' => $rows,
+            ];
+        }
+        return $days;
+    }
+
+    private function bookingToPdfRow($booking, $data, $type, $dateStr)
+    {
+        $time = $data['timeslot'] ?? $data['time'] ?? $data['pickuptime'] ?? $data['exitpickuptime'] ?? $data['visitTime'] ?? $data['entrytime'] ?? '00:00';
+        if (preg_match('/^(\d{1,2}):(\d{2})/', $time, $m)) {
+            $time = $m[1] . ':' . ($m[2] ?? '00');
+        }
+
+        $transferType = ucfirst(strtolower($data['type'] ?? $data['transfer_options']['type'] ?? 'Private'));
+        $description = '';
+        $note = null;
+        $wrap = function ($s) {
+            return '<span class="loc">' . e($s) . '</span>';
+        };
+
+        if ($type === 'entry port' || $type === 'entry_port') {
+            $pickup = $data['entrypickup'] ?? $data['entry_pickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['entrydropoff'] ?? $data['entry_dropoff'] ?? $data['dropoff'] ?? '';
+            $description = 'Arrive at ' . $wrap($pickup) . ' and Proceed to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+            // Arrival transport type and flight number (e.g. arrival_transport_type: "flight", arrival_flight_no: "re45165")
+            $arrivalTransportType = $data['arrival_transport_type'] ?? null;
+            $arrivalFlightNo = $data['arrival_flight_no'] ?? $data['arrivalFlightNumber'] ?? $data['originFlightNumber'] ?? null;
+            $arrivalInfo = [];
+            if ($arrivalTransportType) {
+                $arrivalInfo[] = 'Arrival by ' . e(ucfirst(strtolower($arrivalTransportType)));
+            }
+            if ($arrivalFlightNo) {
+                $arrivalInfo[] = 'Flight No: ' . e($arrivalFlightNo);
+            }
+            if (!empty($arrivalInfo)) {
+                $note = implode(' - ', $arrivalInfo) . ($note ? '. ' . $note : '');
+            } elseif ($data['originFlightNumber'] ?? $data['arrivalFlightNumber'] ?? null) {
+                $note = ($data['originFlightNumber'] ?? '') . ' ' . ($data['arrivalFlightNumber'] ?? '') . ' ' . ($note ?? '');
+            }
+        } elseif ($type === 'exit port' || $type === 'exit_port') {
+            $pickup = $data['exitpickup'] ?? $data['exit_pickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['exitdropoff'] ?? $data['exit_dropoff'] ?? $data['dropoff'] ?? '';
+            $description = 'Transfer from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+            // Departure transport type and flight number (e.g. departure_transport_type: "flight", departure_flight_no: "ef45433")
+            $departureTransportType = $data['departure_transport_type'] ?? null;
+            $departureFlightNo = $data['departure_flight_no'] ?? $data['departureFlightNumber'] ?? $data['destinationFlightNumber'] ?? null;
+            $departureInfo = [];
+            if ($departureTransportType) {
+                $departureInfo[] = 'Departure by ' . e(ucfirst(strtolower($departureTransportType)));
+            }
+            if ($departureFlightNo) {
+                $departureInfo[] = 'Flight No: ' . e($departureFlightNo);
+            }
+            if (!empty($departureInfo)) {
+                $note = implode(' - ', $departureInfo) . ($note ? '. ' . $note : '');
+            }
+        } elseif ($type === 'hotel') {
+            $name = $data['hotelDetails']['hotel_name'] ?? $data['hotelname'] ?? $data['name'] ?? 'Hotel';
+            $stayType = $data['stay_type'] ?? '';
+            if ($stayType === 'checkout') {
+                return null;
+            }
+            $description = 'Check-in at ' . $name;
+            if ($stayType === 'stay') {
+                $description = 'Stay at ' . $name;
+            }
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } elseif (strpos($type, 'travel') !== false || $type === 'travel_point' || $type === 'travel_hourly' || $type === 'point to point' || $type === 'hourly' || $type === 'local_transport') {
+            $pickup = $data['entrypickup'] ?? $data['pickup'] ?? '';
+            $dropoff = $data['entrydropoff'] ?? $data['dropoff'] ?? $data['dropoffLocation'] ?? '';
+            $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($dropoff);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } else                if ($type === 'attraction') {
+            $name = $data['AttractionName'] ?? $data['name'] ?? 'Attraction';
+            $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
+            if ($hasTransfer) {
+                $pickup = $data['transfer_options']['pickup_location_name'] ?? '';
+                $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($name);
+                $activity = 'Visit ' . $name;
+                if (!empty($data['visitTime'])) {
+                    $activity .= ' (' . $data['visitTime'] . ')';
+                }
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
+            }
+            $description = 'Visit ' . $name;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } elseif ($type === 'restaurant') {
+            $name = $data['restaurantName'] ?? $data['name'] ?? 'Restaurant';
+            $hasTransfer = isset($data['transfer_options']['transfer_required']) && $data['transfer_options']['transfer_required'];
+            if ($hasTransfer) {
+                $pickup = $data['transfer_options']['pickup_location_name'] ?? '';
+                $description = 'Transfer by ' . e($transferType) . ' Vehicle from ' . $wrap($pickup) . ' to ' . $wrap($name);
+                $mealType = $data['mealType'] ?? $data['mealSpecificType'] ?? '';
+                $pax = ($data['adultCount'] ?? $data['adult_count'] ?? 0) + ($data['childCount'] ?? $data['child_count'] ?? 0);
+                $activity = ($mealType ? $mealType . ' for ' : 'Meal for ') . $pax . ' members';
+                $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+                return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note, 'activity' => $activity];
+            }
+            $description = ($data['mealType'] ?? 'Meal') . ' at ' . $name;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } elseif ($type === 'guide') {
+            $name = $data['guide_name'] ?? $data['guideName'] ?? $data['name'] ?? 'Guide';
+            $description = 'Guide service - ' . $name;
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        } else {
+            $description = $data['name'] ?? ucfirst($type);
+            $note = $data['remark'] ?? $data['remarks'] ?? $data['specialRequests'] ?? null;
+        }
+
+        return ['time' => $time, 'description' => $description, 'type' => $transferType, 'note' => $note];
     }
     
     /**
@@ -1373,6 +3243,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1401,6 +3272,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1422,6 +3294,7 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
@@ -1436,6 +3309,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1446,6 +3320,7 @@ class BookingListController extends Controller
         if (!$firstItem) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1457,6 +3332,7 @@ class BookingListController extends Controller
         if (!$transferRequired) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1483,6 +3359,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1503,6 +3380,7 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
@@ -1517,6 +3395,7 @@ class BookingListController extends Controller
     {
         // Initialize return values
         $vehicleNumber = 'N/A';
+        $vehicleName = 'N/A';
         $maxPassengerCapacity = 'N/A';
         $driverName = 'N/A';
         $driverPhone = 'N/A';
@@ -1527,6 +3406,7 @@ class BookingListController extends Controller
         if (!$firstItem) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1538,6 +3418,7 @@ class BookingListController extends Controller
         if (!$transferRequired) {
             return [
                 'vehicleNumber' => $vehicleNumber,
+                'vehicleName' => $vehicleName,
                 'maxPassengerCapacity' => $maxPassengerCapacity,
                 'driverName' => $driverName,
                 'driverPhone' => $driverPhone
@@ -1564,6 +3445,7 @@ class BookingListController extends Controller
             $vehicle = \App\Models\Vehicle::where('vehicle_id', $vehicleId)->first();
             if ($vehicle) {
                 $vehicleNumber = $vehicle->vehicle_plate_no ?? 'N/A';
+                $vehicleName = $vehicle->vehicle_name ?? 'N/A';
                 $maxPassengerCapacity = $vehicle->seating_capacity ?? $vehicle->max_passenger_capacity ?? 'N/A';
                 
                 // If driver_id not from jobsheet, get from vehicle
@@ -1584,10 +3466,543 @@ class BookingListController extends Controller
         
         return [
             'vehicleNumber' => $vehicleNumber,
+            'vehicleName' => $vehicleName,
             'maxPassengerCapacity' => $maxPassengerCapacity,
             'driverName' => $driverName,
             'driverPhone' => $driverPhone
         ];
+    }
+
+    /**
+     * Finance report: one month hotel bookings (daily arrival style).
+     * Columns: ARR DATE, DEP DATE, GUEST NAME, HOTEL, AGENT NAME, QUERY NO, ADULTS, RATES SGD/PP
+     */
+    public function financeDailyArrival(Request $request)
+    {
+        $user = auth()->user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        $roleId = $user?->role_id;
+        
+        if (!$user || !in_array((int)$roleId, [11, 36, 126, 127], true)) {
+            abort(403);
+        }
+        
+        // Filter priority:
+        // 1) start_date + end_date (strict date range)
+        // 2) month (full selected month)
+        // 3) current month (default)
+        $monthParam = trim((string) $request->get('month', ''));
+        $startDateInput = trim((string) $request->get('start_date', ''));
+        $endDateInput = trim((string) $request->get('end_date', ''));
+
+        $hasStart = $startDateInput !== '';
+        $hasEnd = $endDateInput !== '';
+        $usingDateRange = false;
+
+        try {
+            if ($hasStart && $hasEnd) {
+                $startDate = \Carbon\Carbon::parse($startDateInput)->toDateString();
+                $endDate = \Carbon\Carbon::parse($endDateInput)->toDateString();
+                $usingDateRange = true;
+            } else {
+                // If only one date is provided, ignore partial date filter gracefully.
+                $resolvedMonth = preg_match('/^\d{4}-\d{2}$/', $monthParam) ? $monthParam : now()->format('Y-m');
+                $startDate = \Carbon\Carbon::parse($resolvedMonth . '-01')->toDateString();
+                $endDate = \Carbon\Carbon::parse($startDate)->endOfMonth()->toDateString();
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid date/month filter.');
+        }
+
+        if ($startDate > $endDate) {
+            return redirect()->back()->with('error', 'Start date cannot be after end date.');
+        }
+
+        // Keep month empty when date range is active; otherwise set resolved month.
+        $monthValue = $usingDateRange ? '' : \Carbon\Carbon::parse($startDate)->format('Y-m');
+
+        // Exchange rate used for the "ROE" column (SGD -> INR). Fallback to 1 if API/config is unavailable.
+        $roe = 1.0;
+        try {
+            $roeValue = app(CurrencyService::class)->getExchangeRate('SGD', 'INR');
+            $roe = (float) ($roeValue ?? 1.0);
+        } catch (\Exception $e) {
+            $roe = 1.0;
+        }
+        $roe = round($roe, 2);
+
+        // Pull tours arriving within the month.
+        $tours = Tour::query()
+            ->select([
+                'tour_id',
+                'display_id',
+                'adult',
+                'infant',
+                'mainguest',
+                'agent_id',
+                'check_in_time',
+                'payment_details',
+                'created_by',
+            ])
+            ->where('dmc_id', $dmc_id)
+            ->whereDate('check_in_time', '>=', $startDate)
+            ->whereDate('check_in_time', '<=', $endDate)
+            ->orderBy('check_in_time')
+            ->get();
+
+        $agentIds = $tours->pluck('agent_id')->filter()->unique()->values()->all();
+        $agentsById = Agent::whereIn('agent_id', $agentIds)
+            ->get(['agent_id', 'name'])
+            ->keyBy('agent_id');
+
+        $rowsAcc = [];
+
+        // Cache user->dmc/company/user code lookups to avoid repeated DB hits.
+        $userByIdCache = [];
+        $dmcIdByUserIdCache = [];
+        $dmcUserByIdCache = [];
+        $dmcUser = User::where('userId', $dmc_id)->first();
+        $companyCode = $dmcUser->company_code ?? null;
+        
+        foreach ($tours as $tour) {
+            // Payment details (JSON) for PART PAYMENT columns.
+            // Each tour can have multiple payments; we show up to first 10.
+            $partPaymentAmounts = [];
+            $partPaymentDates = [];
+            for ($i = 1; $i <= 10; $i++) {
+                $partPaymentAmounts[$i] = null;
+                $partPaymentDates[$i] = null;
+            }
+
+            $decodedPayments = [];
+            try {
+                $paymentDetailsRaw = $tour->payment_details ?? null;
+                if (is_string($paymentDetailsRaw)) {
+                    $decodedPayments = json_decode($paymentDetailsRaw, true) ?? [];
+                } elseif (is_array($paymentDetailsRaw)) {
+                    $decodedPayments = $paymentDetailsRaw;
+                }
+            } catch (\Exception $e) {
+                $decodedPayments = [];
+            }
+
+            if (is_array($decodedPayments)) {
+                $pIdx = 1;
+                foreach ($decodedPayments as $payment) {
+                    if ($pIdx > 10) break;
+                    if (!is_array($payment)) continue;
+
+                    // Optional filter: show only active payments.
+                    $status = $payment['status'] ?? 1;
+                    if (!empty($status) && (int) $status !== 1) {
+                        continue;
+                    }
+
+                    $amountRaw = $payment['amount'] ?? $payment['original_amount'] ?? null;
+                    $partPaymentAmounts[$pIdx] = is_numeric($amountRaw) ? (float) $amountRaw : null;
+
+                    $dateRaw = $payment['payment_date'] ?? $payment['date'] ?? null;
+                    if (!empty($dateRaw)) {
+                        try {
+                            // Keep consistent with other table date formatting.
+                            $partPaymentDates[$pIdx] = \Carbon\Carbon::parse($dateRaw)->format('d-m-Y');
+                        } catch (\Exception $e) {
+                            $partPaymentDates[$pIdx] = (string) $dateRaw;
+                        }
+                    }
+
+                    $pIdx++;
+                }
+            }
+
+            // Guest name
+            $guestName = '—';
+            try {
+                $mainguest = $tour->mainguest;
+                if (is_string($mainguest)) {
+                    $mainguest = json_decode($mainguest, true);
+                }
+                if (is_array($mainguest)) {
+                    $guestName = $mainguest['full_name'] ?? $mainguest['name'] ?? '—';
+                }
+            } catch (\Exception $e) {
+                // ignore
+            }
+
+            $adults = (int) ($tour->adult ?? 0);
+
+            // Query number format:
+            //   company_code/user_code/ORD3421
+            // where original display_id is like: DMC-ORD3421 and created_by holds the userId.
+            $rawDisplayId = (string) ($tour->display_id ?? $tour->tour_id ?? '');
+            $ordPart = trim((string) preg_replace('/^DMC-/', '', $rawDisplayId));
+            if ($ordPart === '') {
+                $ordPart = trim($rawDisplayId);
+            }
+
+            $queryNo = $ordPart; // base fallback
+            $prefixParts = [];
+            $userCode = null;
+            $createdByUserId = $tour->created_by ?? null;
+            if (!empty($createdByUserId) && is_scalar($createdByUserId)) {
+                $createdByUserId = (int) $createdByUserId;
+
+                if (!isset($userByIdCache[$createdByUserId])) {
+                    $userByIdCache[$createdByUserId] = User::where('userId', $createdByUserId)->first();
+                }
+                $createdByUser = $userByIdCache[$createdByUserId];
+
+                $userCode = trim((string) ($createdByUser?->user_code ?? ''));
+                $userCode = $userCode !== '' ? $userCode : null;
+                
+            }
+            
+                
+            if (!empty($companyCode)) {
+                $prefixParts[] = $companyCode;
+                
+            }
+            if (!empty($userCode)) {
+                $prefixParts[] = $userCode;
+            }
+            
+            
+            // Cases:
+            // - only user_code      => user_code/ORD3421
+            // - only company_code   => company_code/ORD3421
+            // - both                => company_code/user_code/ORD3421
+            if (!empty($prefixParts) && !empty($ordPart)) {
+                //dd($prefixParts);
+                $queryNo = implode('/', $prefixParts) . '/' . $ordPart;
+            }
+            $tourAgentId = $tour->agent_id;
+            $tourAgentName = $agentsById[$tourAgentId]->name ?? '—';
+
+            $allBookingOrders = Order::query()
+                ->where('tour_id', $tour->tour_id)
+                ->where('bookingType', 'booking')
+                ->where('status', 1)
+                ->get(['data', 'agent_id', 'type']);
+
+            // Full tour amount (all booking services), not only hotel lines.
+            $tourTotalAmountSgd = 0.0;
+            foreach ($allBookingOrders as $orderForTotal) {
+                $decodedForTotal = is_string($orderForTotal->data) ? json_decode($orderForTotal->data, true) : $orderForTotal->data;
+                if (!is_array($decodedForTotal)) {
+                    continue;
+                }
+                $itemsForTotal = (isset($decodedForTotal[0]) && is_array($decodedForTotal[0])) ? $decodedForTotal : [$decodedForTotal];
+                foreach ($itemsForTotal as $itemForTotal) {
+                    if (!is_array($itemForTotal)) {
+                        continue;
+                    }
+                    $tourTotalAmountSgd += $this->extractOrderItemTotalSgd($itemForTotal);
+                }
+            }
+
+            $hotelOrders = $allBookingOrders->where('type', 'hotel')->values();
+            $tourKey = (string) $tour->tour_id . '|' . (string) $queryNo;
+            $tourRowAcc = [
+                'arr_date_sort' => null,
+                'dep_date_sort' => null,
+                'guest_name' => $guestName,
+                'hotel_names' => [],
+                'agent_name' => $tourAgentName,
+                'query_no' => $queryNo,
+                'adult_qty' => (int) $adults,
+                'cbw_qty' => 0,
+                'cnb_qty' => 0,
+                'other_qty' => 0,
+                'adult_total' => 0.0,
+                'cbw_total' => 0.0,
+                'cnb_total' => 0.0,
+                'other_total' => 0.0,
+                'tour_total_amount_sgd' => (float) $tourTotalAmountSgd,
+            ];
+
+            foreach ($hotelOrders as $order) {
+                $orderAgentId = $order->agent_id ?? $tourAgentId;
+                $agentName = $agentsById[$orderAgentId]->name ?? $tourAgentName;
+                if ($tourRowAcc['agent_name'] === '—' && $agentName !== '—') {
+                    $tourRowAcc['agent_name'] = $agentName;
+                }
+
+                $decoded = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (!is_array($decoded)) {
+                    continue;
+                }
+
+                $items = (isset($decoded[0]) && is_array($decoded[0])) ? $decoded : [$decoded];
+                foreach ($items as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+
+                    $bookingDates = $item['bookingDate'] ?? null;
+                    $checkInRaw = null;
+                    $checkOutRaw = null;
+
+                    if (is_array($bookingDates)) {
+                        $checkInRaw = $bookingDates[0] ?? null;
+                        $checkOutRaw = $bookingDates[1] ?? end($bookingDates) ?: null;
+                    } elseif (!empty($bookingDates)) {
+                        $checkInRaw = $bookingDates;
+                        $checkOutRaw = $bookingDates;
+                    }
+
+                    $checkInRaw = $checkInRaw ?? ($item['checkIn'] ?? $item['check_in_date'] ?? null);
+                    $checkOutRaw = $checkOutRaw ?? ($item['checkOut'] ?? $item['check_out_date'] ?? null);
+                    if (empty($checkInRaw)) {
+                        continue;
+                    }
+
+                    try {
+                        $arrDate = \Carbon\Carbon::parse($checkInRaw)->toDateString();
+                        if ($arrDate < $startDate || $arrDate > $endDate) {
+                            continue;
+                        }
+                        $depDate = !empty($checkOutRaw) ? \Carbon\Carbon::parse($checkOutRaw)->toDateString() : $arrDate;
+                    } catch (\Exception $e) {
+                        continue;
+                    }
+
+                    $hotelName = trim((string) (
+                        $item['hotelDetails']['hotel_name']
+                        ?? ($item['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? '—')
+                    ));
+                    if ($hotelName !== '' && !in_array($hotelName, $tourRowAcc['hotel_names'], true)) {
+                        $tourRowAcc['hotel_names'][] = $hotelName;
+                    }
+
+                    if (empty($tourRowAcc['arr_date_sort']) || $arrDate < $tourRowAcc['arr_date_sort']) {
+                        $tourRowAcc['arr_date_sort'] = $arrDate;
+                    }
+                    if (empty($tourRowAcc['dep_date_sort']) || $depDate > $tourRowAcc['dep_date_sort']) {
+                        $tourRowAcc['dep_date_sort'] = $depDate;
+                    }
+
+                    $totalPrice = 0.0;
+                    if (isset($item['totalPrice'])) {
+                        $totalPrice = (float) $item['totalPrice'];
+                    } elseif (isset($item['display_price'])) {
+                        $totalPrice = (float) $item['display_price'];
+                    } elseif (isset($item['total_price'])) {
+                        $totalPrice = (float) $item['total_price'];
+                    }
+
+                    $itemAdults = $adults;
+                    if (isset($item['adultCount'])) {
+                        $itemAdults = (int) $item['adultCount'];
+                    } elseif (isset($item['adults'])) {
+                        $itemAdults = (int) $item['adults'];
+                    }
+
+                    $cbwChildren = (int) ($item['child_with_bed']['children'] ?? 0);
+                    $cbwRate = (float) ($item['child_with_bed']['price'] ?? 0);
+                    $cbwTotal = (float) ($item['child_with_bed']['total_cost'] ?? ($cbwChildren * $cbwRate));
+
+                    $cnbChildren = (int) ($item['child_without_bed']['children'] ?? 0);
+                    $cnbRate = (float) ($item['child_without_bed']['price'] ?? 0);
+                    $cnbTotal = (float) ($item['child_without_bed']['total_cost'] ?? ($cnbChildren * $cnbRate));
+
+                    $otherQty = (int) (
+                        $item['baby_cot'] ??
+                        $item['babyCotQty'] ??
+                        $item['infantQty'] ??
+                        $tour->infant ??
+                        0
+                    );
+                    $otherRate = (float) (
+                        $item['babyCotPrice'] ??
+                        $item['baby_cot_price'] ??
+                        ($item['rooms'][0]['beds'][0]['baby_cot_price'] ?? 0) ??
+                        0
+                    );
+                    $otherTotal = (float) ($otherQty * $otherRate);
+                    $adultTotal = max(0.0, (float) $totalPrice - $cbwTotal - $cnbTotal - $otherTotal);
+
+                    $tourRowAcc['adult_qty'] = max((int) $tourRowAcc['adult_qty'], (int) $itemAdults);
+                    $tourRowAcc['cbw_qty'] = max((int) $tourRowAcc['cbw_qty'], (int) $cbwChildren);
+                    $tourRowAcc['cnb_qty'] = max((int) $tourRowAcc['cnb_qty'], (int) $cnbChildren);
+                    $tourRowAcc['other_qty'] = max((int) $tourRowAcc['other_qty'], (int) $otherQty);
+
+                    $tourRowAcc['adult_total'] += (float) $adultTotal;
+                    $tourRowAcc['cbw_total'] += (float) $cbwTotal;
+                    $tourRowAcc['cnb_total'] += (float) $cnbTotal;
+                    $tourRowAcc['other_total'] += (float) $otherTotal;
+                }
+            }
+
+            // Keep one row per query/tour only when at least one hotel is present.
+            if (!empty($tourRowAcc['hotel_names']) && !empty($tourRowAcc['arr_date_sort'])) {
+                $rowsAcc[$tourKey] = [
+                    'arr_date_sort' => $tourRowAcc['arr_date_sort'],
+                    'arr_date' => \Carbon\Carbon::parse($tourRowAcc['arr_date_sort'])->format('d-m-Y'),
+                    'dep_date' => !empty($tourRowAcc['dep_date_sort'])
+                        ? \Carbon\Carbon::parse($tourRowAcc['dep_date_sort'])->format('d-m-Y')
+                        : \Carbon\Carbon::parse($tourRowAcc['arr_date_sort'])->format('d-m-Y'),
+                    'guest_name' => $tourRowAcc['guest_name'],
+                    'hotel' => implode(', ', $tourRowAcc['hotel_names']),
+                    'agent_name' => $tourRowAcc['agent_name'],
+                    'query_no' => $tourRowAcc['query_no'],
+                    'adult_qty' => (int) $tourRowAcc['adult_qty'],
+                    'cbw_qty' => (int) $tourRowAcc['cbw_qty'],
+                    'cnb_qty' => (int) $tourRowAcc['cnb_qty'],
+                    'other_qty' => (int) $tourRowAcc['other_qty'],
+                    'adult_total' => (float) $tourRowAcc['adult_total'],
+                    'cbw_total' => (float) $tourRowAcc['cbw_total'],
+                    'cnb_total' => (float) $tourRowAcc['cnb_total'],
+                    'other_total' => (float) $tourRowAcc['other_total'],
+                    'tour_total_amount_sgd' => (float) $tourRowAcc['tour_total_amount_sgd'],
+                ];
+
+                for ($i = 1; $i <= 10; $i++) {
+                    $rowsAcc[$tourKey]['part_payment_' . $i] = $partPaymentAmounts[$i] ?? null;
+                    $rowsAcc[$tourKey]['part_payment_date_' . $i] = $partPaymentDates[$i] ?? null;
+                }
+            }
+        }
+
+        $rows = [];
+        foreach ($rowsAcc as $row) {
+            $adultQtyRow = (int) ($row['adult_qty'] ?? 0);
+            $cbwQtyRow = (int) ($row['cbw_qty'] ?? 0);
+            $cnbQtyRow = (int) ($row['cnb_qty'] ?? 0);
+            $otherQtyRow = (int) ($row['other_qty'] ?? 0);
+
+            $adultTotal = (float) ($row['adult_total'] ?? 0);
+            $cbwTotal = (float) ($row['cbw_total'] ?? 0);
+            $cnbTotal = (float) ($row['cnb_total'] ?? 0);
+            $otherTotal = (float) ($row['other_total'] ?? 0);
+
+            $hotelOnlyAmountSgd = $adultTotal + $cbwTotal + $cnbTotal + $otherTotal;
+            $amountSgd = (float) ($row['tour_total_amount_sgd'] ?? 0);
+            if ($amountSgd <= 0) {
+                $amountSgd = $hotelOnlyAmountSgd;
+            }
+            $totalPax = $adultQtyRow + $cbwQtyRow + $cnbQtyRow + $otherQtyRow;
+
+            $adultRate = $adultQtyRow > 0 ? ($adultTotal / $adultQtyRow) : 0.0;
+            $cbwRate = $cbwQtyRow > 0 ? ($cbwTotal / $cbwQtyRow) : 0.0;
+            $cnbRate = $cnbQtyRow > 0 ? ($cnbTotal / $cnbQtyRow) : 0.0;
+            $otherRate = $otherQtyRow > 0 ? ($otherTotal / $otherQtyRow) : 0.0;
+            $rateTotal = $totalPax > 0 ? ($amountSgd / $totalPax) : 0.0;
+
+            $out = [
+                'arr_date_sort' => $row['arr_date_sort'] ?? null,
+                'arr_date' => $row['arr_date'] ?? '—',
+                'dep_date' => $row['dep_date'] ?? '—',
+                'guest_name' => $row['guest_name'] ?? '—',
+                'hotel' => $row['hotel'] ?? '—',
+                'agent_name' => $row['agent_name'] ?? '—',
+                'query_no' => $row['query_no'] ?? '—',
+                'adults' => $adultQtyRow,
+                'adult_rate_sgd_pp' => $adultRate,
+                'rate_sgd_pp' => $adultRate,
+                'cbw_qty' => $cbwQtyRow,
+                'cbw_rate_sgd_pp' => $cbwRate,
+                'cnb_qty' => $cnbQtyRow,
+                'cnb_rate_sgd_pp' => $cnbRate,
+                'other_qty' => $otherQtyRow,
+                'other_rate_sgd_pp' => $otherRate,
+                'rate_total_sgd_pp' => $rateTotal,
+                'amount_sgd' => $amountSgd,
+                'roe' => $roe,
+            ];
+
+            for ($i = 1; $i <= 10; $i++) {
+                $out['part_payment_' . $i] = $row['part_payment_' . $i] ?? null;
+                $out['part_payment_date_' . $i] = $row['part_payment_date_' . $i] ?? null;
+            }
+
+            $rows[] = $out;
+        }
+
+        // Sort by ARR DATE (YYYY-mm-dd).
+        usort($rows, function ($a, $b) {
+            $da = (string) ($a['arr_date_sort'] ?? '1900-01-01');
+            $db = (string) ($b['arr_date_sort'] ?? '1900-01-01');
+            return strcmp($da, $db);
+        });
+
+        return view('bookingList.daily-arrival', [
+            'rows' => $rows,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'monthValue' => $monthValue,
+        ]);
+    }
+
+    /**
+     * Extract service total from a booking item JSON block.
+     * Prefer explicit total keys and avoid summing child parts twice.
+     */
+    private function extractOrderItemTotalSgd(array $item): float
+    {
+        $baseTotal = null;
+        $preferredKeys = ['totalPrice', 'display_price', 'total_price', 'total'];
+        foreach ($preferredKeys as $key) {
+            if (array_key_exists($key, $item) && is_numeric($item[$key])) {
+                $baseTotal = (float) $item[$key];
+                break;
+            }
+        }
+
+        if ($baseTotal === null) {
+            // Fallback keys commonly used as total-like values.
+            $fallbackKeys = ['service_total', 'net_total', 'grand_total', 'final_total', 'amount', 'price'];
+            foreach ($fallbackKeys as $key) {
+                if (array_key_exists($key, $item) && is_numeric($item[$key])) {
+                    $baseTotal = (float) $item[$key];
+                    break;
+                }
+            }
+        }
+
+        if ($baseTotal === null) {
+            $baseTotal = 0.0;
+        }
+
+        $extras = 0.0;
+
+        // Attraction/restaurant/hotel transfer add-on.
+        if (
+            isset($item['transfer_options']) &&
+            is_array($item['transfer_options']) &&
+            !empty($item['transfer_options']['transfer_required']) &&
+            is_numeric($item['transfer_options']['cost'] ?? null)
+        ) {
+            $extras += (float) $item['transfer_options']['cost'];
+        }
+
+        // Attraction guide add-on.
+        if (
+            isset($item['guide_options']) &&
+            is_array($item['guide_options']) &&
+            !empty($item['guide_options']['guide_required']) &&
+            is_numeric($item['guide_options']['total_price'] ?? null)
+        ) {
+            $extras += (float) $item['guide_options']['total_price'];
+        }
+
+        // Hotel child pricing often comes separately from room/base total.
+        if (
+            isset($item['child_with_bed']) &&
+            is_array($item['child_with_bed']) &&
+            is_numeric($item['child_with_bed']['total_cost'] ?? null)
+        ) {
+            $extras += (float) $item['child_with_bed']['total_cost'];
+        }
+
+        if (
+            isset($item['child_without_bed']) &&
+            is_array($item['child_without_bed']) &&
+            is_numeric($item['child_without_bed']['total_cost'] ?? null)
+        ) {
+            $extras += (float) $item['child_without_bed']['total_cost'];
+        }
+
+        return $baseTotal + $extras;
     }
 
     /**

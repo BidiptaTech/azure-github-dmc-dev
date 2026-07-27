@@ -233,7 +233,7 @@
                 <!-- Logo and Company Name for roles 10 and 11 -->
                 <div class="row">
                     <!-- Master/DMC Logo -->
-                    <div class="col-md-4" id="master_logo" style="display: none;">
+                    <div class="col-md-4 mb-3" id="master_logo" style="display: none;">
                         <div class="mb-3">
                             <label for="master_logo" class="form-label"><strong>Logo</strong></label>
                             <input type="file" class="form-control" id="master_logo" name="master_logo">
@@ -247,10 +247,42 @@
                     </div>
 
                     <!-- Company Name -->
-                    <div class="col-md-4" id="company_name" style="display: none;">
+                    <div class="col-md-4 mb-3" id="company_name" style="display: none;">
                         <div class="mb-3">
                             <label for="company_name" class="form-label"><strong>Company Name</strong><span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="company_name" name="company_name" value="{{ $users->company_name }}" placeholder="Enter Company Name">
+                        </div>
+                    </div>
+
+                    <!-- Company Code (DMC only, when edited by Master DMC) -->
+                    <div class="col-md-4 mb-3" id="company_code_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="company_code" class="form-label"><strong>Company Code</strong></label>
+                            <input type="text" class="form-control" id="company_code" name="company_code" value="{{ $users->company_code ?? '' }}" placeholder="Enter Company Code">
+                        </div>
+                    </div>
+
+                    <!-- User Code -->
+                    <div class="col-md-4 mb-3" id="user_code_container">
+                        <div class="mb-3">
+                            <label for="user_code" class="form-label"><strong>User Code</strong></label>
+                            <input type="text" class="form-control" id="user_code" name="user_code" value="{{ $users->user_code ?? '' }}" placeholder="Enter User Code">
+                        </div>
+                    </div>
+
+                    <!-- Company Reg. No (DMC only) -->
+                    <div class="col-md-4 mb-3" id="company_reg_no_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="company_reg_no" class="form-label"><strong>Company Reg. No</strong></label>
+                            <input type="text" class="form-control" id="company_reg_no" name="company_reg_no" value="{{ $users->company_reg_no ?? '' }}" placeholder="Enter Company Reg. No">
+                        </div>
+                    </div>
+
+                    <!-- TA License No (DMC only) -->
+                    <div class="col-md-4 mb-3" id="licence_no_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="licence_no" class="form-label"><strong>TA License No</strong></label>
+                            <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
                         </div>
                     </div>
                 </div>
@@ -302,6 +334,45 @@
                             <label for="markup_price" class="form-label"><strong>Markup Value</strong></label>
                             <input type="number" class="form-control" id="markup_price" name="markup_price" value="{{ $users->markup_price ?? '' }}" placeholder="Enter value" min="0">
                             <small class="text-muted">Amount or percentage number</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12" id="dmc_only_attr_flight_markup" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_type_attraction" class="form-label"><strong>Markup Type (Attr.)</strong></label>
+                                    <select class="form-select" id="markup_type_attraction" name="markup_type_attraction">
+                                        <option value="0" {{ (int) ($users->markup_type_attraction ?? 1) === 0 || old('markup_type_attraction') === '0' ? 'selected' : '' }}>By Value (Flat)</option>
+                                        <option value="1" {{ (int) ($users->markup_type_attraction ?? 1) === 1 || old('markup_type_attraction') === '1' ? 'selected' : '' }}>By Percentage</option>
+                                    </select>
+                                    <small class="text-muted">Attraction markup calculation</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_price_attraction" class="form-label"><strong>Markup Price (Attr.)</strong></label>
+                                    <input type="number" class="form-control" id="markup_price_attraction" name="markup_price_attraction" value="{{ old('markup_price_attraction', $users->markup_price_attraction ?? 0) }}" placeholder="Enter value" min="0" step="0.01">
+                                    <small class="text-muted">Attraction markup amount</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_type_flight" class="form-label"><strong>Markup Type (Flights)</strong></label>
+                                    <select class="form-select" id="markup_type_flight" name="markup_type_flight">
+                                        <option value="0" {{ (int) ($users->markup_type_flight ?? 1) === 0 || old('markup_type_flight') === '0' ? 'selected' : '' }}>By Value (Flat)</option>
+                                        <option value="1" {{ (int) ($users->markup_type_flight ?? 1) === 1 || old('markup_type_flight') === '1' ? 'selected' : '' }}>By Percentage</option>
+                                    </select>
+                                    <small class="text-muted">Flight markup calculation</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="markup_price_flight" class="form-label"><strong>Markup Price (Flights)</strong></label>
+                                    <input type="number" class="form-control" id="markup_price_flight" name="markup_price_flight" value="{{ old('markup_price_flight', $users->markup_price_flight ?? 0) }}" placeholder="Enter value" min="0" step="0.01">
+                                    <small class="text-muted">Flight markup amount</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -607,6 +678,7 @@
 
         function updateFields() {
             const userRole = currentUserRole;
+            const authRole = {{ auth()->user()->role_id }};
             const containers = {
                 inputRoleContainer: $('#inputRoleContainer'),
                 inputDmcContainer: $('#inputDmcContainer'),
@@ -614,35 +686,45 @@
                 country_names: $('#country_names'),
                 master_logo: $('#master_logo'),
                 company_name: $('#company_name'),
+                company_code_container: $('#company_code_container'),
+                user_code_container: $('#user_code_container'),
+                company_reg_no_container: $('#company_reg_no_container'),
+                licence_no_container: $('#licence_no_container'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
                 markuptypes: $('#markuptypes'),
-                dmc_settings_section: $('#dmc_settings_section')
+                dmc_settings_section: $('#dmc_settings_section'),
+                dmc_only_attr_flight_markup: $('#dmc_only_attr_flight_markup')
             };
 
             // Hide all containers
             Object.values(containers).forEach(container => container.hide());
+            containers.user_code_container.show();
 
             // Show relevant containers based on role
             if (userRole >= 5 && userRole <= 9) {
                 containers.country_names.show();
             } else if (userRole === 10 || userRole === 19) {
-                // Master DMC - show multiple countries, logo, company name, and DMC settings
+                // Master DMC - show multiple countries, logo, company name, user code, and DMC settings
                 containers.country_names.show();
                 containers.master_logo.show();
                 containers.company_name.show();
                 containers.dmc_settings_section.show();
             } else if (userRole === 11 || userRole === 20) {
-                // DMC - show single country (if created by Master DMC), master DMC selection, logo, company name, and DMC settings
-                if ({{ auth()->user()->role_id }} == 10 || {{ auth()->user()->role_id }} == 19) {
+                // DMC - show single country (if edited by Master DMC), company code, user code, company reg no, licence no
+                if (authRole === 10 || authRole === 19) {
                     containers.country_name.show();
+                    containers.company_code_container.show();
                 }
                 containers.inputRoleContainer.show();
                 containers.master_logo.show();
                 containers.company_name.show();
+                containers.company_reg_no_container.show();
+                containers.licence_no_container.show();
                 containers.dmc_settings_section.show();
+                containers.dmc_only_attr_flight_markup.show();
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
-            } else if (userRole === 3) {
+            } else if ([3, 24, 25, 26, 27].includes(userRole)) {
                 containers.country_name.show();
             }
         }

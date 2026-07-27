@@ -10,6 +10,7 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Guide;
 use App\Models\Restaurant;
+use App\Models\Meal;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,10 @@ use App\Models\User;
 use App\Models\PackageBooking;
 use App\Models\Vehicle;
 use App\Models\Agent;
+use App\Models\Room;
+use App\Models\Bed;
+use App\Models\Ticket;
+use App\Models\Port;
 use Illuminate\Support\Facades\Crypt;
 
 class PackageController extends Controller
@@ -52,7 +57,8 @@ class PackageController extends Controller
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;
         }
-        $query = Package::where('dmc_id', $dmc_id);
+        $query = Package::where('dmc_id', $dmc_id)
+            ->withCount('bookings');
 
         // Duration filter
         if ($request->filled('duration')) {
@@ -65,20 +71,19 @@ class PackageController extends Controller
             }
         }
 
-        // Price range filter
-        if ($request->filled('price_range')) {
-            $price = explode('-', $request->price_range);
-            if (count($price) == 2) {
-                $query->whereBetween('price_adult', [$price[0], $price[1]]);
-            } else {
-                // For 501+ price
-                $query->where('price_adult', '>', 501);
-            }
-        }
-
         // Category filter
         if ($request->filled('category')) {
             $query->where('category', $request->category);
+        }
+
+        // Package status filter: active packages are status=1 and not expired.
+        if ($request->filled('package_status')) {
+            if ($request->package_status === 'active') {
+                $query->where('status', '1')
+                    ->whereDate('expire_date', '>=', now()->toDateString());
+            } elseif ($request->package_status === 'expired') {
+                $query->whereDate('expire_date', '<', now()->toDateString());
+            }
         }
 
         // Sorting
@@ -106,7 +111,7 @@ class PackageController extends Controller
             $query->orderBy('created_at', 'desc');
         }
 
-        $packages = $query->paginate(12);
+        $packages = $query->paginate(12)->withQueryString();
         
         // Pre-process itinerary data for each package
         foreach ($packages as $package) {
@@ -124,7 +129,10 @@ class PackageController extends Controller
             }
         }
 
-        return view('package.package', compact('packages'));
+        // Currency of the DMC who maintains these packages (users.currency of the DMC).
+        $currency = CommonHelper::getDmcCurrency($dmc_id);
+
+        return view('package.package', compact('packages', 'currency'));
     }
 
     /**
@@ -133,7 +141,9 @@ class PackageController extends Controller
     public function create()
     {
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        return view('package.create-predefined', compact('countries'));
+        // New package: resolve DMC from the current user.
+        $currency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId(Auth::user()));
+        return view('package.create-predefined', compact('countries', 'currency'));
     }
 
     /**
@@ -154,8 +164,8 @@ class PackageController extends Controller
             'price_child' => 'nullable|numeric|min:0',
             'start_date' => 'required|date',
             'expiry_date' => 'required|date|after:start_date',
-            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'inclusions' => 'nullable|string',
             'exclusions' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
@@ -392,8 +402,11 @@ class PackageController extends Controller
         
         // Increment views
         $package->incrementViews();
-        
-        return view('package.show-predefined', compact('package'));
+
+        // Existing package: currency of the DMC that maintains it.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
+
+        return view('package.show-predefined', compact('package', 'currency'));
     }
 
     /**
@@ -401,7 +414,16 @@ class PackageController extends Controller
      */
     public function edit($package_id)
     {
+        try {
+            $package_id = Crypt::decrypt($package_id);
+        } catch (\Throwable $e) {
+            // allow non-encrypted ids
+        }
+
         $package = Package::where('package_id', $package_id)->first();
+        if ($package && ($package->package_type ?? null) === 'definition') {
+            return redirect()->route('packages.definition.edit', ['package_id' => Crypt::encrypt($package->package_id)]);
+        }
         $city = $package->city;
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
 
@@ -412,7 +434,10 @@ class PackageController extends Controller
 
         $categories = Package::CATEGORIES;
 
-        return view('package.edit-predefined', compact('package', 'countries', 'categories', 'hotels', 'attractions', 'restaurants', 'guides'));
+        // Existing package: currency of the DMC that maintains it.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
+
+        return view('package.edit-predefined', compact('package', 'countries', 'categories', 'hotels', 'attractions', 'restaurants', 'guides', 'currency'));
     }
 
     /**
@@ -420,6 +445,11 @@ class PackageController extends Controller
      */
     public function update(Request $request, $package_id)
     {
+        try {
+            $package_id = Crypt::decrypt($package_id);
+        } catch (\Throwable $e) {
+            // allow non-encrypted ids
+        }
         $package = Package::where('package_id', $package_id)->first();
 
         // Validation
@@ -523,7 +553,15 @@ class PackageController extends Controller
     {
         try {
             $package_id = Crypt::decrypt($package_id);
-            $package = Package::where('package_id', $package_id)->first();
+            $package = Package::withCount('bookings')->where('package_id', $package_id)->firstOrFail();
+
+            if ((int) ($package->bookings_count ?? 0) > 0) {
+                return back()->with('error', 'This package is already booked and cannot be deleted.');
+            }
+
+            if (!empty($package->expire_date) && $package->expire_date->endOfDay()->lt(now())) {
+                return back()->with('error', 'This package has expired and cannot be deleted.');
+            }
             
             // Note: Image cleanup is handled by the storage system configured in CommonHelper
             // The actual files will be managed based on the file_storage setting (local/s3/azure)
@@ -542,7 +580,14 @@ class PackageController extends Controller
      */
     public function getCitiesByCountry($country)
     {
-        $cities = \App\Models\City::where('country', $country)->get(['city_id', 'name']);
+        $countryClean = trim((string) $country);
+        $cities = \App\Models\City::query()
+            ->where(function ($q) use ($countryClean) {
+                $q->where('country', $countryClean)
+                  ->orWhereRaw('LOWER(country) = ?', [strtolower($countryClean)]);
+            })
+            ->orderBy('name')
+            ->get(['city_id', 'name']);
         return response()->json($cities);
     }
 
@@ -551,8 +596,26 @@ class PackageController extends Controller
      */
     public function getHotelsByCity($city)
     {
-        $hotels = \App\Models\Hotel::where('city', $city)->get(['hotel_unique_id', 'name', 'city','main_image']);
-        return response()->json($hotels);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in hotels is stored as a JSON array e.g. [16,18,11,4,64,157]
+            $hotels = \App\Models\Hotel::where('city', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['hotel_unique_id', 'name', 'city', 'main_image', 'weekend_days']);
+
+            return response()->json($hotels);
+        } catch (\Throwable $e) {
+            Log::error('getHotelsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch hotels.'], 500);
+        }
     }
 
     /**
@@ -560,8 +623,26 @@ class PackageController extends Controller
      */
     public function getAttractionsByCity($city)
     {
-        $attractions = \App\Models\Attraction::where('location', $city)->get(['attraction_id', 'name', 'location','master_image']);
-        return response()->json($attractions);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in attractions is stored as a JSON array e.g. [11,4,157]
+            $attractions = \App\Models\Attraction::where('location', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['attraction_id', 'name', 'location', 'master_image', 'adult_price', 'child_price']);
+
+            return response()->json($attractions);
+        } catch (\Throwable $e) {
+            Log::error('getAttractionsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch attractions.'], 500);
+        }
     }
 
     /**
@@ -569,23 +650,50 @@ class PackageController extends Controller
      */
     public function getGuidesByCity($city)
     {
-        $guides = \App\Models\Guide::where('city', $city)
-            ->with(['languages' => function ($query) {
-                $query->select('guide_id', 'language'); // columns in guide_language table
-            }])
-            ->get(['guide_id', 'name', 'contact_no', 'city', 'status']);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
 
-        // Map to flatten language strings if needed
-        $guides->transform(function ($guide) {
-            return [
-                'guide_id'   => $guide->guide_id,
-                'name'       => $guide->name,
-                'contact_no' => $guide->contact_no,
-                'languages'  => $guide->languages->pluck('language')->toArray(),
-            ];
-        });
+            $guides = \App\Models\Guide::where('city', $city)
+                ->where('dmc_id', (int) $dmc_id)
+                ->with(['languages' => function ($query) {
+                    $query->select('guide_id', 'language');
+                }])
+                ->get([
+                    'guide_id', 'name', 'contact_no', 'city', 'status',
+                    'hourly_price', 'two_hour_price', 'four_hour_price',
+                    'six_hour_price', 'eight_hour_price', 'ten_hour_price',
+                    'twelve_hour_price', 'night_surcharge',
+                    'night_start_time', 'night_end_time',
+                ]);
 
-        return response()->json($guides);
+            $guides->transform(function ($guide) {
+                return [
+                    'guide_id'          => $guide->guide_id,
+                    'name'              => $guide->name,
+                    'contact_no'        => $guide->contact_no,
+                    'languages'         => $guide->languages->pluck('language')->toArray(),
+                    'hourly_price'      => $guide->hourly_price ?? null,
+                    'two_hour_price'    => $guide->two_hour_price ?? null,
+                    'four_hour_price'   => $guide->four_hour_price ?? null,
+                    'six_hour_price'    => $guide->six_hour_price ?? null,
+                    'eight_hour_price'  => $guide->eight_hour_price ?? null,
+                    'ten_hour_price'    => $guide->ten_hour_price ?? null,
+                    'twelve_hour_price' => $guide->twelve_hour_price ?? null,
+                    'night_surcharge'   => $guide->night_surcharge ?? null,
+                    'night_start_time'  => $guide->night_start_time ?? null,
+                    'night_end_time'    => $guide->night_end_time ?? null,
+                ];
+            });
+
+            return response()->json($guides);
+        } catch (\Throwable $e) {
+            Log::error('getGuidesByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch guides.'], 500);
+        }
     }
 
     /**
@@ -593,8 +701,89 @@ class PackageController extends Controller
      */
     public function getRestaurantsByCity($city)
     {
-        $restaurants = Restaurant::where('city', $city)->get(['restaurant_id', 'name', 'city', 'cuisine']);
-        return response()->json(['restaurants' => $restaurants]);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // dmc_id in restaurants is stored as a JSON array e.g. [4,11,111]
+            $restaurants = Restaurant::where('city', $city)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
+                ->get(['restaurant_id', 'name', 'city', 'cuisine', 'bf_price', 'lunch_price', 'dinner_price', 'breakfast_available', 'lunch_available', 'dinner_available']);
+
+            return response()->json(['restaurants' => $restaurants]);
+        } catch (\Throwable $e) {
+            Log::error('getRestaurantsByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch restaurants.'], 500);
+        }
+    }
+
+    /**
+     * Get meals by restaurant (AJAX) for package definition
+     * meals.type: 1=Buffet, 2=Set Menu, 3=A la carte
+     */
+    public function getMealsByRestaurant($restaurantId)
+    {
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            // Support both encrypted and plain numeric ids from the UI.
+            try {
+                $restaurantId = Crypt::decrypt($restaurantId);
+            } catch (\Throwable $e) {
+                $restaurantId = is_numeric($restaurantId) ? (int) $restaurantId : 0;
+            }
+
+            $typeMap = [
+                1 => 'Buffet',
+                2 => 'Set Menu',
+                3 => 'A la carte',
+            ];
+
+            $meals = Meal::where('restaurant_id', $restaurantId)
+                ->where('dmc_id', (int) $dmc_id)
+                ->orderBy('type')
+                ->get(['id', 'meal_id', 'restaurant_id', 'type', 'item_type', 'adult_price', 'child_price']);
+
+            $rows = $meals->map(function ($m) use ($typeMap) {
+                $typeInt = (int) ($m->type ?? 0);
+                return [
+                    'id' => $m->id,
+                    'meal_id' => $m->meal_id ?? $m->id,
+                    'restaurant_id' => $m->restaurant_id,
+                    'type' => $typeInt,
+                    'type_label' => $typeMap[$typeInt] ?? ('Type ' . $typeInt),
+                    'adult_price' => $m->adult_price !== null ? (float) $m->adult_price : null,
+                    'child_price' => $m->child_price !== null ? (float) $m->child_price : null,
+                ];
+            })->values();
+
+            return response()->json(['meals' => $rows]);
+        } catch (\Throwable $e) {
+            Log::error('getMealsByRestaurant failed: ' . $e->getMessage(), ['restaurant_id' => $restaurantId]);
+            return response()->json(['error' => 'Failed to fetch meals.'], 500);
+        }
+    }
+
+    /**
+     * Get ports by country (AJAX) for package definition transfers
+     */
+    public function getPortsByCountry($country)
+    {
+        $ports = Port::where('country', $country)
+            ->where('status', 1)
+            ->orderBy('port_name')
+            ->get(['port_id', 'port_name', 'country']);
+        return response()->json($ports);
     }
 
     /**
@@ -602,8 +791,1173 @@ class PackageController extends Controller
      */
     public function getTransportByCity($city)
     {
-        $transport = Vehicle::where('city', $city)->get(['vehicle_id', 'name', 'city','vehicle_type','vehicle_capacity','vehicle_image','vehicle_description','vehicle_price','vehicle_status']);
-        return response()->json($transport);
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            $transport = Vehicle::where('city', $city)
+                ->where('dmc_id', (int) $dmc_id)
+                ->get(['vehicle_id', 'vehicle_name as name', 'city', 'vehicle_type', 'base_price']);
+
+            return response()->json($transport);
+        } catch (\Throwable $e) {
+            Log::error('getTransportByCity failed: ' . $e->getMessage(), ['city' => $city]);
+            return response()->json(['error' => 'Failed to fetch transport.'], 500);
+        }
+    }
+
+    /**
+     * Show the form for creating a package definition (no day-wise itinerary)
+     */
+    public function createDefinition()
+    {
+        $countries = $this->getAllowedCountriesForPackageDefinition(Auth::user());
+        $mode = 'create';
+        $package = null;
+        $initialDefinition = null;
+        // New definition: package does not exist yet, resolve DMC from the current user.
+        $currency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId(Auth::user()));
+        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition', 'currency'));
+    }
+
+    /**
+     * Edit a package definition (definition builder UI, prefilled).
+     */
+    public function editDefinition(string $package_id)
+    {
+        try {
+            $package_id = Crypt::decrypt($package_id);
+        } catch (\Throwable $e) {
+            // allow non-encrypted ids in case older links are used
+        }
+
+        $package = Package::with(['creator', 'updater'])->where('package_id', $package_id)->firstOrFail();
+        $countries = $this->getAllowedCountriesForPackageDefinition(Auth::user());
+        $mode = 'edit';
+        $initialDefinition = $this->buildInitialDefinition($package);
+        // Existing package: use the DMC stored on the package.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
+
+        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition', 'currency'));
+    }
+
+    /**
+     * Update a package definition (same payload as storeDefinition).
+     */
+    public function updateDefinition(Request $request, string $package_id)
+    {
+        try {
+            $package_id = Crypt::decrypt($package_id);
+        } catch (\Throwable $e) {
+            // allow non-encrypted ids
+        }
+
+        $package = Package::where('package_id', $package_id)->firstOrFail();
+
+        // Validate (images optional for edit)
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'destination' => 'required|string|max:255',
+            'city' => 'required|array|min:1',
+            'city.*' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'duration_days' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+            'start_date' => 'required|date',
+            'expiry_date' => 'required|date|after:start_date',
+            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'inclusions' => 'nullable|string',
+            'exclusions' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'status' => 'required',
+            'child_max_age' => 'nullable|integer',
+            'price_data' => 'nullable|json',
+            'total_price' => 'nullable|numeric|min:0',
+            'markup_type' => 'nullable|in:percentage,flat',
+            'markup_amount' => 'nullable|numeric|min:0',
+            'day_wise_itinerary' => 'nullable|json',
+            'day_city_plan' => 'nullable|json',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $mainImagePath = $package->main_image;
+            if ($request->hasFile('main_image')) {
+                $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
+                if (!empty($imageData['master_value'])) {
+                    $mainImagePath = $imageData['master_value'];
+                }
+            }
+
+            $galleryImages = is_array($package->gallery_images) ? $package->gallery_images : (is_string($package->gallery_images) ? (json_decode($package->gallery_images, true) ?: []) : []);
+            if ($request->hasFile('gallery_images')) {
+                $galleryImages = [];
+                foreach ($request->file('gallery_images') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($imageData['master_value'])) {
+                        $galleryImages[] = $imageData['master_value'];
+                    }
+                }
+            }
+
+            $selectedHotels = $request->input('selected_hotels', '[]');
+            $selectedAttractions = $request->input('selected_attractions', '[]');
+            $selectedRestaurants = $request->input('selected_restaurants', '[]');
+            $localTransfers = $request->input('local_transfers', '[]');
+            $priceData = $request->input('price_data', '[]');
+            $totalPrice = $request->input('total_price');
+            $markupType = $request->input('markup_type');
+            $markupAmount = $request->input('markup_amount');
+            $dayWiseItinerary = $request->input('day_wise_itinerary', '[]');
+            $dayCityPlan = $request->input('day_city_plan', '[]');
+
+            $decodedHotels = is_string($selectedHotels) ? (json_decode($selectedHotels, true) ?: []) : ($selectedHotels ?: []);
+            $decodedAttractions = is_string($selectedAttractions) ? (json_decode($selectedAttractions, true) ?: []) : ($selectedAttractions ?: []);
+            $decodedRestaurants = is_string($selectedRestaurants) ? (json_decode($selectedRestaurants, true) ?: []) : ($selectedRestaurants ?: []);
+            $decodedLocalTransfers = is_string($localTransfers) ? (json_decode($localTransfers, true) ?: []) : ($localTransfers ?: []);
+            $decodedDayWiseItinerary = is_string($dayWiseItinerary) ? (json_decode($dayWiseItinerary, true) ?: []) : (is_array($dayWiseItinerary) ? $dayWiseItinerary : []);
+            $decodedDayCityPlan = is_string($dayCityPlan) ? (json_decode($dayCityPlan, true) ?: []) : (is_array($dayCityPlan) ? $dayCityPlan : []);
+
+            $selectedCities = array_values(array_filter((array) $request->input('city', [])));
+            $cityValue = implode(',', $selectedCities);
+            foreach ($decodedHotels as &$hotel) {
+                if (is_array($hotel)) {
+                    $hotel['city'] = $cityValue;
+                }
+            }
+            unset($hotel);
+
+            // Persisted direct columns (JSON) for transfer/arrival/departure
+            $transferDataPayload = is_array($decodedLocalTransfers) ? $decodedLocalTransfers : [];
+
+            // Build arrival/departure payloads from day_wise_itinerary (same logic as storeDefinition)
+            $findHotelForPlanDay = function (array $hotels, $cityPlanId, ?int $day) {
+                if (empty($cityPlanId) || empty($day)) return null;
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) !== $cityPlanId) continue;
+                    $start = isset($h['start_day']) ? (int) $h['start_day'] : null;
+                    $nights = isset($h['nights']) ? (int) $h['nights'] : 1;
+                    if (empty($start)) continue;
+                    $end = $start + max(1, $nights) - 1;
+                    if ($day >= $start && $day <= $end) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) === $cityPlanId) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                return null;
+            };
+
+            $portNameCache = [];
+            $hotelNameCache = [];
+            $lookupPortName = function ($portId) use (&$portNameCache) {
+                $key = is_scalar($portId) ? (string) $portId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $portNameCache)) return $portNameCache[$key];
+                if (!is_numeric($portId)) {
+                    $portNameCache[$key] = null;
+                    return null;
+                }
+                $name = \App\Models\Port::where('port_id', (int) $portId)->value('port_name');
+                $portNameCache[$key] = $name ?: null;
+                return $portNameCache[$key];
+            };
+            $lookupHotelName = function ($hotelId) use (&$hotelNameCache) {
+                $key = is_scalar($hotelId) ? (string) $hotelId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $hotelNameCache)) return $hotelNameCache[$key];
+                $q = \App\Models\Hotel::query()->where('hotel_unique_id', $hotelId);
+                if (is_numeric($hotelId)) {
+                    $q->orWhere('id', (int) $hotelId);
+                }
+                $name = $q->value('name');
+                $hotelNameCache[$key] = $name ?: null;
+                return $hotelNameCache[$key];
+            };
+
+            $arrivalItems = [];
+            $departureItems = [];
+            foreach ($decodedDayWiseItinerary as $row) {
+                if (!is_array($row)) continue;
+                $day = isset($row['day']) ? (int) $row['day'] : null;
+                $city = $row['city'] ?? null;
+
+                if (!empty($row['arrival']) && is_array($row['arrival'])) {
+                    $a = $row['arrival'];
+                    $vehicles = $a['vehicles'] ?? ($row['arrival_vehicles'] ?? []);
+                    $planId = $a['city_plan_id'] ?? null;
+                    $dropoffHotelId = $a['dropoff_hotel_id'] ?? null;
+                    if (empty($dropoffHotelId)) {
+                        $dropoffHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $pickupPortId = $a['pickup_port_id'] ?? null;
+                    $arrivalItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_port_id' => $pickupPortId,
+                        'pickup_port_name' => $lookupPortName($pickupPortId),
+                        'dropoff_hotel_id' => $dropoffHotelId,
+                        'dropoff_hotel_name' => $lookupHotelName($dropoffHotelId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+
+                if (!empty($row['departure']) && is_array($row['departure'])) {
+                    $d = $row['departure'];
+                    $vehicles = $d['vehicles'] ?? ($row['departure_vehicles'] ?? []);
+                    $planId = $d['city_plan_id'] ?? null;
+                    $pickupHotelId = $d['pickup_hotel_id'] ?? null;
+                    if (empty($pickupHotelId)) {
+                        $pickupHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $dropoffPortId = $d['dropoff_port_id'] ?? null;
+                    $departureItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_hotel_id' => $pickupHotelId,
+                        'pickup_hotel_name' => $lookupHotelName($pickupHotelId),
+                        'dropoff_port_id' => $dropoffPortId,
+                        'dropoff_port_name' => $lookupPortName($dropoffPortId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+            }
+
+            $arrivalDataPayload = [
+                'enabled' => !empty($arrivalItems),
+                'items' => $arrivalItems,
+            ];
+            $departureDataPayload = [
+                'enabled' => !empty($departureItems),
+                'items' => $departureItems,
+            ];
+
+            // price_data: accept and recompute final_price same as storeDefinition
+            $decodedPriceData = is_string($priceData) ? (json_decode($priceData, true) ?: []) : ($priceData ?: []);
+            if (!is_array($decodedPriceData)) $decodedPriceData = [];
+
+            $totalPriceNum = ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice))
+                ? (float) $totalPrice
+                : (isset($decodedPriceData['total_price']) && is_numeric($decodedPriceData['total_price']) ? (float) $decodedPriceData['total_price'] : 0.0);
+            $markupAmountNum = ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount))
+                ? (float) $markupAmount
+                : (isset($decodedPriceData['markup_amount']) && is_numeric($decodedPriceData['markup_amount']) ? (float) $decodedPriceData['markup_amount'] : 0.0);
+            $markupTypeClean = !empty($markupType) ? $markupType : ($decodedPriceData['markup_type'] ?? null);
+
+            $ceilToFive = function ($n) {
+                $num = (float) $n;
+                if (!is_finite($num) || $num <= 0) return 0.0;
+                return ceil($num / 5) * 5;
+            };
+            $totalPriceNum = $ceilToFive($totalPriceNum);
+
+            $finalPriceNum = $totalPriceNum;
+            if ($markupTypeClean === 'flat') {
+                $finalPriceNum = $totalPriceNum + $markupAmountNum;
+            } elseif ($markupTypeClean === 'percentage') {
+                $finalPriceNum = $totalPriceNum + ($totalPriceNum * $markupAmountNum / 100);
+            }
+            $finalPriceNum = $ceilToFive($finalPriceNum);
+
+            $decodedPriceData = [
+                'total_price' => round($totalPriceNum, 2),
+                'markup_type' => $markupTypeClean ?: null,
+                'markup_amount' => $markupTypeClean ? round($markupAmountNum, 2) : null,
+                'final_price' => round($finalPriceNum, 2),
+            ];
+
+            $definitionData = [
+                'hotels' => $decodedHotels,
+                'attractions' => $decodedAttractions,
+                'restaurants' => $decodedRestaurants,
+                'arrival_pickup' => (int) $request->input('arrival_pickup', 0),
+                'departure_service' => (int) $request->input('departure_service', 0),
+                'independent_guide' => json_decode($request->input('definition_independent_guide', '[]'), true) ?: [],
+                'local_transfers' => $decodedLocalTransfers,
+                'day_city_plan' => $decodedDayCityPlan,
+                'day_wise_itinerary' => $decodedDayWiseItinerary,
+                'price_data' => $decodedPriceData,
+                'total_price' => ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) ? (float) $totalPrice : null,
+                'markup_type' => $markupType ?: null,
+                'markup_amount' => ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) ? (float) $markupAmount : null,
+            ];
+
+            $package->update([
+                'title' => $validated['title'],
+                'destination' => $validated['destination'],
+                'city' => $cityValue,
+                'category' => $validated['category'],
+                'duration_days' => $validated['duration_days'],
+                'package_type' => 'definition',
+                'description' => $validated['description'] ?? '',
+                'child_max_age' => $validated['child_max_age'] ?? null,
+                'start_date' => $validated['start_date'],
+                'expire_date' => $validated['expiry_date'],
+                'main_image' => $mainImagePath,
+                'gallery_images' => json_encode($galleryImages),
+                'inclusions' => $validated['inclusions'] ?? '',
+                'exclusions' => $validated['exclusions'] ?? '',
+                'terms_conditions' => $validated['terms_conditions'] ?? '',
+                'status' => $validated['status'],
+                'selected_hotels' => $decodedHotels,
+                'selected_attractions' => $decodedAttractions,
+                'selected_restaurants' => $decodedRestaurants,
+                'price_data' => $decodedPriceData,
+                'transfer_data' => $transferDataPayload,
+                'arrival_data' => $arrivalDataPayload,
+                'departure_data' => $departureDataPayload,
+                'itinerary' => json_encode($definitionData),
+                'updated_by' => Auth::user()->userId,
+            ]);
+
+            DB::commit();
+            return redirect()->route('packages.index')->with('success', 'Package definition updated successfully.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Package definition update error: ' . $e->getMessage());
+            return back()->withInput()->withErrors(['error' => 'Failed to update package definition. ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Build the initial JS payload when editing a package definition.
+     */
+    private function buildInitialDefinition(Package $package): array
+    {
+        $itinerary = $this->decodePackageJsonField($package->itinerary);
+
+        $hotels = $this->decodePackageJsonField($package->selected_hotels);
+        if (empty($hotels) && !empty($itinerary['hotels'])) {
+            $hotels = is_array($itinerary['hotels']) ? $itinerary['hotels'] : [];
+        }
+
+        $attractions = $this->decodePackageJsonField($package->selected_attractions);
+        if (empty($attractions) && !empty($itinerary['attractions'])) {
+            $attractions = is_array($itinerary['attractions']) ? $itinerary['attractions'] : [];
+        }
+
+        $restaurants = $this->decodePackageJsonField($package->selected_restaurants);
+        if (empty($restaurants) && !empty($itinerary['restaurants'])) {
+            $restaurants = is_array($itinerary['restaurants']) ? $itinerary['restaurants'] : [];
+        }
+
+        $hotels = $this->normalizeDefinitionHotelsForEdit($hotels);
+        $attractions = $this->normalizeDefinitionAttractionsForEdit($attractions);
+        $restaurants = $this->normalizeDefinitionRestaurantsForEdit($restaurants);
+
+        $dayCityPlanRaw = $itinerary['day_city_plan'] ?? [];
+        $cityPlans = $this->buildDefinitionCityPlansForEdit($dayCityPlanRaw, $hotels, $attractions, $restaurants);
+
+        $transferData = $this->decodePackageJsonField($package->transfer_data);
+        $localTransfers = $itinerary['local_transfers'] ?? $transferData;
+        $priceData = $this->decodePackageJsonField($package->price_data);
+
+        return [
+            'package_id' => $package->package_id,
+            'title' => $package->title,
+            'destination' => $package->destination,
+            'cities' => array_values(array_filter(array_map('trim', preg_split('/,/', (string) ($package->city ?? ''), -1, PREG_SPLIT_NO_EMPTY)))),
+            'category' => $package->category,
+            'duration_days' => (int) ($package->duration_days ?? 1),
+            'description' => $package->description,
+            'start_date' => optional($package->start_date)->format('Y-m-d'),
+            'expiry_date' => optional($package->expire_date)->format('Y-m-d'),
+            'city_plans' => $cityPlans,
+            'day_city_plan' => $dayCityPlanRaw,
+            'day_wise_itinerary' => $itinerary['day_wise_itinerary'] ?? [],
+            'selected_hotels' => $hotels,
+            'selected_attractions' => $attractions,
+            'selected_restaurants' => $restaurants,
+            'independent_guide' => $itinerary['independent_guide'] ?? $this->decodePackageJsonField($package->selected_guide),
+            'local_transfers' => is_array($localTransfers) ? $localTransfers : [],
+            'transfer_data' => is_array($transferData) ? $transferData : [],
+            'price_data' => $priceData,
+            'arrival_data' => $this->decodePackageJsonField($package->arrival_data),
+            'departure_data' => $this->decodePackageJsonField($package->departure_data),
+        ];
+    }
+
+    /**
+     * Normalize a package JSON column to an array.
+     */
+    private function decodePackageJsonField($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Map stored hotel rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionHotelsForEdit(array $hotels): array
+    {
+        return array_values(array_map(function ($hotel) {
+            if (!is_array($hotel)) {
+                return $hotel;
+            }
+
+            $startDay = $hotel['start_day'] ?? $hotel['stay_start_day'] ?? null;
+            $nights = isset($hotel['nights']) ? (int) $hotel['nights'] : 1;
+            $fromDay = isset($hotel['city_day_from']) ? (int) $hotel['city_day_from'] : (is_numeric($startDay) ? (int) $startDay : null);
+            $toDay = isset($hotel['city_day_to']) ? (int) $hotel['city_day_to'] : (($fromDay !== null) ? $fromDay + max(1, $nights) - 1 : null);
+
+            return array_merge($hotel, [
+                'hotel_id' => $hotel['hotel_id'] ?? $hotel['id'] ?? null,
+                'hotel_name' => $hotel['hotel_name'] ?? $hotel['name'] ?? '',
+                'start_day' => is_numeric($startDay) ? (int) $startDay : $fromDay,
+                'city_plan_id' => isset($hotel['city_plan_id']) ? (string) $hotel['city_plan_id'] : null,
+                'city_plan_city' => $hotel['city_plan_city'] ?? ($hotel['city'] ?? null),
+                'city_day_from' => $fromDay,
+                'city_day_to' => $toDay,
+                'rooms' => is_array($hotel['rooms'] ?? null) ? $hotel['rooms'] : [],
+            ]);
+        }, $hotels));
+    }
+
+    /**
+     * Map stored attraction rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionAttractionsForEdit(array $attractions): array
+    {
+        return array_values(array_map(function ($attraction) {
+            if (!is_array($attraction)) {
+                return $attraction;
+            }
+
+            return array_merge($attraction, [
+                'attraction_id' => $attraction['attraction_id'] ?? $attraction['id'] ?? null,
+                'name' => $attraction['name'] ?? $attraction['attraction_name'] ?? '',
+                'city_plan_id' => isset($attraction['city_plan_id']) ? (string) $attraction['city_plan_id'] : null,
+                'city_plan_city' => $attraction['city_plan_city'] ?? ($attraction['city'] ?? null),
+                'transfer' => !empty($attraction['transfer']),
+            ]);
+        }, $attractions));
+    }
+
+    /**
+     * Map stored restaurant rows to the field names expected by the definition builder JS.
+     */
+    private function normalizeDefinitionRestaurantsForEdit(array $restaurants): array
+    {
+        return array_values(array_map(function ($restaurant) {
+            if (!is_array($restaurant)) {
+                return $restaurant;
+            }
+
+            return array_merge($restaurant, [
+                'restaurant_id' => $restaurant['restaurant_id'] ?? $restaurant['id'] ?? null,
+                'restaurant_name' => $restaurant['restaurant_name'] ?? $restaurant['name'] ?? '',
+                'city_plan_id' => isset($restaurant['city_plan_id']) ? (string) $restaurant['city_plan_id'] : null,
+                'city_plan_city' => $restaurant['city_plan_city'] ?? ($restaurant['city'] ?? null),
+                'transfer' => !empty($restaurant['transfer']),
+            ]);
+        }, $restaurants));
+    }
+
+    /**
+     * Rebuild city-plan rows for edit preload.
+     *
+     * Stored day_city_plan is usually a day => city map, not the plan array the UI uses.
+     */
+    private function buildDefinitionCityPlansForEdit($dayCityPlanRaw, array $hotels, array $attractions, array $restaurants): array
+    {
+        if (is_array($dayCityPlanRaw) && array_is_list($dayCityPlanRaw) && !empty($dayCityPlanRaw)) {
+            $first = $dayCityPlanRaw[0] ?? null;
+            if (is_array($first) && (isset($first['id']) || isset($first['city_plan_id']) || isset($first['day_from']) || isset($first['city_day_from']))) {
+                return $this->normalizeDefinitionCityPlansArray($dayCityPlanRaw);
+            }
+        }
+
+        $planMap = [];
+
+        $consumeDay = function ($planId, $city, $day) use (&$planMap) {
+            if (!$planId || !$city || !$day) {
+                return;
+            }
+            $planId = (string) $planId;
+            $day = (int) $day;
+            if (!isset($planMap[$planId])) {
+                $planMap[$planId] = [
+                    'id' => $planId,
+                    'city' => (string) $city,
+                    'day_from' => $day,
+                    'day_to' => $day,
+                ];
+                return;
+            }
+            $planMap[$planId]['day_from'] = min($planMap[$planId]['day_from'], $day);
+            $planMap[$planId]['day_to'] = max($planMap[$planId]['day_to'], $day);
+        };
+
+        foreach ($hotels as $hotel) {
+            if (!is_array($hotel)) {
+                continue;
+            }
+            $planId = $hotel['city_plan_id'] ?? null;
+            $city = $hotel['city_plan_city'] ?? ($hotel['city'] ?? null);
+            if (!$planId || !$city) {
+                continue;
+            }
+            $from = (int) ($hotel['city_day_from'] ?? $hotel['start_day'] ?? 1);
+            $nights = (int) ($hotel['nights'] ?? 1);
+            $to = (int) ($hotel['city_day_to'] ?? ($from + max(1, $nights) - 1));
+            $consumeDay($planId, $city, $from);
+            $consumeDay($planId, $city, $to);
+        }
+
+        foreach ($attractions as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $consumeDay(
+                $row['city_plan_id'] ?? null,
+                $row['city_plan_city'] ?? ($row['city'] ?? null),
+                $row['day'] ?? null
+            );
+        }
+
+        foreach ($restaurants as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $consumeDay(
+                $row['city_plan_id'] ?? null,
+                $row['city_plan_city'] ?? ($row['city'] ?? null),
+                $row['day'] ?? null
+            );
+        }
+
+        if (!empty($planMap)) {
+            return array_values($planMap);
+        }
+
+        if (is_array($dayCityPlanRaw) && !array_is_list($dayCityPlanRaw)) {
+            return $this->definitionCityDayMapToPlans($dayCityPlanRaw);
+        }
+
+        return [];
+    }
+
+    /**
+     * Normalize saved city-plan rows to the UI shape.
+     */
+    private function normalizeDefinitionCityPlansArray(array $plans): array
+    {
+        $normalized = [];
+        foreach ($plans as $plan) {
+            if (!is_array($plan)) {
+                continue;
+            }
+            $id = $plan['id'] ?? $plan['city_plan_id'] ?? $plan['plan_id'] ?? null;
+            $city = $plan['city'] ?? $plan['city_plan_city'] ?? '';
+            $from = (int) ($plan['day_from'] ?? $plan['city_day_from'] ?? $plan['from_day'] ?? $plan['from'] ?? $plan['start_day'] ?? 1);
+            $to = (int) ($plan['day_to'] ?? $plan['city_day_to'] ?? $plan['to_day'] ?? $plan['to'] ?? $plan['end_day'] ?? $from);
+            if (!$id || $city === '') {
+                continue;
+            }
+            $normalized[] = [
+                'id' => (string) $id,
+                'city' => (string) $city,
+                'day_from' => $from,
+                'day_to' => max($from, $to),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Convert a stored day => city map into synthetic city-plan rows.
+     */
+    private function definitionCityDayMapToPlans(array $map): array
+    {
+        $days = array_filter(array_keys($map), 'is_numeric');
+        sort($days, SORT_NUMERIC);
+        if (empty($days)) {
+            return [];
+        }
+
+        $plans = [];
+        $current = null;
+        foreach ($days as $day) {
+            $dayNum = (int) $day;
+            $city = trim((string) ($map[$day] ?? $map[(string) $day] ?? ''));
+            if ($city === '') {
+                continue;
+            }
+
+            if ($current && $current['city'] === $city && $dayNum === $current['day_to'] + 1) {
+                $current['day_to'] = $dayNum;
+                continue;
+            }
+
+            if ($current) {
+                $plans[] = $current;
+            }
+            $current = [
+                'id' => 'plan_recovered_' . $dayNum . '_' . substr(md5($city), 0, 8),
+                'city' => $city,
+                'day_from' => $dayNum,
+                'day_to' => $dayNum,
+            ];
+        }
+
+        if ($current) {
+            $plans[] = $current;
+        }
+
+        return $plans;
+    }
+
+    /**
+     * Get allowed countries for package definition based on DMC -> Master DMC hierarchy.
+     */
+    private function getAllowedCountriesForPackageDefinition(User $user)
+    {
+        $defaultCountries = Country::where('is_active', 1)->orderBy('name')->get();
+        $dmcId = CommonHelper::getDmcId($user);
+        if (!$dmcId) {
+            return $defaultCountries;
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser || empty($dmcUser->created_by)) {
+            return $defaultCountries;
+        }
+
+        $masterDmcId = (int) $dmcUser->created_by;
+        // IMPORTANT: Countries must come from the Master DMC user row itself,
+        // not from all users created under that Master DMC.
+        $masterDmcUser = User::where('userId', $masterDmcId)->first();
+        if (!$masterDmcUser || empty($masterDmcUser->country)) {
+            return $defaultCountries;
+        }
+
+        $countryValues = collect([$masterDmcUser->country]);
+
+        $normalizedCountries = collect();
+        foreach ($countryValues as $rawCountry) {
+            if (!is_string($rawCountry) || trim($rawCountry) === '') {
+                continue;
+            }
+
+            $decoded = json_decode($rawCountry, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $parts = $decoded;
+            } else {
+                $parts = preg_split('/[,|]/', $rawCountry);
+            }
+
+            foreach ($parts as $part) {
+                $name = trim((string) $part);
+                if ($name !== '') {
+                    $normalizedCountries->push($name);
+                }
+            }
+        }
+
+        $countryNames = $normalizedCountries->map(fn ($name) => strtolower($name))
+            ->unique()
+            ->values();
+
+        if ($countryNames->isEmpty()) {
+            return $defaultCountries;
+        }
+
+        return Country::where('is_active', 1)
+            ->where(function ($query) use ($countryNames) {
+                foreach ($countryNames as $countryName) {
+                    $query->orWhereRaw('LOWER(name) = ?', [$countryName]);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Get room types by hotel (AJAX) for package definition
+     */
+    /**
+     * Get rooms by hotel (AJAX) for package definition.
+     * Uses the rooms table; Room.hotel_id = Hotel.hotel_unique_id.
+     */
+    public function getRoomTypesByHotel($hotelId)
+    {
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            $rooms = Room::where('hotel_id', $hotelId)
+                ->where('created_by', $dmc_id)
+                ->get([
+                    'room_id',
+                    'id',
+                    'hotel_id',
+                    'room_type',
+                    'no_of_room',
+                    'weekday_price',
+                    'weekend_price',
+                    'double_weekday_price',
+                    'double_weekend_price',
+                    'dimension',
+                    'breakfast',
+                    'breakfast_included',
+                    'lunch',
+                    'dinner',
+                    'master_image',
+                    'features',
+                ]);
+
+            $roomTypes = $rooms->map(function ($room) {
+                return [
+                    'id'                 => $room->room_id ?? $room->id,
+                    'room_id'            => $room->room_id ?? $room->id,
+                    'name'               => $room->room_type ?: ('Room ' . ($room->room_id ?? $room->id)),
+                    'room_type'          => $room->room_type,
+                    'no_of_room'         => $room->no_of_room,
+                    'weekday_price'      => ceil(((float) $room->double_weekday_price) / 2),
+                    'weekend_price'      => ceil(((float) $room->double_weekend_price) / 2),
+                    'dimension'          => $room->dimension,
+                    'breakfast'          => $room->breakfast,
+                    'breakfast_included' => $room->breakfast_included,
+                    'lunch'              => $room->lunch,
+                    'dinner'             => $room->dinner,
+                    'master_image'       => $room->master_image,
+                    'features'           => $room->features,
+                ];
+            });
+
+            return response()->json(['room_types' => $roomTypes]);
+        } catch (\Throwable $e) {
+            Log::error('getRoomTypesByHotel failed: ' . $e->getMessage(), ['hotel_id' => $hotelId]);
+            return response()->json(['error' => 'Failed to fetch room types.'. $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get bed types by room (AJAX) for package definition.
+     * Uses beds.room_id -> rooms.room_id
+     */
+    public function getBedsByRoom($roomId)
+    {
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            $beds = Bed::where('room_id', $roomId)
+                ->where('dmc_id', $dmc_id)
+                ->get();
+
+            $bedTypes = $beds->map(function ($bed) {
+                return [
+                    'room_type' => (string) ($bed->room_type ?? ''),
+                    'extra_bed' => (int) ($bed->extra_bed ?? 0) === 1,
+                    'bed_id' => (int) ($bed->bed_id ?? 0),
+                    'extra_bed_type' => (string) ($bed->extra_bed_type ?? ''),
+                    'extra_bed_price' => (float) ($bed->extra_bed_price ?? 0),
+                ];
+            })
+            ->filter(function ($bed) {
+                return $bed['room_type'] !== '';
+            })
+            ->unique(function ($bed) {
+                return strtolower($bed['room_type']) . '|' . ($bed['extra_bed'] ? '1' : '0');
+            })
+            ->values();
+
+            return response()->json(['beds' => $bedTypes]);
+        } catch (\Throwable $e) {
+            Log::error('getBedsByRoom failed: ' . $e->getMessage(), ['room_id' => $roomId]);
+            return response()->json(['error' => 'Failed to fetch beds.'], 500);
+        }
+    }
+
+    /**
+     * Get tickets by attraction (AJAX) for package definition.
+     */
+    public function getTicketsByAttraction($attractionId)
+    {
+        try {
+            $user = Auth::user();
+            $dmc_id = CommonHelper::getDmcId($user);
+            if (!$dmc_id) {
+                return response()->json(['error' => 'You are not authorized to view this page.'], 403);
+            }
+
+            $tickets = Ticket::where('attraction_id', $attractionId)
+                ->where('dmc_id', (int) $dmc_id)
+                ->where('status', 1)
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'ticket_id',
+                    'name',
+                    'adult_price',
+                    'child_price',
+                    'senior_adult_price',
+                    'attraction_id',
+                ]);
+
+            return response()->json(['tickets' => $tickets]);
+        } catch (\Throwable $e) {
+            Log::error('getTicketsByAttraction failed: ' . $e->getMessage(), ['attraction_id' => $attractionId]);
+            return response()->json(['error' => 'Failed to fetch tickets.'], 500);
+        }
+    }
+
+    /**
+     * Store a package definition (no day-wise itinerary)
+     */
+    public function storeDefinition(Request $request)
+    {
+        try {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'destination' => 'required|string|max:255',
+            'city' => 'required|array|min:1',
+            'city.*' => 'required|string|max:255',
+            'category' => 'required|string|max:255',
+            'duration_days' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+            'price_adult' => 'nullable|numeric|min:0',
+            'price_senior' => 'nullable|numeric|min:0',
+            'price_child' => 'nullable|numeric|min:0',
+            'start_date' => 'required|date',
+            'expiry_date' => 'required|date|after:start_date',
+            'main_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'gallery_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'inclusions' => 'nullable|string',
+            'exclusions' => 'nullable|string',
+            'terms_conditions' => 'nullable|string',
+            'status' => 'required',
+            'child_max_age' => 'nullable|integer',
+            'price_data' => 'nullable|json',
+            'total_price' => 'nullable|numeric|min:0',
+            'markup_type' => 'nullable|in:percentage,flat',
+            'markup_amount' => 'nullable|numeric|min:0',
+            'day_wise_itinerary' => 'nullable|json',
+            'day_city_plan' => 'nullable|json',
+        ]);
+        } catch (Exception $e) {
+            return back()->withInput()->withErrors(['error' => 'Failed to validate package definition. ' . $e->getMessage()]);
+        }
+
+        try {
+            DB::beginTransaction();
+            $mainImagePath = null;
+            if ($request->hasFile('main_image')) {
+                $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
+                if (!empty($imageData['master_value'])) {
+                    $mainImagePath = $imageData['master_value'];
+                }
+            }
+            $galleryImages = [];
+            if ($request->hasFile('gallery_images')) {
+                foreach ($request->file('gallery_images') as $image) {
+                    $imageData = CommonHelper::image_path('file_storage', $image);
+                    if (!empty($imageData['master_value'])) {
+                        $galleryImages[] = $imageData['master_value'];
+                    }
+                }
+            }
+
+            $selectedHotels = $request->input('selected_hotels', '[]');
+            $selectedAttractions = $request->input('selected_attractions', '[]');
+            $selectedRestaurants = $request->input('selected_restaurants', '[]');
+            $localTransfers = $request->input('local_transfers', '[]');
+            $priceData = $request->input('price_data', '[]');
+            $totalPrice = $request->input('total_price');
+            $markupType = $request->input('markup_type');
+            $markupAmount = $request->input('markup_amount');
+            $dayWiseItinerary = $request->input('day_wise_itinerary', '[]');
+            $dayCityPlan = $request->input('day_city_plan', '[]');
+
+            // Decode main JSON payloads once so we can derive price_data server-side reliably.
+            // This avoids depending on frontend JS to send price_data correctly.
+            $decodedHotels = is_string($selectedHotels) ? (json_decode($selectedHotels, true) ?: []) : ($selectedHotels ?: []);
+            $selectedCities = array_values(array_filter((array) $request->input('city', [])));
+            $cityValue = implode(',', $selectedCities);
+           
+            foreach ($decodedHotels as &$hotel) {
+                $hotel['city'] = $cityValue;
+            }
+            unset($hotel);
+            
+            $decodedAttractions = is_string($selectedAttractions) ? (json_decode($selectedAttractions, true) ?: []) : ($selectedAttractions ?: []);
+            $decodedRestaurants = is_string($selectedRestaurants) ? (json_decode($selectedRestaurants, true) ?: []) : ($selectedRestaurants ?: []);
+            $decodedLocalTransfers = is_string($localTransfers) ? (json_decode($localTransfers, true) ?: []) : ($localTransfers ?: []);
+            $decodedIndependentGuides = json_decode($request->input('definition_independent_guide', '[]'), true) ?: [];
+            $decodedDayWiseItinerary = is_string($dayWiseItinerary)
+                ? (json_decode($dayWiseItinerary, true) ?: [])
+                : (is_array($dayWiseItinerary) ? $dayWiseItinerary : []);
+            $decodedDayCityPlan = is_string($dayCityPlan)
+                ? (json_decode($dayCityPlan, true) ?: [])
+                : (is_array($dayCityPlan) ? $dayCityPlan : []);
+
+            // Persisted direct columns (JSON) for transfer/arrival/departure
+            // transfer_data: local transfer list
+            // arrival_data / departure_data: dedicated arrival/departure section config
+            $transferDataPayload = is_array($decodedLocalTransfers) ? $decodedLocalTransfers : [];
+
+            // Build arrival/departure payloads from day_wise_itinerary so the stored
+            // JSON is strictly scoped (arrival_data contains only arrivals, etc.).
+            $findHotelForPlanDay = function (array $hotels, $cityPlanId, ?int $day) {
+                if (empty($cityPlanId) || empty($day)) return null;
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) !== $cityPlanId) continue;
+                    $start = isset($h['start_day']) ? (int) $h['start_day'] : null;
+                    $nights = isset($h['nights']) ? (int) $h['nights'] : 1;
+                    if (empty($start)) continue;
+                    $end = $start + max(1, $nights) - 1;
+                    if ($day >= $start && $day <= $end) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                // fallback: first hotel in same plan
+                foreach ($hotels as $h) {
+                    if (!is_array($h)) continue;
+                    if (($h['city_plan_id'] ?? null) === $cityPlanId) {
+                        return $h['hotel_id'] ?? null;
+                    }
+                }
+                return null;
+            };
+
+            $arrivalItems = [];
+            $departureItems = [];
+            $portNameCache = [];
+            $hotelNameCache = [];
+
+            $lookupPortName = function ($portId) use (&$portNameCache) {
+                $key = is_scalar($portId) ? (string) $portId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $portNameCache)) return $portNameCache[$key];
+                // PostgreSQL: avoid comparing bigint columns to non-numeric strings
+                if (!is_numeric($portId)) {
+                    $portNameCache[$key] = null;
+                    return null;
+                }
+                $name = \App\Models\Port::where('port_id', (int) $portId)->value('port_name');
+                $portNameCache[$key] = $name ?: null;
+                return $portNameCache[$key];
+            };
+
+            $lookupHotelName = function ($hotelId) use (&$hotelNameCache) {
+                $key = is_scalar($hotelId) ? (string) $hotelId : '';
+                if ($key === '') return null;
+                if (array_key_exists($key, $hotelNameCache)) return $hotelNameCache[$key];
+                $q = \App\Models\Hotel::query()->where('hotel_unique_id', $hotelId);
+                // PostgreSQL: only compare `id` (bigint) when hotelId is numeric
+                if (is_numeric($hotelId)) {
+                    $q->orWhere('id', (int) $hotelId);
+                }
+                $name = $q->value('name');
+                $hotelNameCache[$key] = $name ?: null;
+                return $hotelNameCache[$key];
+            };
+
+            foreach ($decodedDayWiseItinerary as $row) {
+                if (!is_array($row)) continue;
+                $day = isset($row['day']) ? (int) $row['day'] : null;
+                $city = $row['city'] ?? null;
+
+                if (!empty($row['arrival']) && is_array($row['arrival'])) {
+                    $a = $row['arrival'];
+                    $vehicles = $a['vehicles'] ?? ($row['arrival_vehicles'] ?? []);
+                    $planId = $a['city_plan_id'] ?? null;
+                    $dropoffHotelId = $a['dropoff_hotel_id'] ?? null;
+                    if (empty($dropoffHotelId)) {
+                        $dropoffHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $pickupPortId = $a['pickup_port_id'] ?? null;
+                    $arrivalItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_port_id' => $pickupPortId,
+                        'pickup_port_name' => $lookupPortName($pickupPortId),
+                        'dropoff_hotel_id' => $dropoffHotelId,
+                        'dropoff_hotel_name' => $lookupHotelName($dropoffHotelId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+
+                if (!empty($row['departure']) && is_array($row['departure'])) {
+                    $d = $row['departure'];
+                    $vehicles = $d['vehicles'] ?? ($row['departure_vehicles'] ?? []);
+                    $planId = $d['city_plan_id'] ?? null;
+                    $pickupHotelId = $d['pickup_hotel_id'] ?? null;
+                    if (empty($pickupHotelId)) {
+                        $pickupHotelId = $findHotelForPlanDay($decodedHotels, $planId, $day);
+                    }
+                    $dropoffPortId = $d['dropoff_port_id'] ?? null;
+                    $departureItems[] = [
+                        'day' => $day,
+                        'city' => $city,
+                        'city_plan_id' => $planId,
+                        'pickup_hotel_id' => $pickupHotelId,
+                        'pickup_hotel_name' => $lookupHotelName($pickupHotelId),
+                        'dropoff_port_id' => $dropoffPortId,
+                        'dropoff_port_name' => $lookupPortName($dropoffPortId),
+                        'vehicles' => is_array($vehicles) ? $vehicles : [],
+                    ];
+                }
+            }
+
+            $arrivalDataPayload = [
+                'enabled' => !empty($arrivalItems),
+                'items' => $arrivalItems,
+            ];
+
+            $departureDataPayload = [
+                'enabled' => !empty($departureItems),
+                'items' => $departureItems,
+            ];
+
+            // price_data is built on the frontend and only carries four keys:
+            //   total_price, markup_type, markup_amount, final_price
+            // Accept it as-is and recompute final_price server-side so the stored
+            // value is tamper-proof even if the hidden field is edited.
+            $decodedPriceData = is_string($priceData) ? (json_decode($priceData, true) ?: []) : ($priceData ?: []);
+            if (!is_array($decodedPriceData)) {
+                $decodedPriceData = [];
+            }
+
+            $totalPriceNum = ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice))
+                ? (float) $totalPrice
+                : (isset($decodedPriceData['total_price']) && is_numeric($decodedPriceData['total_price']) ? (float) $decodedPriceData['total_price'] : 0.0);
+            $markupAmountNum = ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount))
+                ? (float) $markupAmount
+                : (isset($decodedPriceData['markup_amount']) && is_numeric($decodedPriceData['markup_amount']) ? (float) $decodedPriceData['markup_amount'] : 0.0);
+            $markupTypeClean = !empty($markupType) ? $markupType : ($decodedPriceData['markup_type'] ?? null);
+
+            // Round UP to the nearest multiple of 5 for both total and final price.
+            $ceilToFive = function ($n) {
+                $num = (float) $n;
+                if (!is_finite($num) || $num <= 0) return 0.0;
+                return ceil($num / 5) * 5;
+            };
+            $totalPriceNum = $ceilToFive($totalPriceNum);
+
+            // Final price rule (applied to the ceil-rounded total):
+            //   flat       => final = total + markupAmount
+            //   percentage => final = total + (total * markupAmount / 100)
+            //   none       => final = total
+            $finalPriceNum = $totalPriceNum;
+            if ($markupTypeClean === 'flat') {
+                $finalPriceNum = $totalPriceNum + $markupAmountNum;
+            } elseif ($markupTypeClean === 'percentage') {
+                $finalPriceNum = $totalPriceNum + ($totalPriceNum * $markupAmountNum / 100);
+            }
+            $finalPriceNum = $ceilToFive($finalPriceNum);
+
+            $decodedPriceData = [
+                'total_price' => round($totalPriceNum, 2),
+                'markup_type' => $markupTypeClean ?: null,
+                'markup_amount' => $markupTypeClean ? round($markupAmountNum, 2) : null,
+                'final_price' => round($finalPriceNum, 2),
+            ];
+
+            $definitionData = [
+                'hotels' => $decodedHotels,
+                'attractions' => $decodedAttractions,
+                'restaurants' => $decodedRestaurants,
+                'arrival_pickup' => (int) $request->input('arrival_pickup', 0),
+                'departure_service' => (int) $request->input('departure_service', 0),
+                'independent_guide' => $decodedIndependentGuides,
+                'local_transfers' => $decodedLocalTransfers,
+                'day_city_plan' => $decodedDayCityPlan,
+                'day_wise_itinerary' => $decodedDayWiseItinerary,
+                'price_data' => $decodedPriceData,
+                'total_price' => ($totalPrice !== null && $totalPrice !== '' && is_numeric($totalPrice)) ? (float) $totalPrice : null,
+                'markup_type' => $markupType ?: null,
+                'markup_amount' => ($markupAmount !== null && $markupAmount !== '' && is_numeric($markupAmount)) ? (float) $markupAmount : null,
+            ];
+
+            $user = Auth::user();
+            // $dmc_id = $user->userId;
+            // if (in_array($user->role_id, [1, 2, 23])) {
+            //     $dmc_id = $request->input('dmc_id', $user->userId);
+            // }
+            $dmc_id = CommonHelper::getDmcId($user);
+            // $lastPackage = Package::withTrashed()->orderBy('created_at', 'desc')->first();
+            // $package_max_id = $lastPackage->package_id ?? 0;
+            // $packageId = CommonHelper::createId($package_max_id);
+            // while (Package::where('package_id', $packageId)->exists()) {
+            //     $packageId = CommonHelper::createId($packageId);
+            // }
+
+            $package = Package::create([
+                // 'package_id' => $packageId,
+                'title' => $validated['title'],
+                'destination' => $validated['destination'],
+                'city' => $cityValue,
+                'category' => $validated['category'],
+                'duration_days' => $validated['duration_days'],
+                'package_type' => 'definition',
+                'description' => $validated['description'] ?? '',
+                'price_adult' => $validated['price_adult'] ?? null,
+                'price_senior' => $validated['price_senior'] ?? null,
+                'price_child' => $validated['price_child'] ?? null,
+                'child_max_age' => $validated['child_max_age'] ?? null,
+                'start_date' => $validated['start_date'],
+                'expire_date' => $validated['expiry_date'],
+                'main_image' => $mainImagePath,
+                'gallery_images' => json_encode($galleryImages),
+                'inclusions' => $validated['inclusions'] ?? '',
+                'exclusions' => $validated['exclusions'] ?? '',
+                'terms_conditions' => $validated['terms_conditions'] ?? '',
+                'status' => $validated['status'],
+                'dmc_id' => (int)$dmc_id,
+                'created_by' => $user->userId,
+                'updated_by' => $user->userId,
+                'selected_hotels' => $decodedHotels,
+                'selected_attractions' => $selectedAttractions,
+                'selected_guide' => $request->input('definition_independent_guide', 'null'),
+                'selected_restaurants' => $selectedRestaurants,
+                // Store as JSON array (like selected_guide), letting Eloquent handle encoding via cast
+                'price_data' => $decodedPriceData,
+                'transfer_data' => $transferDataPayload,
+                'arrival_data' => $arrivalDataPayload,
+                'departure_data' => $departureDataPayload,
+                'itinerary' => json_encode($definitionData),
+            ]);
+            $package->refresh();
+            $packageId = $package->package_id;
+
+            DB::commit();
+            return redirect()->route('packages.index')->with('success', 'Package definition created successfully.');
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Package definition store error: ' . $e->getMessage());
+            return back()->withInput()->withErrors(['error' => 'Failed to create package definition. '.$e->getMessage()]);
+        }
     }
 
     /**
@@ -681,7 +2035,9 @@ class PackageController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $query = PackageBooking::with(['package', 'agent'])
+            // NOTE: relationship renamed to `packageInfo` in PackageBooking model to avoid
+            // collision with the JSON-cast `package` column on some environments.
+            $query = PackageBooking::with(['packageInfo', 'agent'])
             ->where('dmc_id', $dmc_id);
             
             // For finance roles, only show bookings with payment_details
@@ -691,12 +2047,16 @@ class PackageController extends Controller
             
             $bookings = $query->orderBy('created_at', 'desc')->get();
         }else{
-            $bookings = PackageBooking::with(['package', 'agent'])
+            $bookings = PackageBooking::with(['packageInfo', 'agent'])
             ->orderBy('created_at', 'desc')
             ->get();
         }
-        
-        return view('package.booking-list', compact('bookings'));
+
+        // Map of DMC currency keyed by dmc_id so each booking shows the maintaining DMC's currency.
+        $dmcIds = $bookings->pluck('dmc_id')->filter()->unique()->values();
+        $currencies = User::whereIn('userId', $dmcIds)->pluck('currency', 'userId')->toArray();
+
+        return view('package.booking-list', compact('bookings', 'currencies'));
     }
     
     /**
@@ -715,43 +2075,47 @@ class PackageController extends Controller
                 'payment_amount' => 'required|numeric|min:0.01',
                 'payment_date' => 'required|date',
                 'payment_type' => 'required|string',
-                'transaction_id' => 'required|string',
+                'transaction_id' => 'nullable|string|max:255',
+                'remarks' => 'nullable|string|max:2000',
+                'currency' => 'nullable|string|max:10',
             ]);
             
             // Find the booking by ID
             $booking = PackageBooking::where('booking_id', $booking_id)->first();
             
-            if (!$booking) {
-                return redirect()->route('predefined.package.booking.list')
-                    ->with('error', 'Booking not found.');
+            if (! $booking) {
+                return redirect()->back()->with('error', 'Booking not found.');
             }
-            
+
             // Prepare payment details for JSON storage
             $paymentDetails = [
                 'payment_amount' => $request->payment_amount,
                 'payment_date' => $request->payment_date,
                 'payment_type' => $request->payment_type,
-                'transaction_id' => $request->transaction_id,
+                'transaction_id' => $request->filled('transaction_id') ? (string) $request->transaction_id : '',
+                'remarks' => $request->filled('remarks') ? (string) $request->remarks : null,
+                'currency' => $request->filled('currency') ? (string) $request->currency : null,
                 'status' => 0, // 0 = pending approval
                 'created_at' => now()->toDateTimeString(),
-                'updated_at' => now()->toDateTimeString()
+                'updated_at' => now()->toDateTimeString(),
             ];
-            
+
             // Get existing payment details or initialize empty array
-            $existingPaymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
+            $existingPaymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
             
             // Add new payment to existing payments (for multiple payments support)
             $existingPaymentDetails[] = $paymentDetails;
             
             // Update booking with payment details in JSON format
-            $booking->payment_details = json_encode($existingPaymentDetails);
+            $booking->payment_details = $existingPaymentDetails;
             $booking->save();
-            
-            return redirect()->route('predefined.package.booking.list')
+
+            return redirect()
+                ->back()
                 ->with('success', 'Payment details saved successfully.');
-                
         } catch (\Exception $e) {
-            return redirect()->route('predefined.package.booking.list')
+            return redirect()
+                ->back()
                 ->with('error', 'Failed to save payment details: ' . $e->getMessage());
         }
     }
@@ -779,12 +2143,12 @@ class PackageController extends Controller
                 ], 404);
             }
 
-            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
-            
-            if (!isset($paymentDetails[$request->payment_index])) {
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+
+            if (! isset($paymentDetails[$request->payment_index])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment not found.'
+                    'message' => 'Payment not found.',
                 ], 404);
             }
 
@@ -793,13 +2157,19 @@ class PackageController extends Controller
             $paymentDetails[$request->payment_index]['approved_at'] = now()->toDateTimeString();
             $paymentDetails[$request->payment_index]['approved_by'] = Auth::user()->userId;
 
-            $booking->payment_details = json_encode($paymentDetails);
-            $booking->status = 2;
+            $booking->payment_details = $paymentDetails;
+            // Move Confirmed -> Definite on first approved payment (packages flow).
+            // Do NOT change status if already Definite (or other statuses).
+            $statusColumn = \Illuminate\Support\Facades\Schema::hasColumn('package_bookings', 'booking_status') ? 'booking_status' : 'status';
+            $currentStatus = (string) (data_get($booking, $statusColumn) ?? '');
+            if ($statusColumn === 'booking_status' && $currentStatus === 'Confirmed') {
+                $booking->{$statusColumn} = 'Definite';
+            }
             $booking->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment approved successfully.'
+                'message' => 'Payment approved successfully.',
             ]);
 
         } catch (\Exception $e) {
@@ -822,7 +2192,7 @@ class PackageController extends Controller
         try {
             $request->validate([
                 'payment_index' => 'required|integer|min:0',
-                'decline_reason' => 'required|string|max:500',
+                'decline_reason' => 'required|string|min:10|max:500',
             ]);
 
             $booking = PackageBooking::where('booking_id', $booking_id)->first();
@@ -834,12 +2204,12 @@ class PackageController extends Controller
                 ], 404);
             }
 
-            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
-            
-            if (!isset($paymentDetails[$request->payment_index])) {
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+
+            if (! isset($paymentDetails[$request->payment_index])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment not found.'
+                    'message' => 'Payment not found.',
                 ], 404);
             }
 
@@ -849,19 +2219,99 @@ class PackageController extends Controller
             $paymentDetails[$request->payment_index]['declined_by'] = Auth::user()->userId;
             $paymentDetails[$request->payment_index]['decline_reason'] = $request->decline_reason;
 
-            $booking->payment_details = json_encode($paymentDetails);
+            $booking->payment_details = $paymentDetails;
             $booking->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Payment declined successfully.'
+                'message' => 'Payment declined successfully.',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to decline payment: ' . $e->getMessage()
+                'message' => 'Failed to decline payment: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Update a pending package payment entry (same JSON shape as addPayment).
+     */
+    public function updatePayment(Request $request, string $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+                'payment_amount' => 'required|numeric|min:0.01',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string',
+                'transaction_id' => 'nullable|string|max:255',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            if (! $booking) {
+                return response()->json(['success' => false, 'message' => 'Booking not found.'], 404);
+            }
+
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+            $idx = (int) $request->input('payment_index');
+            if (! isset($paymentDetails[$idx])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found.'], 404);
+            }
+            if ((int) ($paymentDetails[$idx]['status'] ?? 0) !== 0) {
+                return response()->json(['success' => false, 'message' => 'Only pending payments can be edited.'], 422);
+            }
+
+            $paymentDetails[$idx]['payment_amount'] = (float) $request->payment_amount;
+            $paymentDetails[$idx]['payment_date'] = $request->payment_date;
+            $paymentDetails[$idx]['payment_type'] = $request->payment_type;
+            $paymentDetails[$idx]['transaction_id'] = $request->filled('transaction_id') ? (string) $request->transaction_id : '';
+            $paymentDetails[$idx]['updated_at'] = now()->toDateTimeString();
+
+            $booking->payment_details = $paymentDetails;
+            $booking->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to update payment: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete a pending package payment entry.
+     */
+    public function deletePayment(Request $request, string $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            if (! $booking) {
+                return response()->json(['success' => false, 'message' => 'Booking not found.'], 404);
+            }
+
+            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : [];
+            $idx = (int) $request->input('payment_index');
+            if (! isset($paymentDetails[$idx])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found.'], 404);
+            }
+            if ((int) ($paymentDetails[$idx]['status'] ?? 0) !== 0) {
+                return response()->json(['success' => false, 'message' => 'Only pending payments can be deleted.'], 422);
+            }
+
+            array_splice($paymentDetails, $idx, 1);
+            $booking->payment_details = array_values($paymentDetails);
+            $booking->save();
+
+            return response()->json(['success' => true, 'message' => 'Payment removed successfully.']);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete payment: ' . $e->getMessage()], 500);
         }
     }
 

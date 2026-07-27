@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Facility;
@@ -25,6 +23,7 @@ use App\Mail\DmcMail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class GuideController extends Controller
 {
@@ -157,6 +156,7 @@ class GuideController extends Controller
         'service_type' => 'required|integer',
         'guide_age' => 'required',
         'day_rate' => 'required|numeric',
+        'minimum_cost_price' => 'required|numeric',
         'night_surcharge' => 'required|numeric',
         'night_start_time' => 'required',
         'night_end_time' => 'required',
@@ -167,6 +167,13 @@ class GuideController extends Controller
         'eight_hour_price' => 'required|numeric',
         'ten_hour_price' => 'required|numeric',
         'twelve_hour_price' => 'required|numeric',
+        'hourly_cost_price' => 'required|numeric',
+        'two_hour_cost_price' => 'required|numeric',
+        'four_hour_cost_price' => 'required|numeric',
+        'six_hour_cost_price' => 'required|numeric',
+        'eight_hour_cost_price' => 'required|numeric',
+        'ten_hour_cost_price' => 'required|numeric',
+        'twelve_hour_cost_price' => 'required|numeric',
     ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
     ]);
@@ -216,6 +223,7 @@ class GuideController extends Controller
         'service_type' => $validated['service_type'],
         'guide_age' => $validated['guide_age'],
         'day_rate' => $validated['day_rate'],
+        'minimum_cost_price' => $validated['minimum_cost_price'],
         'night_surcharge' => $validated['night_surcharge'],
         'night_start_time' => $validated['night_start_time'],
         'night_end_time' => $validated['night_end_time'],
@@ -226,6 +234,13 @@ class GuideController extends Controller
         'eight_hour_price' => $validated['eight_hour_price'],
         'ten_hour_price' => $validated['ten_hour_price'],
         'twelve_hour_price' => $validated['twelve_hour_price'],
+        'hourly_cost_price' => $validated['hourly_cost_price'],
+        'two_hour_cost_price' => $validated['two_hour_cost_price'],
+        'four_hour_cost_price' => $validated['four_hour_cost_price'],
+        'six_hour_cost_price' => $validated['six_hour_cost_price'],
+        'eight_hour_cost_price' => $validated['eight_hour_cost_price'],
+        'ten_hour_cost_price' => $validated['ten_hour_cost_price'],
+        'twelve_hour_cost_price' => $validated['twelve_hour_cost_price'],
         'status' => $status
     ]);
 
@@ -254,17 +269,18 @@ class GuideController extends Controller
     foreach ($request->languages as $index => $language) {
         if (!array_key_exists($language, $existingLanguages)) {
             // Generate new language_id
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
 
             // Insert new language
             if ($language && isset($request->language_proficiency[$index])) {
                 GuideLanguage::create([
                     'guide_id' => $guide->guide_id,
                     'language' => $language,
-                    'language_id' => $language_id,
+                    // 'language_id' => $language_id,
                     'proficiency' => $request->language_proficiency[$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
         }
     }
@@ -356,96 +372,114 @@ class GuideController extends Controller
     */
     public function store(Request $request)
     {
-        // Validate the incoming request data
-        $validated = $request->validate([
-            'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
-            'guide_gender' => 'required|in:Male,Female,Other',
-            'name' => 'required|string|max:255',
-            'contact_no' => 'required|string|min:8|max:15',
-            'email' => 'required|email|unique:guides,email',
-            'license_no' => 'required|string',
-            'license_exp_date' => 'required|date',
-            'experience' => 'required|numeric',
-            'service_type' => 'required|integer',
-            'guide_age' => 'required',
-            'wp_number' => 'required|numeric',
-            'about' => 'required|string',
-            'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-            'day_rate' => 'nullable|numeric',
-            'night_surcharge' => 'nullable|numeric',
-            'night_start_time' => 'nullable|date_format:H:i',
-            'night_end_time' => 'nullable|date_format:H:i',
-            'hourly_price' => 'nullable|numeric',
-            'two_hour_price' => 'nullable|numeric',
-            'four_hour_price' => 'nullable|numeric',
-            'six_hour_price' => 'nullable|numeric',
-            'eight_hour_price' => 'nullable|numeric',
-            'ten_hour_price' => 'nullable|numeric',
-            'twelve_hour_price' => 'nullable|numeric',
-            'languages' => 'required|array',
-            'language_proficiency' => 'required|array',
-        ]);
-    
-        // Generate unique guide ID
-        $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
-        $guide_max_id = $lastGuide->guide_id ?? 0;
-        $guideId = CommonHelper::createId($guide_max_id);
-    
-        while (Guide::where('guide_id', $guideId)->exists()) {
-            $guideId = CommonHelper::createId($guideId);
-        }
-    
-        // Process license image
-        $licenseImage = '';
-        if ($request->hasFile('license_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('license_image'));
-            if (!empty($pathData['master_value'])) {
-                $licenseImage = $pathData['master_value'];
-            }
-        }
-    
-        // Process guide image
-        $guideImage = '';
-        if ($request->hasFile('master_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('master_image'));
-            if (!empty($pathData['master_value'])) {
-                $guideImage = $pathData['master_value'];
-            }
-        }
+        try {
+            // Some roles must select a DMC (admin-like flows)
+            $auth_user = Auth::user();
+            $dmcRequiredRoles = [1, 2, 4, 23];
 
-        $auth_user = Auth::user();
-        if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
-            $dmc_id = $auth_user->userId;
-            $status = 1;
-        } elseif($auth_user->role_id == 4){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif($auth_user->role_id == 23){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif($auth_user->role_id == 1 || $auth_user->role_id == 2){
-            $dmc_id = $request->dmc;
-            $status = 1;
-        } elseif(auth()->user()->role_id ==35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138){
-            $userdmc = User::where('userId', auth()->user()->created_by)->first();
-            $dmc_id = $userdmc->userId;
-            $status = 1;
-        } elseif(auth()->user()->role_id == 75 || auth()->user()->role_id == 139){
-            $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $dmc_id = $user_product_head_dmc->userId;
-            $status = 1;
-        } elseif(auth()->user()->role_id == 102 || auth()->user()->role_id == 140){
-            $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $dmc_id = $user_product_head_dmc->userId;
-            $status = 1;
-        } else{
-            $dmc_id = $request->dmc;
-            $status = 1;
-        }
+            // If the email belongs to a soft-deleted guide, show a clear message
+            $trashedByEmail = Guide::onlyTrashed()
+                ->where('email', $request->input('email'))
+                ->first();
+            if ($trashedByEmail) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'email' => 'This email is already used by a deleted (archived) guide. Please restore that guide or use another email.',
+                    ]);
+            }
+
+            // Validate the incoming request data
+            $validated = $request->validate([
+                'dmc' => in_array($auth_user->role_id, $dmcRequiredRoles, true) ? 'required' : 'nullable',
+                'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
+                'guide_gender' => 'required|in:Male,Female,Other',
+                'name' => 'required|string|max:255',
+                'contact_no' => 'required|string|min:8|max:15',
+                // Unique among NON-deleted guides; deleted ones are handled above with a custom message
+                'email' => [
+                    'required',
+                    'email',
+                    Rule::unique('guides', 'email')->whereNull('deleted_at'),
+                ],
+                'license_no' => 'required|string',
+                'license_exp_date' => 'required|date',
+                'experience' => 'required|numeric',
+                'service_type' => 'required|integer',
+                'guide_age' => 'required',
+                'wp_number' => 'required|numeric',
+                'about' => 'required|string',
+                'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                'day_rate' => 'nullable|numeric',
+                'minimum_cost_price' => 'nullable|numeric',
+                'night_surcharge' => 'nullable|numeric',
+                'night_start_time' => 'nullable|date_format:H:i',
+                'night_end_time' => 'nullable|date_format:H:i',
+                'hourly_price' => 'nullable|numeric',
+                'two_hour_price' => 'nullable|numeric',
+                'four_hour_price' => 'nullable|numeric',
+                'six_hour_price' => 'nullable|numeric',
+                'eight_hour_price' => 'nullable|numeric',
+                'ten_hour_price' => 'nullable|numeric',
+                'twelve_hour_price' => 'nullable|numeric',
+                'hourly_cost_price' => 'nullable|numeric',
+                'two_hour_cost_price' => 'nullable|numeric',
+                'four_hour_cost_price' => 'nullable|numeric',
+                'six_hour_cost_price' => 'nullable|numeric',
+                'eight_hour_cost_price' => 'nullable|numeric',
+                'ten_hour_cost_price' => 'nullable|numeric',
+                'twelve_hour_cost_price' => 'nullable|numeric',
+                'languages' => 'required|array',
+                'language_proficiency' => 'required|array',
+            ]);
+    
+            return DB::transaction(function () use ($request, $validated, $auth_user) {
+                // Generate unique guide ID
+                // $lastGuide = Guide::withTrashed()->orderBy('created_at', 'desc')->first();
+                // $guide_max_id = $lastGuide->guide_id ?? 0;
+                // $guideId = CommonHelper::createId($guide_max_id);
+            
+                // while (Guide::where('guide_id', $guideId)->exists()) {
+                //     $guideId = CommonHelper::createId($guideId);
+                // }
+            
+                // Process license image
+                $licenseImage = '';
+                if ($request->hasFile('license_image')) {
+                    $pathData = CommonHelper::image_path('file_storage', $request->file('license_image'));
+                    if (!empty($pathData['master_value'])) {
+                        $licenseImage = $pathData['master_value'];
+                    }
+                }
+                if (!$licenseImage) {
+                    return redirect()->back()->withInput()->with('error', 'License image upload failed. Please try again.');
+                }
+            
+                // Process guide image
+                $guideImage = '';
+                if ($request->hasFile('master_image')) {
+                    $pathData = CommonHelper::image_path('file_storage', $request->file('master_image'));
+                    if (!empty($pathData['master_value'])) {
+                        $guideImage = $pathData['master_value'];
+                    }
+                }
+                if (!$guideImage) {
+                    return redirect()->back()->withInput()->with('error', 'Profile image upload failed. Please try again.');
+                }
+
+                // Resolve owning DMC: admins select one; DMC/multirole/staff use their DMC userId
+                $dmcRequiredRoles = [1, 2, 4, 23];
+                if (in_array((int) $auth_user->role_id, $dmcRequiredRoles, true)) {
+                    $dmc_id = $validated['dmc'] ?? $request->input('dmc');
+                } else {
+                    $dmc_id = $this->resolveGuideOwnerDmcId($auth_user);
+                }
+                $status = 1;
+
+                if (!$dmc_id) {
+                    return redirect()->back()->withInput()->with('error', 'DMC is missing. Please select a DMC and try again.');
+                }
 
         // Check for existing active guide with same license for this DMC
         $existingGuide = Guide::where([
@@ -487,6 +521,7 @@ class GuideController extends Controller
                 'country' => $request->country,
                 'image' => $guideImage,
                 'day_rate' => $validated['day_rate'],
+                'minimum_cost_price' => $validated['minimum_cost_price'],
                 'night_surcharge' => $validated['night_surcharge'],
                 'night_start_time' => $validated['night_start_time'],
                 'night_end_time' => $validated['night_end_time'],
@@ -497,6 +532,13 @@ class GuideController extends Controller
                 'eight_hour_price' => $validated['eight_hour_price'],
                 'ten_hour_price' => $validated['ten_hour_price'],
                 'twelve_hour_price' => $validated['twelve_hour_price'],
+                'hourly_cost_price' => $validated['hourly_cost_price'],
+                'two_hour_cost_price' => $validated['two_hour_cost_price'],
+                'four_hour_cost_price' => $validated['four_hour_cost_price'],
+                'six_hour_cost_price' => $validated['six_hour_cost_price'],
+                'eight_hour_cost_price' => $validated['eight_hour_cost_price'],
+                'ten_hour_cost_price' => $validated['ten_hour_cost_price'],
+                'twelve_hour_cost_price' => $validated['twelve_hour_cost_price'],
                 'status' => $status,
                 'dmc_id' => $dmc_id ?? 0,
                 'is_active' => $request->input('guide_status') == 1 ? 1 : 0,
@@ -513,20 +555,21 @@ class GuideController extends Controller
             // Handle guide languages
             GuideLanguage::where('guide_id', $deletedGuide->guide_id)->delete();
             
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
-            
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
+        
             // Insert languages
             foreach ($validated['languages'] as $index => $language) {
-                GuideLanguage::create([
+                $newGuideLanguage = GuideLanguage::create([
                     'guide_id' => $deletedGuide->guide_id,
-                    'language_id' => $language_id + $index,
+                    // 'language_id' => $language_id + $index,
                     'language' => $language,
                     'proficiency' => $validated['language_proficiency'][$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
 
-            LogActivityService::log('restore_guide', 'App\Models\Guide', $deletedGuide->id, $deletedGuide);
+            // LogActivityService::log('restore_guide', 'App\Models\Guide', $deletedGuide->id, $deletedGuide);
 
             // if (in_array($auth_user->role_id, [11, 4, 3, 35, 75, 102])) {
             //     return view('guides.thankyou');
@@ -540,7 +583,7 @@ class GuideController extends Controller
         $plainPassword = $request->app_password;
         
         $guide = new Guide();
-        $guide->guide_id = $guideId;
+        // $guide->guide_id = $guideId;
         $guide->salutation = $validated['salutation'];
         $guide->guide_gender = $validated['guide_gender'];
         $guide->name = $validated['name'];
@@ -559,6 +602,7 @@ class GuideController extends Controller
         $guide->country = $request->country;
         $guide->image = $guideImage;
         $guide->day_rate = $validated['day_rate'];
+        $guide->minimum_cost_price = $validated['minimum_cost_price'];
         $guide->night_surcharge = $validated['night_surcharge'];
         $guide->night_start_time = $validated['night_start_time'];
         $guide->night_end_time = $validated['night_end_time'];
@@ -569,26 +613,35 @@ class GuideController extends Controller
         $guide->eight_hour_price = $validated['eight_hour_price'];
         $guide->ten_hour_price = $validated['ten_hour_price'];
         $guide->twelve_hour_price = $validated['twelve_hour_price'];
+        $guide->hourly_cost_price = $validated['hourly_cost_price'];
+        $guide->two_hour_cost_price = $validated['two_hour_cost_price'];
+        $guide->four_hour_cost_price = $validated['four_hour_cost_price'];
+        $guide->six_hour_cost_price = $validated['six_hour_cost_price'];
+        $guide->eight_hour_cost_price = $validated['eight_hour_cost_price'];
+        $guide->ten_hour_cost_price = $validated['ten_hour_cost_price'];
+        $guide->twelve_hour_cost_price = $validated['twelve_hour_cost_price'];
         $guide->status = $status;
-        $guide->dmc_id = $dmc_id ?? 0;
+        $guide->dmc_id = $dmc_id;
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
         $guide->created_by = $auth_user->userId;
         $save = $guide->save();
+        $guide->refresh();
         
         // Save guide before inserting into GuideLanguage
         if ($save) {
-            $guideId = $guide->guide_id; // Ensure correct primary key usage
-            $max_language_id = GuideLanguage::max('language_id') ?? 0;
-            $language_id = CommonHelper::createId($max_language_id);
+            // $guideId = $guide->guide_id; // Ensure correct primary key usage
+            // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+            // $language_id = CommonHelper::createId($max_language_id);
             
             // Insert languages
             foreach ($validated['languages'] as $index => $language) {
-                GuideLanguage::create([
-                    'guide_id' => $guideId,
-                    'language_id' => $language_id + $index,
+                $newGuideLanguage = GuideLanguage::create([
+                    'guide_id' => $guide->guide_id,
+                    // 'language_id' => $language_id + $index,
                     'language' => $language,
                     'proficiency' => $validated['language_proficiency'][$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
             
             // Send credentials email if email is provided
@@ -607,7 +660,26 @@ class GuideController extends Controller
 
             return redirect()->route('guide.index')->with('success', 'Guide details added successfully!');
         } else {
-            return redirect()->route('guide.index')->with('error', 'Failed to add guide details.');
+            return redirect()->back()->withInput()->with('error', 'Failed to add guide details. Please try again.');
+        }
+            });
+        } catch (ValidationException $e) {
+            // Let Laravel handle validation errors (field messages will be available in $errors on the view)
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Guide create failed', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'role_id' => Auth::user() ? Auth::user()->role_id : null,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $publicMessage = 'Something went wrong while saving the guide. Please try again.';
+            if (config('app.debug')) {
+                $publicMessage .= ' Error: ' . $e->getMessage();
+            }
+
+            return redirect()->back()->withInput()->with('error', $publicMessage);
         }
     }
 
@@ -711,6 +783,7 @@ class GuideController extends Controller
             'guide_age' => 'required',
             'wp_number' => 'required|numeric',
             'day_rate' => 'required|numeric',
+            'minimum_cost_price' => 'required|numeric',
             'night_surcharge' => 'required|numeric',
             'night_start_time' => 'required',
             'night_end_time' => 'required',
@@ -721,6 +794,13 @@ class GuideController extends Controller
             'eight_hour_price' => 'required|numeric',
             'ten_hour_price' => 'required|numeric',
             'twelve_hour_price' => 'required|numeric',
+            'hourly_cost_price' => 'required|numeric',
+            'two_hour_cost_price' => 'required|numeric',
+            'four_hour_cost_price' => 'required|numeric',
+            'six_hour_cost_price' => 'required|numeric',
+            'eight_hour_cost_price' => 'required|numeric',
+            'ten_hour_cost_price' => 'required|numeric',
+            'twelve_hour_cost_price' => 'required|numeric',
         ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
         ]);
@@ -762,6 +842,7 @@ class GuideController extends Controller
         $guide->guide_age = $validated['guide_age'];
         $guide->wp_number = $validated['wp_number'];
         $guide->day_rate = $validated['day_rate'];
+        $guide->minimum_cost_price = $validated['minimum_cost_price'];
         $guide->night_surcharge = $validated['night_surcharge'];
         $guide->night_start_time = $validated['night_start_time'];
         $guide->night_end_time = $validated['night_end_time'];
@@ -772,6 +853,13 @@ class GuideController extends Controller
         $guide->eight_hour_price = $validated['eight_hour_price'];
         $guide->ten_hour_price = $validated['ten_hour_price'];
         $guide->twelve_hour_price = $validated['twelve_hour_price'];
+        $guide->hourly_cost_price = $validated['hourly_cost_price'];
+        $guide->two_hour_cost_price = $validated['two_hour_cost_price'];
+        $guide->four_hour_cost_price = $validated['four_hour_cost_price'];
+        $guide->six_hour_cost_price = $validated['six_hour_cost_price'];
+        $guide->eight_hour_cost_price = $validated['eight_hour_cost_price'];
+        $guide->ten_hour_cost_price = $validated['ten_hour_cost_price'];
+        $guide->twelve_hour_cost_price = $validated['twelve_hour_cost_price'];
 
         //Get all existing languages for the guide
         $existingLanguages = GuideLanguage::where('guide_id', $id)
@@ -798,26 +886,25 @@ class GuideController extends Controller
         foreach ($request->languages as $index => $language) {
             if (!array_key_exists($language, $existingLanguages)) {
                 // Generate new language_id
-                $max_language_id = GuideLanguage::max('language_id') ?? 0;
-                $language_id = CommonHelper::createId($max_language_id);
+                // $max_language_id = GuideLanguage::max('language_id') ?? 0;
+                // $language_id = CommonHelper::createId($max_language_id);
 
                 // Insert new language
                 if($language && $request->language_proficiency[$index])
-                GuideLanguage::create([
+                $newGuideLanguage = GuideLanguage::create([
                     'guide_id' => $guide->guide_id,
                     'language' => $language,
-                    'language_id' => $language_id,
+                    // 'language_id' => $language_id,
                     'proficiency' => $request->language_proficiency[$index],
                 ]);
+                $newGuideLanguage->refresh();
             }
         }
 
 
         if ($isSaved) {
-            LogActivityService::log('edit_guide', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('success', 'Guide details updated successfully!');
         } else {
-            LogActivityService::log('edit_guide_failed', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('error', 'Failed to update guide details.');
         }
     }
@@ -965,5 +1052,38 @@ class GuideController extends Controller
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Resolve the DMC userId that should own a guide for the current user.
+     * DMC accounts use their own userId; multirole/staff walk created_by to the parent DMC.
+     */
+    private function resolveGuideOwnerDmcId(User $authUser): ?int
+    {
+        $dmcId = CommonHelper::getDmcId($authUser);
+        if ($dmcId) {
+            return (int) $dmcId;
+        }
+
+        if (in_array((int) $authUser->role_id, [11, 20], true) || (int) $authUser->user_type === 2) {
+            return (int) $authUser->userId;
+        }
+
+        $cursor = $authUser->created_by
+            ? User::where('userId', $authUser->created_by)->first()
+            : null;
+        $guard = 0;
+        while ($cursor && $guard < 6) {
+            if (in_array((int) $cursor->role_id, [11, 20], true) || (int) $cursor->user_type === 2) {
+                return (int) $cursor->userId;
+            }
+            if (empty($cursor->created_by)) {
+                break;
+            }
+            $cursor = User::where('userId', $cursor->created_by)->first();
+            $guard++;
+        }
+
+        return null;
     }
 }

@@ -153,9 +153,35 @@ class TourController extends Controller
         ])->orderBy('created_at', 'desc');
         
         // Step 3: Apply role-specific filters
+        // Own agent tree OR sibling-DMC multi-country tours that include this user's/DMC country
+        // (e.g. Singapore DMC creates "Singapore, Malaysia, India" → India DMC can see it).
         if ($agent_ids !== null && $agent_ids->isNotEmpty()) {
-            // Filter by agent IDs if we have a list
-            $query->whereIn('agent_id', $agent_ids);
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+
+            $query->where(function ($q) use ($agent_ids, $country, $siblingDmcIds) {
+                $q->whereIn('agent_id', $agent_ids);
+                if ($country && count($siblingDmcIds) > 1) {
+                    $q->orWhere(function ($q2) use ($country, $siblingDmcIds) {
+                        $q2->whereIn('dmc_id', $siblingDmcIds);
+                        CommonHelper::whereDestinationContainsCountry($q2, $country, 'destination');
+                    });
+                }
+            });
+        } elseif ($agent_ids !== null && $agent_ids->isEmpty()) {
+            // Keep empty agent list behavior: no agent tours, but still allow multi-country sibling tours
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+            if ($country && count($siblingDmcIds) > 1) {
+                $query->where(function ($q) use ($country, $siblingDmcIds) {
+                    $q->whereIn('dmc_id', $siblingDmcIds);
+                    CommonHelper::whereDestinationContainsCountry($q, $country, 'destination');
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
         
         // Apply additional role-specific filtering
@@ -484,19 +510,29 @@ class TourController extends Controller
      */
     public function getTourPrices($tourId)
     {
+        
         try {
             $prices = CommonHelper::calculateTourPrices($tourId);
-            
+
             return response()->json([
                 'success' => true,
                 'tour_id' => $tourId,
                 'prices' => [
-                    'single_sharing' => $prices['single_sharing'],
-                    'double_sharing' => $prices['double_sharing'],
-                    'triple_sharing' => $prices['triple_sharing'] ?? 0,
-                    'single_sharing_formatted' => '₹' . number_format($prices['single_sharing'], 2),
-                    'double_sharing_formatted' => '₹' . number_format($prices['double_sharing'], 2),
-                    'triple_sharing_formatted' => '₹' . number_format($prices['triple_sharing'] ?? 0, 2),
+                    // Each hotel separately with hotel_name, date_range, single/double/triple per-head
+                    'hotels' => $prices['hotel_price_options'] ?? [],
+                    // Non-hotel, non-supplement services total per-head
+                    'other_services' => [
+                        'single' => (float)($prices['other_services_single'] ?? 0),
+                        'double' => (float)($prices['other_services_double'] ?? 0),
+                    ],
+                    // Total per-head = hotel + other_services (supplements excluded)
+                    'total_per_head' => [
+                        'single' => (float)($prices['single_sharing'] ?? 0),
+                        'double' => (float)($prices['double_sharing'] ?? 0),
+                        'triple' => (float)($prices['triple_sharing'] ?? 0),
+                    ],
+                    // Supplements: hotel type (with hotel_name/date_range) + other service types
+                    'supplyments' => $prices['supplyments'] ?? [],
                 ]
             ]);
         } catch (\Exception $e) {
@@ -641,6 +677,7 @@ class TourController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
             
             if (!$tour) {
                 if ($request->expectsJson() || $request->ajax()) {
@@ -657,7 +694,8 @@ class TourController extends Controller
                 'payment_amount' => 'required|numeric|min:0.01',
                 'currency' => 'required|string',
                 'payment_date' => 'required|date',
-                'payment_type' => 'required|string'
+                'payment_type' => 'required|string',
+                'auto_verify' => 'nullable|boolean',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -679,21 +717,24 @@ class TourController extends Controller
         }
         
         try {
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
             // Get currency data from request
-            $selectedCurrency = $request->input('currency', 'SGD');
-            $exchangeRate = $request->input('exchange_rate', 1);
-            $originalAmount = $request->input('payment_amount'); // The amount user entered
-            
-            // Calculate SGD amount based on currency
-            if ($selectedCurrency === 'SGD') {
-                $sgdAmount = $originalAmount;
+            $selectedCurrency = $request->input('currency', $baseCurrency);
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount'); // The amount user entered
+
+            // Convert the entered amount into the tour base currency for consistent storage.
+            if ($selectedCurrency === $baseCurrency || $exchangeRate <= 0) {
+                $baseAmount = $originalAmount;
             } else {
-                // Convert foreign currency to SGD
-                $sgdAmount = $originalAmount / $exchangeRate;
+                // Convert the selected (foreign) currency back to the base currency.
+                $baseAmount = $originalAmount / $exchangeRate;
             }
-        
+
         $paymentData = [
-            'amount' => $sgdAmount, // Store SGD converted amount
+            'amount' => $baseAmount, // Store amount converted to the tour base currency
             'original_amount' => $originalAmount, // Store original amount in selected currency
             'currency' => $selectedCurrency, // Store selected currency
             'exchange_rate' => $exchangeRate, // Store exchange rate used
@@ -702,22 +743,42 @@ class TourController extends Controller
             'date' => now()->format('Y-m-d H:i:s'),
             'payment_date' => $request->payment_date,
             'payment_type' => $request->payment_type,
-            'status' => 0,
+            // status: 0 = unverified, 1 = verified
+            'status' => $request->boolean('auto_verify') ? 1 : 0,
         ];
-        
+        CommonHelper::appendTourStatusTrackById(
+            (int) $tour->tour_id,
+            $tourStatus,
+            $tourStatus,
+            null,
+            null,
+            null,
+            null,
+            auth()->user() ? auth()->user()->name : null,
+            auth()->user() ? auth()->user()->id : null,
+            'Added Payment',
+            'null',
+            'null',
+            'null',
+            $baseAmount,
+            $selectedCurrency,
+            $request->payment_date,
+            $request->payment_type,
+        );
         // Get existing payment details or initialize empty array
         $paymentDetails = json_decode($tour->payment_details, true) ?: [];
         
         // Add new payment to the array
         $paymentDetails[] = $paymentData;
+        $paymentIndex = count($paymentDetails) - 1;
         
         // Update the payment_details column with the new array
         $tour->payment_details = json_encode($paymentDetails);
         $tour->save();
         
         // Create success message with currency information
-        $successMessage = 'Payment of ' . number_format($sgdAmount, 2) . ' SGD';
-        if ($selectedCurrency !== 'SGD') {
+        $successMessage = 'Payment of ' . number_format($baseAmount, 2) . ' ' . $baseCurrency;
+        if ($selectedCurrency !== $baseCurrency) {
             $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
         }
         $successMessage .= ' has been successfully added to Tour #' . $tourId;
@@ -726,7 +787,9 @@ class TourController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => $successMessage
+                'message' => $successMessage,
+                'payment_index' => $paymentIndex,
+                'verified' => (bool) ($request->boolean('auto_verify')),
             ]);
         }
         
@@ -750,10 +813,25 @@ class TourController extends Controller
         }
         $tour->is_approve = 1;
         $tour->save();
+        $prevTourStatus = $tour->tour_status;
         if($tour->tour_status == "Definite"){
             $tour = Tour::where('tour_id', $tourId)->update([
                 'tour_status' => "Actual",
             ]);
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour->tour_status;
+            CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tourStatus,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                'Approved Booking'
+            );
         }
         return redirect()->back()->with('success', 'Tour has been approved successfully!');
     }
@@ -763,7 +841,7 @@ class TourController extends Controller
         try {
             // Find the tour by tour_id or return a 404 response if not found
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-            
+            $prevTourStatus = $tour->tour_status;
             // Get payment index from request
             $paymentIndex = $request->input('payment_index');
             
@@ -781,17 +859,40 @@ class TourController extends Controller
             // Update payment status to verified (1)
             $paymentDetails[$paymentIndex]['status'] = 1;
             
-            // Save updated payment details
+            // Update payment details on the tour model
             $tour->payment_details = json_encode($paymentDetails);
-            $tour->save();
             
             // Only change status from Confirmed to Definite, NOT from Actual
             // Do NOT change status if tour is already in Actual or Definite status
-            if($tour->tour_status == "Confirmed"){
-                Tour::where('tour_id', $tourId)->update([
-                    'tour_status' => "Definite",
-                ]);
+            if ($tour->tour_status === "Confirmed") {
+                // Track status change Confirmed -> Definite in track_details JSON
+                
+
+                // Update in‑memory status; will be persisted with the save below
+                $tour->tour_status = "Definite";
             }
+
+            // Save updated payment details (and possibly updated status)
+            $tour->save();
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Verified",
+                null,
+                null,
+                null,
+                $paymentDetails[$paymentIndex]['amount'],
+                $paymentDetails[$paymentIndex]['currency'],
+                $paymentDetails[$paymentIndex]['payment_date'],
+                $paymentDetails[$paymentIndex]['payment_type']
+            );
 
             return response()->json([
                 'success' => true,
@@ -815,7 +916,7 @@ class TourController extends Controller
         try {
             // Find the tour by tour_id or return a 404 response if not found
             $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-            
+            $prevTourStatus = $tour->tour_status;
             // Get payment index from request
             $paymentIndex = $request->input('payment_index');
             
@@ -836,7 +937,25 @@ class TourController extends Controller
             // Save updated payment details
             $tour->payment_details = json_encode($paymentDetails);
             $tour->save();
-            
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Declined",
+                null,
+                null,
+                null,
+                $paymentDetails[$paymentIndex]['amount'],
+                $paymentDetails[$paymentIndex]['currency'],
+                $paymentDetails[$paymentIndex]['payment_date'],
+                $paymentDetails[$paymentIndex]['payment_type']
+            );
             return response()->json([
                 'success' => true,
                 'message' => 'Payment declined successfully'
@@ -851,6 +970,129 @@ class TourController extends Controller
                 'success' => false,
                 'message' => 'Error declining payment: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function deletePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $prevTourStatus = $tour->tour_status;
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            $deletedPayment = $paymentDetails[$paymentIndex];
+            array_splice($paymentDetails, $paymentIndex, 1);
+            $tour->payment_details = json_encode(array_values($paymentDetails));
+            $tour->save();
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Payment Deleted",
+                null,
+                null,
+                null,
+                $deletedPayment['amount'] ?? null,
+                $deletedPayment['currency'] ?? null,
+                $deletedPayment['payment_date'] ?? null,
+                $deletedPayment['payment_type'] ?? null
+            );
+
+            return response()->json(['success' => true, 'message' => 'Payment removed successfully']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function updatePayment(Request $request, $tourId)
+    {
+        try {
+            $tour = Tour::where('tour_id', $tourId)->firstOrFail();
+            $prevTourStatus = $tour->tour_status;
+            $paymentIndex = (int) $request->input('payment_index');
+
+            $request->validate([
+                'payment_amount' => 'required|numeric|min:0.01',
+                'currency' => 'required|string',
+                'payment_date' => 'required|date',
+                'payment_type' => 'required|string'
+            ]);
+
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
+            $selectedCurrency = $request->input('currency', $baseCurrency);
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount');
+
+            $baseAmount = ($selectedCurrency === $baseCurrency || $exchangeRate <= 0)
+                ? $originalAmount
+                : $originalAmount / $exchangeRate;
+
+            $paymentDetails = json_decode($tour->payment_details, true) ?: [];
+            if (!isset($paymentDetails[$paymentIndex])) {
+                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
+            }
+
+            if ((int) ($paymentDetails[$paymentIndex]['status'] ?? 0) === 2) {
+                return response()->json(['success' => false, 'message' => 'Declined payments cannot be edited'], 422);
+            }
+
+            $paymentDetails[$paymentIndex] = [
+                'amount' => $baseAmount,
+                'original_amount' => $originalAmount,
+                'currency' => $selectedCurrency,
+                'exchange_rate' => $exchangeRate,
+                'transaction_id' => $request->input('transaction_id'),
+                'remarks' => $request->input('remarks'),
+                'date' => $paymentDetails[$paymentIndex]['date'] ?? now()->format('Y-m-d H:i:s'),
+                'payment_date' => $request->payment_date,
+                'payment_type' => $request->payment_type,
+                'status' => $paymentDetails[$paymentIndex]['status'] ?? 0,
+            ];
+
+            $tour->payment_details = json_encode($paymentDetails);
+            $tour->save();
+
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $prevTourStatus,
+                $tour->tour_status,
+                null,
+                null,
+                null,
+                null,
+                auth()->user() ? auth()->user()->name : null,
+                auth()->user() ? auth()->user()->id : null,
+                "Updated Payment",
+                null,
+                null,
+                null,
+                $baseAmount,
+                $selectedCurrency,
+                $request->payment_date,
+                $request->payment_type
+            );
+            return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Tour not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -920,6 +1162,7 @@ class TourController extends Controller
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
             $tour->dmc_id = $request->dmc_id;
+            $tour->reference_id = $request->reference_id ?? null;
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             

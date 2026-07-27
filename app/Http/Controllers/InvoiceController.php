@@ -7,8 +7,11 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\CreditNote;
 use App\Models\Tour;
+use App\Models\User;
+use App\Models\Country;
 use App\Services\InvoiceService;
 use App\Helpers\CommonHelper;
+use App\Helpers\CurrencyHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,9 +21,80 @@ class InvoiceController extends Controller
 {
     protected $invoiceService;
 
+    /** Available currencies for invoice (same as quotation) */
+    protected function getAvailableCurrencies(): array
+    {
+        return CommonHelper::getInvoiceAvailableCurrencies();
+    }
+
+    /**
+     * Build currency context for invoice views and PDFs.
+     *
+     * @return array{baseCurrency: string, selectedCurrency: string, currencyConversion: array<string, float>, exchangeRate: float}
+     */
+    protected function buildInvoiceCurrencyContext(Request $request, Invoice $invoice): array
+    {
+        $baseCurrency = CommonHelper::resolveInvoiceBaseCurrency($invoice);
+        $selectedCurrency = CommonHelper::getInvoiceSelectedCurrency($request->query('currency'), $invoice);
+        $currencyConversion = CommonHelper::buildInvoiceCurrencyConversion($invoice, $selectedCurrency);
+        $exchangeRate = CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
+
+        return compact('baseCurrency', 'selectedCurrency', 'currencyConversion', 'exchangeRate');
+    }
+
+    /**
+     * @deprecated Use buildInvoiceCurrencyContext()
+     */
+    protected function getSelectedCurrency(Request $request): string
+    {
+        return strtoupper($request->query('currency', 'SGD'));
+    }
+
+    /**
+     * @deprecated Use CommonHelper::buildInvoiceCurrencyConversion()
+     */
+    protected function buildCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
+    {
+        return CommonHelper::buildInvoiceCurrencyConversion($invoice, $selectedCurrency);
+    }
+
+    /**
+     * @deprecated Use CommonHelper::getInvoiceExchangeRate()
+     */
+    protected function getExchangeRate(string $selectedCurrency, array $currencyConversion): float
+    {
+        $baseCurrency = array_key_first($currencyConversion) ?: 'SGD';
+
+        return CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
+    }
+
     public function __construct(InvoiceService $invoiceService)
     {
         $this->invoiceService = $invoiceService;
+    }
+
+    /**
+     * Resolve Blade view for invoice PDF (standard layout vs travel-agent / alternate layout).
+     *
+     * @param  string  $invoiceType  proforma|final
+     * @param  string  $mode  full|price-only — when {@see $format} is {@code alternate}, {@code invoices.pdf.alternate}
+     *                        branches on {@code mode} (line items vs aggregate price summary).
+     * @param  string|null  $format  standard|alternate
+     */
+    protected function resolveInvoicePdfViewName(string $invoiceType, string $mode, ?string $format): string
+    {
+        $format = $format ?? 'standard';
+        if ($format === 'alternate') {
+            return 'invoices.pdf.alternate';
+        }
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        if ($mode === 'price-only') {
+            return $invoiceType === 'proforma' ? 'invoices.pdf.proforma-price-only' : 'invoices.pdf.final-price-only';
+        }
+
+        return $invoiceType === 'proforma' ? 'invoices.pdf.proforma' : 'invoices.pdf.final';
     }
 
     /**
@@ -85,7 +159,7 @@ class InvoiceController extends Controller
     /**
      * Show invoice details
      */
-    public function show($invoiceId)
+    public function show(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -102,7 +176,12 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        return view('invoices.show', compact('invoice'));
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+
+        return view('invoices.show', array_merge($currency, [
+            'invoice' => $invoice,
+            'availableCurrencies' => $this->getAvailableCurrencies(),
+        ]));
     }
 
     /**
@@ -125,7 +204,10 @@ class InvoiceController extends Controller
             return back()->with('error', 'Only proforma invoices can be edited');
         }
 
-        return view('invoices.edit', compact('invoice'));
+        return view('invoices.edit', [
+            'invoice' => $invoice,
+            'baseCurrency' => CommonHelper::resolveInvoiceBaseCurrency($invoice),
+        ]);
     }
 
     /**
@@ -185,7 +267,7 @@ class InvoiceController extends Controller
     /**
      * Download Invoice as PDF (with services)
      */
-    public function download($invoiceId)
+    public function download(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -202,12 +284,20 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma' 
-            : 'invoices.pdf.final';
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
+
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
+            'invoice' => $invoice,
+            'logoType' => $logoType,
+            'mode' => 'full',
+        ]))->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf'
@@ -219,7 +309,7 @@ class InvoiceController extends Controller
     /**
      * Download Invoice as PDF (price only, no services)
      */
-    public function downloadPriceOnly($invoiceId)
+    public function downloadPriceOnly(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -236,12 +326,20 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculateInvoiceTotals($invoice);
         $invoice->refresh();
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma-price-only' 
-            : 'invoices.pdf.final-price-only';
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'price-only', $format);
+
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
+            'invoice' => $invoice,
+            'logoType' => $logoType,
+            'mode' => 'price-only',
+        ]))->setPaper('a4', 'portrait');
 
         $filename = $invoice->invoice_type === 'proforma'
             ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf'
@@ -251,9 +349,103 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Invoice preview page (like itinerary-preview): currency selector + embedded PDF + download.
+     * Mode: full = with services, price-only = price breakup only.
+     */
+    public function preview(Request $request, $invoiceId)
+    {
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+
+        $invoice = Invoice::with(['tour', 'agent.agency', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $mode = $request->query('mode', 'full');
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+        $format = $request->query('format', 'standard');
+        if (!in_array($format, ['standard', 'alternate'], true)) {
+            $format = 'standard';
+        }
+        $hasAgency = $invoice->agent && $invoice->agent->agency;
+
+        return view('invoices.invoice-preview', array_merge($currency, [
+            'invoice' => $invoice,
+            'availableCurrencies' => $this->getAvailableCurrencies(),
+            'mode' => $mode,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'format' => $format,
+        ]));
+    }
+
+    /**
+     * Stream or download invoice PDF (used by preview iframe and preview download button).
+     * Query: mode (full|price-only), currency, preview (1=stream, 0=download)
+     */
+    public function invoicePdf(Request $request, $invoiceId)
+    {
+        try {
+            $decryptedId = Crypt::decrypt($invoiceId);
+        } catch (\Exception $e) {
+            $decryptedId = $invoiceId;
+        }
+
+        $invoice = Invoice::with(['tour', 'agent.agency', 'dmc', 'items'])
+            ->where('invoice_id', $decryptedId)
+            ->firstOrFail();
+
+        $this->invoiceService->recalculateInvoiceTotals($invoice);
+        $invoice->refresh();
+
+        $mode = $request->query('mode', 'full');
+        if (!in_array($mode, ['full', 'price-only'], true)) {
+            $mode = 'full';
+        }
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+        $preview = $request->boolean('preview', false);
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+        $format = $request->query('format');
+
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, $mode, $format);
+
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
+            'invoice' => $invoice,
+            'logoType' => $logoType,
+            'mode' => $mode,
+        ]))->setPaper('a4', 'portrait');
+
+        if ($preview) {
+            return $pdf->stream();
+        }
+
+        $filename = $mode === 'price-only'
+            ? ($invoice->invoice_type === 'proforma' ? 'Proforma_Invoice_Price_Only_' . $invoice->proforma_number . '.pdf' : 'Invoice_Price_Only_' . $invoice->invoice_number . '.pdf')
+            : ($invoice->invoice_type === 'proforma' ? 'Proforma_Invoice_' . $invoice->proforma_number . '.pdf' : 'Invoice_' . $invoice->invoice_number . '.pdf');
+
+        return $pdf->download($filename);
+    }
+
+    /**
      * View Invoice as PDF in browser
      */
-    public function view($invoiceId)
+    public function view(Request $request, $invoiceId)
     {
         // Try to decrypt if encrypted, otherwise use as-is
         try {
@@ -266,12 +458,20 @@ class InvoiceController extends Controller
             ->where('invoice_id', $decryptedId)
             ->firstOrFail();
 
-        $viewName = $invoice->invoice_type === 'proforma' 
-            ? 'invoices.pdf.proforma' 
-            : 'invoices.pdf.final';
+        $currency = $this->buildInvoiceCurrencyContext($request, $invoice);
+        $format = $request->query('format');
+        $logoType = $request->query('logo_type', 'dmc');
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
 
-        $pdf = Pdf::loadView($viewName, compact('invoice'))
-            ->setPaper('a4', 'portrait');
+        $viewName = $this->resolveInvoicePdfViewName($invoice->invoice_type, 'full', $format);
+
+        $pdf = Pdf::loadView($viewName, array_merge($currency, [
+            'invoice' => $invoice,
+            'logoType' => $logoType,
+            'mode' => 'full',
+        ]))->setPaper('a4', 'portrait');
 
         return $pdf->stream();
     }

@@ -66,23 +66,24 @@ class BedsController extends Controller
             // 'room_category_id' => 'required', 
         ]);
         $hotel_id = $request->hotel_id;
-        $bedId = BedMaster::max('bedId') ?? 1;
-        $categoryId = CommonHelper::createId($bedId);
-        while (BedMaster::where('bedId', $bedId)->exists()) {
-            $bedId = CommonHelper::createId($bedId);
-        }
-        BedMaster::create([
+        // $bedId = BedMaster::max('bedId') ?? 1;
+        // $categoryId = CommonHelper::createId($bedId);
+        // while (BedMaster::where('bedId', $bedId)->exists()) {
+        //     $bedId = CommonHelper::createId($bedId);
+        // }
+        $bedMaster = BedMaster::create([
             'name' => $validatedData['bed_type'],
             'no_of_king_bed' => $validatedData['king_beds'],
             'no_of_queen_bed' => $validatedData['queen_beds'],
             'no_of_twin_bed' => $validatedData['twin_beds'],
             'no_of_bunk_bed' => $validatedData['bunk_beds'],
             'no_of_single_bed' => $validatedData['single_bed'],
-            'bedId' => $bedId,
+            // 'bedId' => CommonHelper::createId(),  // Generate a new bedId
             'hotel_id' => $hotel_id,
             'is_active' => $request->bed_status
             // 'room_id' =>  $validatedData['room_category_id'],
         ]);
+        $bedMaster->refresh();
         return redirect()->route('beds.create', $hotel_id)->with('success', 'Bed information added successfully.');
     }
 

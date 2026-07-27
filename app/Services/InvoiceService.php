@@ -32,20 +32,24 @@ class InvoiceService
                 throw new \Exception("Tour not found");
             }
 
-            // Check if tour status is TENTATIVE
-            if ($tour->tour_status !== 'Tentative') {
-                throw new \Exception("Proforma invoice can only be generated for tours in Tentative status. Current status: " . ($tour->tour_status ?? 'N/A'));
+            // Check if tour status is TENTATIVE or CONFIRMED (for directly confirmed tours)
+            $allowedStatuses = ['Tentative', 'Confirmed'];
+            if (!in_array($tour->tour_status, $allowedStatuses)) {
+                throw new \Exception("Proforma invoice can only be generated for tours in Tentative or Confirmed status. Current status: " . ($tour->tour_status ?? 'N/A'));
             }
 
-            // Check if proforma invoice already exists
-            $existingProforma = Invoice::where('tour_id', $tourId)
-                ->where('invoice_type', 'proforma')
+            // Check if any invoice already exists (proforma or final)
+            $existingInvoice = Invoice::where('tour_id', $tourId)
                 ->whereNull('deleted_at')
                 ->first();
 
-            if ($existingProforma) {
-                // Return existing proforma for editing
-                return $existingProforma;
+            if ($existingInvoice) {
+                // If it's a proforma, return it for editing
+                if ($existingInvoice->invoice_type === 'proforma') {
+                    return $existingInvoice;
+                }
+                // If it's a final invoice, cannot generate proforma
+                throw new \Exception("A final invoice already exists for this tour. Cannot generate proforma invoice.");
             }
 
             // Generate invoice ID
@@ -136,7 +140,7 @@ class InvoiceService
             $finalInvoiceId = CommonHelper::createId($maxInvoiceId);
 
             // Generate final invoice number
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($finalInvoiceId, 6, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'INV-' . date('Y') . '-' . date('m') . '-' . $tourId;
 
             // Refresh tour data and regenerate invoice data from latest tour/orders
             $tour = Tour::where('tour_id', $tourId)->first();
@@ -208,7 +212,7 @@ class InvoiceService
             $finalInvoiceId = CommonHelper::createId($maxInvoiceId);
 
             // Generate final invoice number
-            $invoiceNumber = 'INV-' . date('Y') . '-' . str_pad($finalInvoiceId, 6, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'INV-' . date('Y') . '-' . date('m') . '-' . $tour->tour_id;
 
             // Refresh tour data and regenerate invoice data from latest tour/orders
             $tour = Tour::where('tour_id', $tour->tour_id)->first();
@@ -481,7 +485,7 @@ class InvoiceService
             'no_of_adults' => $tour->adult ?? $data['no_of_adults'] ?? 0,
             'no_of_children' => $tour->child ?? $data['no_of_children'] ?? 0,
             'no_of_infants' => $tour->infant ?? $data['no_of_infants'] ?? 0,
-            'base_currency' => $data['base_currency'] ?? 'SGD',
+            'base_currency' => $data['base_currency'] ?? CommonHelper::resolveDmcCurrencyForInvoice($dmc, $tour),
             'client_details' => $clientDetails,
             'travel_company_details' => $travelCompanyDetails,
             'currency_conversion' => $data['currency_conversion'] ?? [],
@@ -540,7 +544,11 @@ class InvoiceService
                     continue;
                 }
 
-                $totalPrice = $booking['totalPrice'] ?? 0;
+                // Calculate total price based on service type
+                $totalPrice = $booking['totalPrice'] ?? $booking['price'] ?? 0;
+                
+                // For attractions and restaurants, the create methods will calculate the grand total
+                // So we pass the base price, but the method will add transfer/guide costs
                 
                 switch ($order->type) {
                     case 'hotel':
@@ -570,6 +578,12 @@ class InvoiceService
                     case 'local_transport':
                     case 'local_transfer':
                         $items[] = $this->createLocalTransportItem($booking, $totalPrice, $displayOrder++);
+                        break;
+                    case 'miscellaneous':
+                        // Miscellaneous items only for Pro tours (is_pro = 1)
+                        if ((int)($tour->is_pro ?? 0) === 1) {
+                            $items[] = $this->createMiscellaneousItem($booking, $totalPrice, $displayOrder++);
+                        }
                         break;
                     // Other types will be handled later when JSON format is provided
                     default:
@@ -633,6 +647,16 @@ class InvoiceService
 
         $description = $hotelName . ($roomCategory ? ' - ' . $roomCategory : '');
 
+        // Child accommodation (child_with_bed / child_without_bed)
+        $childWithBed = null;
+        $childWithoutBed = null;
+        if (isset($booking['child_with_bed']['enabled']) && $booking['child_with_bed']['enabled']) {
+            $childWithBed = $booking['child_with_bed'];
+        }
+        if (isset($booking['child_without_bed']['enabled']) && $booking['child_without_bed']['enabled']) {
+            $childWithoutBed = $booking['child_without_bed'];
+        }
+
         return [
             'item_type' => 'hotel',
             'description' => $description,
@@ -649,6 +673,8 @@ class InvoiceService
                 'no_of_days' => $days,
                 'total_pax' => $totalPax,
                 'confirmation' => '',
+                'child_with_bed' => $childWithBed,
+                'child_without_bed' => $childWithoutBed,
             ],
             'quantity_adults' => 0,
             'quantity_children' => 0,
@@ -698,6 +724,14 @@ class InvoiceService
         $guideOptions = $booking['guide_options'] ?? [];
         $guideRequired = $guideOptions['guide_required'] ?? false;
         $guideName = $guideOptions['guide_name'] ?? '';
+        $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
+        $guideLanguage = $guideOptions['language'] ?? '';
+        
+        // Calculate prices
+        $attractionBasePrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+        $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
+        $guideTotalPrice = isset($guideOptions['total_price']) && $guideOptions['total_price'] > 0 ? (float) $guideOptions['total_price'] : 0;
+        $grandTotal = $attractionBasePrice + $transferCost + $guideTotalPrice;
         
         // Calculate total pax
         $totalPax = ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) + ($booking['seniorCount'] ?? 0) + ($booking['infantCount'] ?? 0);
@@ -716,6 +750,7 @@ class InvoiceService
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
+                'transfer_cost' => $transferCost,
                 'vehicle_name' => $vehicleName,
                 'vehicle_type' => $vehicleType,
                 'vehicle_seating_capacity' => $vehicleSeatingCapacity,
@@ -723,14 +758,18 @@ class InvoiceService
                 'vehicle_details' => $vehicleDetailsStr,
                 'guide_required' => $guideRequired,
                 'guide_name' => $guideName,
+                'guide_hours' => $guideHours,
+                'guide_language' => $guideLanguage,
+                'guide_total_price' => $guideTotalPrice,
+                'attraction_base_price' => $attractionBasePrice,
                 'total_pax' => $totalPax,
             ],
             'quantity_adults' => $booking['adultCount'] ?? 0,
             'quantity_children' => $booking['childCount'] ?? 0,
             'quantity_infants' => $booking['infantCount'] ?? 0,
             'quantity_seniors' => $booking['seniorCount'] ?? 0,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $grandTotal,
+            'total_price' => $grandTotal,
             'display_order' => $displayOrder,
         ];
     }
@@ -767,6 +806,23 @@ class InvoiceService
             $vehicleDetailsStr = $vehicleName;
         }
         
+        // Guide options (for Pro tours) - pickup from total_price, cost, or sell
+        $guideOptions = $booking['guide_options'] ?? [];
+        $guideTotalPrice = 0;
+        if (!empty($guideOptions)) {
+            $gv = $guideOptions['total_price'] ?? $guideOptions['cost'] ?? $guideOptions['Cost'] ?? $guideOptions['sell'] ?? $guideOptions['Sell'] ?? 0;
+            if ((float) $gv > 0) {
+                $guideTotalPrice = (float) $gv;
+            }
+        }
+        $guideName = $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? '';
+        $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
+
+        // Calculate prices
+        $restaurantBasePrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
+        $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
+        $grandTotal = $restaurantBasePrice + $transferCost + $guideTotalPrice;
+
         $description = $restaurantName . ($mealType ? ' - ' . $mealType : '') . ($mealSpecificType ? ' (' . $mealSpecificType . ')' : '');
 
         return [
@@ -781,19 +837,25 @@ class InvoiceService
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
+                'transfer_cost' => $transferCost,
                 'vehicle_name' => $vehicleName,
                 'vehicle_type' => $vehicleType,
                 'vehicle_seating_capacity' => $vehicleSeatingCapacity,
                 'vehicle_private_price' => $vehiclePrivatePrice,
                 'vehicle_details' => $vehicleDetailsStr,
+                'restaurant_base_price' => $restaurantBasePrice,
+                'guide_options' => $guideOptions,
+                'guide_name' => $guideName,
+                'guide_hours' => $guideHours,
+                'guide_total_price' => $guideTotalPrice,
                 'adult_count' => $booking['adultCount'] ?? 0,
                 'child_count' => $booking['childCount'] ?? 0,
             ],
             'quantity_adults' => $booking['adultCount'] ?? 0,
             'quantity_children' => $booking['childCount'] ?? 0,
             'quantity_infants' => $booking['infantCount'] ?? 0,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $grandTotal,
+            'total_price' => $grandTotal,
             'display_order' => $displayOrder,
         ];
     }
@@ -843,9 +905,23 @@ class InvoiceService
         $vehicleName = $booking['vehicles_name'] ?? $booking['vehicle_name'] ?? '';
         $vehicleType = $booking['type'] ?? $booking['vehicle_type'] ?? '';
         
+        // Guide options (for Pro tours) - pickup from total_price, cost, or sell
+        $guideOptions = $booking['guide_options'] ?? [];
+        $guideTotalPrice = 0;
+        if (!empty($guideOptions)) {
+            $gv = $guideOptions['total_price'] ?? $guideOptions['cost'] ?? $guideOptions['Cost'] ?? $guideOptions['sell'] ?? $guideOptions['Sell'] ?? 0;
+            if ((float) $gv > 0) {
+                $guideTotalPrice = (float) $gv;
+            }
+        }
+        $guideName = $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? '';
+        $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
+        
         $adults = $booking['adults'] ?? $booking['adultCount'] ?? 0;
         $children = $booking['children'] ?? $booking['childCount'] ?? 0;
         $infants = $booking['infants'] ?? $booking['infantCount'] ?? 0;
+
+        $effectiveTotal = (float) $totalPrice + $guideTotalPrice;
         
         $description = 'Arrival Service' . ($entryPickup ? ' - ' . $entryPickup : '');
 
@@ -859,18 +935,22 @@ class InvoiceService
                 'vehicle_type' => $vehicleType,
                 'pickup_date' => $pickupDate,
                 'entrytime' => $entryTime,
+                'guide_options' => $guideOptions,
+                'guide_name' => $guideName,
+                'guide_hours' => $guideHours,
+                'guide_total_price' => $guideTotalPrice,
             ],
             'quantity_adults' => $adults,
             'quantity_children' => $children,
             'quantity_infants' => $infants,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $effectiveTotal,
+            'total_price' => $effectiveTotal,
             'display_order' => $displayOrder,
         ];
     }
 
     /**
-     * Create invoice item for exit_port order
+     * Create invoice item for exit_port order (departure)
      */
     private function createExitPortItem($booking, $totalPrice, $displayOrder)
     {
@@ -883,9 +963,23 @@ class InvoiceService
         $vehicleName = $booking['vehicles_name'] ?? $booking['vehicle_name'] ?? '';
         $vehicleType = $booking['type'] ?? $booking['vehicle_type'] ?? '';
         
+        // Guide options (for Pro tours) - pickup from total_price, cost, or sell
+        $guideOptions = $booking['guide_options'] ?? [];
+        $guideTotalPrice = 0;
+        if (!empty($guideOptions)) {
+            $gv = $guideOptions['total_price'] ?? $guideOptions['cost'] ?? $guideOptions['Cost'] ?? $guideOptions['sell'] ?? $guideOptions['Sell'] ?? 0;
+            if ((float) $gv > 0) {
+                $guideTotalPrice = (float) $gv;
+            }
+        }
+        $guideName = $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? '';
+        $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
+        
         $adults = $booking['adults'] ?? $booking['adultCount'] ?? 0;
         $children = $booking['children'] ?? $booking['childCount'] ?? 0;
         $infants = $booking['infants'] ?? $booking['infantCount'] ?? 0;
+
+        $effectiveTotal = (float) $totalPrice + $guideTotalPrice;
         
         $description = 'Departure Service' . ($exitPickup ? ' - ' . $exitPickup : '');
 
@@ -899,12 +993,55 @@ class InvoiceService
                 'vehicle_type' => $vehicleType,
                 'exitpickupdate' => $exitPickupDate,
                 'entrytime' => $entryTime,
+                'guide_options' => $guideOptions,
+                'guide_name' => $guideName,
+                'guide_hours' => $guideHours,
+                'guide_total_price' => $guideTotalPrice,
             ],
             'quantity_adults' => $adults,
             'quantity_children' => $children,
             'quantity_infants' => $infants,
-            'unit_price' => $totalPrice,
-            'total_price' => $totalPrice,
+            'unit_price' => $effectiveTotal,
+            'total_price' => $effectiveTotal,
+            'display_order' => $displayOrder,
+        ];
+    }
+
+    /**
+     * Create invoice item for miscellaneous order (Pro tours only)
+     */
+    private function createMiscellaneousItem($booking, $totalPrice, $displayOrder)
+    {
+        $itemName = $booking['item_name'] ?? $booking['miscellaneous_name'] ?? 'Miscellaneous Item';
+        $bookingDate = $booking['bookingDate'] ?? '';
+        $description = $booking['description'] ?? $booking['remarks'] ?? $itemName;
+        $adults = (int)($booking['adultsQty'] ?? $booking['adults'] ?? $booking['adult'] ?? 0);
+        $children = (int)($booking['childQty'] ?? $booking['children'] ?? $booking['child'] ?? 0);
+        $infants = (int)($booking['infantQty'] ?? $booking['infants'] ?? $booking['infant'] ?? 0);
+
+        // Calculate total price from pricing fields if available
+        $computedTotal = $totalPrice;
+        if (isset($booking['totalPrice']) && (float)$booking['totalPrice'] > 0) {
+            $computedTotal = (float) $booking['totalPrice'];
+        } elseif (isset($booking['adultSell']) || isset($booking['childSell'])) {
+            $adultSell = (float)($booking['adultSell'] ?? 0);
+            $childSell = (float)($booking['childSell'] ?? 0);
+            $infantSell = (float)($booking['infantSell'] ?? 0);
+            $computedTotal = ($adultSell * $adults) + ($childSell * $children) + ($infantSell * $infants);
+        }
+
+        return [
+            'item_type' => 'miscellaneous',
+            'description' => $description,
+            'service_details' => [
+                'item_name' => $itemName,
+                'booking_date' => $bookingDate,
+            ],
+            'quantity_adults' => $adults,
+            'quantity_children' => $children,
+            'quantity_infants' => $infants,
+            'unit_price' => round($computedTotal, 2),
+            'total_price' => round($computedTotal, 2),
             'display_order' => $displayOrder,
         ];
     }
@@ -1194,9 +1331,16 @@ class InvoiceService
 
     /**
      * Sum total price from Orders JSON for a tour (covers all service types)
+     * - Attractions: base + transfer + guide
+     * - Restaurants: base + transfer + guide (guide from guide_options cost/sell/total_price)
+     * - Entry/Exit ports: base (vehicle) + guide
+     * - Others: base only
      */
     private function getOrdersTotalForTour($tourId): float
     {
+        $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+        $isPro = $tour && (int)($tour->is_pro ?? 0) === 1;
+
         $orders = Order::where('tour_id', $tourId)->whereNull('deleted_at')->get();
         $sum = 0.0;
         foreach ($orders as $order) {
@@ -1206,7 +1350,63 @@ class InvoiceService
             }
             $bookings = (isset($orderData[0]) && is_array($orderData[0])) ? $orderData : [$orderData];
             foreach ($bookings as $booking) {
-                $sum += (float)($booking['totalPrice'] ?? 0);
+                if (!is_array($booking)) {
+                    continue;
+                }
+
+                $basePrice = (float)($booking['totalPrice'] ?? $booking['price'] ?? 0);
+
+                // Normalise guide price for all types that support guide_options
+                $guidePrice = 0.0;
+                if (!empty($booking['guide_options']) && is_array($booking['guide_options'])) {
+                    $go = $booking['guide_options'];
+                    $gv = $go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0;
+                    if ((float)$gv > 0) {
+                        $guidePrice = (float)$gv;
+                    }
+                }
+
+                switch ($order->type) {
+                    case 'attraction':
+                        // Attraction base + transfer + guide
+                        // For PRO tours, use totalPrice (pax-multiplied) for shared transfers
+                        $transferCost = 0.0;
+                        if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                            if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                $transferCost = (float)$booking['transfer_options']['totalPrice'];
+                            } else {
+                                $transferCost = (float)$booking['transfer_options']['cost'];
+                            }
+                        }
+                        $sum += $basePrice + $transferCost + $guidePrice;
+                        break;
+
+                    case 'restaurant':
+                        // Restaurant meal base (mealPrice) + transfer + guide
+                        // For PRO tours, use totalPrice (pax-multiplied) for shared transfers
+                        $mealBase = (float)($booking['mealPrice'] ?? $booking['totalPrice'] ?? $booking['price'] ?? 0);
+                        $transferCost = 0.0;
+                        if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
+                            if ($isPro && isset($booking['transfer_options']['totalPrice'])) {
+                                $transferCost = (float)$booking['transfer_options']['totalPrice'];
+                            } else {
+                                $transferCost = (float)$booking['transfer_options']['cost'];
+                            }
+                        }
+                        $sum += $mealBase + $transferCost + $guidePrice;
+                        break;
+
+                    case 'entry_port':
+                    case 'exit_port':
+                        // Arrival/Departure transfer base (totalPrice) + guide
+                        $sum += $basePrice + $guidePrice;
+                        break;
+
+                    default:
+                        // Other services: just base price
+                        $sum += $basePrice;
+                        break;
+                }
             }
         }
         return $sum;

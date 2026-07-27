@@ -438,7 +438,7 @@
 
                         <div class="mb-3 col-md-4">
                             <label for="weekend_days" class="form-label">
-                                <strong>Weekend Days</strong>
+                                <strong>Weekend Days</strong><span style="color: red; font-weight: bold;">*</span>
                                 <sup>
                                     <button type="button" class="info-button" data-bs-toggle="tooltip"
                                         data-bs-placement="top"
@@ -511,10 +511,10 @@
                                     
                                     <!-- Check In Time -->
                                     <div class="mb-3 col-md-3">
-                                        <label for="check_in_time" class="form-label"><strong>Check In Time (hr)</strong></label>
+                                        <label for="check_in_time" class="form-label"><strong>Check In Time (hr)</strong><span style="color: red; font-weight: bold;">*</span></label>
                                         <div class="input-group">
                                             <input type="text" id="check_in_time" name="check_in_time" class="form-control"
-                                                placeholder="Select check-in time" value="{{ old('check_in_time') }}">
+                                                placeholder="Select check-in time" required value="{{ old('check_in_time') }}">
                                         </div>
                                         @error('check_in_time')
                                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -534,10 +534,10 @@
 
                                     <!-- Check Out Time -->
                                     <div class="mb-3 col-md-3">
-                                        <label for="check_out_time" class="form-label"><strong>Check Out Time (hr)</strong></label>
+                                        <label for="check_out_time" class="form-label"><strong>Check Out Time (hr)</strong><span style="color: red; font-weight: bold;">*</span></label>
                                         <div class="input-group">
                                             <input type="text" id="check_out_time" name="check_out_time" class="form-control"
-                                                placeholder="Select check-out time" value="{{ old('check_out_time') }}">
+                                                placeholder="Select check-out time" required value="{{ old('check_out_time') }}">
                                         </div>
                                         @error('check_out_time')
                                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -555,16 +555,16 @@
 
                                     <!-- Day Use Start Time -->
                                     <div class="mb-3 col-md-3">
-                                        <label for="start_time" class="form-label"><strong>Day Use Start Time (hr)</strong></label>
+                                        <label for="start_time" class="form-label"><strong>Day Use Start Time (hr)</strong><span style="color: red; font-weight: bold;">*</span></label>
                                         <div class="input-group">
                                         <input type="text" id="start_time" name="start_time" class="form-control"
-                                            placeholder="Select start time" value="{{ old('start_time') }}">
+                                            placeholder="Select start time" required value="{{ old('start_time') }}">
                                         </div>
                                     </div>
 
                                     <div class="mb-3 col-md-2">
-                                    <label for="start_time" class="form-label"><strong>Hour</strong></label>
-                                        <select id="duration" name="duration" class="form-control">
+                                    <label for="start_time" class="form-label"><strong>Hour</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                        <select id="duration" name="duration" class="form-control" required>
                                             <option value="">Select a value</option>
                                             <option value="1" {{ old('duration') == '1' ? 'selected' : '' }}>1</option>
                                             <option value="2" {{ old('duration') == '2' ? 'selected' : '' }}>2</option>
@@ -592,16 +592,16 @@
 
                                     <!-- Day Use End Time -->
                                     <div class="mb-3 col-md-3">
-                                        <label for="end_time" class="form-label"><strong>Day End Time (hr)</strong></label>
+                                        <label for="end_time" class="form-label"><strong>Day End Time (hr)</strong><span style="color: red; font-weight: bold;">*</span></label>
                                         <div class="input-group">
                                             <input type="text" id="end_time" name="end_time" class="form-control"
-                                                placeholder="Calculated end time" readonly>
+                                                placeholder="Calculated end time" readonly required>
                                         </div>
                                     </div>
                                     
                                     <div class="mb-3 col-md-2">
-                                    <label for="start_time" class="form-label"><strong>Type</strong></label>
-                                        <select id="day_usage_type" name="day_usage_type" class="form-control" onchange="updateChargeLabel()">
+                                    <label for="start_time" class="form-label"><strong>Type</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                        <select id="day_usage_type" name="day_usage_type" class="form-control" onchange="updateChargeLabel()" required>
                                             <option value="">Select a value</option>
                                             <option value="0" {{ old('day_usage_type') == '0' ? 'selected' : '' }}>Flat</option>
                                             <option value="1" {{ old('day_usage_type') == '1' ? 'selected' : '' }}>Percentage</option>
@@ -609,17 +609,17 @@
                                     </div>
 
                                     <div class="mb-3 col-md-2">
-                                        <label for="charge" class="form-label"><strong>Charge <span id="chargeType"></span></strong></label>
+                                        <label for="charge" class="form-label"><strong>Charge <span id="chargeType"></span></strong><span style="color: red; font-weight: bold;">*</span></label>
                                         <div class="input-group">
                                             <input type="number" id="charge" name="charge" class="form-control"
-                                                placeholder="Enter charge" value="{{ old('charge') }}">
+                                                placeholder="Enter charge" required value="{{ old('charge') }}">
                                         </div>
                                     </div>
 
                                     <!-- Auto Cancel Date -->
                                     <div class="mb-3 col-md-2">
-                                        <label for="auto_cancel_date" class="form-label"><strong>Auto Cancel Date</strong></label>
-                                        <select name="auto_cancel_date" id="auto_cancel_date" class="form-control">
+                                        <label for="auto_cancel_date" class="form-label"><strong>Auto Cancel Date</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                        <select name="auto_cancel_date" id="auto_cancel_date" class="form-control" required>
                                             <option value="">Select Days</option>
                                             <option value="1" {{ old('auto_cancel_date') == '1' ? 'selected' : '' }}>D-1</option>
                                             <option value="2" {{ old('auto_cancel_date') == '2' ? 'selected' : '' }}>D-2</option>
