@@ -317,18 +317,25 @@ class ZoneController extends Controller
      */
     public function create()
     {
-        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
-            || (int) (Auth::user()->userId ?? 0) === 1;
+        $user = Auth::user();
+        $isAdmin = (int) ($user->role_id ?? 0) === 1
+            || (int) ($user->userId ?? 0) === 1;
 
-        $countries = collect();
-        if ($isAdmin) {
-            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
-            $city = collect();
-        } else {
-            $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
+        $dmcId = $this->resolveDmcIdForUser($user);
+        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
+
+        $countriesQuery = Country::where('is_active', 1)->orderBy('name');
+        if (!$isAdmin && !empty($masterNames)) {
+            $countriesQuery->whereIn('name', $masterNames);
         }
+        $countries = $countriesQuery->get();
 
-        return view('zones.create', compact('city', 'countries', 'isAdmin'));
+        $selectedCountry = old('country', $masterNames[0] ?? ($countries->first()->name ?? null));
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
+
+        return view('zones.create', compact('city', 'countries', 'isAdmin', 'selectedCountry'));
     }
     
 
@@ -349,6 +356,7 @@ class ZoneController extends Controller
             'zone_type.*' => 'required|string|in:Hotel,Attraction,Restaurant',
             'vehicle_type' => 'required|string|in:Shared,Private,Both',
             'description' => 'nullable|string',
+            'country' => 'required|string|max:255',
             'city' => 'required',
             'status' => 'required|integer|in:0,1',
         ]);
@@ -430,26 +438,30 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        $dmcId = $this->resolveDmcIdForUser(Auth::user());
-        if ($zone->dmc_id != $dmcId) {
+        $user = Auth::user();
+        $isAdmin = (int) ($user->role_id ?? 0) === 1
+            || (int) ($user->userId ?? 0) === 1;
+
+        $dmcId = $this->resolveDmcIdForUser($user);
+        if (!$isAdmin && (int) ($zone->dmc_id ?? 0) !== (int) ($dmcId ?? 0)) {
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to edit this zone');
         }
 
-        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
-            || (int) (Auth::user()->userId ?? 0) === 1;
-
-        $countries = collect();
-        $zoneCountry = null;
-        if ($isAdmin) {
-            $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
-            $city = collect();
-            $zoneCountry = City::where('city_id', $zone->city)->value('country');
-        } else {
-            $city = City::where('country', Auth::user()->country)->orderBy('name')->get();
+        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId) : [];
+        $countriesQuery = Country::where('is_active', 1)->orderBy('name');
+        if (!$isAdmin && !empty($masterNames)) {
+            $countriesQuery->whereIn('name', $masterNames);
         }
+        $countries = $countriesQuery->get();
 
-        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry'));
+        $zoneCountry = City::where('city_id', $zone->city)->value('country');
+        $selectedCountry = old('country', $zoneCountry ?: ($masterNames[0] ?? ($countries->first()->name ?? null)));
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
+
+        return view('zones.edit', compact('zone', 'city', 'countries', 'isAdmin', 'zoneCountry', 'selectedCountry'));
     }
 
     /**
@@ -463,11 +475,14 @@ class ZoneController extends Controller
             'zone_type' => 'required|string|max:255',
             'vehicle_type' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'country' => 'required|string|max:255',
             'city' => 'required',
             'status' => 'required|integer',
         ]);
         $dmcId = $this->resolveDmcIdForUser(Auth::user());
-        if ($zone->dmc_id != $dmcId) {
+        $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
+            || (int) (Auth::user()->userId ?? 0) === 1;
+        if (!$isAdmin && (int) ($zone->dmc_id ?? 0) !== (int) ($dmcId ?? 0)) {
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to edit this zone');
         }
@@ -480,6 +495,7 @@ class ZoneController extends Controller
         // Update zone
         // Update ONLY validated fields; keep existing dmc_id untouched.
         $data = $validator->validated();
+        unset($data['country']); // country is UI-only for city filtering
         
         $zone->update($data);
 

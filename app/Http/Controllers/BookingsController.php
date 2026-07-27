@@ -506,7 +506,7 @@ class BookingsController extends Controller
 
         if($dmc_id){
             $tours = Tour::where('tour_status', 'New Enquiry')
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1047,7 +1047,7 @@ class BookingsController extends Controller
     //                 'enquiry_comments.created_at as enquiry_comment_created_at',
     //                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
     //             ])
-    //             ->where('tours.dmc_id', $dmc_id)
+    //             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
     //             ->orderBy('tours.created_at', 'desc')
     //             ->paginate(15);
 
@@ -1189,7 +1189,7 @@ class BookingsController extends Controller
                     'dmc_user.company_code as dmc_company_code',
                     'created_by_user.user_code as created_by_user_code',
                 ])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
@@ -1334,7 +1334,7 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1473,6 +1473,24 @@ class BookingsController extends Controller
                 ->toArray();
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
             }
         }
 
@@ -1638,7 +1656,7 @@ class BookingsController extends Controller
                 $query->where('tours.tour_status', 'Definite');
                     // ->orWhereDate('tours.updated_at', $today);
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1776,6 +1794,24 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
@@ -1863,7 +1899,7 @@ class BookingsController extends Controller
                 }
             ])
                 ->whereIn('tour_status', ['Actual', 'Complete'])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2004,6 +2040,24 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         $this->hydrateDestinationCreatedAt($tours);
@@ -2084,7 +2138,7 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2236,7 +2290,7 @@ class BookingsController extends Controller
                     $query->orWhereIn('tours.tour_id', $refundTourIds);
                 }
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2563,14 +2617,33 @@ class BookingsController extends Controller
      */
     public function getBookingStats()
     {
+        $user = Auth::user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        if (!$dmc_id && $user && (int) ($user->role_id ?? 0) === 11) {
+            $dmc_id = $user->userId;
+        }
+
+        $countStatus = function ($status) use ($dmc_id, $user) {
+            $query = Tour::query();
+            if (is_array($status)) {
+                $query->whereIn('tour_status', $status);
+            } else {
+                $query->where('tour_status', $status);
+            }
+            if ($dmc_id) {
+                CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
+            }
+            return $query->count();
+        };
+
         $stats = [
-            'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
-            'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
-            'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
-            'definite' => Tour::where('tour_status', 'Definite')->count(),
-            'actual' => Tour::where('tour_status', 'Actual')->count(),
-            'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),
+            'new_enquiries' => $countStatus('New Enquiry'),
+            'follow_ups' => $countStatus('Prospect'),
+            'tentative' => $countStatus('Tentative'),
+            'confirmed' => $countStatus('Confirmed'),
+            'definite' => $countStatus('Definite'),
+            'actual' => $countStatus('Actual'),
+            'cancelled' => $countStatus('Cancelled'),
         ];
 
         return response()->json($stats);

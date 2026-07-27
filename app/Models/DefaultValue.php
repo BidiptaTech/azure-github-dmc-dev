@@ -25,6 +25,8 @@ class DefaultValue extends Model
     protected $fillable = [
         'default_id',
         'dmc_id',
+        'country',
+        'city',
         'name',
         'service_id',
         'status',

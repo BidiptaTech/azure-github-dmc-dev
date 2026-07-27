@@ -297,27 +297,26 @@
                                 @enderror
                             </div>
                             
-                            <!-- Country -->
+                            <!-- Country (Master DMC countries) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                
-                                @if(in_array(auth()->user()->role_id, [1, 20]))
-                                    <select class="form-control" id="country" name="country" required disabled onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                @php
+                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                    $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
+                                @endphp
+                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                    @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
-                                        @foreach($country as $countryOption)
-                                            <option value="{{ $countryOption->name }}" 
-                                                {{ $guide->country == $countryOption->name ? 'selected' : '' }}>
-                                                {{ $countryOption->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <input type="hidden" name="country" value="{{ $guide->country }}">
-                                @else
-                                    <input id="country" class="form-control" type="text" value="{{$guide->country}}" onchange="validateDriverAge(document.getElementById('driver_age'))" readonly>
-                                @endif
-                                
+                                    @endif
+                                    @foreach($scopedCountries as $countryOption)
+                                        <option value="{{ $countryOption->name }}" 
+                                            {{ $editSelectedCountry == $countryOption->name ? 'selected' : '' }}>
+                                            {{ $countryOption->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -327,11 +326,9 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 <select name="city" id="citySelect" class="form-control" required>
-                                    <option value="{{ $guide->city }}">{{ $guide->city }}</option>
+                                    <option value="">Select City</option>
                                     @foreach($city as $c)
-                                        @if($c->name != $guide->city)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                        @endif
+                                        <option value="{{ $c->name }}" {{ old('city', $guide->city) == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('city')
@@ -825,76 +822,54 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
-        // Initialize Select2 for city (only select from existing cities)
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
             width: '100%'
         });
-        
-        // Handle country change for role_id 1 and 20 to load cities
-        var userRoleId = {{ auth()->user()->role_id }};
-        if ([1, 20].includes(userRoleId)) {
-            $('#country').on('change', function() {
-                var countryName = $(this).val();
-                var selectedCountryValue = $(this).val();
-                
-                if (!selectedCountryValue || selectedCountryValue === '') {
-                    // Country cleared, disable city field
-                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                    return;
-                }
-                
-                // Show loading state and disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-                
-                $.ajax({
-                    url: "{{ route('get.cities.by.country') }}",
-                    type: "GET",
-                    data: { 
-                        country: countryName
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        // Clear loading state
-                        $('#citySelect').empty();
-                        
-                        // Preserve current city if it exists in the new list
-                        var currentCity = '{{ $guide->city }}';
-                        var cityFound = false;
-                        
-                        // Add default option
-                        $('#citySelect').append('<option value="">Select a City</option>');
-                        
-                        // Add cities from response
-                        if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                var isSelected = (city.name === currentCity) ? 'selected' : '';
-                                if (isSelected) cityFound = true;
-                                $('#citySelect').append('<option value="' + city.name + '" ' + isSelected + '>' + city.name + '</option>');
-                            });
-                            // Enable city field when cities are loaded
-                            $('#citySelect').prop('disabled', false);
-                        } else {
-                            // No cities found, keep disabled
-                            $('#citySelect').append('<option value="">No cities available</option>');
-                        }
-                        
-                        // If current city not found, add it as selected option
-                        if (currentCity && !cityFound) {
-                            $('#citySelect').append('<option value="' + currentCity + '" selected>' + currentCity + '</option>');
-                            $('#citySelect').prop('disabled', false);
-                        }
-                        
-                        // Trigger change to refresh Select2
-                        $('#citySelect').trigger('change');
-                    },
-                    error: function(xhr, status, error) {
-                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+
+        var currentCity = @json(old('city', $guide->city ?? ''));
+
+        function loadCitiesByCountry(countryName, preserveCity) {
+            if (!countryName) {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+            $.ajax({
+                url: "{{ route('get.cities.by.country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function(response) {
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(key, city) {
+                            var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                            $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
+                        });
+                        $('#citySelect').prop('disabled', false);
+                    } else {
+                        $('#citySelect').append('<option value="">No cities available</option>');
                     }
-                });
+                    $('#citySelect').trigger('change');
+                },
+                error: function() {
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+                }
             });
         }
+
+        $('#country').on('change', function() {
+            loadCitiesByCountry($(this).val(), false);
+        });
     });
 </script>
 

@@ -323,11 +323,20 @@ class VehicleController extends Controller
         }
         $authuser = auth()->user();
         $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
-        $resolvedDmcCountry = null;
-        if ($resolvedDmcId) {
-            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        $masterDmcCountryNames = $resolvedDmcId
+            ? $this->getMasterDmcCountryNamesForDmc((int) $resolvedDmcId)
+            : [];
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!empty($masterDmcCountryNames) && !in_array((int) $authuser->role_id, [1, 2, 3, 20, 23], true)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
         }
-        $selectedCountry = $resolvedDmcCountry ?: $authuser->country;
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $selectedCountry = old('country', $masterDmcCountryNames[0] ?? null);
+        if (!$selectedCountry && $countries->isNotEmpty()) {
+            $selectedCountry = $countries->first()->name;
+        }
         $cities = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
@@ -372,12 +381,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
-        // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
     }
 
     public function fetchDrivers(Request $request)
@@ -409,8 +417,23 @@ class VehicleController extends Controller
 
     public function fetchCities(Request $request)
     {
-        $country = User::where('userId', $request->country_name)->first()->country;
-        $cities = City::where('country', $country)->get();
+        $dmcUser = User::where('userId', $request->country_name)->first();
+        if (!$dmcUser) {
+            return response()->json([]);
+        }
+
+        $countries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+        if (empty($countries) && !empty($dmcUser->country)) {
+            $countries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        $cities = !empty($countries)
+            ? City::whereIn('country', $countries)->orderBy('name')->get()
+            : collect();
+
         return response()->json($cities);
     }
     /*
@@ -522,13 +545,15 @@ class VehicleController extends Controller
                     'cost_per_km_10_to_25' => $request->input('cost_per_km_10_to_25') ?? 0,
                     'cost_per_km_above_25' => $request->input('cost_per_km_above_25') ?? 0,
                     'cost_per_hour' => $request->input('cost_per_hour') ?? 0,
-                    'cancel_cost' => $request->input('cancel_cost') ?? 0,
+                    'cancel_cost' => $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0,
                     'base_cost_price' => $request->input('base_cost_price') ?? 0,
                     'per_km_below_10_cost_price' => $request->input('per_km_below_10_cost_price') ?? 0,
                     'per_km_10_to_25_cost_price' => $request->input('per_km_10_to_25_cost_price') ?? 0,
                     'per_km_above_25_cost_price' => $request->input('per_km_above_25_cost_price') ?? 0,
                     'per_hour_cost_price' => $request->input('per_hour_cost_price') ?? 0,
-                    'cancel_cost_price' => $request->input('cancel_cost_price') ?? 0,
+                    'cancel_cost_price' => $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0,
+                    'cancellation_cost' => $request->input('cancellation_cost') ?? 0,
+                    'cancellation_sell' => $request->input('cancellation_sell') ?? 0,
                     'night_base_price' => $request->input('night_base_price') ?? 0,
                     'night_cost_per_km_below_10' => $request->input('night_cost_per_km_below_10') ?? 0,
                     'night_cost_per_km_10_to_25' => $request->input('night_cost_per_km_10_to_25') ?? 0,
@@ -602,13 +627,15 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
         $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
         $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
         $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
             
         // Night charges for sharable
         $vehicle->night_base_price = $request->input('night_base_price');
@@ -711,7 +738,11 @@ class VehicleController extends Controller
             $fallbackDmcCountry = $dmcCountryParts[0] ?? '';
         }
 
-        $selectedCountry = $vehicle->country ?: $fallbackDmcCountry;
+        $selectedCountry = (\Schema::hasColumn('vehicles', 'country') ? $vehicle->country : null) ?: null;
+        if (!$selectedCountry && !empty($vehicle->city)) {
+            $selectedCountry = City::where('name', $vehicle->city)->value('country');
+        }
+        $selectedCountry = $selectedCountry ?: $fallbackDmcCountry;
         if (!$selectedCountry && !empty($masterDmcCountryNames)) {
             $selectedCountry = $masterDmcCountryNames[0];
         }
@@ -886,26 +917,26 @@ class VehicleController extends Controller
                 // 'cost_per_km_10_to_25' => 'required|numeric',
                 // 'cost_per_km_above_25' => 'required|numeric',
                 'cost_per_hour' => 'required|numeric',
-                'cancel_cost' => 'required|numeric',
+                'cancellation_cost' => 'required|numeric',
+                'cancellation_sell' => 'required|numeric',
                 'base_cost_price' => 'required|numeric',
                 // 'per_km_below_10_cost_price' => 'required|numeric',
                 // 'per_km_10_to_25_cost_price' => 'required|numeric',
                 // 'per_km_above_25_cost_price' => 'required|numeric',
                 'per_hour_cost_price' => 'required|numeric',
-                'cancel_cost_price' => 'required|numeric',
                 // Regular Night Pricing
                 'night_base_price' => 'required|numeric',
                 // 'night_cost_per_km_below_10' => 'required|numeric',
                 // 'night_cost_per_km_10_to_25' => 'required|numeric',
                 // 'night_cost_per_km_above_25' => 'required|numeric',
                 'night_cost_per_hour' => 'required|numeric',
-                'night_cancel_cost' => 'required|numeric',
+                'night_cancel_cost' => 'nullable|numeric',
                 'night_base_cost_price' => 'required|numeric',
                 // 'night_per_km_below_10_cost_price' => 'required|numeric',
                 // 'night_per_km_10_to_25_cost_price' => 'required|numeric',
                 // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
-                'night_cancel_cost_price' => 'required|numeric',
+                'night_cancel_cost_price' => 'nullable|numeric',
             ],[
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
@@ -953,7 +984,9 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
-        $vehicle->country = $request->input('country');
+        if (\Schema::hasColumn('vehicles', 'country')) {
+            $vehicle->country = $request->input('country');
+        }
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
@@ -969,7 +1002,9 @@ class VehicleController extends Controller
             $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
         }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
         if ($request->has('per_km_below_10_cost_price')) {
             $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price') ?? 0;
@@ -981,7 +1016,7 @@ class VehicleController extends Controller
             $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price') ?? 0;
         }
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
 
         // Regular Night Pricing
         $vehicle->night_base_price = $request->input('night_base_price')?? 0;

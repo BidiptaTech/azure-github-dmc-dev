@@ -229,6 +229,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .drivers-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .drivers-infinite-footer .drivers-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .drivers-infinite-footer.is-loading .drivers-scroll-loader {
+        display: inline-flex;
+    }
+
+    .drivers-infinite-footer .drivers-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .drivers-infinite-footer.is-end .drivers-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -315,6 +349,7 @@
     #driversTable .col-name        { width: 100px; min-width: 90px; }
     #driversTable .col-master-dmc,
     #driversTable .col-dmc         { width: 100px; min-width: 90px; }
+    #driversTable .col-country     { width: 90px;  min-width: 80px; }
     #driversTable .col-city        { width: 80px;  min-width: 70px; }
     #driversTable .col-mobile      { width: 90px;  min-width: 80px; }
     #driversTable .col-email       { width: 110px; min-width: 95px; }
@@ -412,6 +447,7 @@
                                 <th class="th-tooltip col-master-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master</th>
                                 <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
+                            <th class="th-tooltip col-country" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
                             <th class="th-tooltip col-city" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip col-mobile" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Mobile Number">Mobile</th>
                             <th class="th-tooltip col-email" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Email Address">Email</th>
@@ -447,7 +483,8 @@
                                 <td class="col-dmc">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                             @endif
 
-                            <td class="col-city">{{ $driver->city }}</td>
+                            <td class="col-country">{{ $driver->country ?: '—' }}</td>
+                            <td class="col-city">{{ $driver->city ?: '—' }}</td>
                             <td class="col-mobile">{{ $driver->phone }}</td>
                             <td class="col-email">{{ $driver->email }}</td>
                             <td class="col-license">{{ $driver->license_no }}</td>
@@ -520,6 +557,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="driversInfiniteFooter" class="drivers-infinite-footer">
+                    <div class="drivers-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more drivers…</span>
+                    </div>
+                    <div class="drivers-scroll-end">All drivers loaded</div>
+                </div>
                 </div>
 
             </div>
@@ -535,20 +579,24 @@
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     $(document).ready(function() {
-        $('.datatables-basic').DataTable({
+        var driversBatchSize = 25;
+        var driversTable = $('.datatables-basic').DataTable({
             responsive: false,
             autoWidth: false,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: driversBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
             columnDefs: [
                 { targets: '.col-no',         width: '38px'  },
                 { targets: '.col-name',       width: '100px' },
+                { targets: '.col-country',    width: '90px'  },
                 { targets: '.col-city',       width: '80px'  },
                 { targets: '.col-mobile',     width: '90px'  },
                 { targets: '.col-email',      width: '110px' },
@@ -559,11 +607,59 @@
             ],
         });
 
-        $('#exportCopy').on('click',  function() { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        var $infiniteFooter = $('#driversInfiniteFooter');
+        var driversInfiniteLoading = false;
+        var driversInfiniteGuard = false;
+
+        function updateDriversInfiniteFooter() {
+            var info = driversTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            driversInfiniteLoading = false;
+        }
+
+        function loadMoreDriversIfNeeded() {
+            if (driversInfiniteLoading) return;
+            var info = driversTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateDriversInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            driversInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = driversTable.page.info();
+                driversTable.page.len(Math.min(currentInfo.length + driversBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updateDriversInfiniteFooter();
+            }, 150);
+        }
+
+        driversTable.on('length.dt', function(e, settings, len) {
+            driversBatchSize = len;
+            updateDriversInfiniteFooter();
+        });
+        driversTable.on('search.dt', function() {
+            if (driversInfiniteGuard) return;
+            driversInfiniteGuard = true;
+            driversTable.page.len(driversBatchSize).draw(false);
+            driversInfiniteGuard = false;
+            updateDriversInfiniteFooter();
+        });
+        driversTable.on('draw.dt', function() {
+            if (!driversInfiniteGuard) updateDriversInfiniteFooter();
+        });
+        $(window).on('scroll.driversInfinite resize.driversInfinite', loadMoreDriversIfNeeded);
+        updateDriversInfiniteFooter();
+        loadMoreDriversIfNeeded();
+
+        $('#exportCopy').on('click',  function() { driversTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click',   function() { driversTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { driversTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click',   function() { driversTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { driversTable.button('.buttons-print').trigger(); });
     });
 </script>
 
