@@ -351,6 +351,8 @@
     #guidesTable .col-name       { width: 80px;  min-width: 75px; }
     #guidesTable .col-master-dmc,
     #guidesTable .col-dmc        { width: 100px; min-width: 90px; }
+    #guidesTable .col-country    { width: 90px;  min-width: 80px; }
+    #guidesTable .col-city       { width: 80px;  min-width: 70px; }
     #guidesTable .col-contact    { width: 90px;  min-width: 80px; }
     #guidesTable .col-email      { width: 140px; min-width: 120px; }
     #guidesTable .col-languages  { width: 80px;  min-width: 75px; }
@@ -448,6 +450,8 @@
                                 <th class="th-tooltip col-master-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master</th>
                                 <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
+                            <th class="th-tooltip col-country" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
+                            <th class="th-tooltip col-city" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip col-contact" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Contact Number">Contact No</th>
                             <th class="th-tooltip col-email" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Email Address">Email</th>
                             <th class="th-tooltip col-languages" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Languages Spoken">Languages</th>
@@ -481,6 +485,9 @@
                                 <td class="col-master-dmc">{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
                                 <td class="col-dmc">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                             @endif
+
+                            <td class="col-country">{{ $guide->country ?: '—' }}</td>
+                            <td class="col-city">{{ $guide->city ?: '—' }}</td>
 
                             <td class="col-contact">
                                 @if($guide->contact_no)
@@ -616,6 +623,8 @@
             columnDefs: [
                 { targets: '.col-no',          width: '38px'  },
                 { targets: '.col-name',        width: '80px'  },
+                { targets: '.col-country',     width: '90px'  },
+                { targets: '.col-city',        width: '80px'  },
                 { targets: '.col-contact',     width: '90px'  },
                 { targets: '.col-email',       width: '140px' },
                 { targets: '.col-languages',   width: '80px'  },
