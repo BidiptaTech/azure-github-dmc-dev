@@ -4,6 +4,9 @@
 @section('title', 'Edit Zone')
 
 @section('content')
+@php
+    $preselectedCountry = old('country', $selectedCountry ?? $zoneCountry ?? '');
+@endphp
 <style>
     /* Select2 — same integration as vehicles add-vehicle */
     .select2-container--default .select2-selection--single {
@@ -181,30 +184,28 @@
                                 @enderror
                             </div>
 
-                            @if(!empty($isAdmin))
                             <div class="col-md-3">
                                 <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
                                 <select class="form-select @error('country') is-invalid @enderror" id="country" name="country" required>
-                                    <option value=""></option>
-                                    @foreach($countries as $country)
-                                        <option value="{{ $country->name }}" {{ old('country', $zoneCountry) === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
+                                    @if(($countries ?? collect())->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach(($countries ?? collect()) as $country)
+                                        <option value="{{ $country->name }}" {{ ($preselectedCountry ?? '') === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('country')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
-                            @endif
 
                             <div class="col-md-3">
                                 <label for="city" class="form-label">City <span class="text-danger">*</span></label>
                                 <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
-                                    <option value=""></option>
-                                    @if(empty($isAdmin))
-                                        @foreach($city as $c)
-                                            <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
-                                        @endforeach
-                                    @endif
+                                    <option value="">{{ !empty($preselectedCountry) ? 'Select City' : 'Select Country First' }}</option>
+                                    @foreach(($city ?? collect()) as $c)
+                                        <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
                                 </select>
                                 @error('city')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -268,9 +269,8 @@
             placeholder: 'Enter your content here...',
         });
 
-        const isAdminZoneEdit = @json(!empty($isAdmin));
         const selectedCityId = @json(old('city', $zone->city));
-        const selectedCountry = @json(old('country', $zoneCountry ?? ''));
+        const selectedCountry = @json(old('country', $selectedCountry ?? $zoneCountry ?? $preselectedCountry ?? ''));
 
         function initCitySelect2(placeholder) {
             if ($('#city').hasClass('select2-hidden-accessible')) {
@@ -319,24 +319,21 @@
             });
         }
 
-        if (isAdminZoneEdit) {
-            $('#country').select2({
-                placeholder: 'Search and Select Country',
-                allowClear: true,
-                width: '100%'
-            });
+        $('#country').select2({
+            placeholder: 'Search and Select Country',
+            allowClear: true,
+            width: '100%'
+        });
 
-            initCitySelect2('Select country first');
+        initCitySelect2(selectedCountry ? 'Search and Select a City' : 'Select country first');
 
-            $('#country').on('change', function() {
-                loadCitiesByCountry($(this).val(), null);
-            });
+        $('#country').on('change', function() {
+            loadCitiesByCountry($(this).val(), null);
+        });
 
-            if (selectedCountry) {
-                loadCitiesByCountry(selectedCountry, selectedCityId);
-            }
-        } else {
-            initCitySelect2('Search and Select a City');
+        // If city options are empty but country is set, load cities (preserve selection)
+        if (selectedCountry && $('#city option[value!=""]').length === 0) {
+            loadCitiesByCountry(selectedCountry, selectedCityId);
         }
     });
 </script>

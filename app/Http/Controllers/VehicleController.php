@@ -323,11 +323,20 @@ class VehicleController extends Controller
         }
         $authuser = auth()->user();
         $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
-        $resolvedDmcCountry = null;
-        if ($resolvedDmcId) {
-            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        $masterDmcCountryNames = $resolvedDmcId
+            ? $this->getMasterDmcCountryNamesForDmc((int) $resolvedDmcId)
+            : [];
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!empty($masterDmcCountryNames) && !in_array((int) $authuser->role_id, [1, 2, 3, 20, 23], true)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
         }
-        $selectedCountry = $resolvedDmcCountry ?: $authuser->country;
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $selectedCountry = old('country', $masterDmcCountryNames[0] ?? null);
+        if (!$selectedCountry && $countries->isNotEmpty()) {
+            $selectedCountry = $countries->first()->name;
+        }
         $cities = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
@@ -372,12 +381,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
-        // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
     }
 
     public function fetchDrivers(Request $request)
@@ -409,8 +417,23 @@ class VehicleController extends Controller
 
     public function fetchCities(Request $request)
     {
-        $country = User::where('userId', $request->country_name)->first()->country;
-        $cities = City::where('country', $country)->get();
+        $dmcUser = User::where('userId', $request->country_name)->first();
+        if (!$dmcUser) {
+            return response()->json([]);
+        }
+
+        $countries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+        if (empty($countries) && !empty($dmcUser->country)) {
+            $countries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        $cities = !empty($countries)
+            ? City::whereIn('country', $countries)->orderBy('name')->get()
+            : collect();
+
         return response()->json($cities);
     }
     /*
@@ -711,7 +734,11 @@ class VehicleController extends Controller
             $fallbackDmcCountry = $dmcCountryParts[0] ?? '';
         }
 
-        $selectedCountry = $vehicle->country ?: $fallbackDmcCountry;
+        $selectedCountry = (\Schema::hasColumn('vehicles', 'country') ? $vehicle->country : null) ?: null;
+        if (!$selectedCountry && !empty($vehicle->city)) {
+            $selectedCountry = City::where('name', $vehicle->city)->value('country');
+        }
+        $selectedCountry = $selectedCountry ?: $fallbackDmcCountry;
         if (!$selectedCountry && !empty($masterDmcCountryNames)) {
             $selectedCountry = $masterDmcCountryNames[0];
         }
@@ -953,7 +980,9 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
-        $vehicle->country = $request->input('country');
+        if (\Schema::hasColumn('vehicles', 'country')) {
+            $vehicle->country = $request->input('country');
+        }
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;

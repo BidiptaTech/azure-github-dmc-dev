@@ -414,13 +414,30 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $vehicleCityNames = $vehicles->pluck('city')->filter()->unique()->values();
+                            $vehicleCityCountryMap = $vehicleCityNames->isNotEmpty()
+                                ? \App\Models\City::whereIn('name', $vehicleCityNames)->pluck('country', 'name')
+                                : collect();
+                        @endphp
                         @foreach($vehicles as $key => $vehicle)
                         <tr>
                             <td class="col-no">{{ ++$key }}</td>
                             <td class="col-name">
+                                @php
+                                    $vehicleCountry = (\Schema::hasColumn('vehicles', 'country') ? ($vehicle->country ?? null) : null)
+                                        ?: ($vehicleCityCountryMap[$vehicle->city] ?? null);
+                                @endphp
                                 <div class="d-flex flex-column">
                                     <span class="fw-semibold">{{ $vehicle->vehicle_name }}</span>
-                                    <small class="vehicle-detail-meta"><i class="ri-map-pin-line me-1" style="font-size: 12px;"></i>{{ $vehicle->city ?? 'N/A' }}</small>
+                                    <small class="vehicle-detail-meta">
+                                        <i class="ri-map-pin-line me-1" style="font-size: 12px;"></i>
+                                        @if($vehicleCountry || $vehicle->city)
+                                            {{ collect([$vehicleCountry, $vehicle->city])->filter()->implode(', ') }}
+                                        @else
+                                            N/A
+                                        @endif
+                                    </small>
                                 </div>
                             </td>
                             <td class="col-dmc">{{ $vehicle->dmc ? $vehicle->dmc->company_name : 'N/A' }}</td>

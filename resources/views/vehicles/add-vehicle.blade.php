@@ -240,20 +240,39 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div> --}}
+                            <!-- Country (Master DMC countries) -->
+                            <div class="col-md-3 mb-3">
+                                <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong><span class="text-danger">*</span></label>
+                                @php
+                                    $scopedCountries = $countries ?? collect();
+                                    $vehicleSelectedCountry = old('country', $selectedCountry ?? '');
+                                @endphp
+                                <select name="country" id="country" class="form-control" required>
+                                    @if($scopedCountries->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach($scopedCountries as $c)
+                                        <option value="{{ $c->name }}" {{ $vehicleSelectedCountry == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('country')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
                                 @php
-                                    $roleId = auth()->user()->role_id;
-                                    $placeholder = in_array($roleId, [11, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140]) ? 'Select City' : 'Select DMC First';
+                                    $hasPreloadedCities = isset($cities) && count($cities) > 0 && $vehicleSelectedCountry !== '';
+                                    $placeholder = $hasPreloadedCities ? 'Select City' : 'Select Country First';
                                 @endphp
 
-                                <select name="city_name" id="city_name" class="form-control" required>
+                                <select name="city_name" id="city_name" class="form-control" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
                                     <option value="">{{ $placeholder }}</option>
-
-                                    @if(in_array($roleId, [11, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140]))
+                                    @if($hasPreloadedCities)
                                         @foreach($cities as $city)
-                                            <option value="{{ $city->name }}">{{ $city->name }}</option>
+                                            <option value="{{ $city->name }}" {{ old('city_name') == $city->name ? 'selected' : '' }}>{{ $city->name }}</option>
                                         @endforeach
                                     @endif
                                 </select>
@@ -864,6 +883,12 @@
             width: '100%'
         });
 
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+
         // Initialize Select2 for City dropdown
         $('#city_name').select2({
             placeholder: "Search and Select a City",
@@ -1009,39 +1034,103 @@ function updateMoreBadge() {
 <script>
     $(document).ready(function () {
         const dmcId = "{{ $resolvedDmcId ?? '' }}";
+        const masterCountryNames = @json($masterDmcCountryNames ?? []);
 
-        // Auto-load drivers if user role resolves DMC directly
+        function populateCountryOptions(countries, selectedCountry) {
+            var $country = $('#country');
+            $country.empty();
+            if (!countries || countries.length !== 1) {
+                $country.append('<option value="">Select Country</option>');
+            }
+            $.each(countries || [], function (i, name) {
+                var selected = (name === selectedCountry) ? 'selected' : '';
+                $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
+            });
+            $country.trigger('change.select2');
+        }
+
+        function loadCitiesByCountry(countryName) {
+            if (!countryName) {
+                $('#city_name').prop('disabled', true)
+                    .empty()
+                    .append('<option value="">Select Country First</option>')
+                    .trigger('change');
+                return;
+            }
+
+            $('#city_name').prop('disabled', true)
+                .empty()
+                .append('<option value="">Loading cities...</option>')
+                .trigger('change');
+
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function (response) {
+                    $('#city_name').empty().append('<option value="">Select a City</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function (idx, city) {
+                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        });
+                        $('#city_name').prop('disabled', false);
+                    } else {
+                        $('#city_name').append('<option value="">No cities available</option>');
+                    }
+                    $('#city_name').trigger('change');
+                },
+                error: function () {
+                    $('#city_name').prop('disabled', true)
+                        .empty()
+                        .append('<option value="">Error loading cities</option>')
+                        .trigger('change');
+                }
+            });
+        }
+
+        function loadCountriesAndCitiesForDmc(selectedDmcId) {
+            if (!selectedDmcId) {
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('fetch.cities_countries') }}",
+                type: "GET",
+                data: { dmc_id: selectedDmcId },
+                dataType: 'json',
+                success: function (response) {
+                    var countries = response.countries || (response.country ? [response.country] : []);
+                    var selected = response.country || (countries[0] || '');
+                    populateCountryOptions(countries, selected);
+                    loadCitiesByCountry(selected);
+                }
+            });
+        }
+
         if (dmcId) {
             loadDriversForDmc(dmcId);
         }
 
-        // If DMC dropdown is visible, load drivers and cities on change
+        $('#country').on('change', function () {
+            loadCitiesByCountry($(this).val());
+        });
+
         $('#dmc').change(function () {
             const selectedDmcId = $(this).val();
-            console.log(selectedDmcId);
-            $('#city_name').html('<option value="">Loading...</option>').trigger('change');
             $('#driver').html('<option value="">Loading drivers...</option>').trigger('change');
 
             if (selectedDmcId) {
-                // Load cities
-                $.ajax({
-                    url: "{{ route('fetch.dmc_cities') }}",
-                    type: "GET",
-                    data: { country_name: selectedDmcId },
-                    success: function (response) {
-                        $('#city_name').html('<option value="">Select City</option>');
-                        $.each(response, function (key, city) {
-                            $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
-                        });
-                        $('#city_name').trigger('change');
-                    }
-                });
-
-                // Load drivers
+                loadCountriesAndCitiesForDmc(selectedDmcId);
                 loadDriversForDmc(selectedDmcId);
             } else {
-                $('#city_name').html('<option value="">Select a DMC first</option>').trigger('change');
+                $('#city_name').html('<option value="">Select Country First</option>').trigger('change');
                 $('#driver').html('<option value="">Select a DMC first</option>').trigger('change');
+                if (masterCountryNames.length) {
+                    populateCountryOptions(masterCountryNames, '');
+                } else {
+                    $('#country').val('').trigger('change');
+                }
             }
         });
 
@@ -1082,6 +1171,9 @@ function updateMoreBadge() {
     document.addEventListener("DOMContentLoaded", function () {
         let dmcSelect = document.getElementById("dmc_id");
         let citySelect = document.getElementById("city_name");
+        if (!dmcSelect || !citySelect) {
+            return;
+        }
 
         dmcSelect.addEventListener("change", function () {
             let dmc = this.value;
