@@ -57,7 +57,8 @@
         <div class="card-body">
             <div class="alert alert-info mb-4">
                 <i class="ri-information-line me-2"></i>
-                Configure default values for your services. Each DMC can set one default for each service type (Hotel, Restaurant, Attraction, Port, Guide).
+                Configure defaults per <strong>country + city</strong> (e.g. Hotel for Singapore, Hotel for Batam / Indonesia).
+                Each service type can be set once per city. The Enquiry Form Pro applies these when that city is selected.
             </div>
 
             <div class="table-responsive text-nowrap">
@@ -65,6 +66,8 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>Country</th>
+                            <th>City</th>
                             <th>Service Type</th>
                             <th>Service Name</th>
                             <th>Status</th>
@@ -76,6 +79,8 @@
                         @forelse($defaultValues as $key => $defaultValue)
                         <tr>
                             <td>{{ ++$key }}</td>
+                            <td>{{ $defaultValue->country ?: '—' }}</td>
+                            <td>{{ $defaultValue->city ?: '—' }}</td>
                             <td>
                                 @if($defaultValue->name == 'hotel')
                                     <span class="badge bg-success"><i class="ri-hotel-line me-1"></i>Hotel</span>
@@ -122,14 +127,12 @@
                             <td>{{ $defaultValue->updated_at->format('d M Y, h:i A') }}</td>
                             <td>
                                 <div class="d-flex gap-1">
-                                    <!-- Edit -->
                                     <a href="{{ route('default-values.edit', Crypt::encrypt($defaultValue->id)) }}" 
                                        class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                        style="width: 28px; height: 28px; padding: 0;" title="Edit">
                                         <i class="ri-pencil-line" style="font-size: 16px;"></i>
                                     </a>
                                     
-                                    <!-- Delete -->
                                     <form action="{{ route('default-values.destroy', Crypt::encrypt($defaultValue->id)) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -145,15 +148,13 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="text-center">
+                            <td colspan="8" class="text-center">
                                 <div class="py-4">
                                     <i class="ri-information-line" style="font-size: 48px; color: #ccc;"></i>
                                     <p class="mt-2 mb-0">No default values configured yet.</p>
-                                    @if(!empty($availableTypes))
                                     <a href="{{ route('default-values.create') }}" class="btn btn-primary btn-sm mt-2">
                                         <i class="ri-add-line me-1"></i>Add Your First Default Value
                                     </a>
-                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -161,19 +162,6 @@
                     </tbody>
                 </table>
             </div>
-
-            @if($defaultValues->count() > 0 && $defaultValues->count() < 7)
-            <div class="mt-3">
-                <div class="alert alert-secondary">
-                    <strong>Available Types:</strong>
-                    @foreach(['hotel' => 'Hotel', 'restaurant' => 'Restaurant', 'attraction' => 'Attraction', 'port' => 'Port', 'guide' => 'Guide'] as $key => $label)
-                        @if(in_array($key, $availableTypes))
-                            <span class="badge bg-light text-dark me-1">{{ $label }}</span>
-                        @endif
-                    @endforeach
-                </div>
-            </div>
-            @endif
         </div>
     </div>
 </div>

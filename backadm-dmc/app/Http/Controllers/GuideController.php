@@ -27,6 +27,88 @@ use Illuminate\Validation\ValidationException;
 
 class GuideController extends Controller
 {
+    private function resolveDmcIdForUser(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, [11, 20], true)) {
+            return (int) $user->userId;
+        }
+        if (in_array($roleId, [35, 75, 102, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = User::where('userId', $user->created_by)->first();
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        return null;
+    }
+
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    private function getScopedCountriesForUser(User $user, ?int $dmcId = null)
+    {
+        $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
+        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+
+        $query = Country::where('is_active', 1)->orderBy('name');
+        if (!empty($masterNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
+            $query->whereIn('name', $masterNames);
+        }
+
+        return $query->get();
+    }
+
     /*
     * Display a listing of the Category.
     * Date 18-01-2025
@@ -355,15 +437,20 @@ class GuideController extends Controller
         }
 
         if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
-            $userCountry = User::where('userId', $authuser->userId)->first()->country;
-            $cities = City::where('country', $userCountry)->get();
+            $dmcId = $this->resolveDmcIdForUser($authuser);
+            $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+            $userCountry = $masterNames[0] ?? '';
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         }
         else{
             $userCountry = '';
-            $cities = [];
+            $cities = collect();
         }
+
+        $masterDmcCountries = $this->getScopedCountriesForUser($authuser);
+        $country = $masterDmcCountries->isNotEmpty() ? $masterDmcCountries : $country;
     
-        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities'));
+        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries'));
     }
 
     /*
@@ -687,26 +774,44 @@ class GuideController extends Controller
     public function fetchCitiesCountries(Request $request)
     {
         $country = null;
-        
+        $countries = [];
+
         // Check if country is passed directly
         if ($request->has('country') && !empty($request->country)) {
             $country = $request->country;
         }
-        // Otherwise, get country from DMC ID (existing functionality)
+        // Otherwise, get master-DMC countries from DMC ID
         elseif ($request->has('dmc_id') && !empty($request->dmc_id)) {
-            $dmcId = $request->dmc_id;
-            $dmc = User::where('userId', $dmcId)->first();
-            if ($dmc) {
-                $country = $dmc->country;
+            $dmcId = (int) $request->dmc_id;
+            $countries = $this->getMasterDmcCountryNamesForDmc($dmcId);
+            $country = $countries[0] ?? null;
+
+            if (!$country) {
+                $dmc = User::where('userId', $dmcId)->first();
+                if ($dmc && !empty($dmc->country)) {
+                    $countries = array_values(array_filter(array_map(
+                        static fn ($c) => trim($c),
+                        preg_split('/\s*,\s*/', (string) $dmc->country)
+                    )));
+                    $country = $countries[0] ?? null;
+                }
             }
         }
-        
+
         if (!$country) {
             return response()->json(['error' => 'Country not found'], 400);
         }
 
-        $cities = City::where('country', $country)->get();
-        return response()->json(['cities' => $cities, 'country' => $country]);
+        if (empty($countries)) {
+            $countries = [$country];
+        }
+
+        $cities = City::where('country', $country)->orderBy('name')->get();
+        return response()->json([
+            'cities' => $cities,
+            'country' => $country,
+            'countries' => $countries,
+        ]);
     }
 
     /*
@@ -720,9 +825,16 @@ class GuideController extends Controller
         }
         $id = Crypt::decrypt($id);
         $guide = Guide::where('guide_id', $id)->first();
-        $city = City::where('country', $guide->country)->get();
         $languages = GuideLanguage::where('guide_id', $id)->get();
-        $country = Country::where('is_active', 1)->get();
+        $dmcId = $guide->dmc_id ? (int) $guide->dmc_id : $this->resolveDmcIdForUser(auth()->user());
+        $masterDmcCountries = $this->getScopedCountriesForUser(auth()->user(), $dmcId);
+        $country = $masterDmcCountries->isNotEmpty()
+            ? $masterDmcCountries
+            : Country::where('is_active', 1)->orderBy('name')->get();
+        $selectedCountry = old('country', $guide->country);
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
         $languagesname = Languages::get();
 
         $authuser = auth()->user();
@@ -734,7 +846,7 @@ class GuideController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs'));
+        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs', 'masterDmcCountries', 'selectedCountry'));
     }
     /*
     * Update the Guide details.
@@ -830,6 +942,7 @@ class GuideController extends Controller
         $guide->email = $request->input('email');
         $guide->app_password = Hash::make($request->app_password);
         $guide->description = $request->input('about');
+        $guide->country = $request->input('country', $guide->country);
         $guide->city = $request->city;
         $guide->image = $guide_image;
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
