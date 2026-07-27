@@ -637,11 +637,11 @@ class DashboardController extends Controller
             }
         }
 
-        // Apply DMC filter
+        // Apply DMC filter (Master multi-country: sibling DMC tours if destination includes my country)
         if ($dmc_ids !== null) {
             $query->whereIn('dmc_id', $dmc_ids);
         } elseif ($dmc_id) {
-            $query->where('dmc_id', $dmc_id);
+            \App\Helpers\CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
         }
         
         // Get counts based on period
@@ -720,11 +720,11 @@ class DashboardController extends Controller
             }
         }
 
-        // Apply DMC filter
+        // Apply DMC filter (Master multi-country: sibling DMC tours if destination includes my country)
         if ($dmc_ids !== null) {
             $query->whereIn('dmc_id', $dmc_ids);
         } elseif ($dmc_id) {
-            $query->where('dmc_id', $dmc_id);
+            \App\Helpers\CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
         }
 
         // Get total counts based on selected period (today / week / month / all-time)

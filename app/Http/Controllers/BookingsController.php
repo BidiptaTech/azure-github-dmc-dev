@@ -506,7 +506,7 @@ class BookingsController extends Controller
 
         if($dmc_id){
             $tours = Tour::where('tour_status', 'New Enquiry')
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -595,10 +595,11 @@ class BookingsController extends Controller
             'offers.*.gross' => 'nullable|numeric|min:0',
             // Legacy single-amount fields kept optional for older clients.
             'amount' => 'nullable|numeric|min:0.01',
-            'currency' => 'nullable|string|max:10',
+            'currency' => 'required_if:action,confirm|nullable|string|max:10',
         ], [
             'offers.required_if' => 'Please enter a negotiation amount for each country.',
             'offers.*.amount.required_with' => 'Please enter a negotiation amount for each country.',
+            'currency.required_if' => 'Please select a currency before confirming the tour.',
         ]);
 
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
@@ -701,8 +702,75 @@ class BookingsController extends Controller
         }
 
         if ($action === 'confirm') {
+            $confirmCurrency = strtoupper(trim((string) ($validated['currency'] ?? '')));
+            if ($confirmCurrency === '') {
+                return back()
+                    ->withErrors(['currency' => 'Please select a currency before confirming the tour.'])
+                    ->withInput();
+            }
+
+            $offerRows = [];
+            if (! empty($validated['offers']) && is_array($validated['offers'])) {
+                $offerRows = array_values(array_map(function ($offer) {
+                    return [
+                        'country' => trim((string) ($offer['country'] ?? '')),
+                        'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                        'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                        'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                        'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                    ];
+                }, $validated['offers']));
+            } elseif (is_array($activeEnquiry?->negotiation_details) && ! empty($activeEnquiry->negotiation_details)) {
+                $offerRows = $activeEnquiry->negotiation_details;
+            } elseif (is_array($latestEnquiry?->negotiation_details) && ! empty($latestEnquiry->negotiation_details)) {
+                $offerRows = $latestEnquiry->negotiation_details;
+            }
+
+            $converted = $this->convertNegotiationOffersToCurrency($offerRows, $confirmCurrency);
+            if ($converted['error'] !== null) {
+                return back()
+                    ->withErrors(['currency' => $converted['error']])
+                    ->withInput();
+            }
+
+            $convertedGross = $converted['gross_amount'];
+            $convertedDetails = $converted['negotiation_details'];
+
+            $enquiryPayload = [
+                'status' => 2,
+                'currency' => $confirmCurrency,
+                'comment' => $validated['comment'] ?? null,
+                'gross_amount' => $convertedGross,
+                'negotiation_details' => $convertedDetails,
+                'amount' => $convertedGross,
+                'actual_amount' => $convertedGross,
+            ];
+
             if ($activeEnquiry) {
-                $activeEnquiry->update(['status' => 2]);
+                $enquiryPayload['comment'] = $validated['comment'] ?? $activeEnquiry->comment;
+                $activeEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $activeEnquiry->fresh();
+            } elseif ($latestEnquiry) {
+                $enquiryPayload['comment'] = $validated['comment'] ?? $latestEnquiry->comment;
+                $latestEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $latestEnquiry->fresh();
+            } else {
+                $confirmedEnquiry = Enquiry::create([
+                    'tour_id' => $tour->tour_id,
+                    'status' => 2,
+                    'dmcId' => $tour->dmc_id,
+                    'sender_id' => $tour->agent_id ?? ($currentUser->userId ?? 0),
+                    'sender_type' => 'agent',
+                    'receiver_id' => 0,
+                    'receiver_type' => 'OM',
+                    'current_position' => 'OM',
+                    'amount' => $convertedGross,
+                    'actual_amount' => $convertedGross,
+                    'gross_amount' => $convertedGross,
+                    'comment' => $validated['comment'] ?? '',
+                    'currency' => $confirmCurrency,
+                    'negotiation_details' => $convertedDetails,
+                ]);
             }
 
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
@@ -710,21 +778,22 @@ class BookingsController extends Controller
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
-                // Actual amount at confirmation (from active enquiry or orders total)
-                $actualAmount = $activeEnquiry?->actual_amount ?? 0;
-                if (empty($actualAmount) || $actualAmount <= 0) {
-                    $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+                $actualAmount = (float) ($confirmedEnquiry?->actual_amount ?? $convertedGross);
+                $amount = (float) ($confirmedEnquiry?->amount ?? $convertedGross);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $convertedGross > 0 ? $convertedGross : $this->calculateOrdersTotalAmount($tour->tour_id);
                 }
-                $amount = $activeEnquiry?->amount ?? $actualAmount;
+                if ($amount <= 0) {
+                    $amount = $actualAmount;
+                }
 
-                // Track status change (e.g. New Enquiry / Prospect / Tentative -> Confirmed)
                 \App\Helpers\CommonHelper::appendTourStatusTrackById(
                     (int) $tour->tour_id,
                     $oldStatus,
                     'Confirmed',
                     null,
                     $amount,
-                    $activeEnquiry?->comment ?? null,
+                    $validated['comment'] ?? ($confirmedEnquiry?->comment ?? null),
                     $actualAmount,
                     $changedByName,
                     $changedByUserId
@@ -751,6 +820,100 @@ class BookingsController extends Controller
         }
 
         return back()->with('error', 'Unsupported action requested.');
+    }
+
+    /**
+     * Convert each country's last negotiated amount into the selected currency,
+     * attach conversion_rate + date_of_conversion on every row, and return the summed total.
+     *
+     * @param  array<int, array<string, mixed>>  $offers
+     * @return array{gross_amount: float, negotiation_details: array<int, array<string, mixed>>, error: string|null}
+     */
+    private function convertNegotiationOffersToCurrency(array $offers, string $targetCurrency): array
+    {
+        $targetCurrency = strtoupper(trim($targetCurrency));
+        $conversionDate = now()->toDateTimeString();
+        $enriched = [];
+        $convertedTotal = 0.0;
+        $rateCache = [];
+
+        if ($targetCurrency === '') {
+            return [
+                'gross_amount' => 0.0,
+                'negotiation_details' => [],
+                'error' => 'Please select a currency before confirming the tour.',
+            ];
+        }
+
+        if (empty($offers)) {
+            return [
+                'gross_amount' => 0.0,
+                'negotiation_details' => [],
+                'error' => 'No negotiated country amounts were found to convert.',
+            ];
+        }
+
+        foreach ($offers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+
+            $fromCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+            $country = trim((string) ($offer['country'] ?? ''));
+            $amount = round((float) ($offer['amount'] ?? 0), 2);
+            $actualAmount = round((float) ($offer['actual_amount'] ?? 0), 2);
+            $gross = round((float) ($offer['gross'] ?? 0), 2);
+
+            if ($fromCurrency === '' || $amount <= 0) {
+                return [
+                    'gross_amount' => 0.0,
+                    'negotiation_details' => [],
+                    'error' => 'Each country must have a valid negotiated amount and currency before confirmation.',
+                ];
+            }
+
+            if (! array_key_exists($fromCurrency, $rateCache)) {
+                $rate = CurrencyHelper::getExchangeRate($fromCurrency, $targetCurrency);
+                if ($rate === null || $rate <= 0) {
+                    return [
+                        'gross_amount' => 0.0,
+                        'negotiation_details' => [],
+                        'error' => 'Unable to fetch exchange rate from ' . $fromCurrency . ' to ' . $targetCurrency . '.',
+                    ];
+                }
+                $rateCache[$fromCurrency] = (float) $rate;
+            }
+
+            $conversionRate = $rateCache[$fromCurrency];
+            $convertedAmount = round($amount * $conversionRate, 2);
+            $convertedTotal += $convertedAmount;
+
+            $enriched[] = [
+                'country' => $country !== '' ? $country : $fromCurrency,
+                'currency' => $fromCurrency,
+                'amount' => $amount,
+                'actual_amount' => $actualAmount,
+                'gross' => $gross,
+                'conversion_rate' => round($conversionRate, 8),
+                'date_of_conversion' => $conversionDate,
+                'converted_amount' => $convertedAmount,
+                'target_currency' => $targetCurrency,
+            ];
+        }
+
+        if (empty($enriched)) {
+            return [
+                'gross_amount' => 0.0,
+                'negotiation_details' => [],
+                'error' => 'No negotiated country amounts were found to convert.',
+            ];
+        }
+
+        return [
+            'gross_amount' => round($convertedTotal, 2),
+            'negotiation_details' => $enriched,
+            'error' => null,
+        ];
     }
 
     private function calculateOrdersTotalAmount(int $tourId): float
@@ -884,7 +1047,7 @@ class BookingsController extends Controller
     //                 'enquiry_comments.created_at as enquiry_comment_created_at',
     //                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
     //             ])
-    //             ->where('tours.dmc_id', $dmc_id)
+    //             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
     //             ->orderBy('tours.created_at', 'desc')
     //             ->paginate(15);
 
@@ -955,6 +1118,7 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -1025,10 +1189,11 @@ class BookingsController extends Controller
                     'dmc_user.company_code as dmc_company_code',
                     'created_by_user.user_code as created_by_user_code',
                 ])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
             $this->formatToursDisplayId($tours);
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
@@ -1169,7 +1334,7 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1308,6 +1473,24 @@ class BookingsController extends Controller
                 ->toArray();
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
             }
         }
 
@@ -1473,7 +1656,7 @@ class BookingsController extends Controller
                 $query->where('tours.tour_status', 'Definite');
                     // ->orWhereDate('tours.updated_at', $today);
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1611,6 +1794,24 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
@@ -1698,7 +1899,7 @@ class BookingsController extends Controller
                 }
             ])
                 ->whereIn('tour_status', ['Actual', 'Complete'])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1839,6 +2040,24 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         $this->hydrateDestinationCreatedAt($tours);
@@ -1919,7 +2138,7 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2071,7 +2290,7 @@ class BookingsController extends Controller
                     $query->orWhereIn('tours.tour_id', $refundTourIds);
                 }
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2398,14 +2617,33 @@ class BookingsController extends Controller
      */
     public function getBookingStats()
     {
+        $user = Auth::user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        if (!$dmc_id && $user && (int) ($user->role_id ?? 0) === 11) {
+            $dmc_id = $user->userId;
+        }
+
+        $countStatus = function ($status) use ($dmc_id, $user) {
+            $query = Tour::query();
+            if (is_array($status)) {
+                $query->whereIn('tour_status', $status);
+            } else {
+                $query->where('tour_status', $status);
+            }
+            if ($dmc_id) {
+                CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
+            }
+            return $query->count();
+        };
+
         $stats = [
-            'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
-            'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
-            'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
-            'definite' => Tour::where('tour_status', 'Definite')->count(),
-            'actual' => Tour::where('tour_status', 'Actual')->count(),
-            'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),
+            'new_enquiries' => $countStatus('New Enquiry'),
+            'follow_ups' => $countStatus('Prospect'),
+            'tentative' => $countStatus('Tentative'),
+            'confirmed' => $countStatus('Confirmed'),
+            'definite' => $countStatus('Definite'),
+            'actual' => $countStatus('Actual'),
+            'cancelled' => $countStatus('Cancelled'),
         ];
 
         return response()->json($stats);
