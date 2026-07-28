@@ -31,6 +31,9 @@ use Illuminate\Support\Facades\Auth;
 
 class EnquiryFormPro extends Controller
 {
+    /** Fallback country CSV while creating/updating Pro orders (multi-country discount geo). */
+    private ?string $proOrderGeoFallback = null;
+
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
@@ -71,46 +74,174 @@ class EnquiryFormPro extends Controller
     }
 
     /**
-     * Country names accessible to this DMC (master_dmc users' country column, then DMC user fallback).
+     * Country names from the operating DMC's master-DMC profile (comma-separated users.country).
+     * Same business rule as Single Tour Lite (CityController::ajaxCities / ZoneController).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
+     * Countries available to sales/DMC for Pro destination pickers (master-DMC countries + cities).
      */
     private function getAccessibleCountryNames(User $user, ?int $dmcId = null): array
     {
-        $countryNames = [];
-        $masterDmcId = $user->master_dmc_id;
+        $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
 
-        if ($masterDmcId) {
-            $usersWithMasterDmc = User::where('master_dmc_id', $masterDmcId)
-                ->whereNotNull('country')
-                ->get();
+        if ($dmcId) {
+            $fromMaster = $this->getMasterDmcCountryNamesForDmc((int) $dmcId);
+            if (!empty($fromMaster)) {
+                return $fromMaster;
+            }
+        }
 
-            foreach ($usersWithMasterDmc as $userItem) {
-                if ($userItem->country) {
-                    $countryNames = array_merge(
-                        $countryNames,
-                        array_map('trim', explode(',', $userItem->country))
-                    );
+        if (!empty($user->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $user->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
+     * Resolve order country + currency from a service JSON row (multi-country / multi-city discount buckets).
+     *
+     * @return array{country: ?string, currency: ?string, city: ?string}
+     */
+    private function resolveOrderGeoFromServicePayload(array $payload, ?string $fallbackDestination = null): array
+    {
+        $cityCandidates = [
+            $payload['city'] ?? null,
+            $payload['destination'] ?? null,
+            $payload['hotelCity'] ?? null,
+            $payload['hotel_city'] ?? null,
+            $payload['location'] ?? null,
+            $payload['AttractionCity'] ?? null,
+            (is_array($payload['hotelDetails'] ?? null) ? ($payload['hotelDetails']['location'] ?? null) : null),
+        ];
+        $city = null;
+        foreach ($cityCandidates as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate === '') {
+                continue;
+            }
+            // Header may send multi-city CSV â€” take first segment that maps to a city row.
+            foreach (preg_split('/\s*,\s*/', $candidate) as $part) {
+                $part = trim((string) $part);
+                if ($part === '') {
+                    continue;
+                }
+                if (City::where('name', $part)->exists()) {
+                    $city = $part;
+                    break 2;
+                }
+                if ($city === null) {
+                    $city = $part;
                 }
             }
         }
 
-        if (empty($countryNames) && $dmcId) {
-            $dmcUser = User::where('userId', $dmcId)->first();
-            if ($dmcUser && $dmcUser->country) {
-                $countryNames = array_merge(
-                    $countryNames,
-                    array_map('trim', explode(',', $dmcUser->country))
-                );
-            }
+        $country = trim((string) ($payload['country'] ?? ''));
+        // Reject city-CSV mistakenly stored as country
+        if ($country !== '' && (str_contains($country, ',') || City::where('name', $country)->exists())) {
+            $country = '';
         }
-
-        if (empty($countryNames) && $user->country) {
-            $countryNames = array_merge(
-                $countryNames,
-                array_map('trim', explode(',', $user->country))
+        if ($country === '' && $city) {
+            $country = (string) (City::where('name', $city)->value('country') ?? '');
+        }
+        if ($country === '' && $fallbackDestination) {
+            $fromFallback = $this->resolveCountriesFromCityOrCountryNames(
+                array_values(array_filter(array_map('trim', preg_split('/\s*,\s*/', $fallbackDestination))))
             );
+            $country = $fromFallback[0] ?? '';
         }
 
-        return array_values(array_unique(array_filter($countryNames)));
+        $currency = trim((string) ($payload['currency'] ?? ''));
+        if ($currency === '' && $country !== '') {
+            $currency = strtoupper(trim((string) (Country::where('name', $country)->value('currency') ?? '')));
+        }
+
+        return [
+            'country' => $country !== '' ? $country : null,
+            'currency' => $currency !== '' ? $currency : null,
+            'city' => $city,
+        ];
+    }
+
+    /**
+     * Create an enquiry order with country/currency set for multi-country negotiation discounts.
+     */
+    private function createEnquiryProOrder(array $attributes, ?string $fallbackDestination = null): Order
+    {
+        $data = $attributes['data'] ?? [];
+        $first = (is_array($data) && isset($data[0]) && is_array($data[0])) ? $data[0] : [];
+        $geo = $this->resolveOrderGeoFromServicePayload(
+            $first,
+            $fallbackDestination ?? $this->proOrderGeoFallback
+        );
+
+        if (!empty($first)) {
+            if (empty($first['country']) || str_contains((string) $first['country'], ',') || City::where('name', trim((string) ($first['country'] ?? '')))->exists()) {
+                if (!empty($geo['country'])) {
+                    $first['country'] = $geo['country'];
+                }
+            }
+            if (empty($first['city']) && !empty($geo['city'])) {
+                $first['city'] = $geo['city'];
+            }
+            if (!empty($geo['currency'])) {
+                $first['currency'] = $geo['currency'];
+            }
+            $attributes['data'] = [$first];
+        }
+
+        $attributes['country'] = $geo['country'];
+        $attributes['currency'] = $geo['currency'];
+
+        return Order::create($attributes);
     }
 
     /**
@@ -128,6 +259,41 @@ class EnquiryFormPro extends Controller
     }
 
     /**
+     * Build flat + city-scoped default value maps for Enquiry Form Pro.
+     * City-specific rows override legacy rows that have no city set.
+     *
+     * @return array{0: array<string,string>, 1: array<string,array<string,string>>}
+     */
+    private function buildDefaultValuesMaps($dmcId): array
+    {
+        $defaultValues = [];
+        $defaultValuesByCity = [];
+
+        if (!$dmcId) {
+            return [$defaultValues, $defaultValuesByCity];
+        }
+
+        $defaults = \App\Models\DefaultValue::where('dmc_id', $dmcId)
+            ->where('status', 1)
+            ->get();
+
+        foreach ($defaults as $default) {
+            $city = trim((string) ($default->city ?? ''));
+            if ($city !== '') {
+                if (!isset($defaultValuesByCity[$city])) {
+                    $defaultValuesByCity[$city] = [];
+                }
+                $defaultValuesByCity[$city][$default->name] = $default->service_id;
+            } else {
+                // Legacy global fallback (no country/city)
+                $defaultValues[$default->name] = $default->service_id;
+            }
+        }
+
+        return [$defaultValues, $defaultValuesByCity];
+    }
+
+    /**
      * Map city name => country name for client-side filtering.
      */
     private function buildCityCountryMap(array $countryNames): array
@@ -139,6 +305,28 @@ class EnquiryFormPro extends Controller
         return City::whereIn('country', $countryNames)
             ->pluck('country', 'name')
             ->toArray();
+    }
+
+    /**
+     * Map country name => currency code from countries table.
+     */
+    private function buildCountryCurrencyMap(array $countryNames = []): array
+    {
+        $query = Country::query()->whereNotNull('currency')->where('currency', '!=', '');
+        if (!empty($countryNames)) {
+            $query->whereIn('name', $countryNames);
+        }
+
+        $map = [];
+        foreach ($query->get(['name', 'currency']) as $row) {
+            $name = trim((string) ($row->name ?? ''));
+            $currency = strtoupper(trim((string) ($row->currency ?? '')));
+            if ($name !== '' && $currency !== '') {
+                $map[$name] = $currency;
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -404,15 +592,24 @@ class EnquiryFormPro extends Controller
                 }
                 $userCountries = array_unique($userCountries);
             }
+
+            // Same country scope as ports (header cities) + master-DMC user countries
+            $serviceCountries = array_values(array_unique(array_filter(array_merge(
+                $userCountries ?? [],
+                $countryNames ?? []
+            ))));
             
             // Filter attractions by DMC ID and accessible countries
-            $attractionsQuery = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
+            $attractionsQuery = Attraction::where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
                 ->where('status', 1)
                 ->where('is_active', 1);
             
-            // Apply country filter if we have user countries
-            if (!empty($userCountries)) {
-                $attractionsQuery->whereIn('country', $userCountries);
+            // Apply country filter if we have accessible countries
+            if (!empty($serviceCountries)) {
+                $attractionsQuery->whereIn('country', $serviceCountries);
             }
             
             $attractions = $attractionsQuery
@@ -428,7 +625,7 @@ class EnquiryFormPro extends Controller
             
             \Log::info('EnquiryFormPro create() - Attractions loaded', [
                 'dmc_id' => $dmc_id,
-                'filtered_by_countries' => $userCountries,
+                'filtered_by_countries' => $serviceCountries,
                 'count' => $attractions->count(),
                 'attraction_ids' => $attractions->pluck('attraction_id')->toArray(),
                 'attraction_names' => $attractions->pluck('name')->toArray(),
@@ -436,13 +633,16 @@ class EnquiryFormPro extends Controller
             ]);
             
             // Get restaurants for this DMC with city info (restaurants have 'city' field)
-            $restaurantsQuery = Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
+            $restaurantsQuery = Restaurant::where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
                 ->where('status', 1)
                 ->where('is_active', 1);
             
-            // Apply country filter if we have user countries
-            if (!empty($userCountries)) {
-                $restaurantsQuery->whereIn('country', $userCountries);
+            // Apply country filter if we have accessible countries
+            if (!empty($serviceCountries)) {
+                $restaurantsQuery->whereIn('country', $serviceCountries);
             }
             
             $restaurants = $restaurantsQuery
@@ -459,7 +659,7 @@ class EnquiryFormPro extends Controller
             
             \Log::info('EnquiryFormPro create() - Restaurants loaded', [
                 'dmc_id' => $dmc_id,
-                'filtered_by_countries' => $userCountries,
+                'filtered_by_countries' => $serviceCountries,
                 'count' => $restaurants->count(),
                 'restaurant_ids' => $restaurants->pluck('restaurant_id')->toArray(),
                 'restaurant_names' => $restaurants->pluck('name')->toArray(),
@@ -502,14 +702,17 @@ class EnquiryFormPro extends Controller
             $hotelsQuery = Hotel::where('status', 1)
                 ->where('is_active', 1)
                 ->where('is_complete', 1)
-                ->whereJsonContains('dmc_id', (int) $dmc_id)
+                ->where(function ($q) use ($dmc_id) {
+                    $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                      ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+                })
                 ->whereNotNull('hotel_unique_id')
                 ->where('hotel_unique_id', '!=', '')
                 ->where('hotel_unique_id', '!=', '0');
             
-            // Apply country filter if we have user countries
-            if (!empty($userCountries)) {
-                $hotelsQuery->whereIn('country', $userCountries);
+            // Apply country filter (same scope as ports)
+            if (!empty($serviceCountries)) {
+                $hotelsQuery->whereIn('country', $serviceCountries);
             }
             
             $hotels = $hotelsQuery
@@ -524,7 +727,7 @@ class EnquiryFormPro extends Controller
             
             \Log::info('EnquiryFormPro create() - Hotels loaded', [
                 'dmc_id' => $dmc_id,
-                'filtered_by_countries' => $userCountries,
+                'filtered_by_countries' => $serviceCountries,
                 'count' => $hotels->count(),
                 'hotel_names' => $hotels->pluck('name')->toArray(),
                 'hotel_countries' => $hotels->pluck('country')->unique()->toArray()
@@ -533,7 +736,7 @@ class EnquiryFormPro extends Controller
             // Get vehicles for this DMC
             $vehicles = Vehicle::where('dmc_id', $dmc_id)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable', 'city')
                 ->orderBy('vehicle_type')
                 ->get();
             
@@ -610,32 +813,24 @@ class EnquiryFormPro extends Controller
             
             // Get all vehicles (fallback)
             $vehicles = Vehicle::where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+                ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable', 'city')
                 ->orderBy('vehicle_type')
                 ->get();
         }
         
         // City => country map for client-side filtering (scoped to DMC countries)
         $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
+        $countryCurrencyMap = $this->buildCountryCurrencyMap($countryNamesList);
         
-        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
-        $defaultValues = [];
-        if ($dmc_id) {
-            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
-                ->where('status', 1)
-                ->get();
-            
-            foreach ($defaults as $default) {
-                $defaultValues[$default->name] = $default->service_id;
-            }
-        }
+        // Default values: city-scoped + legacy flat fallback (rows without city)
+        [$defaultValues, $defaultValuesByCity] = $this->buildDefaultValuesMaps($dmc_id);
         
         // Add flags for create mode
         $isEditMode = false;
         $tourId = null;
         $existingOrders = collect(); // Empty collection for create mode
         
-        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'cities', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'defaultValues', 'isEditMode', 'tourId', 'existingOrders'));
+        return view('enquiryform_pro.create', compact('destination', 'agents', 'agencies', 'user', 'countries', 'cities', 'ports', 'destinations', 'attractions', 'restaurants', 'initialData', 'meals', 'guides', 'dmc_id', 'hotels', 'vehicles', 'master_dmc_destinations', 'cityCountryMap', 'countryCurrencyMap', 'defaultValues', 'defaultValuesByCity', 'isEditMode', 'tourId', 'existingOrders'));
     }
     
     /**
@@ -680,9 +875,11 @@ class EnquiryFormPro extends Controller
             if (is_array($destinations) && count($destinations) > 0) {
                 $validated['destinations_array'] = $destinations;
                 $validated['destination_display'] = implode(', ', $destinations);
+                $validated['city_type'] = count($destinations) > 1 ? 'multi' : 'single';
             } else {
                 // Fallback if JSON decode fails
                 $validated['destination_display'] = $request->destination_single ?? '';
+                $validated['city_type'] = 'single';
             }
         } else {
             // Single destination mode
@@ -691,6 +888,7 @@ class EnquiryFormPro extends Controller
             if ($request->destination_single) {
                 $validated['destinations_array'] = [$request->destination_single];
             }
+            $validated['city_type'] = 'single';
         }
         
         // Add agency and agent names
@@ -727,7 +925,7 @@ class EnquiryFormPro extends Controller
             }
         }
         
-        // DMC-only list (same as Single Tour Package create) — no destination/country filter
+        // DMC-only list (same as Single Tour Package create) â€” no destination/country filter
         if ($request->boolean('by_dmc')) {
             $agenciesQuery = Agency::where('status', 1);
             if ($dmc_id) {
@@ -799,7 +997,7 @@ class EnquiryFormPro extends Controller
     }
     
     /**
-     * Get cities for popup/header (AJAX) — scoped to DMC accessible countries.
+     * Get cities for popup/header (AJAX) â€” scoped to DMC accessible countries.
      */
     public function getDestinations(Request $request)
     {
@@ -819,6 +1017,7 @@ class EnquiryFormPro extends Controller
         return response()->json([
             'success' => true,
             'destinations' => $destinations,
+            'countries' => $countryNames,
             'master_dmc_id' => $user->master_dmc_id,
         ]);
     }
@@ -958,7 +1157,10 @@ class EnquiryFormPro extends Controller
         
         // Filter by DMC if available
         if ($dmc_id) {
-            $hotelsQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+            $hotelsQuery->where(function ($q) use ($dmc_id) {
+                $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+            });
         }
         
         $hotels = $hotelsQuery->orderBy('name', 'asc')->get();
@@ -1103,7 +1305,10 @@ class EnquiryFormPro extends Controller
             ->where('location', $destination);
         
         if ($dmc_id) {
-            $attractionsQuery->whereJsonContains('dmc_id', (int) $dmc_id);
+            $attractionsQuery->where(function ($q) use ($dmc_id) {
+                $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+            });
         }
         
         $attractions = $attractionsQuery
@@ -1310,7 +1515,7 @@ class EnquiryFormPro extends Controller
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
             $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
             
-            // Generate tour ID — must include soft-deleted tours so IDs are never reused
+            // Generate tour ID â€” must include soft-deleted tours so IDs are never reused
             // (reusing tour_id orphans/mixes orders from the old soft-deleted tour with the new one)
             // $max_tour_id = (int) (Tour::withTrashed()->max('tour_id') ?? 0);
             // $tourId = CommonHelper::createId($max_tour_id);
@@ -1382,6 +1587,7 @@ class EnquiryFormPro extends Controller
                 $destinationValue = trim($parts[0]);
             }
             $tour->destination = mb_substr($destinationValue, 0, 191);
+            $this->proOrderGeoFallback = $destinationValue;
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -1394,6 +1600,12 @@ class EnquiryFormPro extends Controller
             // $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $cityValue !== '' ? mb_substr($cityValue, 0, 191) : ($request->city ?? null);
+            // Lite parity: single vs multi city booking flow
+            $cityCount = $cityValue !== ''
+                ? count(array_values(array_filter(array_map('trim', explode(',', $cityValue)))))
+                : 0;
+            $tour->city_type = $request->input('city_type')
+                ?: ($cityCount > 1 ? 'multi' : 'single');
             $tour->dmc_id = $dmcId;
             // child_ages: default to '[]' (matches existing JSON-array convention) when not provided
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
@@ -1560,7 +1772,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $entryPort['tour_id'] = $tourId;
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -1637,7 +1849,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $exitPort['tour_id'] = $tourId;
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -1677,7 +1889,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $accommodation['tour_id'] = $tourId;
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -1729,7 +1941,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $tourItem['tour_id'] = $tourId;
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -1943,7 +2155,7 @@ class EnquiryFormPro extends Controller
                     // Add tour_id to the JSON data
                     $meal['tour_id'] = $tourId;
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -2213,7 +2425,7 @@ class EnquiryFormPro extends Controller
                     
                     // $bookingId = $this->generateBookingId();
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -2247,7 +2459,7 @@ class EnquiryFormPro extends Controller
                     
                     // $bookingId = $this->generateBookingId();    
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -2281,7 +2493,7 @@ class EnquiryFormPro extends Controller
                     
                     // $bookingId = $this->generateBookingId();    
                     
-                    $order = Order::create([
+                    $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
                         'agent_id' => $request->agent_id,
                         'tour_id' => $tourId,
@@ -2360,7 +2572,7 @@ class EnquiryFormPro extends Controller
     }
     
     /**
-     * Generate unique booking ID (must include soft-deleted rows or IDs get reused → duplicate rows / unique violations).
+     * Generate unique booking ID (must include soft-deleted rows or IDs get reused â†’ duplicate rows / unique violations).
      */
     // private function generateBookingId()
     // {
@@ -2424,139 +2636,107 @@ class EnquiryFormPro extends Controller
                 }
             }
             
-            // Extract zone_id from zone_assignments for hotels, attractions, and restaurants
-            $fromZoneId = $pickupId;
-            $toZoneId = $dropId;
+            // Extract zone_id candidates from zone_assignments for hotels, attractions, and restaurants.
+            // Prefer DMC-specific zone, then fall back to other assigned zones that may hold shared mappings.
+            $fromZoneCandidates = [(string) $pickupId];
+            $toZoneCandidates = [(string) $dropId];
 
-            // If caller already passed a zone_id (DMC-specific), prefer it and skip entity->zone conversion.
-            // This prevents mismatches when IDs overlap (e.g., attraction_id "42" vs zone_id "42") and allows
-            // create/edit screens to use zone IDs directly when they already have them.
-            $pickupIsZoneId = false;
-            $dropIsZoneId = false;
-            if ($dmcId && $fromZoneType && $fromZoneType !== 'Port') {
-                $fromZoneExists = Zone::where('zone_id', (string) $pickupId)
-                    ->where('dmc_id', (string) $dmcId)
-                    ->whereRaw('LOWER(TRIM(zone_type)) = ?', [strtolower($fromZoneType)])
-                    ->exists();
-                if ($fromZoneExists) {
-                    $fromZoneId = (string) $pickupId;
-                    $pickupIsZoneId = true;
-                    \Log::info('Using pickup_id directly as zone_id (zone exists for DMC)', [
-                        'pickup_id' => $pickupId,
-                        'from_zone_id' => $fromZoneId,
-                        'from_zone_type' => $fromZoneType,
-                        'dmc_id' => $dmcId
-                    ]);
+            $resolveEntityZoneCandidates = function (string $zoneType, $entityId, $dmcId) {
+                $entityId = (string) $entityId;
+                if ($zoneType === 'Hotel') {
+                    $hotel = \App\Models\Hotel::where('hotel_unique_id', $entityId)->first();
+                    if ($hotel) {
+                        return $hotel->getZoneCandidatesForDmc($dmcId);
+                    }
+                    // Caller may have passed a zone_id directly
+                    return $entityId !== '' ? [$entityId] : [];
                 }
+                if ($zoneType === 'Attraction') {
+                    $attraction = \App\Models\Attraction::where('attraction_id', $entityId)->first();
+                    if ($attraction) {
+                        return $attraction->getZoneCandidatesForDmc($dmcId);
+                    }
+                    return $entityId !== '' ? [$entityId] : [];
+                }
+                if ($zoneType === 'Restaurant') {
+                    $restaurant = \App\Models\Restaurant::where('restaurant_id', $entityId)->first();
+                    if ($restaurant) {
+                        return $restaurant->getZoneCandidatesForDmc($dmcId);
+                    }
+                    return $entityId !== '' ? [$entityId] : [];
+                }
+                return $entityId !== '' ? [$entityId] : [];
+            };
+
+            // If caller passed a raw numeric zone_id, keep it first in the candidate list.
+            // Skip hotel_unique_id / attraction_id / restaurant_id (non-integer) — those crash
+            // PG when zones.zone_id is integer, and entity resolution already handled them.
+            $prependIfZone = function (array $candidates, $maybeZoneId, $zoneType, $dmcId) {
+                if (!$dmcId || !$zoneType || $zoneType === 'Port') {
+                    return $candidates;
+                }
+                $maybeZoneId = trim((string) $maybeZoneId);
+                if ($maybeZoneId === '' || !ctype_digit($maybeZoneId)) {
+                    return $candidates;
+                }
+                $exists = Zone::where('zone_id', $maybeZoneId)
+                    ->where('dmc_id', (string) $dmcId)
+                    ->whereRaw('LOWER(TRIM(zone_type)) = ?', [strtolower($zoneType)])
+                    ->exists();
+                if (!$exists) {
+                    return $candidates;
+                }
+                return array_values(array_unique(array_merge([$maybeZoneId], $candidates)));
+            };
+
+            if ($fromZoneType && $fromZoneType !== 'Port' && $dmcId) {
+                $fromZoneCandidates = $resolveEntityZoneCandidates($fromZoneType, $pickupId, $dmcId);
+                $fromZoneCandidates = $prependIfZone($fromZoneCandidates, $pickupId, $fromZoneType, $dmcId);
+            } else {
+                $fromZoneCandidates = [(string) $pickupId];
             }
 
-            if ($dmcId && $toZoneType && $toZoneType !== 'Port') {
-                $toZoneExists = Zone::where('zone_id', (string) $dropId)
-                    ->where('dmc_id', (string) $dmcId)
-                    ->whereRaw('LOWER(TRIM(zone_type)) = ?', [strtolower($toZoneType)])
-                    ->exists();
-                if ($toZoneExists) {
-                    $toZoneId = (string) $dropId;
-                    $dropIsZoneId = true;
-                    \Log::info('Using drop_id directly as zone_id (zone exists for DMC)', [
-                        'drop_id' => $dropId,
-                        'to_zone_id' => $toZoneId,
-                        'to_zone_type' => $toZoneType,
-                        'dmc_id' => $dmcId
-                    ]);
-                }
+            if ($toZoneType && $toZoneType !== 'Port' && $dmcId) {
+                $toZoneCandidates = $resolveEntityZoneCandidates($toZoneType, $dropId, $dmcId);
+                $toZoneCandidates = $prependIfZone($toZoneCandidates, $dropId, $toZoneType, $dmcId);
+            } else {
+                $toZoneCandidates = [(string) $dropId];
             }
-            
-            // For hotels: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Hotel' && $dmcId && !$pickupIsZoneId) {
-                $hotel = \App\Models\Hotel::where('hotel_unique_id', $pickupId)->first();
-                if ($hotel) {
-                    $zoneId = $hotel->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $fromZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for pickup hotel', ['hotel_unique_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            if ($toZoneType === 'Hotel' && $dmcId && !$dropIsZoneId) {
-                $hotel = \App\Models\Hotel::where('hotel_unique_id', $dropId)->first();
-                if ($hotel) {
-                    $zoneId = $hotel->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $toZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for drop hotel', ['hotel_unique_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            // For attractions: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Attraction' && $dmcId && !$pickupIsZoneId) {
-                $attraction = \App\Models\Attraction::where('attraction_id', $pickupId)->first();
-                if ($attraction) {
-                    $zoneId = $attraction->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $fromZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for pickup attraction', ['attraction_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            if ($toZoneType === 'Attraction' && $dmcId && !$dropIsZoneId) {
-                $attraction = \App\Models\Attraction::where('attraction_id', $dropId)->first();
-                if ($attraction) {
-                    $zoneId = $attraction->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $toZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for drop attraction', ['attraction_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            // For restaurants: extract zone_id from zone_assignments
-            if ($fromZoneType === 'Restaurant' && $dmcId && !$pickupIsZoneId) {
-                $restaurant = \App\Models\Restaurant::where('restaurant_id', $pickupId)->first();
-                if ($restaurant) {
-                    $zoneId = $restaurant->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $fromZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for pickup restaurant', ['restaurant_id' => $pickupId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            if ($toZoneType === 'Restaurant' && $dmcId && !$dropIsZoneId) {
-                $restaurant = \App\Models\Restaurant::where('restaurant_id', $dropId)->first();
-                if ($restaurant) {
-                    $zoneId = $restaurant->getZoneForDmc($dmcId);
-                    if ($zoneId) {
-                        $toZoneId = $zoneId;
-                        \Log::info('Extracted zone_id for drop restaurant', ['restaurant_id' => $dropId, 'zone_id' => $zoneId, 'dmc_id' => $dmcId]);
-                    }
-                }
-            }
-            
-            // For ports: port_id is used directly as zone_id (no conversion needed)
+
+            // Keep only numeric zone/port IDs for vehicle_zone_mappings lookup
+            $onlyZoneIds = function (array $ids) {
+                return array_values(array_filter(array_map('strval', $ids), function ($id) {
+                    $id = trim($id);
+                    return $id !== '' && ctype_digit($id);
+                }));
+            };
+            $fromZoneCandidates = $onlyZoneIds($fromZoneCandidates);
+            $toZoneCandidates = $onlyZoneIds($toZoneCandidates);
+
+            $fromZoneId = $fromZoneCandidates[0] ?? (string) $pickupId;
+            $toZoneId = $toZoneCandidates[0] ?? (string) $dropId;
             
             // Log the final zone IDs being used for lookup
             \Log::info('Final zone IDs for vehicle_zone_mappings lookup', [
                 'vehicle_id' => $vehicleId,
                 'from_zone_id' => $fromZoneId,
                 'to_zone_id' => $toZoneId,
+                'from_zone_candidates' => $fromZoneCandidates,
+                'to_zone_candidates' => $toZoneCandidates,
                 'from_zone_type' => $fromZoneType,
                 'to_zone_type' => $toZoneType,
                 'dmc_id' => $dmcId
             ]);
             
             // If we couldn't extract zone_id for hotels/attractions/restaurants, return zero prices
-            if (($fromZoneType !== 'Port' && !$fromZoneId) || ($toZoneType !== 'Port' && !$toZoneId)) {
+            if (($fromZoneType !== 'Port' && empty($fromZoneCandidates)) || ($toZoneType !== 'Port' && empty($toZoneCandidates))) {
                 \Log::warning('Could not extract zone_id for non-port location', [
                     'pickup_id' => $pickupId,
                     'drop_id' => $dropId,
                     'pickup_type' => $pickupType,
                     'drop_type' => $dropType,
-                    'from_zone_id' => $fromZoneId,
-                    'to_zone_id' => $toZoneId,
+                    'from_zone_candidates' => $fromZoneCandidates,
+                    'to_zone_candidates' => $toZoneCandidates,
                     'dmc_id' => $dmcId
                 ]);
                 
@@ -2596,86 +2776,104 @@ class EnquiryFormPro extends Controller
             
             // Normalize to strings (PGSQL: these columns are often varchar)
             $vehicleId = (string) $vehicleId;
-            $fromZoneId = (string) $fromZoneId;
-            $toZoneId = (string) $toZoneId;
+            $fromZoneCandidates = array_map('strval', $fromZoneCandidates);
+            $toZoneCandidates = array_map('strval', $toZoneCandidates);
 
             // Normalize zone types for safe matching (case-insensitive compare in query)
             $fromZoneTypeNorm = $fromZoneType ? strtolower(trim($fromZoneType)) : null;
             $toZoneTypeNorm = $toZoneType ? strtolower(trim($toZoneType)) : null;
 
-            // Query vehicle_zone_mappings with bidirectional check using extracted zone_ids
-            // Match SingleTourPackageController logic: check zone_id AND zone_type, also check deleted_at
-            // For port-to-port transfers: Since ports don't have DMC-specific zones, we rely on the vehicle's DMC ownership
-            $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
-                ->whereNull('deleted_at')
-                ->where(function ($query) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
-                    // Case 1: from = pickup, to = drop
-                    $query->where(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
-                        $q->where('from_zone_id', $fromZoneId)
-                            ->where('to_zone_id', $toZoneId);
-
-                        if ($fromZoneTypeNorm) {
-                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$fromZoneTypeNorm]);
-                        }
-                        if ($toZoneTypeNorm) {
-                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$toZoneTypeNorm]);
-                        }
-                    })
-                    // Case 2: from = drop, to = pickup (bidirectional)
-                    ->orWhere(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
-                        $q->where('from_zone_id', $toZoneId)
-                            ->where('to_zone_id', $fromZoneId);
-
-                        if ($fromZoneTypeNorm && $toZoneTypeNorm) {
-                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm])
-                                ->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
-                        } elseif ($toZoneTypeNorm) {
-                            $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm]);
-                        } elseif ($fromZoneTypeNorm) {
-                            $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
-                        }
-                    });
-                })
-                ->orderByDesc('updated_at')
-                ->orderByDesc('id')
-                ->first();
-
-            // Fallback: if strict type matching fails, try ID-only bidirectional match.
-            // Some legacy rows may have inconsistent from/to types or casing/spacing.
-            if (!$mapping) {
+            $findMappingForPair = function ($fromZoneId, $toZoneId) use ($vehicleId, $fromZoneTypeNorm, $toZoneTypeNorm) {
                 $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
                     ->whereNull('deleted_at')
-                    ->where(function ($q) use ($fromZoneId, $toZoneId) {
-                        $q->where(function ($qq) use ($fromZoneId, $toZoneId) {
-                            $qq->where('from_zone_id', $fromZoneId)->where('to_zone_id', $toZoneId);
-                        })->orWhere(function ($qq) use ($fromZoneId, $toZoneId) {
-                            $qq->where('from_zone_id', $toZoneId)->where('to_zone_id', $fromZoneId);
+                    ->where(function ($query) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
+                        $query->where(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
+                            $q->where('from_zone_id', $fromZoneId)
+                                ->where('to_zone_id', $toZoneId);
+                            if ($fromZoneTypeNorm) {
+                                $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$fromZoneTypeNorm]);
+                            }
+                            if ($toZoneTypeNorm) {
+                                $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$toZoneTypeNorm]);
+                            }
+                        })
+                        ->orWhere(function ($q) use ($fromZoneId, $toZoneId, $fromZoneTypeNorm, $toZoneTypeNorm) {
+                            $q->where('from_zone_id', $toZoneId)
+                                ->where('to_zone_id', $fromZoneId);
+                            if ($fromZoneTypeNorm && $toZoneTypeNorm) {
+                                $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm])
+                                    ->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
+                            } elseif ($toZoneTypeNorm) {
+                                $q->whereRaw('LOWER(TRIM(from_zone_type)) = ?', [$toZoneTypeNorm]);
+                            } elseif ($fromZoneTypeNorm) {
+                                $q->whereRaw('LOWER(TRIM(to_zone_type)) = ?', [$fromZoneTypeNorm]);
+                            }
                         });
                     })
                     ->orderByDesc('updated_at')
                     ->orderByDesc('id')
                     ->first();
 
-                if ($mapping) {
-                    \Log::warning('Vehicle zone mapping found via ID-only fallback (type mismatch)', [
-                        'vehicle_id' => $vehicleId,
-                        'from_zone_id' => $fromZoneId,
-                        'to_zone_id' => $toZoneId,
-                        'from_zone_type_norm' => $fromZoneTypeNorm,
-                        'to_zone_type_norm' => $toZoneTypeNorm,
-                        'mapping_id' => $mapping->mapping_id ?? null,
-                        'row_from_zone_type' => $mapping->from_zone_type ?? null,
-                        'row_to_zone_type' => $mapping->to_zone_type ?? null,
-                        'dmc_id' => $dmcId
-                    ]);
+                if (!$mapping) {
+                    $mapping = VehicleZoneMapping::where('vehicle_id', $vehicleId)
+                        ->whereNull('deleted_at')
+                        ->where(function ($q) use ($fromZoneId, $toZoneId) {
+                            $q->where(function ($qq) use ($fromZoneId, $toZoneId) {
+                                $qq->where('from_zone_id', $fromZoneId)->where('to_zone_id', $toZoneId);
+                            })->orWhere(function ($qq) use ($fromZoneId, $toZoneId) {
+                                $qq->where('from_zone_id', $toZoneId)->where('to_zone_id', $fromZoneId);
+                            });
+                        })
+                        ->orderByDesc('updated_at')
+                        ->orderByDesc('id')
+                        ->first();
                 }
+
+                return $mapping;
+            };
+
+            // Try DMC zone first, then fallback zones (shared master mappings)
+            $mapping = null;
+            $mappedFrom = null;
+            $mappedTo = null;
+            $pricedMapping = null;
+            $pricedFrom = null;
+            $pricedTo = null;
+            foreach ($fromZoneCandidates as $fromCand) {
+                foreach ($toZoneCandidates as $toCand) {
+                    $candidate = $findMappingForPair($fromCand, $toCand);
+                    if (!$candidate) {
+                        continue;
+                    }
+                    if (!$mapping) {
+                        $mapping = $candidate;
+                        $mappedFrom = $fromCand;
+                        $mappedTo = $toCand;
+                    }
+                    $pp = (float) ($candidate->private_price ?? 0);
+                    $sp = (float) ($candidate->shared_price ?? 0);
+                    if ($pp > 0 || $sp > 0) {
+                        $pricedMapping = $candidate;
+                        $pricedFrom = $fromCand;
+                        $pricedTo = $toCand;
+                        break 2;
+                    }
+                }
+            }
+            if ($pricedMapping) {
+                $mapping = $pricedMapping;
+                $fromZoneId = $pricedFrom;
+                $toZoneId = $pricedTo;
+            } elseif ($mapping) {
+                $fromZoneId = $mappedFrom;
+                $toZoneId = $mappedTo;
             }
             
             if (!$mapping) {
                 \Log::warning('No vehicle zone mapping found', [
                     'vehicle_id' => $vehicleId,
-                    'from_zone_id' => $fromZoneId,
-                    'to_zone_id' => $toZoneId,
+                    'from_zone_candidates' => $fromZoneCandidates,
+                    'to_zone_candidates' => $toZoneCandidates,
                     'from_zone_type' => $fromZoneType,
                     'to_zone_type' => $toZoneType,
                     'pickup_id_original' => $pickupId,
@@ -2820,7 +3018,10 @@ class EnquiryFormPro extends Controller
         
         // Get all required data (same as create method)
         // Note: dmc_id is a JSON array column, so we use whereJsonContains
-        $hotels = Hotel::whereJsonContains('dmc_id', (int) $dmc_id)
+        $hotels = Hotel::where(function ($q) use ($dmc_id) {
+                $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+            })
             ->where('status', 1)
             ->where('is_active', 1)
             ->where('hotel_unique_id', '!=', '0')
@@ -2833,7 +3034,10 @@ class EnquiryFormPro extends Controller
             $hotel->zone_id = $dmc_id ? $hotel->getZoneForDmc($dmc_id) : null;
         });
         
-        $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
+        $attractions = Attraction::where(function ($q) use ($dmc_id) {
+                $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+            })
             ->where('is_active', 1)
             ->select('attraction_id', 'name', 'location', 'country', 'open_time', 'close_time', 
                      'adult_price', 'child_price', 'senior_adult_price', 'zone_assignments', 'attraction_type')
@@ -2845,7 +3049,10 @@ class EnquiryFormPro extends Controller
             $attraction->zone_id = $dmc_id ? $attraction->getZoneForDmc($dmc_id) : null;
         });
         
-        $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
+        $restaurants = Restaurant::where(function ($q) use ($dmc_id) {
+                $q->whereJsonContains('dmc_id', (int) $dmc_id)
+                  ->orWhereJsonContains('dmc_id', (string) $dmc_id);
+            })
             ->where('is_active', 1)
             ->select('restaurant_id', 'name', 'city', 'country', 'breakfast_available', 'lunch_available', 
                      'dinner_available', 'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 
@@ -2873,7 +3080,7 @@ class EnquiryFormPro extends Controller
         
         $vehicles = Vehicle::where('dmc_id', $dmc_id)
             ->where('is_available', 1)
-            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable')
+            ->select('vehicle_id', 'vehicle_type', 'vehicle_name', 'seating_capacity', 'city_tour_seating_capacity', 'base_price', 'sharable_base_price', 'sharable', 'city')
             ->orderBy('vehicle_type')
             ->get();
         
@@ -2900,7 +3107,7 @@ class EnquiryFormPro extends Controller
         }
         $ports = $portsQuery->get();
         
-        // Get agency and agent (agency comes from agent relationship — Tour has agent_id only)
+        // Get agency and agent (agency comes from agent relationship â€” Tour has agent_id only)
         $agent = $tour->agent_id ? Agent::find($tour->agent_id) : ($tour->agent ?? null);
         $agencyId = $agent->agency_id ?? ($tour->agent->agency_id ?? null);
         $agency = $agencyId ? Agency::find($agencyId) : null;
@@ -2937,7 +3144,7 @@ class EnquiryFormPro extends Controller
             }
         }
         
-        // Prepare initialData from tour data — header tags use city names (tour.city), fallback legacy destination
+        // Prepare initialData from tour data â€” header tags use city names (tour.city), fallback legacy destination
         $destinationsArray = [];
         if (!empty($tour->city)) {
             $destinationsArray = array_values(array_filter(array_map('trim', explode(',', (string) $tour->city))));
@@ -3069,18 +3276,9 @@ class EnquiryFormPro extends Controller
         
         $master_dmc_destinations = $countries;
         $cityCountryMap = $this->buildCityCountryMap($countryNamesList);
+        $countryCurrencyMap = $this->buildCountryCurrencyMap($countryNamesList);
         
-        // Fetch default values for this DMC (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
-        $defaultValues = [];
-        if ($dmc_id) {
-            $defaults = \App\Models\DefaultValue::where('dmc_id', $dmc_id)
-                ->where('status', 1)
-                ->get();
-            
-            foreach ($defaults as $default) {
-                $defaultValues[$default->name] = $default->service_id;
-            }
-        }
+        [$defaultValues, $defaultValuesByCity] = $this->buildDefaultValuesMaps($dmc_id);
         
         // Add flags for edit mode
         $isEditMode = true;
@@ -3115,9 +3313,11 @@ class EnquiryFormPro extends Controller
             'countries',
             'master_dmc_destinations',
             'cityCountryMap',
+            'countryCurrencyMap',
             'dmc_id',
             'user',
-            'defaultValues'
+            'defaultValues',
+            'defaultValuesByCity'
         ))->with([
             'markupValue' => $markupValue,
             'markupType' => $markupType,
@@ -3163,7 +3363,7 @@ class EnquiryFormPro extends Controller
                 'child_ages' => 'nullable|string|max:2000',
             ]);
             
-            // Get markup and discount values (coerce — input() can return null when key exists)
+            // Get markup and discount values (coerce â€” input() can return null when key exists)
             $markupValue = $request->input('markup_value', 0);
             $markupType = (string) ($request->input('markup_type') ?? 'percentage');
             $discountValue = $request->input('discount_value', 0);
@@ -3193,6 +3393,7 @@ class EnquiryFormPro extends Controller
                 $destinationValue = trim($parts[0]);
             }
             $tour->destination = mb_substr($destinationValue, 0, 191);
+            $this->proOrderGeoFallback = $destinationValue;
             $tour->adult = $request->adults;
             $tour->child = $request->children;
             $tour->infant = $request->infants;
@@ -3202,6 +3403,11 @@ class EnquiryFormPro extends Controller
             $tour->check_in_time = $checkInTime;
             $tour->check_out_time = $checkOutTime;
             $tour->city = $cityValue !== '' ? mb_substr($cityValue, 0, 191) : ($request->city ?? null);
+            $cityCount = $cityValue !== ''
+                ? count(array_values(array_filter(array_map('trim', explode(',', $cityValue)))))
+                : 0;
+            $tour->city_type = $request->input('city_type')
+                ?: ($cityCount > 1 ? 'multi' : 'single');
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
             // Normalize tour_type + sync foc_size / discount columns (matches CommonHelper::calculateTourPrices)
             $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
@@ -3325,7 +3531,7 @@ class EnquiryFormPro extends Controller
             $bookingType = 'enquiry';
             $syncedOrders = [];
 
-            // 1. Entry Port Orders (Arrival) — soft-delete removed only; restore+update existing/trashed; create truly new rows
+            // 1. Entry Port Orders (Arrival) â€” soft-delete removed only; restore+update existing/trashed; create truly new rows
             $entryPorts = [];
             if ($request->has('entry_port') && $request->entry_port !== '' && $request->entry_port !== null) {
                 $decoded = json_decode($request->entry_port, true);
@@ -3375,7 +3581,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3444,7 +3650,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();    
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3499,7 +3705,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();    
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3552,7 +3758,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();    
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3606,7 +3812,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();    
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3706,7 +3912,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();    
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3759,7 +3965,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -3811,7 +4017,7 @@ class EnquiryFormPro extends Controller
                 }
 
                 // $bookingId = $this->generateBookingId();
-                $order = Order::create([
+                $order = $this->createEnquiryProOrder([
                     // 'booking_id' => $bookingId,
                     'agent_id' => $request->agent_id,
                     'tour_id' => $tour_id,
@@ -4010,7 +4216,7 @@ class EnquiryFormPro extends Controller
     }
 
     /**
-     * Whether incoming payload matches DB row (no meaningful change → touch-only).
+     * Whether incoming payload matches DB row (no meaningful change â†’ touch-only).
      */
     /**
      * Compare service JSON ignoring bookkeeping keys that may be added on save.
@@ -4065,7 +4271,7 @@ class EnquiryFormPro extends Controller
     }
 
     /**
-     * Existing row: restore if trashed. If nothing changed vs DB → only touch() (updated_at).
+     * Existing row: restore if trashed. If nothing changed vs DB â†’ only touch() (updated_at).
      * Otherwise full update in place (never insert).
      *
      * @param  list<array<string, mixed>>  $dataPayload
@@ -4095,7 +4301,7 @@ class EnquiryFormPro extends Controller
             $dataPayload = [$firstRow];
         }
 
-        // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
+        // Already-present active row unchanged â†’ only bump updated_at (no duplicate insert elsewhere)
         if (
             ! $wasTrashed
             && $this->enquiryOrderSnapshotMatches(
@@ -4130,6 +4336,12 @@ class EnquiryFormPro extends Controller
         $order->discount_type = $discountType;
         $order->markup_percentage = $markupValue;
         $order->markup_type = $markupType;
+        $geo = $this->resolveOrderGeoFromServicePayload(
+            is_array($dataPayload[0] ?? null) ? $dataPayload[0] : [],
+            $this->proOrderGeoFallback
+        );
+        $order->country = $geo['country'];
+        $order->currency = $geo['currency'];
         if ($order->status === null) {
             $order->status = 1;
         }
