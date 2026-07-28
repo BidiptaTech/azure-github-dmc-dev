@@ -217,7 +217,7 @@ class BookingsController extends Controller
         $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
         $ordersByTour = Order::query()
             ->whereIn('tour_id', $tourIds)
-            ->get(['booking_id', 'tour_id', 'type', 'status', 'data', 'country', 'currency'])
+            ->get(['booking_id', 'tour_id', 'type', 'status', 'data', 'cost_price', 'country', 'currency'])
             ->groupBy('tour_id');
 
         $destinationNames = [];
@@ -292,10 +292,36 @@ class BookingsController extends Controller
                         'currency' => $currency,
                         'gross' => 0.0,
                         'order_count' => 0,
+                        'sell_total' => 0.0,
+                        'cost_total' => 0.0,
+                        'services' => [],
                     ];
                 }
                 $groups[$key]['gross'] += $amount;
                 $groups[$key]['order_count']++;
+
+                foreach ($this->extractOrderNegotiationServiceRows($order, (int) ($tour->is_pro ?? 0)) as $serviceRow) {
+                    $serviceKey = mb_strtolower(trim((string) ($serviceRow['service'] ?? '')));
+                    if ($serviceKey === '') {
+                        $serviceKey = 'service-' . count($groups[$key]['services']);
+                    }
+
+                    if (! isset($groups[$key]['services'][$serviceKey])) {
+                        $groups[$key]['services'][$serviceKey] = [
+                            'service' => $serviceRow['service'],
+                            'type' => $serviceRow['type'] ?? ($order->type ?? ''),
+                            'sell' => 0.0,
+                            'cost' => 0.0,
+                            'count' => 0,
+                        ];
+                    }
+
+                    $groups[$key]['services'][$serviceKey]['sell'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['cost'] += (float) ($serviceRow['cost'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['count'] += 1;
+                    $groups[$key]['sell_total'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['cost_total'] += (float) ($serviceRow['cost'] ?? 0);
+                }
             }
 
             // Apply tour markup/discount per country bucket (percentage on each; flat on first only).
@@ -330,6 +356,27 @@ class BookingsController extends Controller
                 }
 
                 $payable = max(0, ceil($gross + $markupMoney - $discountMoney));
+                $serviceRows = [];
+                foreach ($group['services'] as $service) {
+                    $sell = round((float) ($service['sell'] ?? 0), 2);
+                    $cost = round((float) ($service['cost'] ?? 0), 2);
+                    $profit = round($sell - $cost, 2);
+                    $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
+                    $serviceRows[] = [
+                        'service' => $service['service'] ?? 'Service',
+                        'type' => $service['type'] ?? '',
+                        'sell' => $sell,
+                        'cost' => $cost,
+                        'profit' => $profit,
+                        'margin' => $margin,
+                        'count' => (int) ($service['count'] ?? 1),
+                    ];
+                }
+
+                $sellTotal = round((float) ($group['sell_total'] ?? 0), 2);
+                $costTotal = round((float) ($group['cost_total'] ?? 0), 2);
+                $profitTotal = round($sellTotal - $costTotal, 2);
+
                 $countryGroups[] = [
                     'key' => $group['key'],
                     'country' => $group['country'],
@@ -339,6 +386,11 @@ class BookingsController extends Controller
                     'discount' => round($discountMoney, 2),
                     'payable' => $payable,
                     'order_count' => $group['order_count'],
+                    'sell_total' => $sellTotal,
+                    'cost_total' => $costTotal,
+                    'profit_total' => $profitTotal,
+                    'margin_total' => $sellTotal > 0 ? round(($profitTotal / $sellTotal) * 100, 2) : 0.0,
+                    'services' => $serviceRows,
                     'markup_type' => $markupType,
                     'markup_raw' => $markupRaw,
                     'discount_type' => $discountType,
@@ -417,6 +469,127 @@ class BookingsController extends Controller
         }
 
         return $total;
+    }
+
+    /**
+     * Build service-wise sell/cost rows for country negotiation profit visibility.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractOrderNegotiationServiceRows(Order $order, int $isPro = 0): array
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $rows = [];
+        $orderType = (string) ($order->type ?? '');
+
+        foreach (array_values($data) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $baseSell = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferSell = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferSell = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferSell = (float) ($item['transfer_options']['cost'] ?? 0);
+                }
+            }
+
+            $guideSell = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $guideValue = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                $guideSell = (float) $guideValue;
+            }
+
+            $sell = $baseSell + $transferSell + $guideSell;
+            if ($sell <= 0) {
+                continue;
+            }
+
+            // Cost must come only from frozen orders.cost_price (applied after loop).
+            $rows[] = [
+                'service' => $this->resolveNegotiationServiceName($orderType, $item, $index + 1),
+                'type' => $orderType,
+                'sell' => round($sell, 2),
+                'cost' => 0.0,
+            ];
+        }
+
+        // Historical / safe cost from orders.cost_price JSON only (never live master prices).
+        $stored = \App\Helpers\OrderCostPriceHelper::storedCostPrice($order);
+        $storedCost = is_array($stored) && isset($stored['total_cost']) && is_numeric($stored['total_cost'])
+            ? round((float) $stored['total_cost'], 2)
+            : 0.0;
+
+        if ($storedCost > 0) {
+            if (count($rows) === 1) {
+                $rows[0]['cost'] = $storedCost;
+            } elseif (count($rows) === 0) {
+                $sellFallback = $this->extractOrderNegotiationAmount($order, $isPro);
+                if ($sellFallback > 0) {
+                    $firstItem = is_array($data[0] ?? null) ? $data[0] : (is_array($data) ? $data : []);
+                    $rows[] = [
+                        'service' => $this->resolveNegotiationServiceName($orderType, $firstItem, 1),
+                        'type' => $orderType,
+                        'sell' => round($sellFallback, 2),
+                        'cost' => $storedCost,
+                    ];
+                }
+            } else {
+                $sellSum = array_sum(array_column($rows, 'sell'));
+                if ($sellSum > 0) {
+                    foreach ($rows as $i => $row) {
+                        $rows[$i]['cost'] = round($storedCost * ((float) $row['sell'] / $sellSum), 2);
+                    }
+                } else {
+                    $rows[0]['cost'] = $storedCost;
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    private function extractNegotiationNumberByKeys(array $source, array $keys): float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            $value = $source[$key];
+            if (is_numeric($value)) {
+                return (float) $value;
+            }
+        }
+
+        return 0.0;
+    }
+
+    private function resolveNegotiationServiceName(string $orderType, array $item, int $position): string
+    {
+        $fallback = ucfirst(str_replace('_', ' ', $orderType ?: 'service')) . ' ' . $position;
+
+        $name = match ($orderType) {
+            'hotel' => trim((string) ($item['hotelDetails']['hotel_name'] ?? $item['hotel_name'] ?? $fallback)),
+            'attraction' => trim((string) ($item['AttractionName'] ?? $item['attraction_name'] ?? $fallback)),
+            'restaurant' => trim((string) ($item['restaurantName'] ?? $item['restaurant_name'] ?? $item['restaurantDetails']['restaurant_name'] ?? $fallback)),
+            'guide' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $fallback)),
+            'entry_port', 'exit_port' => trim((string) ($item['port_name'] ?? $item['portName'] ?? $item['vehicles_name'] ?? $fallback)),
+            'travel_hourly', 'travel_point', 'local_transport' => trim((string) ($item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['travel_type'] ?? $fallback)),
+            'miscellaneous' => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $fallback)),
+            default => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $item['hotel_name'] ?? $item['vehicles_name'] ?? $fallback)),
+        };
+
+        return $name !== '' ? $name : $fallback;
     }
 
     /**
