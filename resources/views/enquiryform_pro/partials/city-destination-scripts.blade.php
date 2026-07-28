@@ -162,9 +162,13 @@
      */
     function resolveServiceGeoFields(item) {
         const row = item && typeof item === 'object' ? item : {};
+        // Prefer explicit city — transfer rows use destination as "Arrival: Port → Hotel"
         let city = String(
-            row.destination || row.city || row.hotelCity || row.hotel_city || row.location || ''
+            row.city || row.hotelCity || row.hotel_city || row.destination || row.location || ''
         ).trim();
+        if (/^(Arrival|Departure)\s*:/i.test(city)) {
+            city = String(row.city || row.hotelCity || row.hotel_city || '').trim();
+        }
         if (city.includes(',')) {
             city = city.split(',')[0].trim();
         }
@@ -205,6 +209,85 @@
     }
     window.serviceOrderGeo = serviceOrderGeo;
     window.resolveServiceGeoFields = resolveServiceGeoFields;
+
+    /**
+     * Stamp city/country/currency onto arrival/departure (and similar) list rows
+     * so order save does not fall back to header multi-city / first city (e.g. Singapore).
+     */
+    function stampArrivalDepartureGeo(item, preferredCity) {
+        const row = item && typeof item === 'object' ? item : {};
+        const city = String(
+            preferredCity
+            || row.city
+            || row.destination
+            || document.getElementById('arrivalDepartureCity')?.value
+            || document.getElementById('hotelDestination')?.value
+            || ''
+        ).split(',')[0].trim();
+        const geo = serviceOrderGeo(Object.assign({}, row, { city: city, destination: city }), city);
+        row.city = geo.city || city;
+        row.country = geo.country || '';
+        row.currency = geo.currency || '';
+        return row;
+    }
+    window.stampArrivalDepartureGeo = stampArrivalDepartureGeo;
+
+    /** Normalize city label (first CSV segment, trimmed). */
+    function normalizeServiceCityName(value) {
+        return String(value || '').split(',')[0].trim();
+    }
+    window.normalizeServiceCityName = normalizeServiceCityName;
+
+    function serviceCityKey(value) {
+        return normalizeServiceCityName(value).toLowerCase();
+    }
+    window.serviceCityKey = serviceCityKey;
+
+    /** Hotel row city for multi-city arrival/departure grouping. */
+    function getHotelServiceCity(hotel) {
+        if (!hotel || typeof hotel !== 'object') return '';
+        return normalizeServiceCityName(hotel.city || hotel.destination || hotel.hotelCity || hotel.hotel_city || '');
+    }
+    window.getHotelServiceCity = getHotelServiceCity;
+
+    /**
+     * Group hotels by service city.
+     * Same city → one group (one A/D pair). Different cities → separate groups.
+     * @returns {Map<string, { cityName: string, hotels: array }>}
+     */
+    function groupHotelsByServiceCity(hotels) {
+        const map = new Map();
+        (hotels || []).forEach(function (h) {
+            const cityName = getHotelServiceCity(h);
+            const key = serviceCityKey(cityName) || '__none__';
+            if (!map.has(key)) {
+                map.set(key, { cityName: cityName || '', hotels: [] });
+            }
+            map.get(key).hotels.push(h);
+        });
+        return map;
+    }
+    window.groupHotelsByServiceCity = groupHotelsByServiceCity;
+
+    /** Find hotel-synced entry_port / exit_port for a city (empty city → first hotel-synced of that type). */
+    function findHotelSyncedArrDep(list, travelType, cityName) {
+        const key = serviceCityKey(cityName);
+        const rows = Array.isArray(list) ? list : [];
+        let fallback = null;
+        for (let i = 0; i < rows.length; i++) {
+            const e = rows[i];
+            if (!e || e.sourceType !== 'hotel') continue;
+            if (e.travel_type !== travelType) continue;
+            const eKey = serviceCityKey(e.city || e.destination || '');
+            if (!key) {
+                return e;
+            }
+            if (eKey && eKey === key) return e;
+            if (!eKey && !fallback) fallback = e;
+        }
+        return key ? null : fallback;
+    }
+    window.findHotelSyncedArrDep = findHotelSyncedArrDep;
 
     function escapeCssAttr(value) {
         const s = String(value ?? '');
@@ -756,10 +839,18 @@
         }
 
         if (typeof refreshArrivalTransferZonePrice === 'function') {
-            refreshArrivalTransferZonePrice();
+            if (window._suppressArrDepZoneRefresh) {
+                window._pendingArrivalZoneRefresh = true;
+            } else {
+                refreshArrivalTransferZonePrice();
+            }
         }
         if (typeof refreshDepartureTransferZonePrice === 'function') {
-            refreshDepartureTransferZonePrice();
+            if (window._suppressArrDepZoneRefresh) {
+                window._pendingDepartureZoneRefresh = true;
+            } else {
+                refreshDepartureTransferZonePrice();
+            }
         }
     }
 
@@ -1326,6 +1417,24 @@
         }
 
         window._arrDepVehicleForceCity = '';
+
+        setTimeout(function () {
+            if (window._suppressArrDepZoneRefresh) {
+                window._pendingArrivalZoneRefresh = true;
+                window._pendingDepartureZoneRefresh = true;
+                return;
+            }
+            if (typeof scheduleArrivalZonePriceRefresh === 'function') {
+                scheduleArrivalZonePriceRefresh();
+            } else if (typeof refreshArrivalTransferZonePrice === 'function') {
+                refreshArrivalTransferZonePrice();
+            }
+            if (typeof scheduleDepartureZonePriceRefresh === 'function') {
+                scheduleDepartureZonePriceRefresh();
+            } else if (typeof refreshDepartureTransferZonePrice === 'function') {
+                refreshDepartureTransferZonePrice();
+            }
+        }, 120);
     }
     window.applyArrivalDepartureCityFilters = applyArrivalDepartureCityFilters;
 
