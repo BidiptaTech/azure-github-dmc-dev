@@ -4701,18 +4701,18 @@
         }
 
         if ($hasConvertedPricing) {
-            $grossTourAmount = round($convertedGrossFromDetails);
+            $grossTourAmount = (float) ceil($convertedGrossFromDetails);
             if ($convertedNegotiatedFromDetails > 0) {
-                $lastNegotiatedAmount = round($convertedNegotiatedFromDetails, 2);
+                $lastNegotiatedAmount = (float) ceil($convertedNegotiatedFromDetails);
             }
         } else {
             // Fallback: enquiry.gross_amount when it looks like a real gross (not equal to negotiated-only legacy bug).
             $enquiryGross = (float) ($pricingEnquiry->gross_amount ?? 0);
             $enquiryAmount = (float) ($pricingEnquiry->amount ?? 0);
             if ($enquiryGross > 0 && abs($enquiryGross - $enquiryAmount) > 0.009) {
-                $grossTourAmount = round($enquiryGross);
+                $grossTourAmount = (float) ceil($enquiryGross);
             } else {
-                $grossTourAmount = round($tourTotalPrice);
+                $grossTourAmount = (float) ceil($tourTotalPrice);
             }
         }
 
@@ -4750,7 +4750,9 @@
             // Keep stored tour markup/discount money when recalculated from converted gross;
             // if payable is lower due to negotiation-time payable, negotiation line absorbs the gap.
         }
-        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
+        $baseAmount = $lastNegotiatedAmount > 0
+            ? (float) ceil($lastNegotiatedAmount)
+            : (float) $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
         
