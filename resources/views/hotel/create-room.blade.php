@@ -2523,4 +2523,73 @@ $(document).ready(function() {
 })();
 </script>
 
+<script>
+(function () {
+    function sanitizePriceInputValue(value) {
+        value = String(value || '').replace(/[^0-9.]/g, '');
+        const firstDot = value.indexOf('.');
+        if (firstDot !== -1) {
+            value = value.slice(0, firstDot + 1) + value.slice(firstDot + 1).replace(/\./g, '');
+        }
+        return value;
+    }
+
+    function isRoomPriceInput(el) {
+        if (!el || el.tagName !== 'INPUT') {
+            return false;
+        }
+        if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'hidden' || el.type === 'file') {
+            return false;
+        }
+        if (el.classList.contains('js-room-cost')
+            || el.classList.contains('js-room-sell')
+            || el.classList.contains('js-room-profit-amount')) {
+            return true;
+        }
+        if (el.id === 'varient_price_input' || el.name === 'varient_price') {
+            return true;
+        }
+        const key = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+        if (!/(price|cost)/.test(key)) {
+            return false;
+        }
+        if (/(children_price|children_breakfast|total_rooms|no_of_room|dimension)/.test(key)) {
+            return false;
+        }
+        return true;
+    }
+
+    function enforcePriceNumeric(el) {
+        if (!isRoomPriceInput(el)) {
+            return;
+        }
+        const sanitized = sanitizePriceInputValue(el.value);
+        if (el.value !== sanitized) {
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            el.value = sanitized;
+            if (typeof start === 'number' && typeof end === 'number' && el.setSelectionRange) {
+                try {
+                    el.setSelectionRange(Math.min(start, sanitized.length), Math.min(end, sanitized.length));
+                } catch (e) {}
+            }
+        }
+    }
+
+    document.addEventListener('input', function (e) {
+        enforcePriceNumeric(e.target);
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('input').forEach(function (el) {
+            if (isRoomPriceInput(el)) {
+                el.setAttribute('inputmode', 'decimal');
+                el.setAttribute('autocomplete', 'off');
+                enforcePriceNumeric(el);
+            }
+        });
+    });
+})();
+</script>
+
 @endsection
