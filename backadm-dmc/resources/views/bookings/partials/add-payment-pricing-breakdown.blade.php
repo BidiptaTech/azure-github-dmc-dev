@@ -31,29 +31,29 @@
 <div class="row text-center mb-2 g-2">
     <div class="col-6 col-md-3">
         <small class="text-muted">Gross Price</small>
-        <div class="fw-bold text-secondary">{{ number_format(round($grossTourAmount), 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-secondary">{{ number_format(ceil($grossTourAmount), 2) }} {{ $tourCurrency }}</div>
     </div>
     @if($bdMarkupMoney > 0)
     <div class="col-6 col-md-3">
         <small class="text-muted">{{ $markupLabel }}</small>
-        <div class="fw-bold text-info">+ {{ number_format(round($bdMarkupMoney), 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-info">+ {{ number_format(ceil($bdMarkupMoney), 2) }} {{ $tourCurrency }}</div>
     </div>
     @endif
     @if($bdDiscountMoney > 0)
     <div class="col-6 col-md-3">
         <small class="text-muted">{{ $discountLabel }}</small>
-        <div class="fw-bold text-success">- {{ number_format(round($bdDiscountMoney), 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-success">- {{ number_format(ceil($bdDiscountMoney), 2) }} {{ $tourCurrency }}</div>
     </div>
     @endif
     @if($bdNegotiation > 0)
     <div class="col-6 col-md-3">
         <small class="text-muted">Negotiation</small>
-        <div class="fw-bold text-success">- {{ number_format(round($bdNegotiation), 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-success">- {{ number_format(ceil($bdNegotiation), 2) }} {{ $tourCurrency }}</div>
     </div>
     @endif
     <div class="col-6 col-md-3">
         <small class="text-muted">Actual Price</small>
-        <div class="fw-bold text-primary">{{ number_format(round($netTourAmount), 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-primary">{{ number_format(ceil($netTourAmount), 2) }} {{ $tourCurrency }}</div>
     </div>
 </div>
 <hr class="my-2">
