@@ -888,7 +888,7 @@
                                 <div class="row g-2">
                                     <div class="col-md-6">
                                         <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
+                                            <i class="ri-map-pin-add-line me-1"></i>Select 
                                         </label>
                                         <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
                                         <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
@@ -7704,9 +7704,9 @@
                     </div>
                 </div>`;
 
-                $('#segmentsWrapper').append(segmentHTML);
+                $('#segmentsWrapper').prepend(segmentHTML);
 
-                const $newCitySelect = $('#segmentsWrapper .segment:last .city-select');
+                const $newCitySelect = $('#segmentsWrapper .segment:first .city-select');
                 rebuildSegmentCityOptions($newCitySelect);
 
                 // Disable dates outside main tour range

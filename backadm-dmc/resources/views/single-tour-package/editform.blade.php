@@ -27986,8 +27986,10 @@
                     </div>
                 </div>`;
 
-            wrap.insertAdjacentHTML('beforeend', segmentHTML);
-            const seg = wrap.querySelector('.segment:last-child');
+            // New empty plans go to the top (easier to fill); DB-prefilled rows append to keep order.
+            const isNewEmpty = !(prefill && (prefill.city || prefill.cityDisplay || prefill.start || prefill.end));
+            wrap.insertAdjacentHTML(isNewEmpty ? 'afterbegin' : 'beforeend', segmentHTML);
+            const seg = wrap.querySelector(isNewEmpty ? '.segment:first-child' : '.segment:last-child');
             if (!seg) return;
             if (prefill && prefill.city) {
                 const citySel = seg.querySelector('.city-select');
