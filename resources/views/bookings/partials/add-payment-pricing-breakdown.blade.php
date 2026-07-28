@@ -31,7 +31,7 @@
 <div class="row text-center mb-2 g-2">
     <div class="col-6 col-md-3">
         <small class="text-muted">Gross Price</small>
-        <div class="fw-bold text-secondary">{{ number_format($grossTourAmount, 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-secondary">{{ number_format(round($grossTourAmount), 2) }} {{ $tourCurrency }}</div>
     </div>
     @if($bdMarkupMoney > 0)
     <div class="col-6 col-md-3">
@@ -53,7 +53,7 @@
     @endif
     <div class="col-6 col-md-3">
         <small class="text-muted">Actual Price</small>
-        <div class="fw-bold text-primary">{{ number_format($netTourAmount, 2) }} {{ $tourCurrency }}</div>
+        <div class="fw-bold text-primary">{{ number_format(round($netTourAmount), 2) }} {{ $tourCurrency }}</div>
     </div>
 </div>
 <hr class="my-2">

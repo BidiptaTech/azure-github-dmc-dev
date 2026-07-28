@@ -626,17 +626,6 @@ class BookingsController extends Controller
                 ];
             }, $validated['offers'] ?? []));
 
-            foreach ($offers as $offer) {
-                if ($offer['actual_amount'] > 0 && $offer['amount'] > $offer['actual_amount']) {
-                    return back()
-                        ->withErrors([
-                            'amount' => 'Negotiated amount for ' . ($offer['country'] ?: $offer['currency'])
-                                . ' cannot exceed the payable amount.',
-                        ])
-                        ->withInput();
-                }
-            }
-
             $primary = $offers[0] ?? null;
             $amountOffered = (float) ($primary['amount'] ?? 0);
             $actualAmount = (float) ($primary['actual_amount'] ?? 0);
@@ -733,8 +722,18 @@ class BookingsController extends Controller
                     ->withInput();
             }
 
-            $convertedGross = $converted['gross_amount'];
+            $convertedNegotiated = (float) ($converted['negotiated_amount'] ?? 0);
+            $convertedActual = (float) ($converted['actual_amount'] ?? 0);
+            $convertedGross = (float) ($converted['gross_amount'] ?? 0);
             $convertedDetails = $converted['negotiation_details'];
+
+            // Fallback if payable/gross were missing on older offer rows.
+            if ($convertedActual <= 0) {
+                $convertedActual = $convertedNegotiated;
+            }
+            if ($convertedGross <= 0) {
+                $convertedGross = $convertedActual > 0 ? $convertedActual : $convertedNegotiated;
+            }
 
             $enquiryPayload = [
                 'status' => 2,
@@ -742,8 +741,8 @@ class BookingsController extends Controller
                 'comment' => $validated['comment'] ?? null,
                 'gross_amount' => $convertedGross,
                 'negotiation_details' => $convertedDetails,
-                'amount' => $convertedGross,
-                'actual_amount' => $convertedGross,
+                'amount' => $convertedNegotiated,
+                'actual_amount' => $convertedActual,
             ];
 
             if ($activeEnquiry) {
@@ -764,8 +763,8 @@ class BookingsController extends Controller
                     'receiver_id' => 0,
                     'receiver_type' => 'OM',
                     'current_position' => 'OM',
-                    'amount' => $convertedGross,
-                    'actual_amount' => $convertedGross,
+                    'amount' => $convertedNegotiated,
+                    'actual_amount' => $convertedActual,
                     'gross_amount' => $convertedGross,
                     'comment' => $validated['comment'] ?? '',
                     'currency' => $confirmCurrency,
@@ -778,13 +777,15 @@ class BookingsController extends Controller
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
-                $actualAmount = (float) ($confirmedEnquiry?->actual_amount ?? $convertedGross);
-                $amount = (float) ($confirmedEnquiry?->amount ?? $convertedGross);
+                $actualAmount = (float) ($confirmedEnquiry?->actual_amount ?? $convertedActual);
+                $amount = (float) ($confirmedEnquiry?->amount ?? $convertedNegotiated);
                 if ($actualAmount <= 0) {
-                    $actualAmount = $convertedGross > 0 ? $convertedGross : $this->calculateOrdersTotalAmount($tour->tour_id);
+                    $actualAmount = $convertedActual > 0
+                        ? $convertedActual
+                        : ($convertedNegotiated > 0 ? $convertedNegotiated : $this->calculateOrdersTotalAmount($tour->tour_id));
                 }
                 if ($amount <= 0) {
-                    $amount = $actualAmount;
+                    $amount = $convertedNegotiated > 0 ? $convertedNegotiated : $actualAmount;
                 }
 
                 \App\Helpers\CommonHelper::appendTourStatusTrackById(
@@ -823,34 +824,44 @@ class BookingsController extends Controller
     }
 
     /**
-     * Convert each country's last negotiated amount into the selected currency,
-     * attach conversion_rate + date_of_conversion on every row, and return the summed total.
+     * Convert each country's negotiated / payable / gross amounts into the selected currency,
+     * attach conversion_rate + date_of_conversion on every row, and return the summed totals.
      *
      * @param  array<int, array<string, mixed>>  $offers
-     * @return array{gross_amount: float, negotiation_details: array<int, array<string, mixed>>, error: string|null}
+     * @return array{
+     *     negotiated_amount: float,
+     *     actual_amount: float,
+     *     gross_amount: float,
+     *     negotiation_details: array<int, array<string, mixed>>,
+     *     error: string|null
+     * }
      */
     private function convertNegotiationOffersToCurrency(array $offers, string $targetCurrency): array
     {
         $targetCurrency = strtoupper(trim($targetCurrency));
         $conversionDate = now()->toDateTimeString();
         $enriched = [];
-        $convertedTotal = 0.0;
+        $convertedNegotiatedTotal = 0.0;
+        $convertedActualTotal = 0.0;
+        $convertedGrossTotal = 0.0;
         $rateCache = [];
 
-        if ($targetCurrency === '') {
+        $emptyError = static function (string $error) {
             return [
+                'negotiated_amount' => 0.0,
+                'actual_amount' => 0.0,
                 'gross_amount' => 0.0,
                 'negotiation_details' => [],
-                'error' => 'Please select a currency before confirming the tour.',
+                'error' => $error,
             ];
+        };
+
+        if ($targetCurrency === '') {
+            return $emptyError('Please select a currency before confirming the tour.');
         }
 
         if (empty($offers)) {
-            return [
-                'gross_amount' => 0.0,
-                'negotiation_details' => [],
-                'error' => 'No negotiated country amounts were found to convert.',
-            ];
+            return $emptyError('No negotiated country amounts were found to convert.');
         }
 
         foreach ($offers as $offer) {
@@ -865,28 +876,25 @@ class BookingsController extends Controller
             $gross = round((float) ($offer['gross'] ?? 0), 2);
 
             if ($fromCurrency === '' || $amount <= 0) {
-                return [
-                    'gross_amount' => 0.0,
-                    'negotiation_details' => [],
-                    'error' => 'Each country must have a valid negotiated amount and currency before confirmation.',
-                ];
+                return $emptyError('Each country must have a valid negotiated amount and currency before confirmation.');
             }
 
             if (! array_key_exists($fromCurrency, $rateCache)) {
                 $rate = CurrencyHelper::getExchangeRate($fromCurrency, $targetCurrency);
                 if ($rate === null || $rate <= 0) {
-                    return [
-                        'gross_amount' => 0.0,
-                        'negotiation_details' => [],
-                        'error' => 'Unable to fetch exchange rate from ' . $fromCurrency . ' to ' . $targetCurrency . '.',
-                    ];
+                    return $emptyError('Unable to fetch exchange rate from ' . $fromCurrency . ' to ' . $targetCurrency . '.');
                 }
                 $rateCache[$fromCurrency] = (float) $rate;
             }
 
             $conversionRate = $rateCache[$fromCurrency];
             $convertedAmount = round($amount * $conversionRate, 2);
-            $convertedTotal += $convertedAmount;
+            $convertedActual = round(max(0, $actualAmount) * $conversionRate, 2);
+            $convertedGross = round(max(0, $gross) * $conversionRate, 2);
+
+            $convertedNegotiatedTotal += $convertedAmount;
+            $convertedActualTotal += $convertedActual;
+            $convertedGrossTotal += $convertedGross;
 
             $enriched[] = [
                 'country' => $country !== '' ? $country : $fromCurrency,
@@ -897,20 +905,20 @@ class BookingsController extends Controller
                 'conversion_rate' => round($conversionRate, 8),
                 'date_of_conversion' => $conversionDate,
                 'converted_amount' => $convertedAmount,
+                'converted_actual_amount' => $convertedActual,
+                'converted_gross' => $convertedGross,
                 'target_currency' => $targetCurrency,
             ];
         }
 
         if (empty($enriched)) {
-            return [
-                'gross_amount' => 0.0,
-                'negotiation_details' => [],
-                'error' => 'No negotiated country amounts were found to convert.',
-            ];
+            return $emptyError('No negotiated country amounts were found to convert.');
         }
 
         return [
-            'gross_amount' => round($convertedTotal, 2),
+            'negotiated_amount' => round($convertedNegotiatedTotal, 2),
+            'actual_amount' => round($convertedActualTotal, 2),
+            'gross_amount' => round($convertedGrossTotal, 2),
             'negotiation_details' => $enriched,
             'error' => null,
         ];
