@@ -5147,97 +5147,33 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Hidden input for validation -->
-                            <input type="hidden" id="amount{{ $tour->tour_id }}" name="amount" value="{{ $remainingAmount }}">
+                            <input type="hidden" id="amount{{ $tour->tour_id }}" value="{{ $remainingAmount }}">
+                            <input type="hidden" name="currency" value="{{ $tourCurrency }}">
+                            <input type="hidden" name="exchange_rate" value="1">
                         </div>
                         
-                        <!-- Currency Selection -->
-                        <div class="mb-4">
-                            <label for="currency{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-coins text-warning me-2"></i>Select Currency
-                            </label>
-                            <select class="form-select form-control-lg" 
-                                id="currency{{ $tour->tour_id }}" 
-                                name="currency" 
-                                onchange="updatePaymentAmountEnhanced({{ $tour->tour_id }}, this.value)"
-                                required>
-                                <option value="">Select Currency</option>
-                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currencyCode)
-                                    <option value="{{ $currencyCode }}" {{ $currencyCode == $tourCurrency ? 'selected' : '' }}>
-                                        {{ $currencyCode }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        
-                        <!-- Exchange Rate (Editable) -->
-                        <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
-                            <div class="mb-3" id="exchangeRateSourceOptions{{ $tour->tour_id }}">
-                                <label class="form-label fw-bold mb-2">
-                                    <i class="fas fa-sliders-h text-primary me-2"></i>Rate Options
-                                </label>
-                                <div class="d-flex flex-wrap gap-3 align-items-center">
-                                    <label class="form-check form-check-inline m-0">
-                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourceLive{{ $tour->tour_id }}" value="live" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}" checked>
-                                        <span class="form-check-label">API Rate</span>
-                                    </label>
-                                    <label class="form-check form-check-inline m-0">
-                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourceDmc{{ $tour->tour_id }}" value="dmc" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}">
-                                        <span class="form-check-label">DMC Rate</span>
-                                    </label>
-                                    <label class="form-check form-check-inline m-0" id="rateSourcePreviousWrap{{ $tour->tour_id }}">
-                                        <input class="form-check-input" type="radio" name="rate_source{{ $tour->tour_id }}" id="rateSourcePrevious{{ $tour->tour_id }}" value="previous" data-rate-source-radio="1" data-tour-id="{{ $tour->tour_id }}">
-                                        <span class="form-check-label">Previous Rate</span>
-                                    </label>
-                                </div>
-                                <small class="text-muted d-block mt-2" id="rateSourceHint{{ $tour->tour_id }}" style="display:none;"></small>
-                            </div>
-                            <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light">1 {{ $tourCurrency }} =</span>
-                                <input type="number" 
-                                    class="form-control form-control-lg" 
-                                    id="exchange_rate{{ $tour->tour_id }}" 
-                                    name="exchange_rate" 
-                                    value="1.00" 
-                                    min="0" 
-                                    step="0.0001"
-                                    oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
-                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
-                                    <i class="fas fa-globe me-1"></i>
-                                    Rate Source: <span id="rateSourceText{{ $tour->tour_id }}">API</span>
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <!-- Payment Amount in Selected Currency -->
                         <div class="mb-4">
                             <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
+                                <span class="input-group-text bg-light">{{ $tourCurrency }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="payment_amount{{ $tour->tour_id }}" 
                                     name="payment_amount" 
                                     placeholder="Enter payment amount" 
                                     required
-                                    min="0" 
+                                    min="0.01" 
                                     max="{{ $remainingAmount }}"
                                     step="0.01"
+                                    value="{{ $remainingAmount }}"
                                     oninput="validatePaymentAmountInput({{ $tour->tour_id }})"
                                     onblur="validatePaymentAmountInput({{ $tour->tour_id }})">
                             </div>
-                            <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
-                                <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Amount in {{ $tourCurrency }}: {{ number_format(round($remainingAmount), 2) }}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    Maximum: {{ number_format(ceil($remainingAmount), 2) }} {{ $tourCurrency }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -27021,45 +26957,48 @@ function recalculateFromExchangeRate(tourId) {
 }
 
 function validatePaymentAmountInput(tourId) {
-    const baseCurrency = getTourPaymentCurrency(tourId);
-    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
-    const maxBaseAmount = Math.round(parseFloat(document.getElementById(`amount${tourId}`).value) || 0);
-    const selectedCurrency = document.getElementById(`currency${tourId}`).value;
-    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
-    const isForeignCurrency = selectedCurrency && selectedCurrency !== baseCurrency;
-
-    updatePaymentAmountMax(tourId);
-
+    const paymentInput = document.getElementById(`payment_amount${tourId}`);
+    const maxRemainingEl = document.getElementById(`amount${tourId}`);
     const validationError = document.getElementById(`paymentValidationError${tourId}`);
     const validationMessage = document.getElementById(`validationMessage${tourId}`);
-    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
-    
-    if (!paymentAmount || paymentAmount <= 0) {
-        validationError.style.display = 'block';
-        validationMessage.textContent = 'Please enter a valid payment amount';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+    const saveBtn = document.getElementById(`savePaymentBtn${tourId}`);
+    const baseCurrency = getTourPaymentCurrency(tourId);
+
+    if (!paymentInput) {
         return;
     }
-    
-    const equivalentBase = isForeignCurrency ? Math.round(paymentAmount / exchangeRate) : Math.round(paymentAmount);
-    const maxPaymentAmount = isForeignCurrency ? (maxBaseAmount * exchangeRate) : maxBaseAmount;
-    
-    if (equivalentBase > maxBaseAmount) {
-        validationError.style.display = 'block';
-        const maxDisplay = isForeignCurrency ? maxPaymentAmount.toFixed(2) : String(maxBaseAmount);
-        const maxCurrency = isForeignCurrency ? selectedCurrency : baseCurrency;
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxDisplay} ${maxCurrency})`;
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
-    } else {
-        validationError.style.display = 'none';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
+
+    const maxRemaining = Math.ceil(parseFloat(maxRemainingEl?.value) || 0);
+    updatePaymentAmountMax(tourId);
+
+    let paymentAmount = parseFloat(paymentInput.value);
+    if (isNaN(paymentAmount)) {
+        paymentAmount = 0;
     }
-    
-    if (selectedCurrency !== baseCurrency) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${baseCurrency}: ${equivalentBase.toFixed(2)}`;
-    } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${baseCurrency}`;
+
+    if (paymentAmount > maxRemaining && maxRemaining > 0) {
+        paymentInput.value = String(maxRemaining);
+        paymentAmount = maxRemaining;
     }
+
+    if (!paymentAmount || paymentAmount <= 0) {
+        if (validationError) validationError.style.display = 'block';
+        if (validationMessage) validationMessage.textContent = 'Please enter a valid payment amount';
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (maxRemaining > 0 && paymentAmount > maxRemaining) {
+        if (validationError) validationError.style.display = 'block';
+        if (validationMessage) {
+            validationMessage.textContent = `Amount cannot exceed ${maxRemaining.toFixed(2)} ${baseCurrency}`;
+        }
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (validationError) validationError.style.display = 'none';
+    if (saveBtn) saveBtn.disabled = false;
 }
 
 function submitPaymentForm(tourId) {
@@ -27447,15 +27386,14 @@ document.addEventListener('DOMContentLoaded', function() {
     paymentModals.forEach(modal => {
         modal.addEventListener('shown.bs.modal', function() {
             const tourId = this.id.replace('addPaymentModal', '');
-            initPaymentRateSourcesForTour(tourId);
-
-            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
-            if (liveEl) liveEl.checked = true;
-
-            const currencySelect = document.getElementById(`currency${tourId}`);
-            if (currencySelect) {
-                updatePaymentAmountEnhanced(tourId, currencySelect.value);
+            const maxRemainingEl = document.getElementById(`amount${tourId}`);
+            const paymentInput = document.getElementById(`payment_amount${tourId}`);
+            const maxRemaining = maxRemainingEl ? (maxRemainingEl.value || '') : '';
+            if (paymentInput && maxRemaining !== '') {
+                paymentInput.value = maxRemaining;
+                paymentInput.setAttribute('max', maxRemaining);
             }
+            validatePaymentAmountInput(tourId);
         });
 
         modal.addEventListener('hidden.bs.modal', function() {
@@ -27483,21 +27421,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
             }
             
-            // Reset currency selection to tour base currency
-            const currencySelect = document.getElementById(`currency${tourId}`);
-            if (currencySelect) {
-                const baseCurrency = getTourPaymentCurrency(tourId);
-                currencySelect.value = baseCurrency;
-                const liveEl = document.getElementById(`rateSourceLive${tourId}`);
-                if (liveEl) liveEl.checked = true;
-                updatePaymentAmountEnhanced(tourId, baseCurrency);
+            const maxRemainingEl = document.getElementById(`amount${tourId}`);
+            const paymentInput = document.getElementById(`payment_amount${tourId}`);
+            const maxRemaining = maxRemainingEl ? (maxRemainingEl.value || '') : '';
+            if (paymentInput && maxRemaining !== '') {
+                paymentInput.value = maxRemaining;
+                paymentInput.setAttribute('max', maxRemaining);
             }
-            
-            // Hide validation errors
-            const validationError = document.getElementById(`paymentValidationError${tourId}`);
-            if (validationError) {
-                validationError.style.display = 'none';
-            }
+            validatePaymentAmountInput(tourId);
         });
     });
 });

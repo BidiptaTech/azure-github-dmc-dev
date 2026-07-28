@@ -1491,8 +1491,8 @@
                         </div>
 
                         <div class="mb-0">
-                            <label for="new_enquiry_comment" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                            <textarea id="new_enquiry_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation" required></textarea>
+                            <label for="new_enquiry_comment" class="form-label fw-semibold">Remarks </label>
+                            <textarea id="new_enquiry_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation"></textarea>
                         </div>
                         <div id="new-enquiry-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
                             Counter price cannot exceed the payable amount.
@@ -1548,9 +1548,8 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
-                        <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
+                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
                     </div>
                     <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
                         Negotiated amount cannot exceed the payable amount.
@@ -5624,9 +5623,6 @@ function testServices() {
             actionInput.value = 'negotiate';
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
-            remarkInput.classList.remove('is-invalid');
-            const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
-            if (remarkErrEl) remarkErrEl.classList.add('d-none');
             remarkInput.value = '';
             lastRemarkEl.textContent = lastRemark || '—';
 
@@ -5712,15 +5708,6 @@ function testServices() {
                 }
                 syncPrimaryNegotiationAmount();
 
-                const remarkError = document.getElementById('agentNegotiationRemarkError');
-                if (remarkInput.value.trim() === '') {
-                    remarkInput.classList.add('is-invalid');
-                    remarkError.classList.remove('d-none');
-                    return;
-                }
-                remarkInput.classList.remove('is-invalid');
-                remarkError.classList.add('d-none');
-
                 // Show loader on negotiate button
                 const originalSubmitText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
@@ -5732,16 +5719,6 @@ function testServices() {
                 form.submit();
                 return;
             }
-
-            // Cancel and Confirm: remarks required
-            const remarkError = document.getElementById('agentNegotiationRemarkError');
-            if (remarkInput.value.trim() === '') {
-                remarkInput.classList.add('is-invalid');
-                remarkError.classList.remove('d-none');
-                return;
-            }
-            remarkInput.classList.remove('is-invalid');
-            remarkError.classList.add('d-none');
 
             if (action === 'confirm') {
                 const tidEarly = tourIdInput ? String(tourIdInput.value || '').trim() : '';

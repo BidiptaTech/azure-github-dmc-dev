@@ -877,6 +877,55 @@
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px !important; padding-left: 10px; padding-right: 32px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
+
+    /* Compact Confirm Tour SweetAlert */
+    .swal-confirm-tour-popup {
+        width: 22rem !important;
+        max-width: calc(100vw - 1.5rem) !important;
+        padding: 0.85rem 1rem 0.75rem !important;
+    }
+    .swal-confirm-tour-popup .swal2-icon {
+        width: 2.75rem;
+        height: 2.75rem;
+        margin: 0.25rem auto 0.5rem !important;
+        border-width: 2px;
+    }
+    .swal-confirm-tour-popup .swal2-icon-content {
+        font-size: 1.35rem !important;
+    }
+    .swal-confirm-tour-title {
+        font-size: 1.1rem !important;
+        padding: 0 !important;
+    }
+    .swal-confirm-tour-html {
+        margin: 0.35rem 0 0 !important;
+        padding: 0 0.15rem !important;
+        font-size: 0.875rem;
+    }
+    .swal-confirm-tour-actions {
+        margin-top: 0.65rem !important;
+    }
+    .swal-confirm-tour-actions .swal2-styled {
+        font-size: 0.8125rem;
+        padding: 0.4rem 0.85rem;
+    }
+    .swal-confirm-indicative-note {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 0.375rem;
+        color: #664d03;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1.35;
+        padding: 0.5rem 0.6rem;
+        margin-top: 0.65rem;
+        margin-bottom: 0;
+    }
+    .swal-confirm-indicative-note i {
+        color: #b58100;
+        font-size: 1rem;
+        vertical-align: -2px;
+    }
 </style>
 <div class="container-xxl flex-grow-1 container-p-y">
     @include('bookings.partials.booking-type-tabs', [
@@ -1671,8 +1720,8 @@
                         </div>
 
                         <div class="mb-0">
-                            <label for="followup_comment" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                            <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation" required></textarea>
+                            <label for="followup_comment" class="form-label fw-semibold">Remarks </label>
+                            <textarea id="followup_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation"></textarea>
                         </div>
                         <div id="followup-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
                             Counter price cannot exceed the payable amount.
@@ -1729,9 +1778,8 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
-                        <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
+                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
                     </div>
                     <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
                         Negotiated amount cannot exceed the payable amount.
@@ -5252,10 +5300,9 @@ function showFilterResetMessage() {
                             (Number.isFinite(agentAmount) ? (currency + ' ' + formatNegotiationAmount(agentAmount)) : '—') +
                         '</div></div>' +
                     '<label class="form-label fw-semibold">Your Counter Price (' + currency + ') <span class="text-danger">*</span></label>' +
-                    '<input type="number" class="form-control dmc-nego-offer-input" min="0" step="0.01" required ' +
+                    '<input type="number" class="form-control dmc-nego-offer-input" min="0" step="0.01" ' +
                         'data-index="' + index + '" data-max="' + payable + '" data-country="' + String(country).replace(/"/g, '&quot;') + '" data-currency="' + currency + '" ' +
                         'value="' + defaultCounter + '" placeholder="Enter counter in ' + currency + '">' +
-                    '<div class="form-text text-primary fw-semibold mt-1">Maximum allowed: ' + currency + ' ' + formatNegotiationAmount(payable) + '</div>' +
                     '<input type="hidden" name="offers[' + index + '][country]" value="' + String(country).replace(/"/g, '&quot;') + '">' +
                     '<input type="hidden" name="offers[' + index + '][currency]" value="' + currency + '">' +
                     '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
@@ -5266,31 +5313,10 @@ function showFilterResetMessage() {
 
             blocksEl.querySelectorAll('.dmc-nego-offer-input').forEach(function (input) {
                 input.addEventListener('input', function () {
-                    const max = parseFloat(this.getAttribute('data-max'));
-                    const val = parseFloat(this.value);
                     const hidden = this.parentElement.querySelector('.dmc-nego-offer-hidden');
                     if (hidden) hidden.value = this.value;
                     syncFollowupPrimaryNegotiationAmount();
-                    if (warningMessage) {
-                        if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
-                            warningMessage.classList.remove('d-none');
-                            warningMessage.textContent = 'Counter price for ' + (this.getAttribute('data-country') || 'a country') +
-                                ' cannot exceed ' + (this.getAttribute('data-currency') || '') + ' ' + formatNegotiationAmount(max) + '.';
-                        } else {
-                            warningMessage.classList.add('d-none');
-                        }
-                    }
-                });
-                input.addEventListener('blur', function () {
-                    const max = parseFloat(this.getAttribute('data-max'));
-                    const val = parseFloat(this.value);
-                    if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
-                        this.value = max;
-                        const hidden = this.parentElement.querySelector('.dmc-nego-offer-hidden');
-                        if (hidden) hidden.value = String(max);
-                        syncFollowupPrimaryNegotiationAmount();
-                        if (warningMessage) warningMessage.classList.add('d-none');
-                    }
+                    if (warningMessage) warningMessage.classList.add('d-none');
                 });
             });
 
@@ -5335,25 +5361,11 @@ function showFilterResetMessage() {
         };
 
         window.validateFollowupPrice = function(input) {
-            var maxValue = parseFloat(input.getAttribute('data-max') || input.getAttribute('max'));
-            var currentValue = parseFloat(input.value);
-            var warningMessage = document.getElementById('followup-warning-message');
             var hidden = input.parentElement ? input.parentElement.querySelector('.dmc-nego-offer-hidden') : null;
-
-            if (!isNaN(maxValue) && !isNaN(currentValue) && currentValue > maxValue) {
-                input.value = maxValue;
-                if (hidden) hidden.value = String(maxValue);
-                syncFollowupPrimaryNegotiationAmount();
-                if (warningMessage) {
-                    warningMessage.classList.remove('d-none');
-                    setTimeout(function() {
-                        warningMessage.classList.add('d-none');
-                    }, 3000);
-                }
-            } else if (hidden) {
+            if (hidden) {
                 hidden.value = input.value;
-                syncFollowupPrimaryNegotiationAmount();
             }
+            syncFollowupPrimaryNegotiationAmount();
         };
 
         // Add form submission handler with loader
@@ -5364,7 +5376,6 @@ function showFilterResetMessage() {
                 for (let i = 0; i < offerInputs.length; i++) {
                     const input = offerInputs[i];
                     const val = parseFloat(input.value);
-                    const max = parseFloat(input.getAttribute('data-max'));
                     if (isNaN(val) || val <= 0) {
                         e.preventDefault();
                         if (warningMessage) {
@@ -5372,18 +5383,6 @@ function showFilterResetMessage() {
                             warningMessage.textContent = 'Please enter a counter price for every country.';
                         }
                         input.focus();
-                        return false;
-                    }
-                    if (!isNaN(max) && max > 0 && val > max) {
-                        e.preventDefault();
-                        input.value = max;
-                        const hidden = input.parentElement.querySelector('.dmc-nego-offer-hidden');
-                        if (hidden) hidden.value = String(max);
-                        syncFollowupPrimaryNegotiationAmount();
-                        if (warningMessage) {
-                            warningMessage.classList.remove('d-none');
-                            warningMessage.textContent = 'Counter price cannot exceed the payable amount.';
-                        }
                         return false;
                     }
                     const hidden = input.parentElement.querySelector('.dmc-nego-offer-hidden');
@@ -5527,7 +5526,6 @@ function showFilterResetMessage() {
                             '<input type="number" class="form-control agent-nego-offer-input" min="0" step="0.01" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + String(country).replace(/"/g, '&quot;') + '" data-currency="' + currency + '" ' +
                                 'data-gross="' + gross + '" data-payable="' + payable + '" value="' + defaultOffer + '" placeholder="Enter offer in ' + currency + '">' +
-                            '<div class="form-text text-primary fw-semibold mt-1">Maximum allowed: ' + currency + ' ' + formatNegotiationAmount(payable) + '</div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + String(country).replace(/"/g, '&quot;') + '">' +
                             '<input type="hidden" name="offers[' + index + '][currency]" value="' + currency + '">' +
                             '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
@@ -5538,29 +5536,9 @@ function showFilterResetMessage() {
 
                     blocksEl.querySelectorAll('.agent-nego-offer-input').forEach(function (input) {
                         input.addEventListener('input', function () {
-                            const max = parseFloat(this.getAttribute('data-max'));
-                            const val = parseFloat(this.value);
                             const hidden = this.parentElement.querySelector('.agent-nego-offer-hidden');
                             if (hidden) hidden.value = this.value;
                             syncPrimaryNegotiationAmount();
-                            if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
-                                warning.classList.remove('d-none');
-                                warning.textContent = 'Negotiated amount for ' + (this.getAttribute('data-country') || 'a country') +
-                                    ' cannot exceed ' + (this.getAttribute('data-currency') || '') + ' ' + formatNegotiationAmount(max) + '.';
-                            } else {
-                                warning.classList.add('d-none');
-                            }
-                        });
-                        input.addEventListener('blur', function () {
-                            const max = parseFloat(this.getAttribute('data-max'));
-                            const val = parseFloat(this.value);
-                            if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
-                                this.value = max;
-                                const hidden = this.parentElement.querySelector('.agent-nego-offer-hidden');
-                                if (hidden) hidden.value = String(max);
-                                syncPrimaryNegotiationAmount();
-                                warning.classList.add('d-none');
-                            }
                         });
                     });
                 }
@@ -5575,10 +5553,7 @@ function showFilterResetMessage() {
             tourIdInput.value = tourId;
             actionInput.value = 'negotiate';
             displayEl.textContent = displayId;
-            warning.classList.add('d-none');
-            remarkInput.classList.remove('is-invalid');
-            const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
-            if (remarkErrEl) remarkErrEl.classList.add('d-none');
+            if (warning) warning.classList.add('d-none');
             remarkInput.value = '';
             lastRemarkEl.textContent = lastRemark || '—';
 
@@ -5627,7 +5602,7 @@ function showFilterResetMessage() {
             const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
             const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
             const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
-            warning.classList.add('d-none');
+            if (warning) warning.classList.add('d-none');
 
             if (action === 'negotiate') {
                 const offerInputs = Array.from(document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input'));
@@ -5642,9 +5617,7 @@ function showFilterResetMessage() {
 
                 for (const input of offerInputs) {
                     const amountValue = parseFloat(input.value);
-                    const max = parseFloat(input.getAttribute('data-max'));
                     const country = input.getAttribute('data-country') || 'a country';
-                    const currency = input.getAttribute('data-currency') || '';
                     if (isNaN(amountValue) || amountValue <= 0) {
                         Swal.fire({
                             icon: 'warning',
@@ -5653,24 +5626,10 @@ function showFilterResetMessage() {
                         });
                         return;
                     }
-                    if (!isNaN(max) && max > 0 && amountValue > max) {
-                        warning.classList.remove('d-none');
-                        warning.textContent = 'Negotiated amount for ' + country + ' cannot exceed ' + currency + ' ' + formatNegotiationAmount(max) + '.';
-                        return;
-                    }
                     const hidden = input.parentElement.querySelector('.agent-nego-offer-hidden');
                     if (hidden) hidden.value = input.value;
                 }
                 syncPrimaryNegotiationAmount();
-
-                const remarkError = document.getElementById('agentNegotiationRemarkError');
-                if (remarkInput.value.trim() === '') {
-                    remarkInput.classList.add('is-invalid');
-                    remarkError.classList.remove('d-none');
-                    return;
-                }
-                remarkInput.classList.remove('is-invalid');
-                remarkError.classList.add('d-none');
 
                 submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
                 submitBtn.disabled = true;
@@ -5682,21 +5641,10 @@ function showFilterResetMessage() {
                 return;
             }
 
-            // For Cancel and Confirm actions - remarks required
-            const remarkError = document.getElementById('agentNegotiationRemarkError');
-            if (remarkInput.value.trim() === '') {
-                remarkInput.classList.add('is-invalid');
-                remarkError.classList.remove('d-none');
-                return;
-            }
-            remarkInput.classList.remove('is-invalid');
-            remarkError.classList.add('d-none');
-
             if (action === 'confirm') {
                 const offerInputs = Array.from(document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input'));
                 for (const input of offerInputs) {
                     const amountValue = parseFloat(input.value);
-                    const max = parseFloat(input.getAttribute('data-max'));
                     if (isNaN(amountValue) || amountValue <= 0) {
                         Swal.fire({
                             icon: 'warning',
@@ -5705,18 +5653,13 @@ function showFilterResetMessage() {
                         });
                         return;
                     }
-                    if (!isNaN(max) && max > 0 && amountValue > max) {
-                        warning.classList.remove('d-none');
-                        warning.textContent = 'Negotiated amount cannot exceed the payable amount.';
-                        return;
-                    }
                     const hidden = input.parentElement.querySelector('.agent-nego-offer-hidden');
                     if (hidden) hidden.value = input.value;
                 }
                 syncPrimaryNegotiationAmount();
 
-                const tourCurrencies = getTourNegotiationCurrencies();
-                if (tourCurrencies.length === 0) {
+                const confirmCurrencies = getConfirmTourCurrencyOptions();
+                if (confirmCurrencies.length === 0) {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Currency required',
@@ -5729,22 +5672,37 @@ function showFilterResetMessage() {
                     agentNegotiationModalInstance.hide();
                 }
 
-                const currencyOptionsHtml = tourCurrencies.map(function (code) {
+                const currencyOptionsHtml = confirmCurrencies.map(function (code) {
                     return '<option value="' + code + '">' + code + '</option>';
                 }).join('');
 
                 Swal.fire({
                     title: 'Confirm this tour?',
                     icon: 'question',
+                    width: '22rem',
+                    padding: '0.85rem 1rem',
+                    customClass: {
+                        popup: 'swal-confirm-tour-popup',
+                        title: 'swal-confirm-tour-title',
+                        htmlContainer: 'swal-confirm-tour-html',
+                        actions: 'swal-confirm-tour-actions'
+                    },
                     html:
-                        '<p class="mb-3 text-start">This will move the tour to Confirmed status.</p>' +
+                        '<p class="mb-2 text-start small text-muted">This will move the tour to Confirmed status.</p>' +
                         '<div class="text-start">' +
-                            '<label for="swalConfirmCurrency" class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>' +
-                            '<select id="swalConfirmCurrency" class="form-select">' +
-                                '<option value="">Select currency</option>' +
+                            '<label for="swalConfirmCurrency" class="form-label fw-semibold mb-1">Currency <span class="text-danger">*</span></label>' +
+                            '<select id="swalConfirmCurrency" class="form-select form-select-sm">' +
                                 currencyOptionsHtml +
                             '</select>' +
-                            '<div class="form-text">Choose one of the currencies used on this tour\'s bookings.</div>' +
+                            '<div class="form-text small"></div>' +
+                            '<div id="swalConfirmConvertedPreview" class="mt-2 p-2 bg-light rounded border" style="display:none;">' +
+                                '<div class="small text-muted mb-1">Estimated total in selected currency</div>' +
+                                '<div id="swalConfirmConvertedAmount" class="fs-6 fw-bold text-primary">—</div>' +
+                                '<div class="swal-confirm-indicative-note">' +
+                                    '<i class="ri-information-line me-1"></i>' +
+                                    'Indicative amount only — final confirmed price may differ when exchange rates are applied at confirmation.' +
+                                '</div>' +
+                            '</div>' +
                         '</div>',
                     showCancelButton: true,
                     confirmButtonText: 'Yes, confirm it',
@@ -5752,6 +5710,16 @@ function showFilterResetMessage() {
                     cancelButtonText: 'Review again',
                     focusConfirm: false,
                     showLoaderOnConfirm: true,
+                    didOpen: function () {
+                        const currencySelect = document.getElementById('swalConfirmCurrency');
+                        if (!currencySelect) {
+                            return;
+                        }
+                        currencySelect.addEventListener('change', function () {
+                            updateSwalConfirmConvertedPreview();
+                        });
+                        updateSwalConfirmConvertedPreview();
+                    },
                     preConfirm: () => {
                         const currencySelect = document.getElementById('swalConfirmCurrency');
                         const selectedCurrency = currencySelect ? String(currencySelect.value || '').trim().toUpperCase() : '';
@@ -5759,7 +5727,7 @@ function showFilterResetMessage() {
                             Swal.showValidationMessage('Please select a currency.');
                             return false;
                         }
-                        if (tourCurrencies.indexOf(selectedCurrency) === -1) {
+                        if (confirmCurrencies.indexOf(selectedCurrency) === -1) {
                             Swal.showValidationMessage('Selected currency is not valid for this tour.');
                             return false;
                         }
@@ -5860,25 +5828,154 @@ function showFilterResetMessage() {
             const currencies = [];
             const seen = {};
 
-            document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input').forEach(function (input) {
-                const code = String(input.getAttribute('data-currency') || '').trim().toUpperCase();
-                if (code && !seen[code]) {
-                    seen[code] = true;
-                    currencies.push(code);
+            function addCurrency(code) {
+                const normalized = String(code || '').trim().toUpperCase();
+                if (!normalized || seen[normalized]) {
+                    return;
                 }
+                seen[normalized] = true;
+                currencies.push(normalized);
+            }
+
+            document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input').forEach(function (input) {
+                addCurrency(input.getAttribute('data-currency'));
             });
 
-            if (currencies.length === 0 && agentNegotiationContext && Array.isArray(agentNegotiationContext.groups)) {
+            if (agentNegotiationContext && Array.isArray(agentNegotiationContext.groups)) {
                 agentNegotiationContext.groups.forEach(function (group) {
-                    const code = String(group.currency || '').trim().toUpperCase();
-                    if (code && !seen[code]) {
-                        seen[code] = true;
-                        currencies.push(code);
-                    }
+                    addCurrency(group.currency);
                 });
             }
 
             return currencies;
+        }
+
+        /** Tour booking currencies plus USD/SGD (each code once, for confirm conversion). */
+        function getConfirmTourCurrencyOptions() {
+            const seen = {};
+            const out = [];
+
+            function add(code) {
+                const normalized = String(code || '').trim().toUpperCase();
+                if (!normalized || seen[normalized]) {
+                    return;
+                }
+                seen[normalized] = true;
+                out.push(normalized);
+            }
+
+            getTourNegotiationCurrencies().forEach(add);
+            ['USD', 'SGD'].forEach(add);
+
+            return out;
+        }
+
+        function collectAgentNegotiationOffersForConfirm() {
+            const offers = [];
+            document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input').forEach(function (input) {
+                const amount = parseFloat(input.value);
+                const currency = String(input.getAttribute('data-currency') || '').trim().toUpperCase();
+                if (!currency || isNaN(amount) || amount <= 0) {
+                    return;
+                }
+                offers.push({ currency: currency, amount: amount });
+            });
+            return offers;
+        }
+
+        function fetchNegotiationExchangeRate(fromCurrency, toCurrency) {
+            const from = String(fromCurrency || '').trim().toUpperCase();
+            const to = String(toCurrency || '').trim().toUpperCase();
+            if (!from || !to) {
+                return Promise.resolve(null);
+            }
+            if (from === to) {
+                return Promise.resolve(1);
+            }
+            const url = @json(route('get-exchange-rate')) + '?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+            return fetch(url, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data && data.success && data.rate) {
+                        const rate = parseFloat(data.rate);
+                        return Number.isFinite(rate) && rate > 0 ? rate : null;
+                    }
+                    return null;
+                })
+                .catch(function () { return null; });
+        }
+
+        function computeConvertedNegotiationTotal(offers, targetCurrency) {
+            const target = String(targetCurrency || '').trim().toUpperCase();
+            if (!target || !Array.isArray(offers) || offers.length === 0) {
+                return Promise.resolve({ error: 'No negotiation amounts available to convert.' });
+            }
+
+            const uniqueFrom = [];
+            const seen = {};
+            offers.forEach(function (offer) {
+                if (!seen[offer.currency]) {
+                    seen[offer.currency] = true;
+                    uniqueFrom.push(offer.currency);
+                }
+            });
+
+            return uniqueFrom.reduce(function (promise, from) {
+                return promise.then(function (rateCache) {
+                    return fetchNegotiationExchangeRate(from, target).then(function (rate) {
+                        if (rate === null || rate <= 0) {
+                            throw new Error('Unable to fetch exchange rate from ' + from + ' to ' + target + '.');
+                        }
+                        rateCache[from] = rate;
+                        return rateCache;
+                    });
+                });
+            }, Promise.resolve({})).then(function (rateCache) {
+                let total = 0;
+                offers.forEach(function (offer) {
+                    total += Math.ceil(offer.amount * rateCache[offer.currency]);
+                });
+                return { total: total, currency: target };
+            }).catch(function (err) {
+                return { error: err && err.message ? err.message : 'Conversion failed.' };
+            });
+        }
+
+        let swalConfirmConversionRequestId = 0;
+
+        function updateSwalConfirmConvertedPreview() {
+            const currencySelect = document.getElementById('swalConfirmCurrency');
+            const preview = document.getElementById('swalConfirmConvertedPreview');
+            const amountEl = document.getElementById('swalConfirmConvertedAmount');
+            if (!currencySelect || !preview || !amountEl) {
+                return;
+            }
+
+            const targetCurrency = String(currencySelect.value || '').trim().toUpperCase();
+            if (!targetCurrency) {
+                preview.style.display = 'none';
+                amountEl.textContent = '—';
+                return;
+            }
+
+            preview.style.display = 'block';
+            amountEl.textContent = 'Calculating…';
+
+            const offers = collectAgentNegotiationOffersForConfirm();
+            const requestId = ++swalConfirmConversionRequestId;
+
+            computeConvertedNegotiationTotal(offers, targetCurrency).then(function (result) {
+                if (requestId !== swalConfirmConversionRequestId) {
+                    return;
+                }
+                if (result.error) {
+                    amountEl.innerHTML = '<span class="text-danger small">' + result.error + '</span>';
+                    return;
+                }
+                amountEl.textContent = formatNegotiationAmount(result.total) + ' ' + result.currency;
+            });
         }
 
         function parseNegotiationAttr(attr) {
