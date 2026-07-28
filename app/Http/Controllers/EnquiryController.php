@@ -101,7 +101,7 @@ class EnquiryController extends Controller
             'enquiry_id' => 'nullable|integer',
             'tour_id' => 'nullable|integer|exists:tours,tour_id',
             'price' => 'nullable|numeric|min:0',
-            'comment' => 'required|string|max:1000',
+            'comment' => 'nullable|string|max:1000',
             'actual_amount' => 'nullable|numeric|min:0',
             'offers' => 'nullable|array|min:1',
             'offers.*.country' => 'required_with:offers|string|max:255',
@@ -126,17 +126,6 @@ class EnquiryController extends Controller
                     'gross' => round((float) ($offer['gross'] ?? 0), 2),
                 ];
             }, $request->input('offers')));
-
-            foreach ($offers as $offer) {
-                if ($offer['actual_amount'] > 0 && $offer['amount'] > $offer['actual_amount']) {
-                    return back()
-                        ->withErrors([
-                            'price' => 'Counter price for ' . ($offer['country'] ?: $offer['currency'])
-                                . ' cannot exceed the payable amount.',
-                        ])
-                        ->withInput();
-                }
-            }
         }
 
         $primaryOffer = $offers[0] ?? null;
