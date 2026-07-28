@@ -971,14 +971,38 @@
         console.log('Restaurants:', @json($restaurants->pluck('name')));
     @endif
     
-    // Default values from backend (6 types: hotel, restaurant, attraction, car_private, car_shared, port)
-    // Make it global so it can be accessed in other script blocks
+    // Default values — city-scoped + legacy flat fallback
+    window.defaultValuesByCity = {!! json_encode($defaultValuesByCity ?? []) !!};
+    window.defaultValuesGlobal = {!! json_encode($defaultValues ?? []) !!};
     window.defaultValues = {!! json_encode($defaultValues ?? []) !!};
-    console.log('Default Values loaded:', window.defaultValues);
-    console.log('Type of defaultValues:', typeof window.defaultValues);
-    if (window.defaultValues && typeof window.defaultValues === 'object') {
-        console.log('Default keys:', Object.keys(window.defaultValues));
-    }
+
+    window.getDefaultValuesForCity = function(cityName) {
+        const globalDefaults = (window.defaultValuesGlobal && typeof window.defaultValuesGlobal === 'object')
+            ? window.defaultValuesGlobal : {};
+        const byCity = window.defaultValuesByCity || {};
+        const city = String(cityName || '').trim();
+        if (!city) return Object.assign({}, globalDefaults);
+        return Object.assign({}, globalDefaults, byCity[city] || {});
+    };
+
+    window.resolveActiveDefaultValues = function(preferredCity) {
+        let city = String(preferredCity || '').trim();
+        if (!city && typeof selectedDestinations !== 'undefined' && selectedDestinations && selectedDestinations.length) {
+            city = selectedDestinations[0];
+        }
+        if (!city) {
+            const destSel = document.getElementById('hotelDestination');
+            if (destSel && destSel.value) city = destSel.value;
+        }
+        const resolved = window.getDefaultValuesForCity(city);
+        window.defaultValues = resolved;
+        return resolved;
+    };
+
+    window.defaultValues = window.resolveActiveDefaultValues();
+    console.log('Default Values global:', window.defaultValuesGlobal);
+    console.log('Default Values by city:', window.defaultValuesByCity);
+    console.log('Active default values:', window.defaultValues);
     
     // Check dropdown after page loads
     document.addEventListener('DOMContentLoaded', function() {
@@ -987,41 +1011,40 @@
         }, 500);
         // Wait for Select2 to initialize, then set default port for arrival and departure
         setTimeout(function() {
-            if (window.defaultValues && window.defaultValues.port) {
-                console.log('Setting default port:', window.defaultValues.port);
+            const defaults = (typeof window.resolveActiveDefaultValues === 'function')
+                ? window.resolveActiveDefaultValues()
+                : (window.defaultValues || {});
+            if (defaults && defaults.port) {
+                console.log('Setting default port:', defaults.port);
                 
                 const arrivalPort = document.getElementById('arrivalPort');
                 const departurePort = document.getElementById('departurePort');
                 
                 if (arrivalPort) {
-                    // Find the port option that matches the port_id
                     const portOption = Array.from(arrivalPort.options).find(opt => {
-                        // Match against data-port-id or port_id in the option
-                        return opt.getAttribute('data-port-id') == window.defaultValues.port || 
-                               opt.value == window.defaultValues.port;
+                        return opt.getAttribute('data-port-id') == defaults.port || 
+                               opt.value == defaults.port;
                     });
                     
                     if (portOption) {
                         $(arrivalPort).val(portOption.value).trigger('change');
                         console.log('Arrival port set to:', portOption.value);
                     } else {
-                        console.warn('Port option not found for value:', window.defaultValues.port);
-                        console.log('Available port options:', Array.from(arrivalPort.options).map(o => ({value: o.value, text: o.text})));
+                        console.warn('Port option not found for value:', defaults.port);
                     }
                 }
                 
                 if (departurePort) {
-                    // Find the port option that matches the port_id
                     const portOption = Array.from(departurePort.options).find(opt => {
-                        return opt.getAttribute('data-port-id') == window.defaultValues.port || 
-                               opt.value == window.defaultValues.port;
+                        return opt.getAttribute('data-port-id') == defaults.port || 
+                               opt.value == defaults.port;
                     });
                     
                     if (portOption) {
                         $(departurePort).val(portOption.value).trigger('change');
                         console.log('Departure port set to:', portOption.value);
                     } else {
-                        console.warn('Port option not found for value:', window.defaultValues.port);
+                        console.warn('Port option not found for value:', defaults.port);
                     }
                 }
             }
@@ -2068,6 +2091,17 @@
                 <!-- Arrival/Departure Flight Information (shown for both hotel mode and standalone mode) -->
                 <div class="border-top pt-2 mt-2" id="arrivalDepartureSection" style="display: none;">
                     <h6 class="small mb-1 text-muted" id="arrivalDepartureSectionTitle">Arrival/Departure Flight Information</h6>
+                    <div class="row g-2 mb-2" id="arrivalDepartureCityRow">
+                        <div class="col-3" id="arrivalDepartureCityField">
+                            <label class="form-label small">City <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="arrivalDepartureCity" onchange="onArrivalDepartureCityChanged()" style="font-size: 10px;">
+                                <option value="">Select City</option>
+                                @foreach($destinations as $dest)
+                                    <option value="{{ $dest->name }}">{{ $dest->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                     <div id="modalArrivalOnlyContent">
                     <div class="row g-2 mb-1">
                         <div class="col-2" id="arrivalDateTimeField">
@@ -2146,7 +2180,8 @@
                                                     data-seating="{{ $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                    data-sharable="{{ $vehicle->sharable ?? 1 }}">
+                                                    data-sharable="{{ $vehicle->sharable ?? 1 }}"
+                                                    data-city="{{ $vehicle->city ?? '' }}">
                                                     {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                                                 </option>
                                             @endforeach
@@ -2229,6 +2264,7 @@
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
+                                                    data-city="{{ $guide->city ?? '' }}"
                                                     data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
@@ -2342,7 +2378,8 @@
                                                     data-seating="{{ $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                    data-sharable="{{ $vehicle->sharable ?? 1 }}">
+                                                    data-sharable="{{ $vehicle->sharable ?? 1 }}"
+                                                    data-city="{{ $vehicle->city ?? '' }}">
                                                     {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                                                 </option>
                                             @endforeach
@@ -2425,6 +2462,7 @@
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
+                                                    data-city="{{ $guide->city ?? '' }}"
                                                     data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
@@ -2645,7 +2683,8 @@
                                                         data-seating="{{ $vehicle->seating_capacity }}"
                                                         data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                         data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                        data-sharable="{{ $vehicle->sharable ?? 3 }}">
+                                                        data-sharable="{{ $vehicle->sharable ?? 3 }}"
+                                                        data-city="{{ $vehicle->city ?? '' }}">
                                                         {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                                                     </option>
                                                 @endforeach
@@ -2679,6 +2718,7 @@
                                                 <option value="{{ $guide->guide_id }}" 
                                                         data-name="{{ $guide->name }}" 
                                                         data-languages="{{ $languages }}"
+                                                        data-city="{{ $guide->city ?? '' }}"
                                                         data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                             @endforeach
                                         </select>
@@ -2744,7 +2784,7 @@
                                     <option value="">Select Location</option>
                                     <optgroup label="Attractions">
                                         @foreach($attractions as $index => $attr)
-                                            <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}" {{ $index === 0 ? 'selected' : '' }}>{{ $attr->name }}</option>
+                                            <option value="{{ $attr->attraction_id }}" data-name="{{ $attr->name }}" data-type="attraction" data-location="{{ $attr->location ?? '' }}" data-country="{{ $attr->country ?? '' }}">{{ $attr->name }}</option>
                                         @endforeach
                                     </optgroup>
                                     <optgroup label="Restaurants">
@@ -3006,7 +3046,8 @@
                                                     data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                     data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                     data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                    data-sharable="{{ $vehicle->sharable ?? 3 }}">
+                                                    data-sharable="{{ $vehicle->sharable ?? 3 }}"
+                                                    data-city="{{ $vehicle->city ?? '' }}">
                                                     {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                                                 </option>
                                             @endforeach
@@ -3082,6 +3123,7 @@
                                         <option value="{{ $guide->guide_id }}" 
                                                 data-name="{{ $guide->name }}" 
                                                 data-languages="{{ $languages }}"
+                                                data-city="{{ $guide->city ?? '' }}"
                                                 data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                     @endforeach
                                 </select>
@@ -3193,9 +3235,18 @@
                 <!-- Local Transfer Form -->
                 <div id="localTransferForm" class="transfer-mode-form">
                     <div class="row g-2 mb-2">
-                        <div class="col-3">
+                        <div class="col-2">
                             <label class="form-label small" style="margin-bottom: 2px;">Date & Time</label>
                             <input type="datetime-local" class="form-control form-control-sm" id="localDateTime">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small" style="margin-bottom: 2px;">City <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="localDestination" onchange="onLocalDestinationChanged()">
+                                <option value="">Select City</option>
+                                @foreach($destinations as $dest)
+                                    <option value="{{ $dest->name }}">{{ $dest->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-3">
                             <label class="form-label small" style="margin-bottom: 2px;">Pickup</label>
@@ -3249,7 +3300,7 @@
                                 </optgroup>
                             </select>
                         </div>
-                        <div class="col-3">
+                        <div class="col-2">
                             <label class="form-label small" style="margin-bottom: 2px;">Vehicle Type</label>
                             <select class="form-select form-select-sm" id="localVehicleType">
                                 <option value="">Select Vehicle</option>
@@ -3265,7 +3316,8 @@
                                                 data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                                                 data-base-price="{{ $vehicle->base_price ?? 0 }}"
                                                 data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                data-sharable="{{ $vehicle->sharable ?? 3 }}">
+                                                data-sharable="{{ $vehicle->sharable ?? 3 }}"
+                                                data-city="{{ $vehicle->city ?? '' }}">
                                                 {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                                             </option>
                                         @endforeach
@@ -3349,6 +3401,7 @@
                                             <option value="{{ $guide->guide_id }}" 
                                                     data-name="{{ $guide->name }}" 
                                                     data-languages="{{ $languages }}"
+                                                    data-city="{{ $guide->city ?? '' }}"
                                                     data-twelve-hour-price="{{ $twelveHourPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
                                         @endforeach
                                     </select>
@@ -4071,6 +4124,18 @@
         text-align: center;
     }
 
+    /* Hide city-filtered dropoff options (attraction + restaurant transfer) */
+    .attraction-transfer-destination option[disabled],
+    .attraction-transfer-destination option[hidden],
+    .attraction-transfer-destination optgroup[disabled],
+    .attraction-transfer-destination optgroup[hidden],
+    #restaurantTransferDestination option[disabled],
+    #restaurantTransferDestination option[hidden],
+    #restaurantTransferDestination optgroup[disabled],
+    #restaurantTransferDestination optgroup[hidden] {
+        display: none !important;
+    }
+
     /* Select2 styling for port dropdowns in modal */
     .select2-container--default .select2-selection--single {
         height: 22px !important;
@@ -4117,6 +4182,8 @@
 <script>
     // Ensure defaultValues is initialized (fallback if not set in earlier script)
     if (typeof window.defaultValues === 'undefined') {
+        window.defaultValuesByCity = {!! json_encode($defaultValuesByCity ?? []) !!};
+        window.defaultValuesGlobal = {!! json_encode($defaultValues ?? []) !!};
         window.defaultValues = {!! json_encode($defaultValues ?? []) !!};
         console.log('⚠️ defaultValues initialized in scripts section:', window.defaultValues);
     }
@@ -4364,236 +4431,209 @@
         });
     }
     
-    // Apply default values to arrival and departure fields
-    function applyArrivalDepartureDefaults() {
-        console.log('=== Applying Arrival/Departure Default Values ===');
-        console.log('Default Values:', window.defaultValues);
+    // Apply default values to arrival and departure fields (city-scoped)
+    function applyArrivalDepartureDefaults(preferredCity) {
+        const city = (typeof getArrivalDepartureServiceCity === 'function')
+            ? getArrivalDepartureServiceCity(preferredCity)
+            : String(preferredCity
+                || document.getElementById('arrivalDepartureCity')?.value
+                || document.getElementById('hotelDestination')?.value
+                || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                || '').trim();
+
+        // Keep City select in sync with hotel/service city
+        const arrDepCitySel = document.getElementById('arrivalDepartureCity');
+        if (arrDepCitySel && city && arrDepCitySel.value !== city) {
+            arrDepCitySel.value = city;
+        }
+
+        const defaults = (typeof window.resolveActiveDefaultValues === 'function')
+            ? window.resolveActiveDefaultValues(city)
+            : (window.defaultValues || {});
+        console.log('=== Applying Arrival/Departure Default Values ===', city, defaults);
         
-        // Check if we have default values
-        if (!window.defaultValues || typeof window.defaultValues !== 'object') {
+        if (!defaults || typeof defaults !== 'object') {
             console.warn('⚠️ No default values available');
             return;
         }
+
+        if (city && typeof filterPortsBySelectedCountries === 'function') {
+            filterPortsBySelectedCountries(city);
+        }
+
+        function setSelectValue(el, value, useSelect2) {
+            if (!el || value == null || value === '') return false;
+            if (useSelect2 && typeof jQuery !== 'undefined') {
+                jQuery(el).val(value).trigger('change').trigger('change.select2');
+            } else if (typeof jQuery !== 'undefined') {
+                jQuery(el).val(value).trigger('change');
+            } else {
+                el.value = value;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            return true;
+        }
+
+        function clearSelect(el, useSelect2) {
+            if (!el) return;
+            el.value = '';
+            if (useSelect2 && typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+                jQuery(el).val(null).trigger('change');
+            }
+        }
         
-        // ARRIVAL DEFAULTS
-        // Auto-select default port if available
+        // ARRIVAL DEFAULTS — always overwrite with city defaults (2nd hotel city switch)
         const arrivalPortSelect = $('#arrivalPort');
-        if (arrivalPortSelect && arrivalPortSelect.length && window.defaultValues && window.defaultValues.port) {
-            console.log('Attempting to set arrival port to:', window.defaultValues.port);
-            console.log('Is Select2 initialized?', arrivalPortSelect.hasClass('select2-hidden-accessible'));
-            
-            const portExists = arrivalPortSelect.find(`option[value="${window.defaultValues.port}"]`).length > 0;
-            console.log('Port option exists?', portExists);
-            
-            if (portExists) {
-                // For Select2 dropdowns, we need to trigger both change and change.select2
-                arrivalPortSelect.val(window.defaultValues.port).trigger('change').trigger('change.select2');
-                console.log('✓ Selected default arrival port:', window.defaultValues.port);
-            } else {
-                console.warn('✗ Default port not found in arrival dropdown:', window.defaultValues.port);
-                console.log('Available options:', arrivalPortSelect.find('option').map(function() { 
-                    return {value: $(this).val(), text: $(this).text()}; 
-                }).get());
+        if (arrivalPortSelect && arrivalPortSelect.length) {
+            let portOption = null;
+            if (defaults.port) {
+                portOption = Array.from(arrivalPortSelect[0].options || []).find(function (opt) {
+                    return !opt.disabled && !opt.hidden && (
+                        String(opt.value) === String(defaults.port)
+                        || String(opt.getAttribute('data-port-id') || '') === String(defaults.port)
+                    );
+                });
             }
-        } else {
-            console.log('Arrival port select not ready or no default port value');
+            if (portOption) {
+                arrivalPortSelect.val(portOption.value).trigger('change').trigger('change.select2');
+                console.log('✓ Selected default arrival port:', portOption.value);
+            } else {
+                // Clear stale previous-city port (e.g. Kolkata Airport after switching to Batam)
+                const cur = arrivalPortSelect[0].selectedOptions?.[0];
+                if (cur && (cur.disabled || cur.hidden || !cur.value)) {
+                    clearSelect(arrivalPortSelect[0], true);
+                } else if (cur && cur.value) {
+                    const ok = !cur.disabled && !cur.hidden;
+                    if (!ok) clearSelect(arrivalPortSelect[0], true);
+                }
+            }
         }
         
-        // Auto-select default hotel destination
         const arrivalDestSelect = document.getElementById('arrivalDestination');
-        if (arrivalDestSelect && window.defaultValues) {
+        if (arrivalDestSelect) {
             const hotelOptions = Array.from(arrivalDestSelect.options).filter(o => 
-                o.getAttribute('data-type') === 'hotel'
+                o.getAttribute('data-type') === 'hotel' && !o.disabled && !o.hidden
             );
-            
             let selectedHotel = null;
-            if (window.defaultValues.hotel) {
-                selectedHotel = hotelOptions.find(o => o.value == window.defaultValues.hotel);
+            if (defaults.hotel) {
+                selectedHotel = hotelOptions.find(o =>
+                    o.value == defaults.hotel || o.getAttribute('data-hotel-unique-id') == defaults.hotel
+                );
             }
-            
+            // Prefer currently selected hotel in modal when it matches this city
+            const modalHotel = document.getElementById('hotelSelect');
+            if (modalHotel && modalHotel.value) {
+                const mOpt = modalHotel.selectedOptions?.[0];
+                const mCity = String(mOpt?.getAttribute('data-city') || document.getElementById('hotelDestination')?.value || '').trim();
+                const mUid = mOpt?.getAttribute('data-hotel-unique-id') || '';
+                if (mUid && (!city || !mCity || mCity.toLowerCase() === city.toLowerCase())) {
+                    const matchModal = hotelOptions.find(o =>
+                        o.value == mUid || o.getAttribute('data-hotel-unique-id') == mUid
+                    );
+                    if (matchModal) selectedHotel = matchModal;
+                }
+            }
             if (selectedHotel) {
-                $(arrivalDestSelect).val(selectedHotel.value).trigger('change');
-                console.log('✓ Selected default arrival hotel:', selectedHotel.value);
+                setSelectValue(arrivalDestSelect, selectedHotel.value, false);
             } else if (hotelOptions.length > 0) {
-                $(arrivalDestSelect).val(hotelOptions[0].value).trigger('change');
-                console.log('✓ Selected first arrival hotel:', hotelOptions[0].value);
-            }
-        }
-        
-        // Set default vehicle type to 'Shared'
-        const arrivalTransferType = document.getElementById('arrivalTransferType');
-        if (arrivalTransferType) {
-            arrivalTransferType.value = 'S';
-            console.log('✓ Set arrival transfer type to Shared');
-        }
-        
-        // Set default vehicle
-        const arrivalVehicleType = $('#arrivalVehicleType');
-        if (arrivalVehicleType && arrivalVehicleType.length && window.defaultValues && window.defaultValues.car_shared) {
-            console.log('Attempting to set arrival vehicle to:', window.defaultValues.car_shared);
-            
-            const vehicleOption = arrivalVehicleType.find(`option[value="${window.defaultValues.car_shared}"]`);
-            console.log('Vehicle option exists?', vehicleOption.length > 0);
-            
-            if (vehicleOption.length > 0) {
-                // Trigger both change and change.select2 for Select2 dropdowns
-                arrivalVehicleType.val(window.defaultValues.car_shared).trigger('change').trigger('change.select2');
-                console.log('✓ Selected default arrival vehicle:', window.defaultValues.car_shared);
+                setSelectValue(arrivalDestSelect, hotelOptions[0].value, false);
             } else {
-                console.warn('✗ Default shared vehicle not found in arrival dropdown:', window.defaultValues.car_shared);
-                console.log('Available vehicle options:', arrivalVehicleType.find('option').map(function() { 
-                    return {value: $(this).val(), text: $(this).text()}; 
-                }).get());
+                clearSelect(arrivalDestSelect, false);
             }
-        } else {
-            console.log('Arrival vehicle select not ready or no default vehicle value');
+        }
+        
+        const arrivalTransferType = document.getElementById('arrivalTransferType');
+        if (arrivalTransferType && !arrivalTransferType.value) {
+            arrivalTransferType.value = 'S';
+        }
+        
+        window._arrDepVehicleForceCity = city;
+        if (typeof filterArrivalVehiclesByServiceType === 'function') {
+            filterArrivalVehiclesByServiceType(city);
         }
         
         // DEPARTURE DEFAULTS
-        // Auto-select default port
         const departurePortSelect = $('#departurePort');
-        if (departurePortSelect && departurePortSelect.length && window.defaultValues && window.defaultValues.port) {
-            console.log('Attempting to set departure port to:', window.defaultValues.port);
-            console.log('Is Select2 initialized?', departurePortSelect.hasClass('select2-hidden-accessible'));
-            
-            const portExists = departurePortSelect.find(`option[value="${window.defaultValues.port}"]`).length > 0;
-            console.log('Port option exists?', portExists);
-            
-            if (portExists) {
-                // For Select2 dropdowns, trigger both change and change.select2
-                departurePortSelect.val(window.defaultValues.port).trigger('change').trigger('change.select2');
-                console.log('✓ Selected default departure port:', window.defaultValues.port);
-            } else {
-                console.warn('✗ Default port not found in departure dropdown:', window.defaultValues.port);
-                console.log('Available options:', departurePortSelect.find('option').map(function() { 
-                    return {value: $(this).val(), text: $(this).text()}; 
-                }).get());
+        if (departurePortSelect && departurePortSelect.length) {
+            let portOption = null;
+            if (defaults.port) {
+                portOption = Array.from(departurePortSelect[0].options || []).find(function (opt) {
+                    return !opt.disabled && !opt.hidden && (
+                        String(opt.value) === String(defaults.port)
+                        || String(opt.getAttribute('data-port-id') || '') === String(defaults.port)
+                    );
+                });
             }
-        } else {
-            console.log('Departure port select not ready or no default port value');
+            if (portOption) {
+                departurePortSelect.val(portOption.value).trigger('change').trigger('change.select2');
+            } else {
+                const cur = departurePortSelect[0].selectedOptions?.[0];
+                if (cur && (cur.disabled || cur.hidden)) {
+                    clearSelect(departurePortSelect[0], true);
+                }
+            }
         }
         
-        // Auto-select default hotel destination
         const departureDestSelect = document.getElementById('departureDestination');
-        if (departureDestSelect && window.defaultValues) {
+        if (departureDestSelect) {
             const hotelOptions = Array.from(departureDestSelect.options).filter(o => 
-                o.getAttribute('data-type') === 'hotel'
+                o.getAttribute('data-type') === 'hotel' && !o.disabled && !o.hidden
             );
-            
             let selectedHotel = null;
-            if (window.defaultValues.hotel) {
-                selectedHotel = hotelOptions.find(o => o.value == window.defaultValues.hotel);
-            }
-            
-            if (selectedHotel) {
-                $(departureDestSelect).val(selectedHotel.value).trigger('change');
-                console.log('✓ Selected default departure hotel:', selectedHotel.value);
-            } else if (hotelOptions.length > 0) {
-                $(departureDestSelect).val(hotelOptions[0].value).trigger('change');
-                console.log('✓ Selected first departure hotel:', hotelOptions[0].value);
-            }
-        }
-        
-        // Set default vehicle type to 'Shared'
-        const departureTransferType = document.getElementById('departureTransferType');
-        if (departureTransferType) {
-            departureTransferType.value = 'S';
-            console.log('✓ Set departure transfer type to Shared');
-        }
-        
-        // Set default vehicle
-        const departureVehicleType = $('#departureVehicleType');
-        if (departureVehicleType && departureVehicleType.length && window.defaultValues && window.defaultValues.car_shared) {
-            console.log('Attempting to set departure vehicle to:', window.defaultValues.car_shared);
-            
-            const vehicleOption = departureVehicleType.find(`option[value="${window.defaultValues.car_shared}"]`);
-            console.log('Vehicle option exists?', vehicleOption.length > 0);
-            
-            if (vehicleOption.length > 0) {
-                // Trigger both change and change.select2 for Select2 dropdowns
-                departureVehicleType.val(window.defaultValues.car_shared).trigger('change').trigger('change.select2');
-                console.log('✓ Selected default departure vehicle:', window.defaultValues.car_shared);
-            } else {
-                console.warn('✗ Default shared vehicle not found in departure dropdown:', window.defaultValues.car_shared);
-                console.log('Available vehicle options:', departureVehicleType.find('option').map(function() { 
-                    return {value: $(this).val(), text: $(this).text()}; 
-                }).get());
-            }
-        } else {
-            console.log('Departure vehicle select not ready or no default vehicle value');
-        }
-        
-        // Set default guide for arrival if available
-        const arrivalGuideSelect = document.getElementById('arrivalGuide');
-        if (arrivalGuideSelect && window.defaultValues && window.defaultValues.guide) {
-            // Try to find guide by value (handle both string and number comparison)
-            const defaultGuideId = String(window.defaultValues.guide);
-            const guideOption = Array.from(arrivalGuideSelect.options).find(opt => 
-                String(opt.value) === defaultGuideId
-            );
-            if (guideOption) {
-                arrivalGuideSelect.value = guideOption.value;
-                const arrivalGuideCheckbox = document.getElementById('arrivalGuideCheckbox');
-                if (arrivalGuideCheckbox) {
-                    arrivalGuideCheckbox.checked = true;
-                }
-                const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
-                if (arrivalGuideFieldsRow) {
-                    arrivalGuideFieldsRow.style.display = 'block';
-                }
-                const arrivalGuideHeaderRow = document.getElementById('arrivalGuideHeaderRow');
-                if (arrivalGuideHeaderRow) {
-                    arrivalGuideHeaderRow.style.display = 'block';
-                }
-                console.log('✓ Selected default arrival guide:', defaultGuideId);
-            } else {
-                console.warn('✗ Default guide not found in arrival dropdown:', defaultGuideId);
-            }
-        }
-        
-        // Set default guide for departure if available
-        const departureGuideSelect = document.getElementById('departureGuide');
-        if (departureGuideSelect && window.defaultValues && window.defaultValues.guide) {
-            // Try to find guide by value (handle both string and number comparison)
-            const defaultGuideId = String(window.defaultValues.guide);
-            const guideOption = Array.from(departureGuideSelect.options).find(opt => 
-                String(opt.value) === defaultGuideId
-            );
-            if (guideOption) {
-                departureGuideSelect.value = guideOption.value;
-                const departureGuideCheckbox = document.getElementById('departureGuideCheckbox');
-                if (departureGuideCheckbox) {
-                    departureGuideCheckbox.checked = true;
-                }
-                const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
-                if (departureGuideFieldsRow) {
-                    departureGuideFieldsRow.style.display = 'block';
-                }
-                const departureGuideHeaderRow = document.getElementById('departureGuideHeaderRow');
-                if (departureGuideHeaderRow) {
-                    departureGuideHeaderRow.style.display = 'block';
-                }
-                console.log('✓ Selected default departure guide:', defaultGuideId);
-            } else {
-                console.warn('✗ Default guide not found in departure dropdown:', defaultGuideId);
-            }
-        }
-        
-        // Set default guide for initial attraction table guide dropdowns if available
-        if (window.defaultValues && window.defaultValues.guide) {
-            const defaultGuideId = String(window.defaultValues.guide);
-            const initialGuideSelects = document.querySelectorAll('.attraction-guide-select');
-            initialGuideSelects.forEach(guideSelect => {
-                const guideOption = Array.from(guideSelect.options).find(opt => 
-                    String(opt.value) === defaultGuideId
+            if (defaults.hotel) {
+                selectedHotel = hotelOptions.find(o =>
+                    o.value == defaults.hotel || o.getAttribute('data-hotel-unique-id') == defaults.hotel
                 );
-                if (guideOption) {
-                    guideSelect.value = guideOption.value;
-                    console.log('✓ Set default guide in initial attraction table:', defaultGuideId);
+            }
+            const modalHotel = document.getElementById('hotelSelect');
+            if (modalHotel && modalHotel.value) {
+                const mOpt = modalHotel.selectedOptions?.[0];
+                const mCity = String(mOpt?.getAttribute('data-city') || document.getElementById('hotelDestination')?.value || '').trim();
+                const mUid = mOpt?.getAttribute('data-hotel-unique-id') || '';
+                if (mUid && (!city || !mCity || mCity.toLowerCase() === city.toLowerCase())) {
+                    const matchModal = hotelOptions.find(o =>
+                        o.value == mUid || o.getAttribute('data-hotel-unique-id') == mUid
+                    );
+                    if (matchModal) selectedHotel = matchModal;
                 }
+            }
+            if (selectedHotel) {
+                setSelectValue(departureDestSelect, selectedHotel.value, false);
+            } else if (hotelOptions.length > 0) {
+                setSelectValue(departureDestSelect, hotelOptions[0].value, false);
+            } else {
+                clearSelect(departureDestSelect, false);
+            }
+        }
+        
+        const departureTransferType = document.getElementById('departureTransferType');
+        if (departureTransferType && !departureTransferType.value) {
+            departureTransferType.value = 'S';
+        }
+        
+        if (typeof filterDepartureVehiclesByServiceType === 'function') {
+            filterDepartureVehiclesByServiceType(city);
+        }
+        window._arrDepVehicleForceCity = '';
+
+        // Guides — city-filter + auto-select city default
+        if (typeof applyDefaultArrivalDepartureGuides === 'function') {
+            applyDefaultArrivalDepartureGuides(city);
+        }
+
+        if (defaults.guide) {
+            const defaultGuideId = String(defaults.guide);
+            document.querySelectorAll('.attraction-guide-select').forEach(guideSelect => {
+                const guideOption = Array.from(guideSelect.options).find(opt => String(opt.value) === defaultGuideId);
+                if (guideOption) guideSelect.value = guideOption.value;
             });
         }
-        
+
+        // Re-filter dropoff after port defaults (port city drives hotel list)
+        if (city && typeof filterPortsBySelectedCountries === 'function') {
+            filterPortsBySelectedCountries(city);
+        }
+
         console.log('=== Default Values Applied ===');
     }
     
@@ -4643,6 +4683,12 @@
         
         // Sync adult/child qty fields with transfer counts (preferred) or header counts when guide is checked
         if (guideChecked) {
+            if (typeof filterGuideSelectByCity === 'function') {
+                const city = (typeof getArrivalDepartureServiceCity === 'function')
+                    ? getArrivalDepartureServiceCity()
+                    : String(document.getElementById('hotelDestination')?.value || '');
+                filterGuideSelectByCity(document.getElementById('arrivalGuide'), city);
+            }
             const arrivalAdults = document.getElementById('arrivalAdults');
             const arrivalChild = document.getElementById('arrivalChild');
             const headerValues = getHeaderValues();
@@ -4688,6 +4734,13 @@
             if (departureDestLabel) {
                 departureDestLabel.textContent = 'Pickup';
             }
+            // Scope pickup options + prefill hotel, then load zone price
+            if (typeof filterPortsBySelectedCountries === 'function') {
+                filterPortsBySelectedCountries(document.getElementById('hotelDestination')?.value || undefined);
+            }
+            if (typeof syncArrivalDropOffToSelectedHotel === 'function') {
+                syncArrivalDropOffToSelectedHotel();
+            }
             // Filter vehicles based on default service type
             setTimeout(() => filterDepartureVehiclesByServiceType(), 100);
             setTimeout(() => refreshDepartureTransferZonePrice(), 200);
@@ -4713,6 +4766,12 @@
         
         // Sync adult/child qty fields with transfer counts (preferred) or header counts when guide is checked
         if (guideChecked) {
+            if (typeof filterGuideSelectByCity === 'function') {
+                const city = (typeof getArrivalDepartureServiceCity === 'function')
+                    ? getArrivalDepartureServiceCity()
+                    : String(document.getElementById('hotelDestination')?.value || '');
+                filterGuideSelectByCity(document.getElementById('departureGuide'), city);
+            }
             const departureAdults = document.getElementById('departureAdults');
             const departureChild = document.getElementById('departureChild');
             const headerValues = getHeaderValues();
@@ -4738,11 +4797,23 @@
     }
     
     // Filter arrival vehicles based on service type (Private/Shared)
-    function filterArrivalVehiclesByServiceType() {
+    function filterArrivalVehiclesByServiceType(preferredCity) {
         const serviceType = document.getElementById('arrivalTransferType').value; // 'P' or 'S'
         const vehicleSelect = document.getElementById('arrivalVehicleType');
         
         if (!vehicleSelect || !vehicleSelect.options) return;
+
+        const city = String(preferredCity
+            || window._arrDepVehicleForceCity
+            || (typeof getArrivalDepartureServiceCity === 'function' ? getArrivalDepartureServiceCity() : '')
+            || document.getElementById('arrivalDepartureCity')?.value
+            || document.getElementById('hotelDestination')?.value
+            || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+            || '').trim();
+
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(city);
+        }
         
         // Get passenger counts for arrival
         const adults = parseInt(document.getElementById('arrivalAdults')?.value || '2');
@@ -4752,8 +4823,9 @@
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
         let matchingVehicles = [];
+        const forceCityPick = !!window._arrDepVehicleForceCity;
         
-        // Enable/disable options based on service type, sharable property, and seating capacity
+        // Enable/disable options based on service type, sharable property, city, and seating capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4771,7 +4843,6 @@
                     // For arrival/departure, check seating_capacity
                     if (seatingCapacity >= totalPassengers) {
                         shouldShow = true;
-                        matchingVehicles.push(option);
                     }
                 }
             } else if (serviceType === 'P') {
@@ -4779,24 +4850,39 @@
                 if (sharable === 1 || sharable === 3) {
                     if (seatingCapacity >= totalPassengers) {
                         shouldShow = true;
-                        matchingVehicles.push(option);
                     }
                 }
+            }
+
+            if (shouldShow && typeof vehicleOptionMatchesCity === 'function'
+                && !vehicleOptionMatchesCity(option, city)) {
+                shouldShow = false;
+            }
+
+            if (shouldShow) {
+                matchingVehicles.push(option);
             }
             
             option.disabled = !shouldShow;
             option.style.display = shouldShow ? '' : 'none';
+            option.hidden = !shouldShow;
             
             if (shouldShow && option.value === selectedValue) {
                 isSelectedStillValid = true;
             }
         });
+
+        if (typeof hideEmptyVehicleOptgroups === 'function') {
+            hideEmptyVehicleOptgroups(vehicleSelect);
+        }
         
-        // Auto-select the first matching vehicle ONLY when the current selection is no longer valid
-        if (matchingVehicles.length > 0 && !isSelectedStillValid) {
-            const firstMatchingVehicle = matchingVehicles[0];
+        // Prefer city-scoped default vehicle; force re-pick when city just changed
+        if (matchingVehicles.length > 0 && (!isSelectedStillValid || forceCityPick)) {
+            const firstMatchingVehicle = (typeof pickDefaultVehicleFromMatches === 'function')
+                ? pickDefaultVehicleFromMatches(matchingVehicles, serviceType)
+                : matchingVehicles[0];
             vehicleSelect.value = firstMatchingVehicle.value;
-            console.log('Auto-selected arrival vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+            console.log('Auto-selected arrival vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'city:', city);
             
             // Trigger Select2 update and change event
             if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
@@ -4806,29 +4892,41 @@
             }
         } else if (matchingVehicles.length === 0) {
             // No matching vehicle found, clear selection
-            if (!isSelectedStillValid) {
+            if (!isSelectedStillValid || forceCityPick) {
                 vehicleSelect.value = '';
                 if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
                     jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
                 }
-                console.warn('No matching arrival vehicle found for', totalPassengers, 'passengers');
+                console.warn('No matching arrival vehicle found for', totalPassengers, 'passengers', 'city:', city);
             }
         } else {
             console.log('Keeping current arrival vehicle selection:', selectedValue, '(still valid)');
         }
         
-        console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        console.log('Filtered arrival vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length, 'city:', city);
         
         // Update pricing after vehicle selection changes
         updateArrivalVehiclePricing();
     }
     
     // Filter departure vehicles based on service type (Private/Shared)
-    function filterDepartureVehiclesByServiceType() {
+    function filterDepartureVehiclesByServiceType(preferredCity) {
         const serviceType = document.getElementById('departureTransferType').value; // 'P' or 'S'
         const vehicleSelect = document.getElementById('departureVehicleType');
         
         if (!vehicleSelect || !vehicleSelect.options) return;
+
+        const city = String(preferredCity
+            || window._arrDepVehicleForceCity
+            || (typeof getArrivalDepartureServiceCity === 'function' ? getArrivalDepartureServiceCity() : '')
+            || document.getElementById('arrivalDepartureCity')?.value
+            || document.getElementById('hotelDestination')?.value
+            || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+            || '').trim();
+
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(city);
+        }
         
         // Get passenger counts for departure
         const adults = parseInt(document.getElementById('departureAdults')?.value || '2');
@@ -4838,8 +4936,9 @@
         const selectedValue = vehicleSelect.value;
         let isSelectedStillValid = false;
         let matchingVehicles = [];
+        const forceCityPick = !!window._arrDepVehicleForceCity;
         
-        // Enable/disable options based on service type, sharable property, and seating capacity
+        // Enable/disable options based on service type, sharable property, city, and seating capacity
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
@@ -4857,7 +4956,6 @@
                     // For arrival/departure, check seating_capacity
                     if (seatingCapacity >= totalPassengers) {
                         shouldShow = true;
-                        matchingVehicles.push(option);
                     }
                 }
             } else if (serviceType === 'P') {
@@ -4865,47 +4963,59 @@
                 if (sharable === 1 || sharable === 3) {
                     if (seatingCapacity >= totalPassengers) {
                         shouldShow = true;
-                        matchingVehicles.push(option);
                     }
                 }
+            }
+
+            if (shouldShow && typeof vehicleOptionMatchesCity === 'function'
+                && !vehicleOptionMatchesCity(option, city)) {
+                shouldShow = false;
+            }
+
+            if (shouldShow) {
+                matchingVehicles.push(option);
             }
             
             option.disabled = !shouldShow;
             option.style.display = shouldShow ? '' : 'none';
+            option.hidden = !shouldShow;
             
             if (shouldShow && option.value === selectedValue) {
                 isSelectedStillValid = true;
             }
         });
+
+        if (typeof hideEmptyVehicleOptgroups === 'function') {
+            hideEmptyVehicleOptgroups(vehicleSelect);
+        }
         
-        // Auto-select the first matching vehicle ONLY when the current selection is no longer valid
-        if (matchingVehicles.length > 0 && !isSelectedStillValid) {
-            const firstMatchingVehicle = matchingVehicles[0];
+        // Prefer city-scoped default vehicle; force re-pick when city just changed
+        if (matchingVehicles.length > 0 && (!isSelectedStillValid || forceCityPick)) {
+            const firstMatchingVehicle = (typeof pickDefaultVehicleFromMatches === 'function')
+                ? pickDefaultVehicleFromMatches(matchingVehicles, serviceType)
+                : matchingVehicles[0];
             vehicleSelect.value = firstMatchingVehicle.value;
-            console.log('Auto-selected departure vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+            console.log('Auto-selected departure vehicle:', firstMatchingVehicle.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'city:', city);
             
-            // Trigger Select2 update and change event
             if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
                 jQuery(vehicleSelect).val(firstMatchingVehicle.value).trigger('change').trigger('change.select2');
             } else {
                 vehicleSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
         } else if (matchingVehicles.length === 0) {
-            // No matching vehicle found, clear selection
-            if (!isSelectedStillValid) {
+            if (!isSelectedStillValid || forceCityPick) {
                 vehicleSelect.value = '';
                 if (typeof jQuery !== 'undefined' && jQuery(vehicleSelect).data('select2')) {
                     jQuery(vehicleSelect).val('').trigger('change').trigger('change.select2');
                 }
-                console.warn('No matching departure vehicle found for', totalPassengers, 'passengers');
+                console.warn('No matching departure vehicle found for', totalPassengers, 'passengers', 'city:', city);
             }
         } else {
             console.log('Keeping current departure vehicle selection:', selectedValue, '(still valid)');
         }
         
-        console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length);
+        console.log('Filtered departure vehicles for service type:', serviceType === 'P' ? 'Private' : 'Shared', 'matching:', matchingVehicles.length, 'city:', city);
         
-        // Update pricing after vehicle selection changes
         updateDepartureVehiclePricing();
     }
     
@@ -5035,19 +5145,50 @@
                 isSelectedStillValid = true;
             }
         });
+
+        // Restrict vehicles to active service city
+        (function () {
+            const serviceCity = String(
+                document.getElementById('hotelDestination')?.value
+                || document.getElementById('tourDestination')?.value
+                || document.getElementById('mealDestination')?.value
+                || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                || ''
+            ).trim();
+            if (serviceCity && typeof vehicleOptionMatchesCity === 'function') {
+                matchingVehicles = matchingVehicles.filter(function (opt) {
+                    const ok = vehicleOptionMatchesCity(opt, serviceCity);
+                    if (!ok) {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    }
+                    return ok;
+                });
+                isSelectedStillValid = matchingVehicles.some(function (o) { return o.value === selectedValue; });
+            }
+        })();
         
         // Auto-select vehicle - prefer default vehicle if available
         if (matchingVehicles.length > 0) {
             let vehicleToSelect = null;
             
-            // First, try to use default vehicle value if available
-            if (window.defaultValues && window.defaultValues.car_shared) {
+            // Prefer city-scoped default vehicle (private/shared)
+            if (typeof pickDefaultVehicleFromMatches === 'function') {
+                vehicleToSelect = pickDefaultVehicleFromMatches(matchingVehicles, serviceType);
+                if (vehicleToSelect) {
+                    console.log('Auto-selected default vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared');
+                }
+            } else if (window.defaultValues && (window.defaultValues.car_shared || window.defaultValues.car_private)) {
+                const preferredId = String(
+                    (serviceType === 'P'
+                        ? (window.defaultValues.car_private || window.defaultValues.car_shared)
+                        : (window.defaultValues.car_shared || window.defaultValues.car_private)) || ''
+                );
                 const defaultVehicle = matchingVehicles.find(opt => 
-                    String(opt.value) === String(window.defaultValues.car_shared)
+                    String(opt.value) === preferredId
                 );
                 if (defaultVehicle) {
                     vehicleToSelect = defaultVehicle;
-                    console.log('Auto-selected default hotel transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
             
@@ -5161,19 +5302,44 @@
                 isSelectedStillValid = true;
             }
         });
+
+        // Restrict attraction vehicles to tour destination city
+        (function () {
+            const serviceCity = String(document.getElementById('tourDestination')?.value || '').trim();
+            if (serviceCity && typeof vehicleOptionMatchesCity === 'function') {
+                matchingVehicles = matchingVehicles.filter(function (opt) {
+                    const ok = vehicleOptionMatchesCity(opt, serviceCity);
+                    if (!ok) {
+                        opt.disabled = true;
+                        opt.style.display = 'none';
+                    }
+                    return ok;
+                });
+                isSelectedStillValid = matchingVehicles.some(function (o) { return o.value === selectedValue; });
+            }
+        })();
         
         // Auto-select vehicle - prefer default vehicle if available
         if (matchingVehicles.length > 0) {
             let vehicleToSelect = null;
             
-            // First, try to use default vehicle value if available
-            if (window.defaultValues && window.defaultValues.car_shared) {
+            // Prefer city-scoped default vehicle (private/shared)
+            if (typeof pickDefaultVehicleFromMatches === 'function') {
+                vehicleToSelect = pickDefaultVehicleFromMatches(matchingVehicles, serviceType);
+                if (vehicleToSelect) {
+                    console.log('Auto-selected default attraction vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'attrId:', attrId);
+                }
+            } else if (window.defaultValues && (window.defaultValues.car_shared || window.defaultValues.car_private)) {
+                const preferredId = String(
+                    (serviceType === 'P'
+                        ? (window.defaultValues.car_private || window.defaultValues.car_shared)
+                        : (window.defaultValues.car_shared || window.defaultValues.car_private)) || ''
+                );
                 const defaultVehicle = matchingVehicles.find(opt => 
-                    String(opt.value) === String(window.defaultValues.car_shared)
+                    String(opt.value) === preferredId
                 );
                 if (defaultVehicle) {
                     vehicleToSelect = defaultVehicle;
-                    console.log('Auto-selected default attraction vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers, 'attrId:', attrId);
                 }
             }
             
@@ -5243,6 +5409,7 @@
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
+                option.hidden = false;
                 option.style.display = '';
                 return;
             }
@@ -5271,25 +5438,55 @@
             }
             
             option.disabled = !shouldShow;
+            option.hidden = !shouldShow;
             option.style.display = shouldShow ? '' : 'none';
             
             if (shouldShow && option.value === selectedValue) {
                 isSelectedStillValid = true;
             }
         });
+
+        // Restrict restaurant vehicles to meal destination city
+        (function () {
+            const serviceCity = String(document.getElementById('mealDestination')?.value || '').trim();
+            if (serviceCity && typeof vehicleOptionMatchesCity === 'function') {
+                matchingVehicles = matchingVehicles.filter(function (opt) {
+                    const ok = vehicleOptionMatchesCity(opt, serviceCity);
+                    if (!ok) {
+                        opt.disabled = true;
+                        opt.hidden = true;
+                        opt.style.display = 'none';
+                    }
+                    return ok;
+                });
+                isSelectedStillValid = matchingVehicles.some(function (o) { return o.value === selectedValue; });
+            }
+            if (typeof hideEmptyVehicleOptgroups === 'function') {
+                hideEmptyVehicleOptgroups(vehicleSelect);
+            }
+        })();
         
         // Auto-select vehicle - prefer default vehicle if available
         if (matchingVehicles.length > 0) {
             let vehicleToSelect = null;
             
-            // First, try to use default vehicle value if available
-            if (window.defaultValues && window.defaultValues.car_shared) {
+            // Prefer city-scoped default vehicle (private/shared)
+            if (typeof pickDefaultVehicleFromMatches === 'function') {
+                vehicleToSelect = pickDefaultVehicleFromMatches(matchingVehicles, serviceType);
+                if (vehicleToSelect) {
+                    console.log('Auto-selected default restaurant transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+                }
+            } else if (window.defaultValues && (window.defaultValues.car_shared || window.defaultValues.car_private)) {
+                const preferredId = String(
+                    (serviceType === 'P'
+                        ? (window.defaultValues.car_private || window.defaultValues.car_shared)
+                        : (window.defaultValues.car_shared || window.defaultValues.car_private)) || ''
+                );
                 const defaultVehicle = matchingVehicles.find(opt => 
-                    String(opt.value) === String(window.defaultValues.car_shared)
+                    String(opt.value) === preferredId
                 );
                 if (defaultVehicle) {
                     vehicleToSelect = defaultVehicle;
-                    console.log('Auto-selected default restaurant transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
             
@@ -5339,6 +5536,7 @@
         Array.from(vehicleSelect.options).forEach(option => {
             if (option.value === '') {
                 option.disabled = false;
+                option.hidden = false;
                 option.style.display = '';
                 return;
             }
@@ -5367,25 +5565,60 @@
             }
             
             option.disabled = !shouldShow;
+            option.hidden = !shouldShow;
             option.style.display = shouldShow ? '' : 'none';
             
             if (shouldShow && option.value === selectedValue) {
                 isSelectedStillValid = true;
             }
         });
+
+        // Restrict local transfer vehicles to selected city
+        (function () {
+            const serviceCity = String(
+                document.getElementById('localDestination')?.value
+                || document.getElementById('hotelDestination')?.value
+                || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                || ''
+            ).trim();
+            if (serviceCity && typeof vehicleOptionMatchesCity === 'function') {
+                matchingVehicles = matchingVehicles.filter(function (opt) {
+                    const ok = vehicleOptionMatchesCity(opt, serviceCity);
+                    if (!ok) {
+                        opt.disabled = true;
+                        opt.hidden = true;
+                        opt.style.display = 'none';
+                    }
+                    return ok;
+                });
+                isSelectedStillValid = matchingVehicles.some(function (o) { return o.value === selectedValue; });
+            }
+            if (typeof hideEmptyVehicleOptgroups === 'function') {
+                hideEmptyVehicleOptgroups(vehicleSelect);
+            }
+        })();
         
         // Auto-select vehicle - prefer default vehicle if available
         if (matchingVehicles.length > 0) {
             let vehicleToSelect = null;
             
-            // First, try to use default vehicle value if available
-            if (window.defaultValues && window.defaultValues.car_shared) {
+            // Prefer city-scoped default vehicle (private/shared)
+            if (typeof pickDefaultVehicleFromMatches === 'function') {
+                vehicleToSelect = pickDefaultVehicleFromMatches(matchingVehicles, serviceType);
+                if (vehicleToSelect) {
+                    console.log('Auto-selected default local transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
+                }
+            } else if (window.defaultValues && (window.defaultValues.car_shared || window.defaultValues.car_private)) {
+                const preferredId = String(
+                    (serviceType === 'P'
+                        ? (window.defaultValues.car_private || window.defaultValues.car_shared)
+                        : (window.defaultValues.car_shared || window.defaultValues.car_private)) || ''
+                );
                 const defaultVehicle = matchingVehicles.find(opt => 
-                    String(opt.value) === String(window.defaultValues.car_shared)
+                    String(opt.value) === preferredId
                 );
                 if (defaultVehicle) {
                     vehicleToSelect = defaultVehicle;
-                    console.log('Auto-selected default local transfer vehicle:', vehicleToSelect.value, 'for type:', serviceType === 'P' ? 'Private' : 'Shared', 'passengers:', totalPassengers);
                 }
             }
             
@@ -5444,11 +5677,14 @@
     
     // City to Country mapping from backend
     const cityCountryMap = @json($cityCountryMap ?? []);
+    // Country name -> currency code (from countries.currency)
+    const countryCurrencyMap = @json($countryCurrencyMap ?? []);
     // City name -> city_id (ports table uses city_id; used to filter ports by selected cities)
     const cityIdMap = @json(($cities ?? $destinations ?? collect())->mapWithKeys(function($c){
         $id = $c->city_id ?? $c->id ?? null;
         return $id ? [ (string)$c->name => (int)$id ] : [];
     }));
+    window.enquiryProGetHotelsUrl = @json(route('enquiry-form-pro.get-hotels'));
     @include('enquiryform_pro.partials.city-destination-scripts')
     
     // Initialize destination tags functionality
@@ -5556,6 +5792,9 @@
         updateHiddenInput();
         filterPortsBySelectedCountries();
         syncHeaderCitiesToServiceModals();
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(destination);
+        }
     }
     
     // Remove destination tag
@@ -5567,139 +5806,9 @@
         syncHeaderCitiesToServiceModals();
     }
     
-    function getSelectedCityIdsFromCities() {
-        try {
-            const ids = (selectedDestinations || []).map(function(name) {
-                const key = String(name || '').trim();
-                return cityIdMap && Object.prototype.hasOwnProperty.call(cityIdMap, key) ? parseInt(cityIdMap[key], 10) : null;
-            }).filter(function(v) { return Number.isFinite(v) && v > 0; });
-            return Array.from(new Set(ids));
-        } catch (e) {
-            return [];
-        }
-    }
+    // filterPortsBySelectedCountries / getSelectedCityIdsFromCities: see city-destination-scripts partial
 
-    // Filter ports and service options based on selected cities (countries derived via cityCountryMap)
-    function filterPortsBySelectedCountries() {
-        const arrivalPort = document.getElementById('arrivalPort');
-        const departurePort = document.getElementById('departurePort');
-        const selectedCountries = getSelectedCountriesFromCities();
-        const selectedCityIds = getSelectedCityIdsFromCities();
-        
-        const noCitiesSelected = selectedDestinations.length === 0;
-        
-        // Handle arrival and departure port fields visibility
-        if (arrivalPort) {
-            const arrivalPortField = document.getElementById('arrivalPortField');
-            if (arrivalPortField) {
-                arrivalPortField.style.display = noCitiesSelected ? 'none' : '';
-            }
-            if (noCitiesSelected) {
-                arrivalPort.value = '';
-            }
-        }
-        
-        if (departurePort) {
-            const departurePortField = document.getElementById('departurePortField');
-            if (departurePortField) {
-                departurePortField.style.display = noCitiesSelected ? 'none' : '';
-            }
-            if (noCitiesSelected) {
-                departurePort.value = '';
-            }
-        }
-        
-        // Find all selects with destination options (ports, restaurants, attractions, hotels)
-        const allSelects = document.querySelectorAll('select');
-        
-        allSelects.forEach(select => {
-            const currentValue = select.value;
-            let hasPortOptions = false;
-            let hasLocationBasedOptions = false;
-            
-            // Check both direct options and options in optgroups
-            const options = select.querySelectorAll('option');
-            
-            options.forEach(option => {
-                // Skip the default "Select" options
-                if (option.value === '' || !option.value) {
-                    return;
-                }
-                
-                const dataType = option.getAttribute('data-type');
-                const dataCountry = option.getAttribute('data-country');
-                const dataLocation = option.getAttribute('data-location');
-                const dataCity = option.getAttribute('data-city');
-                
-                // Handle ports (server already scoped to DMC countries; client filters further by selected cities/countries)
-                if (dataType === 'port') {
-                    hasPortOptions = true;
-                    const dataCityIdRaw = option.getAttribute('data-city-id');
-                    const dataCityId = dataCityIdRaw ? parseInt(dataCityIdRaw, 10) : 0;
-                    
-                    if (noCitiesSelected) {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    } else if ((dataCountry && selectedCountries.includes(dataCountry)) || (dataCityId && selectedCityIds.includes(dataCityId))) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    }
-                }
-                else if (dataType === 'attraction' || dataLocation) {
-                    hasLocationBasedOptions = true;
-                    
-                    if (noCitiesSelected) {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    } else if (selectedDestinations.includes(dataLocation) || selectedDestinations.includes(option.value)) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    }
-                }
-                else if (dataType === 'restaurant' || dataType === 'hotel' || dataCity) {
-                    hasLocationBasedOptions = true;
-                    
-                    if (noCitiesSelected) {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    } else if (
-                        selectedDestinations.includes(dataCity)
-                        || selectedDestinations.includes(option.value)
-                    ) {
-                        option.style.display = '';
-                    } else {
-                        option.style.display = 'none';
-                        if (option.value === currentValue) {
-                            select.value = '';
-                        }
-                    }
-                }
-            });
-            
-            // Trigger change event if using Select2
-            if ((hasPortOptions || hasLocationBasedOptions) && $(select).hasClass('select2-port')) {
-                $(select).trigger('change.select2');
-            }
-        });
-        
-        console.log('Filtered services for cities:', selectedDestinations, 'countries:', getSelectedCountriesFromCities());
-    }
-    
-    // Update destination tags display
+        // Update destination tags display
     function updateDestinationTags() {
         const container = document.getElementById('destinationTagsContainer');
         const searchInput = document.getElementById('destinationSearchInput');
@@ -9987,12 +10096,12 @@
         
         // Initialize Select2 for port dropdowns in accommodation modal
         if (typeof $.fn.select2 !== 'undefined') {
-            $('.select2-port').select2({
-                placeholder: 'Search and select port',
-                allowClear: true,
-                width: '100%',
+            $('.select2-port').select2(enquiryProPortSelect2Options({
                 dropdownParent: $('#accommodationModal')
-            });
+            }));
+            if (typeof filterPortsBySelectedCountries === 'function') {
+                filterPortsBySelectedCountries(document.getElementById('hotelDestination')?.value || undefined);
+            }
         }
         
         const accommodationModal = new bootstrap.Modal(document.getElementById('accommodationModal'));
@@ -10037,7 +10146,10 @@
 
             if (shouldApplyDefaults && typeof applyArrivalDepartureDefaults === 'function') {
                 console.log('Applying defaults for new accommodation add flow');
-                applyArrivalDepartureDefaults();
+                const cityForDefaults = document.getElementById('hotelDestination')?.value
+                    || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                    || '';
+                applyArrivalDepartureDefaults(cityForDefaults);
             }
         }, 900);
         
@@ -10346,7 +10458,19 @@
         if (!destination) {
             hotelSelect.innerHTML = '<option value="">-- Select Hotel --</option>';
             hotelSelect.disabled = false;
+            if (typeof filterPortsBySelectedCountries === 'function') {
+                filterPortsBySelectedCountries();
+            }
             return Promise.resolve();
+        }
+
+        // Scope arrival/departure ports + drop-offs to this hotel city (not all multi-city ports)
+        const arrDepCitySelLoad = document.getElementById('arrivalDepartureCity');
+        if (arrDepCitySelLoad && destination) {
+            arrDepCitySelLoad.value = destination;
+        }
+        if (typeof filterPortsBySelectedCountries === 'function') {
+            filterPortsBySelectedCountries(destination);
         }
         
         // Fetch hotels via AJAX
@@ -10451,6 +10575,12 @@
                 let selectedHotelId = null;
                 
                 // Check if default hotel value exists
+                if (typeof window.resolveActiveDefaultValues === 'function') {
+                    const destCity = document.getElementById('hotelDestination')?.value
+                        || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                        || '';
+                    window.resolveActiveDefaultValues(destCity);
+                }
                 if (typeof window.defaultValues !== 'undefined' && window.defaultValues.hotel) {
                     console.log('Checking for default hotel:', window.defaultValues.hotel);
                     
@@ -10485,6 +10615,16 @@
                 // Trigger the loadRoomTypes function to show room combinations
                 if (typeof loadRoomTypes === 'function') {
                     loadRoomTypes();
+                }
+
+                // Apply city-scoped defaults (port / dropoff / pickup / vehicle / guide)
+                // Force clear previous hotel city's stale A/D values (Kolkata → Batam)
+                if (typeof window.onServiceCityChanged === 'function') {
+                    window.onServiceCityChanged(destination, 'accommodation');
+                } else if (typeof applyArrivalDepartureCityFilters === 'function') {
+                    applyArrivalDepartureCityFilters(destination, { forceClear: true });
+                } else if (typeof applyArrivalDepartureDefaults === 'function') {
+                    applyArrivalDepartureDefaults(destination);
                 }
             }
         })
@@ -10562,6 +10702,15 @@
         const hotelId = hotelSelect.value;
         const roomCombinationsSection = document.getElementById('roomCombinationsSection');
         const roomCombinationsTableBody = document.getElementById('roomCombinationsTableBody');
+
+        // Keep ports/drop-offs on this hotel's city + prefill arrival drop-off for zone pricing
+        const hotelCity = document.getElementById('hotelDestination')?.value || '';
+        if (typeof filterPortsBySelectedCountries === 'function') {
+            filterPortsBySelectedCountries(hotelCity || undefined);
+        }
+        if (hotelId && typeof syncArrivalDropOffToSelectedHotel === 'function') {
+            syncArrivalDropOffToSelectedHotel();
+        }
         
         // Hide combinations section if no hotel selected
         if (!hotelId) {
@@ -11855,6 +12004,10 @@
             hotel_unique_id: hotel_unique_id, // Unique ID for API calls
             hotelName: hotelName,
             destination: destination,
+            country: (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(destination) : '') || '',
+            currency: (typeof resolveCurrencyForCountry === 'function'
+                ? resolveCurrencyForCountry(typeof resolveCountryForCity === 'function' ? resolveCountryForCity(destination) : '')
+                : '') || '',
             check_in_time: hotelData.check_in_time || null,
             check_out_time: hotelData.check_out_time || null,
             roomId: combo.roomId, // This is bed_id (for backward compatibility)
@@ -12347,6 +12500,15 @@
         console.log('Departure Port Name:', departurePortName);
         console.log('Departure Flight No:', departureFlightNo);
 
+        const arrDepCity = String(document.getElementById('arrivalDepartureCity')?.value || '').trim();
+        const willSaveArrival = !!(arrivalDateTime && arrivalPortId);
+        const willSaveDeparture = !!(departureDateTime && departurePortId);
+        const isEditingCheck = window.editingArrivalDepartureIndex !== undefined && window.editingArrivalDepartureIndex !== null;
+        if ((willSaveArrival || willSaveDeparture || isEditingCheck) && !arrDepCity) {
+            alert('Please select a City for Arrival / Departure');
+            return;
+        }
+
         // Get pax numbers from header
         const adults = parseInt(document.getElementById('adultCountInput')?.value || 0);
         const child = parseInt(document.getElementById('childCountInput')?.value || 0);
@@ -12386,6 +12548,7 @@
                     portId: arrivalPortId,
                     portName: arrivalPortName,
                     flightNo: arrivalFlightNo || '-',
+                    city: arrDepCity,
                     adultsQty: arrivalAdults,
                     childQty: arrivalChild,
                     infantQty: arrivalInfant,
@@ -12665,6 +12828,7 @@
                     portId: departurePortId,
                     portName: departurePortName,
                     flightNo: departureFlightNo || '-',
+                    city: arrDepCity,
                     adultsQty: departureAdults,
                     childQty: departureChild,
                     infantQty: departureInfant,
@@ -13030,6 +13194,7 @@
                     portId: arrivalPortId,
                     portName: arrivalPortName,
                     flightNo: arrivalFlightNo || '-',
+                    city: arrDepCity,
                     type: 'Arrival',
                     adultsQty: arrivalAdults,
                     adultCost: arrivalVehiclePrice,
@@ -13268,6 +13433,7 @@
                     portId: departurePortId,
                     portName: departurePortName,
                     flightNo: departureFlightNo || '-',
+                    city: arrDepCity,
                     type: 'Departure',
                     adultsQty: departureAdults,
                     adultCost: departureVehiclePrice,
@@ -14082,101 +14248,83 @@
         const arrDefault = allForDefaults.reduce((best, h) => !best || h.checkIn  < best.checkIn  ? h : best, null);
         const depDefault = allForDefaults.reduce((best, h) => !best || h.checkOut > best.checkOut ? h : best, null);
 
-        if (existingArr) {
+        // Active city for this modal (2nd hotel Batam must not keep Kolkata A/D values)
+        const modalHotelCity = String(
+            document.getElementById('hotelDestination')?.value
+            || document.getElementById('arrivalDepartureCity')?.value
+            || ''
+        ).trim();
+        const arrDepCitySelModal = document.getElementById('arrivalDepartureCity');
+        if (arrDepCitySelModal && modalHotelCity) {
+            arrDepCitySelModal.value = modalHotelCity;
+        }
+
+        function entryMatchesModalCity(entry) {
+            if (!entry || !modalHotelCity) return !modalHotelCity;
+            const entryCity = String(entry.city || entry.destination || entry.portCity || '').trim();
+            if (!entryCity) return false; // unknown city → do not restore into a different hotel city modal
+            return entryCity.toLowerCase() === modalHotelCity.toLowerCase();
+        }
+
+        // Only restore saved A/D when it belongs to this hotel city; otherwise apply city defaults
+        if (existingArr && entryMatchesModalCity(existingArr)) {
             populateArrivalFields(existingArr);
-        } else {
-            // Transfer checkbox
+        } else if (modalHotelCity && typeof applyArrivalDepartureCityFilters === 'function') {
             const chk = document.getElementById('arrivalTransfer');
             if (chk && !chk.checked) { chk.checked = true; if (typeof toggleArrivalTransferFields === 'function') toggleArrivalTransferFields(); }
-            // Pax
             const ea = document.getElementById('arrivalAdults');  if (ea) ea.value = adults;
             const ec = document.getElementById('arrivalChild');   if (ec) ec.value = child;
             const ei = document.getElementById('arrivalInfant'); if (ei) ei.value = infant;
-            // Apply default_value table defaults (port, type, vehicle, guide)
-            const dv = window.defaultValues || {};
-            // Default port
-            if (dv.port) {
-                const ps = document.getElementById('arrivalPort');
-                if (ps) { if (typeof $ !== 'undefined' && $(ps).data('select2')) $(ps).val(dv.port).trigger('change'); else ps.value = dv.port; }
-            }
-            // Default transfer type + vehicle (type first, then filter, then vehicle)
-            const ts = document.getElementById('arrivalTransferType');
-            if (ts) { ts.value = 'S'; }
-            if (typeof filterArrivalVehiclesByServiceType === 'function') filterArrivalVehiclesByServiceType();
-            setTimeout(() => {
-                const vs = document.getElementById('arrivalVehicleType');
-                if (vs && dv.car_shared) vs.value = String(dv.car_shared);
-            }, 120);
-            // Auto-set Drop-off to hotel with earliest check-in
-            const arrDest = document.getElementById('arrivalDestination');
-            if (arrDest && !arrDest.value && arrDefault?.hotelUniqueId) {
-                arrDest.value = arrDefault.hotelUniqueId;
-            }
-            // Default guide
-            if (dv.guide) {
-                const guideChk = document.getElementById('arrivalGuideCheckbox');
-                if (guideChk) { guideChk.checked = true; }
-                const hr = document.getElementById('arrivalGuideHeaderRow'); if (hr) hr.style.display = '';
-                const fr = document.getElementById('arrivalGuideFieldsRow');  if (fr) fr.style.display = '';
-                setTimeout(() => {
-                    const gs = document.getElementById('arrivalGuide');
-                    if (gs) gs.value = String(dv.guide);
-                }, 150);
-            }
+            // Defaults applied below via applyArrivalDepartureCityFilters
+        } else if (!existingArr) {
+            const chk = document.getElementById('arrivalTransfer');
+            if (chk && !chk.checked) { chk.checked = true; if (typeof toggleArrivalTransferFields === 'function') toggleArrivalTransferFields(); }
+            const ea = document.getElementById('arrivalAdults');  if (ea) ea.value = adults;
+            const ec = document.getElementById('arrivalChild');   if (ec) ec.value = child;
+            const ei = document.getElementById('arrivalInfant'); if (ei) ei.value = infant;
         }
 
-        if (existingDep) {
+        if (existingDep && entryMatchesModalCity(existingDep)) {
             populateDepFields(existingDep);
-        } else {
-            // Transfer checkbox
+        } else if (modalHotelCity) {
             const chk = document.getElementById('departureTransfer');
             if (chk && !chk.checked) { chk.checked = true; if (typeof toggleDepartureTransferFields === 'function') toggleDepartureTransferFields(); }
-            // Pax
             const ea = document.getElementById('departureAdults');  if (ea) ea.value = adults;
             const ec = document.getElementById('departureChild');   if (ec) ec.value = child;
             const ei = document.getElementById('departureInfant'); if (ei) ei.value = infant;
-            // Apply default_value table defaults (port, type, vehicle, guide)
-            const dv = window.defaultValues || {};
-            // Default port
-            if (dv.port) {
-                const ps = document.getElementById('departurePort');
-                if (ps) { if (typeof $ !== 'undefined' && $(ps).data('select2')) $(ps).val(dv.port).trigger('change'); else ps.value = dv.port; }
+        } else if (!existingDep) {
+            const chk = document.getElementById('departureTransfer');
+            if (chk && !chk.checked) { chk.checked = true; if (typeof toggleDepartureTransferFields === 'function') toggleDepartureTransferFields(); }
+            const ea = document.getElementById('departureAdults');  if (ea) ea.value = adults;
+            const ec = document.getElementById('departureChild');   if (ec) ec.value = child;
+            const ei = document.getElementById('departureInfant'); if (ei) ei.value = infant;
+        }
+
+        // Drop-off / pickup: prefer CURRENT modal hotel when it matches active city
+        // (do NOT force earliest Kolkata hotel when adding Batam)
+        const arrDest = document.getElementById('arrivalDestination');
+        const depDest = document.getElementById('departureDestination');
+        if (currentHotelUniqueId && modalHotelCity) {
+            if (arrDest) arrDest.value = currentHotelUniqueId;
+            if (depDest) depDest.value = currentHotelUniqueId;
+        } else {
+            if (arrDest && arrDefault?.hotelUniqueId && arrDest.value !== arrDefault.hotelUniqueId) {
+                arrDest.value = arrDefault.hotelUniqueId;
             }
-            // Default transfer type + vehicle (type first, then filter, then vehicle)
-            const ts = document.getElementById('departureTransferType');
-            if (ts) { ts.value = 'S'; }
-            if (typeof filterDepartureVehiclesByServiceType === 'function') filterDepartureVehiclesByServiceType();
-            setTimeout(() => {
-                const vs = document.getElementById('departureVehicleType');
-                if (vs && dv.car_shared) vs.value = String(dv.car_shared);
-            }, 120);
-            // Auto-set Pickup to hotel with latest check-out
-            const depDest = document.getElementById('departureDestination');
-            if (depDest && !depDest.value && depDefault?.hotelUniqueId) {
+            if (depDest && depDefault?.hotelUniqueId && depDest.value !== depDefault.hotelUniqueId) {
                 depDest.value = depDefault.hotelUniqueId;
-            }
-            // Default guide
-            if (dv.guide) {
-                const guideChk = document.getElementById('departureGuideCheckbox');
-                if (guideChk) { guideChk.checked = true; }
-                const hr = document.getElementById('departureGuideHeaderRow'); if (hr) hr.style.display = '';
-                const fr = document.getElementById('departureGuideFieldsRow');  if (fr) fr.style.display = '';
-                setTimeout(() => {
-                    const gs = document.getElementById('departureGuide');
-                    if (gs) gs.value = String(dv.guide);
-                }, 150);
             }
         }
 
-        // Always align hotel destinations to current hotel date range in modal preview:
-        // arrival dropoff => earliest check-in hotel, departure pickup => latest check-out hotel.
-        const arrDest = document.getElementById('arrivalDestination');
-        if (arrDest && arrDefault?.hotelUniqueId && arrDest.value !== arrDefault.hotelUniqueId) {
-            arrDest.value = arrDefault.hotelUniqueId;
-        }
-        const depDest = document.getElementById('departureDestination');
-        if (depDest && depDefault?.hotelUniqueId && depDest.value !== depDefault.hotelUniqueId) {
-            depDest.value = depDefault.hotelUniqueId;
+        if (modalHotelCity && typeof applyArrivalDepartureCityFilters === 'function') {
+            applyArrivalDepartureCityFilters(modalHotelCity, { forceClear: !entryMatchesModalCity(existingArr) });
+            // Re-assert current hotel as dropoff/pickup after city defaults
+            if (typeof syncArrivalDropOffToSelectedHotel === 'function') {
+                syncArrivalDropOffToSelectedHotel();
+            } else if (currentHotelUniqueId) {
+                if (arrDest) arrDest.value = currentHotelUniqueId;
+                if (depDest) depDest.value = currentHotelUniqueId;
+            }
         }
 
         const depXferFocWrapHotel = document.getElementById('departureTransferFocRowWrap');
@@ -15083,6 +15231,25 @@
         if (arrivalDepartureSection) {
             arrivalDepartureSection.style.display = 'block';
         }
+
+        // City select — sync with header (single city auto-select)
+        const arrDepCitySel = document.getElementById('arrivalDepartureCity');
+        if (arrDepCitySel) {
+            const headerCities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+                ? selectedDestinations.map(function (c) { return String(c || '').trim(); }).filter(Boolean)
+                : [];
+            arrDepCitySel.querySelectorAll('option').forEach(function (opt) {
+                if (!opt.value) return;
+                const ok = headerCities.length === 0 || headerCities.includes(opt.value);
+                opt.hidden = !ok;
+                opt.disabled = !ok;
+            });
+            if (headerCities.length === 1) {
+                arrDepCitySel.value = headerCities[0];
+            } else if (!headerCities.includes(arrDepCitySel.value)) {
+                arrDepCitySel.value = '';
+            }
+        }
         
         // Show all arrival/departure fields (both arrival and departure)
         document.getElementById('arrivalDateTimeField').style.display = 'block';
@@ -15154,12 +15321,9 @@
                 }
                 
                 // Re-initialize Select2
-                $('.select2-port').select2({
-                    placeholder: 'Search and select port',
-                    allowClear: true,
-                    width: '100%',
-                    dropdownParent: $('#accommodationModal')
-                });
+                $('.select2-port').select2(enquiryProPortSelect2Options({
+                dropdownParent: $('#accommodationModal')
+            }));
             }
             
             // Clear all arrival/departure fields ONLY if in ADD mode (not EDIT mode)
@@ -15260,7 +15424,17 @@
                 // Increased timeout to ensure Select2 is ready
                 setTimeout(() => {
                     console.log('🕐 Calling applyArrivalDepartureDefaults after timeout...');
-                    applyArrivalDepartureDefaults();
+                    const cityForDefaults = (typeof getArrivalDepartureServiceCity === 'function')
+                        ? getArrivalDepartureServiceCity()
+                        : (document.getElementById('arrivalDepartureCity')?.value
+                            || document.getElementById('hotelDestination')?.value
+                            || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                            || '');
+                    if (typeof applyArrivalDepartureCityFilters === 'function') {
+                        applyArrivalDepartureCityFilters(cityForDefaults);
+                    } else {
+                        applyArrivalDepartureDefaults(cityForDefaults);
+                    }
                 }, 800);
                 
                 // Reset the flag after clearing
@@ -15500,12 +15674,9 @@
                 }
                 
                 // Re-initialize Select2
-                $('.select2-port').select2({
-                    placeholder: 'Search and select port',
-                    allowClear: true,
-                    width: '100%',
-                    dropdownParent: $('#accommodationModal')
-                });
+                $('.select2-port').select2(enquiryProPortSelect2Options({
+                dropdownParent: $('#accommodationModal')
+            }));
             }
             
             // Populate the clicked entry data with a delay to ensure modal is fully initialized
@@ -15541,7 +15712,21 @@
                     const linkedDestName = linked.destinationName || linked.transferDestinationName;
                     if (linkedDestId != null && linkedDestId !== '') data.transferDestinationId = linkedDestId;
                     if (linkedDestName != null && linkedDestName !== '') data.transferDestinationName = linkedDestName;
+                    if (!data.city && linked.city) data.city = linked.city;
                 }
+
+                // Restore City then filter catalogs (skip defaults so saved values are preserved)
+                const cityToRestore = String(data.city || linked?.city || '').trim();
+                const arrDepCitySelEdit = document.getElementById('arrivalDepartureCity');
+                if (arrDepCitySelEdit) {
+                    if (cityToRestore) arrDepCitySelEdit.value = cityToRestore;
+                    if (typeof applyArrivalDepartureCityFilters === 'function') {
+                        applyArrivalDepartureCityFilters(arrDepCitySelEdit.value || cityToRestore, { skipDefaults: true });
+                    } else if (typeof filterPortsBySelectedCountries === 'function') {
+                        filterPortsBySelectedCountries(arrDepCitySelEdit.value || cityToRestore);
+                    }
+                }
+
                 const wayVal = (data.transferWay === 'both-way' || data.transferWay === 'Both Way' || data.transferWay === '2way') ? 'both-way' : 'one-way';
                 
                 if (arrivalDeparture.type === 'Arrival') {
@@ -16078,14 +16263,38 @@
     }
 
     function resolveArrDepDestMeta(destSel) {
-        if (!destSel?.value) return { id: '', type: 'hotel', name: '' };
-        const opt = destSel.selectedOptions[0];
-        const type = opt?.getAttribute('data-type') || 'hotel';
-        let id = destSel.value;
+        if (!destSel) return { id: '', type: 'hotel', name: '', zoneId: '' };
+        let value = String(destSel.value || '').trim();
+        let opt = destSel.selectedOptions?.[0] || null;
+        if ((!opt || !value) && value) {
+            opt = destSel.querySelector('option[value="' + (typeof escapeCssAttr === 'function' ? escapeCssAttr(value) : value) + '"]');
+        }
+        // Filter may have disabled the selected option — re-enable so value/id resolve
+        if (opt && (opt.disabled || opt.hidden) && typeof setOptionCityVisibility === 'function') {
+            setOptionCityVisibility(opt, true);
+            if (!value) value = String(opt.value || '').trim();
+        }
+        if (!value && opt) value = String(opt.value || '').trim();
+        if (!value) return { id: '', type: 'hotel', name: '', zoneId: '' };
+
+        const type = (opt?.getAttribute('data-type') || 'hotel').toLowerCase();
+        let id = value;
+        const zoneId = opt?.getAttribute('data-zone-id') || '';
         if (type === 'hotel') {
             id = opt?.getAttribute('data-hotel-unique-id') || id;
+        } else if (type === 'attraction') {
+            id = opt?.getAttribute('data-attraction-id') || id;
+        } else if (type === 'restaurant') {
+            id = opt?.getAttribute('data-restaurant-id') || id;
+        } else if (type === 'port') {
+            id = opt?.getAttribute('data-port-id') || id;
         }
-        return { id, type, name: opt?.getAttribute('data-name') || opt?.text || '' };
+        return {
+            id: String(id || '').trim(),
+            type: type || 'hotel',
+            name: opt?.getAttribute('data-name') || opt?.text || '',
+            zoneId: zoneId
+        };
     }
 
     function vehicleOptionBasePrice(vOpt, transferType) {
@@ -16141,7 +16350,9 @@
         } else {
             try {
                 const dmcId = '{{ $dmc_id ?? "" }}';
-                const zonePrice = await fetchZonePrice(vehicleId, portId, 'port', dest.id, dest.type, dmcId);
+                // Prefer hotel_unique_id so backend can try all zone candidates for this hotel
+                const dropIdForZone = dest.id;
+                const zonePrice = await fetchZonePrice(vehicleId, portId, 'port', dropIdForZone, dest.type, dmcId);
                 const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
                 cost = result.cost;
                 sell = result.sell;
@@ -16180,7 +16391,9 @@
         } else {
             try {
                 const dmcId = '{{ $dmc_id ?? "" }}';
-                const zonePrice = await fetchZonePrice(vehicleId, dest.id, dest.type, portId, 'port', dmcId);
+                // Prefer hotel_unique_id so backend can try all zone candidates for this hotel
+                const pickIdForZone = dest.id;
+                const zonePrice = await fetchZonePrice(vehicleId, pickIdForZone, dest.type, portId, 'port', dmcId);
                 const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
                 cost = result.cost;
                 sell = result.sell;
@@ -16230,8 +16443,24 @@
         window._arrDepZoneListenersReady = true;
         if (!window.jQuery) return;
         const $ = window.jQuery;
-        $('#arrivalPort').on('change', () => refreshArrivalTransferZonePrice());
-        $('#departurePort').on('change', () => refreshDepartureTransferZonePrice());
+        $('#arrivalPort').on('change', () => {
+            if (typeof filterPortsBySelectedCountries === 'function') {
+                filterPortsBySelectedCountries(document.getElementById('hotelDestination')?.value || undefined);
+            }
+            if (typeof syncArrivalDropOffToSelectedHotel === 'function') {
+                syncArrivalDropOffToSelectedHotel();
+            }
+            refreshArrivalTransferZonePrice();
+        });
+        $('#departurePort').on('change', () => {
+            if (typeof filterPortsBySelectedCountries === 'function') {
+                filterPortsBySelectedCountries(document.getElementById('hotelDestination')?.value || undefined);
+            }
+            if (typeof syncArrivalDropOffToSelectedHotel === 'function') {
+                syncArrivalDropOffToSelectedHotel();
+            }
+            refreshDepartureTransferZonePrice();
+        });
         document.getElementById('arrivalDestination')?.addEventListener('change', () => refreshArrivalTransferZonePrice());
         document.getElementById('departureDestination')?.addEventListener('change', () => refreshDepartureTransferZonePrice());
         document.getElementById('arrivalAdults')?.addEventListener('change', () => refreshArrivalTransferZonePrice());
@@ -16445,30 +16674,12 @@
         if (guideSellField) guideSellField.style.display = show ? 'block' : 'none';
     }
     
-    // Helper function to get destination options HTML for attraction transfers
-    function getDestinationOptionsHTML() {
-        return `
-            <optgroup label="Ports">
-                @foreach($ports as $port)
-                    <option value="{{ $port->port_id }}" data-name="{{ $port->port_name }}" data-type="port" data-port-id="{{ $port->port_id }}" data-country="{{ $port->country }}">{{ $port->port_name }}</option>
-                @endforeach
-            </optgroup>
-            <optgroup label="Hotels">
-                @foreach($hotels as $hotel)
-                    <option value="{{ $hotel->hotel_unique_id }}" data-name="{{ $hotel->name }}" data-type="hotel" data-hotel-unique-id="{{ $hotel->hotel_unique_id }}" data-city="{{ $hotel->city ?? '' }}" data-country="{{ $hotel->country ?? '' }}">{{ $hotel->name }}</option>
-                @endforeach
-            </optgroup>
-            <optgroup label="Attractions">
-                @foreach($attractions as $attr2)
-                    <option value="{{ $attr2->attraction_id }}" data-name="{{ $attr2->name }}" data-type="attraction" data-attraction-id="{{ $attr2->attraction_id }}" data-location="{{ $attr2->location ?? '' }}" data-country="{{ $attr2->country ?? '' }}">{{ $attr2->name }}</option>
-                @endforeach
-            </optgroup>
-            <optgroup label="Restaurants">
-                @foreach($restaurants as $rest)
-                    <option value="{{ $rest->restaurant_id }}" data-name="{{ $rest->name }}" data-type="restaurant" data-restaurant-id="{{ $rest->restaurant_id }}" data-city="{{ $rest->city ?? '' }}" data-country="{{ $rest->country ?? '' }}">{{ $rest->name }}</option>
-                @endforeach
-            </optgroup>
-        `;
+    // Helper: city-scoped dropoff options (ports / hotels / attractions / restaurants)
+    function getDestinationOptionsHTML(forCity) {
+        if (typeof buildTransferDestinationOptionsHTML === 'function') {
+            return buildTransferDestinationOptionsHTML(forCity);
+        }
+        return '';
     }
     
     // Helper function to get meal transfer destination options HTML (simple destination names)
@@ -16494,6 +16705,7 @@
                 <option value="{{ $guide->guide_id }}" 
                         data-name="{{ $guide->name }}" 
                         data-languages="{{ $languages }}"
+                        data-city="{{ $guide->city ?? '' }}"
                         data-twelve-hour-price="{{ $defaultPrice }}">{{ $guide->name }} @if($languages)({{ $languages }})@endif</option>
             @endforeach
         `;
@@ -16514,7 +16726,8 @@
                             data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
                             data-base-price="{{ $vehicle->base_price ?? 0 }}"
                             data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                            data-sharable="{{ $vehicle->sharable ?? 3 }}">
+                            data-sharable="{{ $vehicle->sharable ?? 3 }}"
+                            data-city="{{ $vehicle->city ?? '' }}">
                             {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
                         </option>
                     @endforeach
@@ -16527,6 +16740,10 @@
     function loadAttractionsByDestination() {
         const destination = document.getElementById('tourDestination').value;
         const tbody = document.getElementById('attractionsTableBody');
+
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(destination);
+        }
         
         if (!destination) {
             tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">Please select a destination to load attractions</td></tr>';
@@ -16543,10 +16760,17 @@
                 console.log('Attractions API response status:', response.status);
                 return response.json();
             })
-            .then(data => {
+            .then(async data => {
                 console.log('Attractions API response data:', data);
                 console.log('Attractions count:', data.count);
                 console.log('DMC ID:', data.dmc_id);
+
+                // Refresh dropoff catalog with this city's hotels + attractions (fixes ports-only list)
+                if (typeof ensureTransferCatalogForCity === 'function') {
+                    await ensureTransferCatalogForCity(destination, {
+                        attractions: (data && data.attractions) ? data.attractions : []
+                    });
+                }
                 
                 if (data.success && data.attractions.length > 0) {
                     // Get header values for auto-fill
@@ -16604,7 +16828,7 @@
                                         <td style="padding: 2px 8px;">
                                             <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="${ticket.ticket_id}" data-unique-id="${uniqueId}" style="font-size: 10px; padding: 2px 4px;">
                                                 <option value="">Select Dropoff</option>
-                                                ${getDestinationOptionsHTML()}
+                                                ${getDestinationOptionsHTML(destination)}
                                             </select>
                                         </td>
                                         <td style="padding: 2px 8px; text-align: center;">
@@ -16681,7 +16905,7 @@
                                     <td style="padding: 2px 8px;">
                                         <select class="form-select form-select-sm attraction-transfer-destination" data-attr-id="${attr.id}" data-ticket-id="0" data-unique-id="${attr.id}_0" style="font-size: 10px; padding: 2px 4px;">
                                             <option value="">Select Dropoff</option>
-                                            ${getDestinationOptionsHTML()}
+                                            ${getDestinationOptionsHTML(destination)}
                                         </select>
                                     </td>
                                     <td style="padding: 2px 8px; text-align: center;">
@@ -16726,8 +16950,10 @@
                     });
                     tbody.innerHTML = html;
                     
-                    // Set default guide for all attraction guide dropdowns if available
-                    if (window.defaultValues && window.defaultValues.guide) {
+                    // City-filter Tour Details guide dropdowns + apply city default guide
+                    if (typeof filterAttractionGuidesByCity === 'function') {
+                        filterAttractionGuidesByCity(destination, tbody);
+                    } else if (window.defaultValues && window.defaultValues.guide) {
                         const defaultGuideId = String(window.defaultValues.guide);
                         const guideSelects = tbody.querySelectorAll('.attraction-guide-select');
                         guideSelects.forEach(guideSelect => {
@@ -16741,76 +16967,45 @@
                         });
                     }
                     
-                    // Set default hotel for all attraction destination dropdowns
-                    const destinationSelects = tbody.querySelectorAll('.attraction-transfer-destination');
-                    destinationSelects.forEach(destSelect => {
-                        const hotelOptions = Array.from(destSelect.options).filter(o => 
-                            o.getAttribute('data-type') === 'hotel'
+                    // Scope dropoff options to Tour Destination city
+                    if (typeof filterModalTransferDestinationsByCity === 'function') {
+                        filterModalTransferDestinationsByCity(destination, '.attraction-transfer-destination');
+                    }
+
+                    const isEditingTour = window.editingTourIndex !== undefined && window.editingTourIndex !== null
+                        && tourList[window.editingTourIndex];
+
+                    // Auto-check default attraction for this city (new add only)
+                    if (!isEditingTour && window.defaultValues && window.defaultValues.attraction) {
+                        const defaultAttractionId = String(window.defaultValues.attraction);
+                        const attrCheckbox = tbody.querySelector(
+                            `.attraction-checkbox[data-attr-id="${defaultAttractionId}"]`
+                        ) || tbody.querySelector(
+                            `tr.attraction-row[data-attraction-id="${defaultAttractionId}"] .attraction-checkbox`
                         );
-                        
-                        let selectedHotel = null;
-                        
-                        // First priority: Check accommodation list for hotels
-                        const accommodationHotel = getHotelFromAccommodationList();
-                        if (accommodationHotel && hotelOptions.length > 0) {
-                            // Try to find the hotel from accommodation list in the dropdown
-                            selectedHotel = hotelOptions.find(opt => {
-                                const hotelUniqueId = opt.getAttribute('data-hotel-unique-id') || opt.value;
-                                const zoneId = opt.getAttribute('data-zone-id');
-                                // Match by hotel_unique_id or zone_id
-                                return String(hotelUniqueId) === String(accommodationHotel.hotel_unique_id) ||
-                                       (zoneId && String(zoneId) === String(accommodationHotel.zone_id)) ||
-                                       String(opt.value) === String(accommodationHotel.hotel_unique_id);
-                            });
-                            
-                            if (selectedHotel) {
-                                destSelect.value = selectedHotel.value;
-                                console.log('✓ Set hotel from accommodation list in attraction popup:', accommodationHotel.hotelName, selectedHotel.value);
-                            }
+                        if (attrCheckbox) {
+                            attrCheckbox.checked = true;
+                            attrCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-                        
-                        // Second priority: If no accommodation hotel found, use default hotel
-                        if (!selectedHotel) {
-                            if (hotelOptions.length === 0 && window.defaultValues && window.defaultValues.hotel) {
-                                // Try to find default hotel in all options (even if not in hotel optgroup)
-                                selectedHotel = Array.from(destSelect.options).find(o => 
-                                    o.value == window.defaultValues.hotel
-                                );
-                                if (selectedHotel) {
-                                    destSelect.value = selectedHotel.value;
-                                    console.log('✓ Set default hotel in attraction popup (no hotels in list):', selectedHotel.value);
-                                }
-                            } else if (hotelOptions.length > 0) {
-                                // If hotels exist in list, check if default hotel is present
-                                if (window.defaultValues && window.defaultValues.hotel) {
-                                    selectedHotel = hotelOptions.find(o => o.value == window.defaultValues.hotel);
-                                }
-                                
-                                // If default hotel found, select it; otherwise select first hotel
-                                if (selectedHotel) {
-                                    destSelect.value = selectedHotel.value;
-                                    console.log('✓ Set default hotel in attraction popup:', selectedHotel.value);
-                                } else if (hotelOptions.length > 0) {
-                                    destSelect.value = hotelOptions[0].value;
-                                    console.log('✓ Set first hotel in attraction popup:', hotelOptions[0].value);
-                                }
+                    }
+
+                    if (isEditingTour) {
+                        // Restore the edited attraction row AFTER rows exist (fixes empty selection race)
+                        populateEditingTourAttractionRow(tourList[window.editingTourIndex]);
+                    } else {
+                        document.querySelectorAll('.attraction-transfer-destination').forEach(function (destSelect) {
+                            if (typeof applyDefaultTransferDropoffHotel === 'function') {
+                                applyDefaultTransferDropoffHotel(destSelect, destination);
                             }
-                        }
-                    });
-                    
-                    // Auto-select vehicle for all attraction rows based on pax and seat_capacity
-                    // This filters vehicles by service type (Shared by default) and selects the first matching vehicle
-                    const transferTypeSelects = tbody.querySelectorAll('.attraction-transfer-type');
-                    setTimeout(() => {
-                        transferTypeSelects.forEach(transferTypeSelect => {
-                            filterAttractionVehiclesByServiceType(transferTypeSelect);
                         });
-                        console.log('✓ Auto-selected vehicles in attraction popup based on pax and seat capacity');
-                        
-                        // Apply the attraction type filter based on radio button selection (default: attractions only)
-                        filterAttractionsByType();
-                        console.log('✓ Applied attraction type filter');
-                    }, 100);
+                        const transferTypeSelects = tbody.querySelectorAll('.attraction-transfer-type');
+                        setTimeout(() => {
+                            transferTypeSelects.forEach(transferTypeSelect => {
+                                filterAttractionVehiclesByServiceType(transferTypeSelect);
+                            });
+                            filterAttractionsByType();
+                        }, 100);
+                    }
                 } else {
                     tbody.innerHTML = '<tr><td colspan="15" class="text-center text-muted" style="padding: 20px;">No attractions found for this destination</td></tr>';
                 }
@@ -16956,43 +17151,9 @@
                 const destinationName = destOption.getAttribute('data-name') || destOption.text;
                 const destinationType = destOption.getAttribute('data-type') || 'other';
                 
-                // Get attraction ID from row
+                // Get attraction ID from row — always send attraction_id (API resolves zone candidates)
                 const attractionId = row.getAttribute('data-attraction-id') || attrId;
-                
-                // Extract zone_id from attraction option in destination dropdowns
                 let actualAttractionId = attractionId;
-                let attractionZoneId = null;
-                const destinationDropdowns = [
-                    document.getElementById('localPickup'),
-                    document.getElementById('localDrop'),
-                    document.getElementById('arrivalDestination'),
-                    document.getElementById('departureDestination'),
-                    document.getElementById('hotelTransferDestination')
-                ].filter(s => s !== null);
-                
-                // Also check the attraction transfer destination dropdown in the tour modal
-                const tourModalDestinationSelects = document.querySelectorAll('.attraction-transfer-destination');
-                
-                // Search for attraction option in all dropdowns
-                for (const dropdown of [...destinationDropdowns, ...tourModalDestinationSelects]) {
-                    const attractionOption = Array.from(dropdown.options).find(opt => {
-                        const optAttractionId = opt.getAttribute('data-attraction-id');
-                        return optAttractionId && String(optAttractionId) === String(attractionId);
-                    });
-                    
-                    if (attractionOption) {
-                        attractionZoneId = attractionOption.getAttribute('data-zone-id');
-                        if (attractionZoneId) {
-                            console.log('  Found zone_id for attraction:', attractionZoneId, '(from attraction_id:', attractionId, ')');
-                            actualAttractionId = attractionZoneId;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!attractionZoneId) {
-                    console.warn('  Could not find zone_id for attraction, using attraction_id:', actualAttractionId, '(API should handle conversion)');
-                }
                 
                 // Get destination ID - extract from value or data attributes
                 let actualDestinationId = transferDestination;
@@ -17005,9 +17166,6 @@
                 } else if (destinationType === 'attraction') {
                     const attractionDestId = destOption.getAttribute('data-attraction-id');
                     if (attractionDestId) actualDestinationId = attractionDestId;
-                    // IMPORTANT:
-                    // Do NOT replace attraction_id with zone_id here.
-                    // Zone assignments are DMC-specific and are resolved server-side using (attraction_id + dmc_id).
                 } else if (destinationType === 'restaurant') {
                     const restaurantId = destOption.getAttribute('data-restaurant-id');
                     if (restaurantId) actualDestinationId = restaurantId;
@@ -17077,6 +17235,10 @@
                     destinationType: destinationType,
                     pickup: pickupName,
                     dropoff: dropoffName,
+                    pickupId: pickupId,
+                    dropoffId: dropoffId,
+                    pickupType: pickupType,
+                    dropoffType: dropoffType,
                     isDestinationPickup: isDestinationPickup,
                     dateTime: dateTime,
                     adults: adultsQty,
@@ -17317,43 +17479,9 @@
                 const destinationName = destOption.getAttribute('data-name') || destOption.text;
                 const destinationType = destOption.getAttribute('data-type') || 'other';
                 
-                // Get attraction ID from row
+                // Get attraction ID from row — always send attraction_id (API resolves zone candidates)
                 const attractionId = row.getAttribute('data-attraction-id') || attrId;
-                
-                // Extract zone_id from attraction option in destination dropdowns
                 let actualAttractionId = attractionId;
-                let attractionZoneId = null;
-                const destinationDropdowns = [
-                    document.getElementById('localPickup'),
-                    document.getElementById('localDrop'),
-                    document.getElementById('arrivalDestination'),
-                    document.getElementById('departureDestination'),
-                    document.getElementById('hotelTransferDestination')
-                ].filter(s => s !== null);
-                
-                // Also check the attraction transfer destination dropdown in the tour modal
-                const tourModalDestinationSelects = document.querySelectorAll('.attraction-transfer-destination');
-                
-                // Search for attraction option in all dropdowns
-                for (const dropdown of [...destinationDropdowns, ...tourModalDestinationSelects]) {
-                    const attractionOption = Array.from(dropdown.options).find(opt => {
-                        const optAttractionId = opt.getAttribute('data-attraction-id');
-                        return optAttractionId && String(optAttractionId) === String(attractionId);
-                    });
-                    
-                    if (attractionOption) {
-                        attractionZoneId = attractionOption.getAttribute('data-zone-id');
-                        if (attractionZoneId) {
-                            console.log('  Found zone_id for attraction:', attractionZoneId, '(from attraction_id:', attractionId, ')');
-                            actualAttractionId = attractionZoneId;
-                            break;
-                        }
-                    }
-                }
-                
-                if (!attractionZoneId) {
-                    console.warn('  Could not find zone_id for attraction, using attraction_id:', actualAttractionId, '(API should handle conversion)');
-                }
                 
                 // Get destination ID - extract from value or data attributes
                 let actualDestinationId = transferDestination;
@@ -17366,9 +17494,6 @@
                 } else if (destinationType === 'attraction') {
                     const attractionDestId = destOption.getAttribute('data-attraction-id');
                     if (attractionDestId) actualDestinationId = attractionDestId;
-                    // IMPORTANT:
-                    // Do NOT replace attraction_id with zone_id here.
-                    // Zone assignments are DMC-specific and are resolved server-side using (attraction_id + dmc_id).
                 } else if (destinationType === 'restaurant') {
                     const restaurantId = destOption.getAttribute('data-restaurant-id');
                     if (restaurantId) actualDestinationId = restaurantId;
@@ -17438,6 +17563,10 @@
                     destinationType: destinationType,
                     pickup: pickupName,
                     dropoff: dropoffName,
+                    pickupId: pickupId,
+                    dropoffId: dropoffId,
+                    pickupType: pickupType,
+                    dropoffType: dropoffType,
                     isDestinationPickup: isDestinationPickup,
                     dateTime: dateTime,
                     adults: adultsQty,
@@ -17847,134 +17976,144 @@
         }
         document.getElementById('tourDateTime').value = dateTimeValue;
         
-        // Load attractions for the destination
-        loadAttractionsByDestination();
-        
-        // After attractions load, set filter type and check the matching attraction
-        setTimeout(() => {
-            const attractionRows = document.querySelectorAll('.attraction-row');
-            const tourTicket = String(tour.ticketId != null && tour.ticketId !== '' ? tour.ticketId : '0');
-            
-            // Determine attraction type (tour site vs attraction) for this tour and set the filter radio accordingly
-            let selectedFilterType = 'attraction'; // default
-            const targetRowForType = Array.from(attractionRows).find(row => {
-                const attrId = row.getAttribute('data-attraction-id');
-                const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
-                return attrId == tour.attractionId && rowTicket === tourTicket;
-            });
-            if (targetRowForType) {
-                const rowType = parseInt(targetRowForType.getAttribute('data-attraction-type')) || 1;
-                selectedFilterType = (rowType === 1) ? 'toursite' : 'attraction';
-            }
-            const filterRadioId = selectedFilterType === 'toursite' ? 'filterTourSite' : 'filterAttraction';
-            const filterRadio = document.getElementById(filterRadioId);
-            if (filterRadio) {
-                filterRadio.checked = true;
-            }
-            // Apply filter so the selected attraction row is visible
-            filterAttractionsByType(selectedFilterType);
-            attractionRows.forEach(row => {
-                const attrId = row.getAttribute('data-attraction-id');
-                const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
-                if (attrId == tour.attractionId && rowTicket === tourTicket) {
-                    // Check the checkbox
-                    const checkbox = row.querySelector('.attraction-checkbox');
-                    if (checkbox) checkbox.checked = true;
-                    
-                    // Populate the values
-                    const adultQty = row.querySelector('.attraction-adult-qty');
-                    if (adultQty) adultQty.value = tour.adultsQty || 0;
-                    
-                    const adultCharge = row.querySelector('.attraction-adult-charge');
-                    if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
-                    
-                    const childQty = row.querySelector('.attraction-child-qty');
-                    if (childQty) childQty.value = tour.childQty || 0;
-                    
-                    const childCharge = row.querySelector('.attraction-child-charge');
-                    if (childCharge) childCharge.value = `${parseFloat(String(tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
-                    
-                    const infantQty = row.querySelector('.attraction-infant-qty');
-                    if (infantQty) infantQty.value = tour.infantQty || 0;
-                    
-                    const infantCharge = row.querySelector('.attraction-infant-charge');
-                    if (infantCharge) infantCharge.value = `${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
-                    
-                    // Populate transfer info if available
-                    const transferCheckbox = row.querySelector('.attraction-transfer-checkbox');
-                    if (tour.transferInfo) {
-                        if (transferCheckbox) transferCheckbox.checked = true;
-                        
-                        // Set transfer destination
-                        if (tour.transferInfo.destination) {
-                            const transferDestSelect = row.querySelector('.attraction-transfer-destination');
-                            if (transferDestSelect) {
-                                // Find the option that matches the destination name
-                                for (let i = 0; i < transferDestSelect.options.length; i++) {
-                                    const optionName = transferDestSelect.options[i].getAttribute('data-name');
-                                    if (optionName === tour.transferInfo.destination) {
-                                        transferDestSelect.value = transferDestSelect.options[i].value;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Set "Is PickUp?" checkbox state
-                        const isPickupCheckbox = row.querySelector('.attraction-is-pickup');
-                        if (isPickupCheckbox) isPickupCheckbox.checked = tour.transferInfo.isDestinationPickup || false;
-                        
-                        // Set vehicle type
-                        const vehicleTypeSelect = row.querySelector('.attraction-vehicle-type');
-                        if (vehicleTypeSelect && tour.transferInfo.vehicleId) {
-                            vehicleTypeSelect.value = tour.transferInfo.vehicleId;
-                        }
-                        
-                        // Set way
-                        const waySelect = row.querySelector('.attraction-transfer-way');
-                        if (waySelect && tour.transferInfo.way) {
-                            waySelect.value = tour.transferInfo.way;
-                        }
-                        
-                        // Set transfer type
-                        const typeSelect = row.querySelector('.attraction-transfer-type');
-                        if (typeSelect && tour.transferInfo.type) {
-                            typeSelect.value = tour.transferInfo.type;
-                        }
-                    } else {
-                        // No transfer info - ensure checkbox is unchecked
-                        if (transferCheckbox) transferCheckbox.checked = false;
-                    }
-                    
-                    // Populate guide info if available
-                    const guideCheckbox = row.querySelector('.attraction-guide-checkbox');
-                    if (tour.guideRequired || tour.guideInfo) {
-                        if (guideCheckbox) guideCheckbox.checked = true;
-                        
-                        if (tour.guideInfo && tour.guideInfo.guide_id) {
-                            const guideSelect = row.querySelector('.attraction-guide-select');
-                            if (guideSelect) {
-                                console.log('Setting guide select to:', tour.guideInfo.guide_id);
-                                guideSelect.value = tour.guideInfo.guide_id;
-                            }
-                        }
-                    } else {
-                        // No guide info - ensure checkbox is unchecked
-                        if (guideCheckbox) guideCheckbox.checked = false;
-                    }
-                    
-                    const focCb = row.querySelector('.attraction-foc-discount');
-                    if (focCb) focCb.checked = !!(tour.focServiceDiscount || tour.foc_service_discount);
-                }
-            });
-        }, 500);
-        
-        // Change modal title and button text
+        // Change modal title before open
         document.getElementById('tourModalTitleText').textContent = 'Edit Tour / Attraction';
         
         // Open modal
         const tourModal = new bootstrap.Modal(document.getElementById('tourModal'));
         tourModal.show();
+
+        // Load attractions — populateEditingTourAttractionRow runs when load finishes
+        loadAttractionsByDestination();
+    }
+
+    /**
+     * After attractions AJAX load during edit: select the matching row and restore transfer/guide fields.
+     */
+    function populateEditingTourAttractionRow(tour) {
+        if (!tour) return;
+        const attractionRows = document.querySelectorAll('.attraction-row');
+        if (!attractionRows.length) return;
+
+        const tourTicket = String(tour.ticketId != null && tour.ticketId !== '' ? tour.ticketId : '0');
+        const tourAttrId = String(tour.attractionId ?? '');
+
+        let selectedFilterType = 'attraction';
+        const targetRowForType = Array.from(attractionRows).find(row => {
+            const attrId = String(row.getAttribute('data-attraction-id') || '');
+            const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
+            return attrId === tourAttrId && rowTicket === tourTicket;
+        }) || Array.from(attractionRows).find(row => {
+            const attrId = String(row.getAttribute('data-attraction-id') || '');
+            const name = String(row.getAttribute('data-attraction-name') || '');
+            return attrId === tourAttrId || (tour.attractionName && name === String(tour.attractionName));
+        });
+
+        if (targetRowForType) {
+            const rowType = parseInt(targetRowForType.getAttribute('data-attraction-type')) || 1;
+            selectedFilterType = (rowType === 1) ? 'toursite' : 'attraction';
+        }
+        const filterRadioId = selectedFilterType === 'toursite' ? 'filterTourSite' : 'filterAttraction';
+        const filterRadio = document.getElementById(filterRadioId);
+        if (filterRadio) filterRadio.checked = true;
+        filterAttractionsByType(selectedFilterType);
+
+        const matchRow = targetRowForType || Array.from(attractionRows).find(row => {
+            const attrId = String(row.getAttribute('data-attraction-id') || '');
+            const rowTicket = String(row.getAttribute('data-ticket-id') || '0');
+            return attrId === tourAttrId && rowTicket === tourTicket;
+        });
+
+        if (!matchRow) {
+            console.warn('Could not find attraction row to edit', tourAttrId, tourTicket, tour.attractionName);
+            return;
+        }
+
+        matchRow.style.display = '';
+        const checkbox = matchRow.querySelector('.attraction-checkbox');
+        if (checkbox) checkbox.checked = true;
+
+        const adultQty = matchRow.querySelector('.attraction-adult-qty');
+        if (adultQty) adultQty.value = tour.adultsQty || 0;
+        const adultCharge = matchRow.querySelector('.attraction-adult-charge');
+        if (adultCharge) adultCharge.value = `${parseFloat(String(tour.adultCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        const childQty = matchRow.querySelector('.attraction-child-qty');
+        if (childQty) childQty.value = tour.childQty || 0;
+        const childCharge = matchRow.querySelector('.attraction-child-charge');
+        if (childCharge) childCharge.value = `${parseFloat(String(tour.childCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+        const infantQty = matchRow.querySelector('.attraction-infant-qty');
+        if (infantQty) infantQty.value = tour.infantQty || 0;
+        const infantCharge = matchRow.querySelector('.attraction-infant-charge');
+        if (infantCharge) infantCharge.value = `${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}`;
+
+        const transferCheckbox = matchRow.querySelector('.attraction-transfer-checkbox');
+        if (tour.transferInfo) {
+            if (transferCheckbox) transferCheckbox.checked = true;
+
+            const transferDestSelect = matchRow.querySelector('.attraction-transfer-destination');
+            if (transferDestSelect) {
+                let matched = false;
+                const destId = tour.transferInfo.destinationId;
+                if (destId) {
+                    const byValue = Array.from(transferDestSelect.options).find(o => String(o.value) === String(destId));
+                    if (byValue) {
+                        transferDestSelect.value = byValue.value;
+                        matched = true;
+                    }
+                }
+                if (!matched && tour.transferInfo.destination) {
+                    for (let i = 0; i < transferDestSelect.options.length; i++) {
+                        const optionName = transferDestSelect.options[i].getAttribute('data-name');
+                        if (optionName === tour.transferInfo.destination) {
+                            transferDestSelect.value = transferDestSelect.options[i].value;
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const isPickupCheckbox = matchRow.querySelector('.attraction-is-pickup');
+            if (isPickupCheckbox) isPickupCheckbox.checked = tour.transferInfo.isDestinationPickup || false;
+
+            const typeSelect = matchRow.querySelector('.attraction-transfer-type');
+            if (typeSelect && tour.transferInfo.type) {
+                typeSelect.value = tour.transferInfo.type;
+                if (typeof filterAttractionVehiclesByServiceType === 'function') {
+                    filterAttractionVehiclesByServiceType(typeSelect);
+                }
+            }
+
+            const vehicleTypeSelect = matchRow.querySelector('.attraction-vehicle-type');
+            if (vehicleTypeSelect && tour.transferInfo.vehicleId) {
+                vehicleTypeSelect.value = tour.transferInfo.vehicleId;
+            }
+
+            const waySelect = matchRow.querySelector('.attraction-transfer-way');
+            if (waySelect && tour.transferInfo.way) {
+                waySelect.value = tour.transferInfo.way;
+            }
+        } else if (transferCheckbox) {
+            transferCheckbox.checked = false;
+        }
+
+        const guideCheckbox = matchRow.querySelector('.attraction-guide-checkbox');
+        if (tour.guideRequired || tour.guideInfo) {
+            if (guideCheckbox) guideCheckbox.checked = true;
+            if (tour.guideInfo && tour.guideInfo.guide_id) {
+                const guideSelect = matchRow.querySelector('.attraction-guide-select');
+                if (guideSelect) guideSelect.value = tour.guideInfo.guide_id;
+            }
+        } else if (guideCheckbox) {
+            guideCheckbox.checked = false;
+        }
+
+        const focCb = matchRow.querySelector('.attraction-foc-discount');
+        if (focCb) focCb.checked = !!(tour.focServiceDiscount || tour.foc_service_discount);
+
+        try {
+            matchRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } catch (e) { /* ignore */ }
     }
     
     // Update tour field
@@ -18079,16 +18218,12 @@
             destinationSelect.value = '';
         }
         
-        // Reset location select to first attraction (default)
+        // Clear location until destination is chosen (city-filtered)
         const locationSelect = document.getElementById('guideLocation');
         if (locationSelect) {
-            // Find the first option in the Attractions optgroup and select it
-            const attractionsOptgroup = locationSelect.querySelector('optgroup[label="Attractions"]');
-            if (attractionsOptgroup) {
-                const firstAttraction = attractionsOptgroup.querySelector('option');
-                if (firstAttraction) {
-                    locationSelect.value = firstAttraction.value;
-                }
+            locationSelect.value = '';
+            if (typeof filterGuideLocationByCity === 'function') {
+                filterGuideLocationByCity('');
             }
         }
         
@@ -18120,6 +18255,11 @@
         
         // Auto-fill destination from header using autoFillModalFields
         autoFillModalFields('guide');
+
+        // If destination was auto-selected, ensure Location is city-filtered
+        if (destinationSelect?.value && typeof filterGuideLocationByCity === 'function') {
+            filterGuideLocationByCity(destinationSelect.value);
+        }
         
         const guideModal = new bootstrap.Modal(document.getElementById('guideModal'));
         guideModal.show();
@@ -18129,6 +18269,17 @@
     function loadGuidesByDestination() {
         const destination = document.getElementById('guideDestination').value;
         const tbody = document.getElementById('guidesTableBody');
+
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(destination);
+        }
+
+        // City-filter Location (Attractions / Restaurants / Ports)
+        if (typeof filterGuideLocationByCity === 'function') {
+            filterGuideLocationByCity(destination);
+        } else if (typeof window.onServiceCityChanged === 'function') {
+            window.onServiceCityChanged(destination, 'guide');
+        }
         
         if (!destination) {
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 20px;">Please select a destination to load guides</td></tr>';
@@ -18227,6 +18378,17 @@
                         `;
                     });
                     tbody.innerHTML = html;
+
+                    // Auto-select city-scoped default guide
+                    if (window.defaultValues && window.defaultValues.guide) {
+                        const defaultGuideId = String(window.defaultValues.guide);
+                        const guideCheckbox = tbody.querySelector(`.guide-checkbox[data-guide-id="${defaultGuideId}"]`);
+                        if (guideCheckbox) {
+                            guideCheckbox.checked = true;
+                            guideCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+                            console.log('✓ Auto-selected default guide for city:', destination, defaultGuideId);
+                        }
+                    }
                 } else {
                     tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding: 20px;">No guides found for this destination</td></tr>';
                 }
@@ -18626,12 +18788,6 @@
             destinationSelect.value = guide.destination;
         }
         
-        // Set location
-        const locationSelect = document.getElementById('guideLocation');
-        if (locationSelect && guide.locationId) {
-            locationSelect.value = guide.locationId;
-        }
-        
         // Set date
         let dateTimeValue = guide.dateTime || '';
         if (dateTimeValue && !dateTimeValue.includes('T')) {
@@ -18642,8 +18798,18 @@
             guideDate.value = dateTimeValue.split('T')[0] || getDefaultServiceDate();
         }
         
-        // Load guides for the destination
+        // Load guides for the destination (also city-filters Location)
         loadGuidesByDestination();
+
+        // Restore location after city filter + Select2 reinit
+        if (guide.locationId && typeof jQuery !== 'undefined') {
+            jQuery('#guideLocation').val(String(guide.locationId)).trigger('change');
+        } else {
+            const locationSelect = document.getElementById('guideLocation');
+            if (locationSelect && guide.locationId) {
+                locationSelect.value = guide.locationId;
+            }
+        }
         
         // Wait for guides to load, then select the guide
         setTimeout(() => {
@@ -19487,8 +19653,10 @@
         if (restaurantGuideSelect) {
             restaurantGuideSelect.value = '';
             
-            // Set default guide if available
-            if (window.defaultValues && window.defaultValues.guide) {
+            // City-filter + set default guide for meal destination
+            if (typeof applyMealModalCityFilters === 'function') {
+                applyMealModalCityFilters(destinationSelect?.value || '');
+            } else if (window.defaultValues && window.defaultValues.guide) {
                 const defaultGuideId = String(window.defaultValues.guide);
                 const guideOption = Array.from(restaurantGuideSelect.options).find(opt => 
                     String(opt.value) === defaultGuideId
@@ -19593,10 +19761,10 @@
     function selectDefaultHotel(selectElement, defaultHotelValue) {
         if (!selectElement || !selectElement.options) return false;
         
-        // Get all hotel options from the dropdown
+        // Get visible (city-scoped) hotel options from the dropdown
         const hotelOptions = Array.from(selectElement.options).filter(opt => {
             const optType = opt.getAttribute('data-type');
-            return optType === 'hotel';
+            return optType === 'hotel' && opt.value && !opt.disabled && !opt.hidden;
         });
         
         if (hotelOptions.length === 0) {
@@ -19681,11 +19849,18 @@
             setTimeout(() => {
                 const destSelect = document.getElementById('restaurantTransferDestination');
                 if (destSelect) {
-                    // Set destination to drop off (accommodation list hotel first, then default hotel)
-                    const accommodationHotel = getHotelFromAccommodationList();
-                    const defaultHotel = window.defaultValues ? window.defaultValues.hotel : null;
-                    // selectDefaultHotel will prioritize accommodation list hotels
-                    selectDefaultHotel(destSelect, defaultHotel);
+                    // Scope dropoff options to Meal Destination city, then default hotel (user can still change)
+                    const mealCity = String(document.getElementById('mealDestination')?.value || '').trim();
+                    if (mealCity && typeof filterModalTransferDestinationsByCity === 'function') {
+                        filterModalTransferDestinationsByCity(mealCity, '#restaurantTransferDestination');
+                    }
+                    if (typeof applyDefaultTransferDropoffHotel === 'function') {
+                        applyDefaultTransferDropoffHotel(destSelect, mealCity);
+                    } else {
+                        const accommodationHotel = getHotelFromAccommodationList();
+                        const defaultHotel = window.defaultValues ? window.defaultValues.hotel : null;
+                        selectDefaultHotel(destSelect, defaultHotel);
+                    }
                     
                     // Set default transfer type to Shared
                     const transferTypeSelect = document.getElementById('restaurantTransferType');
@@ -19717,6 +19892,14 @@
             if (rgFoc) rgFoc.checked = false;
         }
         if (guideChecked) {
+            if (typeof applyMealModalCityFilters === 'function') {
+                applyMealModalCityFilters(document.getElementById('mealDestination')?.value || '');
+            } else if (typeof filterGuideSelectByCity === 'function') {
+                filterGuideSelectByCity(
+                    document.getElementById('restaurantGuideSelect'),
+                    document.getElementById('mealDestination')?.value || ''
+                );
+            }
             updateRestaurantGuidePricing();
         }
     }
@@ -19835,6 +20018,10 @@
     function loadRestaurantsByDestination() {
         const destination = document.getElementById('mealDestination').value;
         const restaurantSelect = document.getElementById('mealRestaurant');
+
+        if (typeof window.resolveActiveDefaultValues === 'function') {
+            window.resolveActiveDefaultValues(destination);
+        }
         
         if (!restaurantSelect) return;
         
@@ -19879,6 +20066,27 @@
         });
         
         console.log(`Loaded ${filteredRestaurants.length} restaurant(s) for ${destination}`);
+
+        // City-filter meal vehicle + guide dropdowns for this destination
+        if (typeof applyMealModalCityFilters === 'function') {
+            applyMealModalCityFilters(destination);
+        } else if (typeof filterRestaurantVehiclesByServiceType === 'function') {
+            filterRestaurantVehiclesByServiceType();
+        }
+
+        // Refresh dropoff catalog for this meal city, then scope + default hotel
+        Promise.resolve(
+            typeof ensureTransferCatalogForCity === 'function'
+                ? ensureTransferCatalogForCity(destination, { restaurants: filteredRestaurants })
+                : null
+        ).then(function () {
+            if (typeof filterModalTransferDestinationsByCity === 'function') {
+                filterModalTransferDestinationsByCity(destination, '#restaurantTransferDestination');
+            }
+            if (typeof applyDefaultTransferDropoffHotel === 'function') {
+                applyDefaultTransferDropoffHotel(document.getElementById('restaurantTransferDestination'), destination);
+            }
+        });
         
         // Auto-select default restaurant if available
         if (window.defaultValues && window.defaultValues.restaurant) {
@@ -22339,6 +22547,8 @@
     function resetAllTransferForms() {
         // Local Transfer
         document.getElementById('localDateTime').value = '';
+        const localDestReset = document.getElementById('localDestination');
+        if (localDestReset) localDestReset.value = '';
         $('#localPickup').val('').trigger('change');
         $('#localDrop').val('').trigger('change');
         document.getElementById('localVehicleType').value = 'sedan';
@@ -22446,44 +22656,41 @@
         // Auto-fill adults, children, infants, and country from header
         autoFillModalFields('transfer');
         
-        // Set default guide for local transport if available
-        const localTransportGuideSelect = document.getElementById('localTransportGuideSelect');
-        const localTransportGuideCheckbox = document.getElementById('localTransportGuideCheckbox');
-        const localTransportGuideDetailsSection = document.getElementById('localTransportGuideDetailsSection');
-        if (localTransportGuideSelect && window.defaultValues && window.defaultValues.guide) {
-            const defaultGuideId = String(window.defaultValues.guide);
-            const guideOption = Array.from(localTransportGuideSelect.options).find(opt => 
-                String(opt.value) === defaultGuideId
-            );
-            if (guideOption) {
-                localTransportGuideSelect.value = guideOption.value;
-                if (localTransportGuideCheckbox) {
-                    localTransportGuideCheckbox.checked = true;
-                }
-                if (localTransportGuideDetailsSection) {
-                    localTransportGuideDetailsSection.style.display = 'block';
-                }
-                console.log('✓ Selected default guide in local transport modal:', defaultGuideId);
+        // Prefill City from header destinations, then city-filter pickup/drop/vehicle/guide
+        const localDest = document.getElementById('localDestination');
+        if (localDest) {
+            const headerCity = (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                ? selectedDestinations[0]
+                : '';
+            if (headerCity && Array.from(localDest.options).some(o => o.value === headerCity)) {
+                localDest.value = headerCity;
+            }
+            if (typeof applyLocalTransferCityFilters === 'function') {
+                applyLocalTransferCityFilters(localDest.value || '');
             }
         }
         
         // Initialize Select2 for pickup and drop dropdowns in transfer modal
         if (typeof $.fn.select2 !== 'undefined') {
-            $('#localPickup').select2({
-                placeholder: 'Search and select pickup location',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#transferModal')
-            });
-            $('#localDrop').select2({
-                placeholder: 'Search and select drop location',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#transferModal')
-            });
+            if (typeof reinitLocalPickupDropSelect2 === 'function') {
+                reinitLocalPickupDropSelect2();
+            } else {
+                $('#localPickup').select2({
+                    placeholder: 'Search and select pickup location',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#transferModal')
+                });
+                $('#localDrop').select2({
+                    placeholder: 'Search and select drop location',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#transferModal')
+                });
+            }
             
             // Auto-set pickup to same as drop off when drop off changes
-            $('#localDrop').on('change', function() {
+            $('#localDrop').off('change.localPickupSync').on('change.localPickupSync', function() {
                 const dropValue = $(this).val();
                 if (dropValue) {
                     $('#localPickup').val(dropValue).trigger('change');
@@ -22491,24 +22698,12 @@
             });
         }
         
-        // Populate default values for local transfer
+        // Populate default values for local transfer (after city filters settle)
         setTimeout(() => {
-            // Set default drop location (hotel - check hotel table first, then use default)
-            const localDropSelect = document.getElementById('localDrop');
-            if (localDropSelect && window.defaultValues) {
-                const defaultHotel = window.defaultValues.hotel;
-                selectDefaultHotel(localDropSelect, defaultHotel);
-                // Also set pickup to same as drop off
-                if (localDropSelect.value) {
-                    $('#localPickup').val(localDropSelect.value).trigger('change');
-                }
-            }
-            
-            // Auto-select vehicle based on pax and seat_capacity using the filter function
-            setTimeout(() => {
+            if (typeof filterLocalTransferVehiclesByServiceType === 'function') {
                 filterLocalTransferVehiclesByServiceType();
-            }, 50);
-        }, 300);
+            }
+        }, 350);
         
         const transferModal = new bootstrap.Modal(document.getElementById('transferModal'));
         transferModal.show();
@@ -22593,18 +22788,10 @@
                     }
                     
                     if (pickupOption) {
-                        // Value is already hotel_unique_id, but verify with data attribute
+                        // Always send hotel_unique_id — backend tries DMC zone + fallback zones
                         const hotelUniqueId = pickupOption.getAttribute('data-hotel-unique-id') || pickupOption.value;
-                        
-                        // Extract zone_id from data attribute if available
-                        const zoneId = pickupOption.getAttribute('data-zone-id');
-                        if (zoneId) {
-                            console.log('  Found zone_id for pickup from dropdown:', zoneId);
-                            actualPickupId = zoneId;
-                            foundHotelUniqueId = true;
-                            break;
-                        } else if (hotelUniqueId) {
-                            console.log('  Found hotel_unique_id for pickup from dropdown (no zone_id):', hotelUniqueId);
+                        if (hotelUniqueId) {
+                            console.log('  Found hotel_unique_id for pickup from dropdown:', hotelUniqueId);
                             actualPickupId = hotelUniqueId;
                             foundHotelUniqueId = true;
                             break;
@@ -22621,7 +22808,6 @@
                         for (const option of options) {
                             const optionValue = option.value;
                             const hotelUniqueId = option.getAttribute('data-hotel-unique-id') || optionValue;
-                            const zoneId = option.getAttribute('data-zone-id');
                             
                             // Check if value matches (direct match or legacy formats)
                             const valueMatches = optionValue === pickupId || 
@@ -22632,19 +22818,11 @@
                                                 (optionValue.includes('_') && !optionValue.includes('.') && optionValue.split('_')[1] === String(extractedPickupId)) ||
                                                 (optionValue.includes('_') && !optionValue.includes('.') && optionValue.split('_')[1] === String(pickupId));
                             
-                            if (valueMatches) {
-                                // Prefer zone_id if available, otherwise use hotel_unique_id
-                                if (zoneId) {
-                                    console.log('  Found zone_id by matching:', zoneId, '(value:', optionValue, ', pickupId:', pickupId, ', extractedPickupId:', extractedPickupId, ')');
-                                    actualPickupId = zoneId;
-                                    foundHotelUniqueId = true;
-                                    break;
-                                } else if (hotelUniqueId) {
-                                    console.log('  Found hotel_unique_id by matching:', hotelUniqueId, '(value:', optionValue, ', pickupId:', pickupId, ', extractedPickupId:', extractedPickupId, ')');
-                                    actualPickupId = hotelUniqueId;
-                                    foundHotelUniqueId = true;
-                                    break;
-                                }
+                            if (valueMatches && hotelUniqueId) {
+                                console.log('  Found hotel_unique_id by matching:', hotelUniqueId, '(value:', optionValue, ', pickupId:', pickupId, ', extractedPickupId:', extractedPickupId, ')');
+                                actualPickupId = hotelUniqueId;
+                                foundHotelUniqueId = true;
+                                break;
                             }
                         }
                         if (foundHotelUniqueId) break;
@@ -22698,19 +22876,11 @@
                     
                     if (dropOption) {
                         console.log('  Found option element:', dropOption);
-                        // Value is already hotel_unique_id, but verify with data attribute
+                        // Always send hotel_unique_id — backend tries DMC zone + fallback zones
                         const hotelUniqueId = dropOption.getAttribute('data-hotel-unique-id') || dropOption.value;
                         console.log('  hotel_unique_id from attribute:', hotelUniqueId);
-                        
-                        // Extract zone_id from data attribute if available
-                        const zoneId = dropOption.getAttribute('data-zone-id');
-                        if (zoneId) {
-                            console.log('  Found zone_id for drop from dropdown:', zoneId);
-                            actualDropId = zoneId;
-                            foundHotelUniqueId = true;
-                            break;
-                        } else if (hotelUniqueId) {
-                            console.log('  Found hotel_unique_id for drop from dropdown (no zone_id):', hotelUniqueId);
+                        if (hotelUniqueId) {
+                            console.log('  Found hotel_unique_id for drop from dropdown:', hotelUniqueId);
                             actualDropId = hotelUniqueId;
                             foundHotelUniqueId = true;
                             break;
@@ -22728,7 +22898,6 @@
                         for (const option of options) {
                             const optionValue = option.value;
                             const hotelUniqueId = option.getAttribute('data-hotel-unique-id') || optionValue;
-                            const zoneId = option.getAttribute('data-zone-id');
                             
                             // Check if value matches (direct match or legacy formats)
                             const valueMatches = optionValue === dropId || 
@@ -22740,19 +22909,11 @@
                                                 (optionValue.includes('_') && !optionValue.includes('.') && optionValue.split('_')[1] === String(dropId)) ||
                                                 (dropId.includes('_') && optionValue.includes('_') && optionValue === dropId);
                             
-                            if (valueMatches) {
-                                // Prefer zone_id if available, otherwise use hotel_unique_id
-                                if (zoneId) {
-                                    console.log('  Found zone_id by matching:', zoneId, '(value:', optionValue, ', dropId:', dropId, ', extractedDropId:', extractedDropId, ')');
-                                    actualDropId = zoneId;
-                                    foundHotelUniqueId = true;
-                                    break;
-                                } else if (hotelUniqueId) {
-                                    console.log('  Found hotel_unique_id by matching:', hotelUniqueId, '(value:', optionValue, ', dropId:', dropId, ', extractedDropId:', extractedDropId, ')');
-                                    actualDropId = hotelUniqueId;
-                                    foundHotelUniqueId = true;
-                                    break;
-                                }
+                            if (valueMatches && hotelUniqueId) {
+                                console.log('  Found hotel_unique_id by matching:', hotelUniqueId, '(value:', optionValue, ', dropId:', dropId, ', extractedDropId:', extractedDropId, ')');
+                                actualDropId = hotelUniqueId;
+                                foundHotelUniqueId = true;
+                                break;
                             }
                         }
                         if (foundHotelUniqueId) break;
@@ -22990,90 +23151,18 @@
             console.log('  Drop ID:', actualDropId, '(original:', dropId, ')');
             console.log('  DMC ID:', dmcId);
             
-            // For hotels: Convert hotel_unique_id to zone_id if needed
-            // The API expects zone_id, not hotel_unique_id
-            if (actualPickupType === 'hotel' && actualPickupId && actualPickupId.includes('.')) {
-                // This looks like a hotel_unique_id (contains dot), need to convert to zone_id
-                console.log('  Pickup is HOTEL with hotel_unique_id format, converting to zone_id...');
-                const pickupSelects = [
-                    document.getElementById('localPickup'),
-                    document.getElementById('arrivalDestination'),
-                    document.getElementById('departureDestination'),
-                    document.getElementById('hotelTransferDestination')
-                ].filter(s => s !== null);
-                
-                let zoneIdFound = false;
-                for (const pickupSelect of pickupSelects) {
-                    const options = Array.from(pickupSelect.options);
-                    for (const option of options) {
-                        const hotelUniqueId = option.getAttribute('data-hotel-unique-id') || option.value;
-                        // Check if this option matches our hotel_unique_id
-                        if (hotelUniqueId === actualPickupId || option.value === actualPickupId) {
-                            const zoneId = option.getAttribute('data-zone-id');
-                            if (zoneId) {
-                                console.log('  Found zone_id for pickup hotel:', zoneId, '(from hotel_unique_id:', actualPickupId, ')');
-                                actualPickupId = zoneId;
-                                zoneIdFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (zoneIdFound) break;
-                }
-                
-                if (!zoneIdFound) {
-                    console.warn('  Could not find zone_id for pickup hotel_unique_id:', actualPickupId, '- will use hotel_unique_id (API should handle conversion)');
-                }
-            }
-            
-            if (actualDropType === 'hotel' && actualDropId && actualDropId.includes('.')) {
-                // This looks like a hotel_unique_id (contains dot), need to convert to zone_id
-                console.log('  Drop is HOTEL with hotel_unique_id format, converting to zone_id...');
-                const dropSelects = [
-                    document.getElementById('localDrop'),
-                    document.getElementById('arrivalDestination'),
-                    document.getElementById('departureDestination'),
-                    document.getElementById('hotelTransferDestination')
-                ].filter(s => s !== null);
-                
-                let zoneIdFound = false;
-                for (const dropSelect of dropSelects) {
-                    const options = Array.from(dropSelect.options);
-                    for (const option of options) {
-                        const hotelUniqueId = option.getAttribute('data-hotel-unique-id') || option.value;
-                        // Check if this option matches our hotel_unique_id
-                        if (hotelUniqueId === actualDropId || option.value === actualDropId) {
-                            const zoneId = option.getAttribute('data-zone-id');
-                            if (zoneId) {
-                                console.log('  Found zone_id for hotel:', zoneId, '(from hotel_unique_id:', actualDropId, ')');
-                                actualDropId = zoneId;
-                                zoneIdFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (zoneIdFound) break;
-                }
-                
-                if (!zoneIdFound) {
-                    console.warn('  Could not find zone_id for hotel_unique_id:', actualDropId, '- will use hotel_unique_id (API should handle conversion)');
-                }
-            }
-            
-            // For ports: port_id is used directly as zone_id
-            // For hotels/attractions/restaurants: zone_id is extracted from zone_assignments JSON array
+            // Hotels: keep hotel_unique_id — API resolves DMC zone + fallback zones from zone_assignments.
+            // Do NOT convert to data-zone-id here (that single zone often has no vehicle mapping).
             if (actualPickupType === 'port') {
                 console.log('  Pickup is PORT - using port_id as zone_id:', actualPickupId);
             } else {
-                console.log('  Pickup is', actualPickupType.toUpperCase(), '- zone_id will be extracted from zone_assignments for DMC:', dmcId);
+                console.log('  Pickup is', actualPickupType.toUpperCase(), '- sending entity id for zone candidate resolution, DMC:', dmcId);
             }
             
             if (actualDropType === 'port') {
                 console.log('  Drop is PORT - using port_id as zone_id:', actualDropId);
-            } else if (actualDropType === 'hotel') {
-                console.log('  Drop is HOTEL - using zone_id:', actualDropId);
             } else {
-                console.log('  Drop is', actualDropType.toUpperCase(), '- zone_id will be extracted from zone_assignments for DMC:', dmcId);
+                console.log('  Drop is', actualDropType.toUpperCase(), '- sending entity id for zone candidate resolution, DMC:', dmcId);
             }
             
             // Query vehicle_zone_mappings directly for prices
@@ -23224,11 +23313,16 @@
         // Collect data based on transport mode
         if (transportMode === 'local') {
             const dateTime = document.getElementById('localDateTime').value;
+            const city = String(document.getElementById('localDestination')?.value || '').trim();
             const pickupSelect = document.getElementById('localPickup');
             const dropSelect = document.getElementById('localDrop');
             
             if (!dateTime) {
                 alert('Please select date/time');
+                return;
+            }
+            if (!city) {
+                alert('Please select a city');
                 return;
             }
             if (!pickupSelect.value || !dropSelect.value) {
@@ -23274,6 +23368,7 @@
             transferData = {
                 ...transferData,
                 dateTime: dateTime,
+                city: city,
                 pickupId: pickupSelect.value,
                 pickupName: pickupName,
                 pickup: pickupName, // Add for consistency with transformation
@@ -23662,18 +23757,35 @@
                 dateTimeValue = dateTimeValue + 'T09:00';
             }
             document.getElementById('localDateTime').value = dateTimeValue;
-            if (transfer.pickupId) {
-                setTimeout(() => {
+
+            const localDest = document.getElementById('localDestination');
+            const cityToUse = transfer.city
+                || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                || '';
+            if (localDest && cityToUse) {
+                localDest.value = cityToUse;
+            }
+            if (typeof applyLocalTransferCityFilters === 'function') {
+                applyLocalTransferCityFilters(localDest?.value || '', { skipDefaults: true, skipGuideDefault: true });
+            }
+
+            setTimeout(() => {
+                if (transfer.pickupId) {
                     $('#localPickup').val(transfer.pickupId).trigger('change');
-                }, 100);
-            }
-            if (transfer.dropId) {
-                setTimeout(() => {
+                }
+                if (transfer.dropId) {
                     $('#localDrop').val(transfer.dropId).trigger('change');
-                }, 100);
-            }
-            // Set vehicle by vehicleId (not vehicleType) since the dropdown value is vehicleId
-            document.getElementById('localVehicleType').value = transfer.vehicleId || '';
+                }
+                // Set vehicle by vehicleId (not vehicleType) since the dropdown value is vehicleId
+                document.getElementById('localVehicleType').value = transfer.vehicleId || '';
+                if (typeof filterLocalTransferVehiclesByServiceType === 'function') {
+                    filterLocalTransferVehiclesByServiceType();
+                }
+                if (transfer.vehicleId) {
+                    document.getElementById('localVehicleType').value = transfer.vehicleId;
+                }
+            }, 200);
+
             document.getElementById('localType').value = transfer.type || 'S';
             document.getElementById('localWay').value = transfer.way || 'both-way';
             document.getElementById('localAdults').value = transfer.adults || 2;
@@ -25764,8 +25876,7 @@
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
-                    city: destination,
-                    country: destination,
+                    ...serviceOrderGeo(typeof item !== 'undefined' ? item : {}, destination),
                     fullName: customerInfo.fullName,
                     email: customerInfo.email,
                     phone: customerInfo.phone,
@@ -25934,8 +26045,7 @@
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
-                    city: destination,
-                    country: destination,
+                    ...serviceOrderGeo(typeof item !== 'undefined' ? item : {}, destination),
                     vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
                     vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
                     vehicle_model: vehicleDetails.vehicle_model,
@@ -26354,6 +26464,7 @@
                 state: customerInfo.state || "",
                 zip: customerInfo.zip || "",
                 specialRequests: customerInfo.specialRequests || "",
+                ...serviceOrderGeo(hotel, hotel.destination || ''),
                 
                 // Booking identifiers
                 id: hotel.id || null,
@@ -26502,6 +26613,7 @@
                 attraction_name: tour.attractionName || "",
                 attractionName: tour.attractionName || "",
                 destination: tour.destination || "",
+                ...serviceOrderGeo(tour, tour.destination || ''),
                 ticketId: tour.ticketId || 0,
                 ticket_id: tour.ticketId || 0,
                 ticketName: tour.ticketName || "",
@@ -26690,6 +26802,7 @@
                 restaurantName: meal.restaurantName || "",
                 restaurant_name: meal.restaurantName || "",
                 destination: meal.destination || "",
+                ...serviceOrderGeo(meal, meal.destination || ''),
                 mealType: meal.mealType || "Breakfast",
                 meal_type: meal.mealType || "Breakfast",
                 mealSpecificType: meal.mealSpecificType || "🍽️ Buffet",
@@ -26912,8 +27025,15 @@
                 dateTime: guide.dateTime || normalizeDateToYYYYMMDD(guide.dateTime),
                 dayIndex: 1,
                 Tax: "7.00",
-                city: destination,
-                country: destination,
+                ...serviceOrderGeo(
+                    (typeof hotel !== 'undefined' && hotel) ? hotel
+                        : ((typeof guide !== 'undefined' && guide) ? guide
+                        : ((typeof meal !== 'undefined' && meal) ? meal
+                        : ((typeof misc !== 'undefined' && misc) ? misc
+                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
+                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
+                    destination
+                ),
                 destination: destination,
                 languages: languagesValue,
                 language: Array.isArray(languagesValue) ? (languagesValue.length > 0 ? languagesValue[0] : 'English') : languagesValue,
@@ -27089,8 +27209,15 @@
                 totalPrice: String(ltTotalPrice),
                 to_zone_id: dropoffZoneId,
                 from_zone_id: pickupZoneId,
-                city: destination,
-                country: destination,
+                ...serviceOrderGeo(
+                    (typeof hotel !== 'undefined' && hotel) ? hotel
+                        : ((typeof guide !== 'undefined' && guide) ? guide
+                        : ((typeof meal !== 'undefined' && meal) ? meal
+                        : ((typeof misc !== 'undefined' && misc) ? misc
+                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
+                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
+                    destination
+                ),
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
                 phone: customerInfo.phone,
@@ -27193,8 +27320,7 @@
                        (parseFloat(misc.infantSell || 0) * parseInt(misc.infantQty || 0)),
             ...enquiryProOrderDiscountPayload(misc, () => computeMiscDiscountAmount(misc)),
             dmc_id: dmcId,
-            city: destination,
-            country: destination,
+            ...serviceOrderGeo(misc, destination),
             fullName: customerInfo.fullName,
             email: customerInfo.email,
             phone: customerInfo.phone,
@@ -27272,6 +27398,8 @@
         formData.append('male', male);
         formData.append('female', female);
         if (city) formData.append('city', city);
+        const cityTypeOut = (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 1) ? 'multi' : 'single';
+        formData.append('city_type', cityTypeOut);
         if (childAges) formData.append('child_ages', childAges);
         
         // Add markup and discount values
@@ -27481,8 +27609,15 @@
                 distance: 0,
                 Night_Start_Time: null,
                 Night_End_Time: null,
-                city: destination,
-                country: destination,
+                ...serviceOrderGeo(
+                    (typeof hotel !== 'undefined' && hotel) ? hotel
+                        : ((typeof guide !== 'undefined' && guide) ? guide
+                        : ((typeof meal !== 'undefined' && meal) ? meal
+                        : ((typeof misc !== 'undefined' && misc) ? misc
+                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
+                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
+                    destination
+                ),
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
                 phone: customerInfo.phone,
@@ -27572,8 +27707,15 @@
                 distance: 0,
                 Night_Start_Time: null,
                 Night_End_Time: null,
-                city: destination,
-                country: destination,
+                ...serviceOrderGeo(
+                    (typeof hotel !== 'undefined' && hotel) ? hotel
+                        : ((typeof guide !== 'undefined' && guide) ? guide
+                        : ((typeof meal !== 'undefined' && meal) ? meal
+                        : ((typeof misc !== 'undefined' && misc) ? misc
+                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
+                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
+                    destination
+                ),
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
                 phone: customerInfo.phone,
@@ -27639,8 +27781,15 @@
                 bookingDate: bookingDate,
                 dayIndex: 1,
                 Tax: "7.00",
-                city: destination,
-                country: destination,
+                ...serviceOrderGeo(
+                    (typeof hotel !== 'undefined' && hotel) ? hotel
+                        : ((typeof guide !== 'undefined' && guide) ? guide
+                        : ((typeof meal !== 'undefined' && meal) ? meal
+                        : ((typeof misc !== 'undefined' && misc) ? misc
+                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
+                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
+                    destination
+                ),
                 languages: guide.languages ? guide.languages.split(',').map(l => l.trim()) : [],
                 experience: 0,
                 price: guide.sell || 20
@@ -28023,10 +28172,9 @@
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
                 phone: customerInfo.phone,
-                country: destination,
+                ...serviceOrderGeo(transfer, destination),
                 countryCode: customerInfo.countryCode,
                 state: customerInfo.state,
-                city: destination,
                 zip: customerInfo.zip,
                 address1: customerInfo.address1,
                 address2: customerInfo.address2,

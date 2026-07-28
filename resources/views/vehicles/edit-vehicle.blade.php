@@ -1062,6 +1062,26 @@
                             return true;
                         },
 
+                        initCitySelect2(selectedValue) {
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!cityEl || !window.jQuery) return;
+
+                            const $city = window.jQuery(cityEl);
+                            if ($city.hasClass('select2-hidden-accessible')) {
+                                $city.select2('destroy');
+                            }
+
+                            $city.select2({
+                                placeholder: 'Search and select a city',
+                                allowClear: true,
+                                width: '100%'
+                            });
+
+                            if (selectedValue !== undefined && selectedValue !== null) {
+                                $city.val(selectedValue || '').trigger('change.select2');
+                            }
+                        },
+
                         init(config) {
                             this.ports = config.ports || [];
                             this.fromZones = config.fromZones || [];
@@ -1093,12 +1113,12 @@
                             countryEl.addEventListener('change', onCountryChange);
                             cityEl.addEventListener('change', onCityChange);
 
+                            // Searchable city dropdown (Select2)
+                            this.initCitySelect2('');
+
                             if (this.country) {
                                 countryEl.value = this.country;
                                 this.loadCitiesForCountry(this.country, function () {
-                                    if (self.cityId) {
-                                        cityEl.value = self.cityId;
-                                    }
                                     self.applyToFromZoneSelect();
                                     document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
                                 });
@@ -1118,11 +1138,13 @@
                             if (!countryName) {
                                 this.cityIdsForCountry = [];
                                 cityEl.innerHTML = '<option value="">All Cities</option>';
+                                this.initCitySelect2('');
                                 if (typeof done === 'function') done();
                                 return;
                             }
 
                             cityEl.innerHTML = '<option value="">Loading cities...</option>';
+                            this.initCitySelect2('');
 
                             const self = this;
                             fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
@@ -1139,11 +1161,13 @@
                                         opt.textContent = city.name;
                                         cityEl.appendChild(opt);
                                     });
+                                    self.initCitySelect2(self.cityId || '');
                                     if (typeof done === 'function') done();
                                 })
                                 .catch(function () {
                                     self.cityIdsForCountry = [];
                                     cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    self.initCitySelect2('');
                                     if (typeof done === 'function') done();
                                 });
                         },

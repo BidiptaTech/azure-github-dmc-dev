@@ -222,7 +222,10 @@
                                     <option value="" {{ is_null($restaurant->owned_by) ? 'selected' : '' }}>Select</option>
                                     <option value="0" {{ $restaurant->owned_by === "0" ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
-                                        <option  value="{{ $hotel->hotel_unique_id }}" {{ $restaurant->owned_by == $hotel->hotel_unique_id ? 'selected' : '' }}>
+                                        <option value="{{ $hotel->hotel_unique_id }}"
+                                            data-country="{{ $hotel->country ?? '' }}"
+                                            data-city="{{ $hotel->city ?? '' }}"
+                                            {{ $restaurant->owned_by == $hotel->hotel_unique_id ? 'selected' : '' }}>
                                             {{ $hotel->name }} - {{ $hotel->display_id }}
                                         </option>
                                     @endforeach
@@ -676,8 +679,67 @@
             placeholder: "Search and Select Ownership",
             allowClear: true,
             width: '100%',
-            disabled: isReadOnly
+            disabled: isReadOnly,
+            templateResult: function (state) {
+                if (!state.id) return state.text;
+                if (state.element && (state.element.disabled || state.element.hidden)) {
+                    return null;
+                }
+                return state.text;
+            }
         });
+
+        // Show only hotels matching restaurant country (+ city when chosen). Keep Third Party always.
+        function filterOwnershipHotelsByLocation() {
+            const country = String($('input[name="country"]').val() || $('#country').val() || '').trim().toLowerCase();
+            const city = String($('#citySelect').val() || '').trim().toLowerCase();
+            const $ownedBy = $('#owned_by');
+            const currentVal = $ownedBy.val();
+            let keepCurrent = false;
+
+            $ownedBy.find('option').each(function () {
+                const $opt = $(this);
+                const val = String($opt.val() ?? '');
+
+                if (val === '' || val === '0') {
+                    $opt.prop('disabled', false).prop('hidden', false).show();
+                    if (val === currentVal) keepCurrent = true;
+                    return;
+                }
+
+                const hotelCountry = String($opt.attr('data-country') || '').trim().toLowerCase();
+                const hotelCity = String($opt.attr('data-city') || '').trim().toLowerCase();
+
+                let visible = true;
+                if (!country) {
+                    visible = false;
+                } else if (hotelCountry !== country) {
+                    visible = false;
+                } else if (city && hotelCity && hotelCity !== city) {
+                    visible = false;
+                }
+
+                $opt.prop('disabled', !visible).prop('hidden', !visible);
+                if (visible) {
+                    $opt.show();
+                    if (val === currentVal) keepCurrent = true;
+                } else {
+                    $opt.hide();
+                }
+            });
+
+            if (!keepCurrent && !isReadOnly) {
+                $ownedBy.val('').trigger('change');
+            } else {
+                $ownedBy.trigger('change.select2');
+            }
+        }
+
+        $('#citySelect').on('change', function () {
+            filterOwnershipHotelsByLocation();
+        });
+
+        filterOwnershipHotelsByLocation();
     });
 </script>
 

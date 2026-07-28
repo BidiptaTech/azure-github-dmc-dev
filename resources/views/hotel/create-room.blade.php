@@ -545,6 +545,7 @@
 <!-- Start of the form - Only for Admin and Virtual DMC -->
 @if(in_array($auth_user->role_id, [1, 20]))
 <div class="content-wrapper">
+    <x-alert />
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
@@ -2517,6 +2518,75 @@ $(document).ready(function() {
         document.querySelectorAll('.js-room-profit-type, .js-room-profit-amount').forEach(function (el) {
             el.addEventListener('input', function () { recalculateAll(true); });
             el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    function sanitizePriceInputValue(value) {
+        value = String(value || '').replace(/[^0-9.]/g, '');
+        const firstDot = value.indexOf('.');
+        if (firstDot !== -1) {
+            value = value.slice(0, firstDot + 1) + value.slice(firstDot + 1).replace(/\./g, '');
+        }
+        return value;
+    }
+
+    function isRoomPriceInput(el) {
+        if (!el || el.tagName !== 'INPUT') {
+            return false;
+        }
+        if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'hidden' || el.type === 'file') {
+            return false;
+        }
+        if (el.classList.contains('js-room-cost')
+            || el.classList.contains('js-room-sell')
+            || el.classList.contains('js-room-profit-amount')) {
+            return true;
+        }
+        if (el.id === 'varient_price_input' || el.name === 'varient_price') {
+            return true;
+        }
+        const key = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+        if (!/(price|cost)/.test(key)) {
+            return false;
+        }
+        if (/(children_price|children_breakfast|total_rooms|no_of_room|dimension)/.test(key)) {
+            return false;
+        }
+        return true;
+    }
+
+    function enforcePriceNumeric(el) {
+        if (!isRoomPriceInput(el)) {
+            return;
+        }
+        const sanitized = sanitizePriceInputValue(el.value);
+        if (el.value !== sanitized) {
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            el.value = sanitized;
+            if (typeof start === 'number' && typeof end === 'number' && el.setSelectionRange) {
+                try {
+                    el.setSelectionRange(Math.min(start, sanitized.length), Math.min(end, sanitized.length));
+                } catch (e) {}
+            }
+        }
+    }
+
+    document.addEventListener('input', function (e) {
+        enforcePriceNumeric(e.target);
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('input').forEach(function (el) {
+            if (isRoomPriceInput(el)) {
+                el.setAttribute('inputmode', 'decimal');
+                el.setAttribute('autocomplete', 'off');
+                enforcePriceNumeric(el);
+            }
         });
     });
 })();

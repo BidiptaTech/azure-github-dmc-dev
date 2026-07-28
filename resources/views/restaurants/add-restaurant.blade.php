@@ -241,7 +241,10 @@
                                     <option value="" selected>Select</option>
                                     <option value="0" {{ old('owned_by') == '0' ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
-                                        <option value="{{ $hotel->hotel_unique_id }}" {{ old('owned_by') == $hotel->hotel_unique_id ? 'selected' : '' }}>
+                                        <option value="{{ $hotel->hotel_unique_id }}"
+                                            data-country="{{ $hotel->country ?? '' }}"
+                                            data-city="{{ $hotel->city ?? '' }}"
+                                            {{ old('owned_by') == $hotel->hotel_unique_id ? 'selected' : '' }}>
                                             {{ $hotel->name }} - {{ $hotel->display_id }}
                                         </option>
                                     @endforeach
@@ -1180,8 +1183,63 @@ $(document).ready(function() {
         $('#owned_by').select2({
             placeholder: "Search and Select Ownership",
             allowClear: true,
-            width: '100%'
+            width: '100%',
+            templateResult: function (state) {
+                if (!state.id) return state.text;
+                if (state.element && (state.element.disabled || state.element.hidden)) {
+                    return null;
+                }
+                return state.text;
+            }
         });
+
+        // Show only hotels matching selected country (+ city when chosen). Keep Third Party always.
+        function filterOwnershipHotelsByLocation() {
+            const country = String($('#country').val() || '').trim().toLowerCase();
+            const city = String($('#citySelect').val() || '').trim().toLowerCase();
+            const $ownedBy = $('#owned_by');
+            const currentVal = $ownedBy.val();
+            let keepCurrent = false;
+
+            $ownedBy.find('option').each(function () {
+                const $opt = $(this);
+                const val = String($opt.val() ?? '');
+
+                // Always keep placeholder + Third Party
+                if (val === '' || val === '0') {
+                    $opt.prop('disabled', false).prop('hidden', false).show();
+                    if (val === currentVal) keepCurrent = true;
+                    return;
+                }
+
+                const hotelCountry = String($opt.attr('data-country') || '').trim().toLowerCase();
+                const hotelCity = String($opt.attr('data-city') || '').trim().toLowerCase();
+
+                let visible = true;
+                if (!country) {
+                    visible = false;
+                } else if (hotelCountry !== country) {
+                    visible = false;
+                } else if (city && hotelCity && hotelCity !== city) {
+                    visible = false;
+                }
+
+                $opt.prop('disabled', !visible).prop('hidden', !visible);
+                if (visible) {
+                    $opt.show();
+                    if (val === currentVal) keepCurrent = true;
+                } else {
+                    $opt.hide();
+                }
+            });
+
+            if (!keepCurrent) {
+                $ownedBy.val('').trigger('change');
+            } else {
+                $ownedBy.trigger('change.select2');
+            }
+        }
+        window.filterOwnershipHotelsByLocation = filterOwnershipHotelsByLocation;
         
         // Check if the user role corresponds to DMC-like roles
         if ([11,20,35,78,120,139,140].includes(userRoleId)) {
@@ -1317,15 +1375,25 @@ $(document).ready(function() {
             if (!selectedCountryValue || selectedCountryValue === '') {
                 // Country cleared, disable city field
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                filterOwnershipHotelsByLocation();
                 return;
             }
             
             loadCitiesByCountry(selectedCountryValue);
+            filterOwnershipHotelsByLocation();
+        });
+
+        // when city changes, narrow ownership hotels further
+        $('#citySelect').on('change', function () {
+            filterOwnershipHotelsByLocation();
         });
 
         // initial load if country pre-selected
         if ($('#country').val()) {
             loadCitiesByCountry($('#country').val());
+            filterOwnershipHotelsByLocation();
+        } else {
+            filterOwnershipHotelsByLocation();
         }
 
        

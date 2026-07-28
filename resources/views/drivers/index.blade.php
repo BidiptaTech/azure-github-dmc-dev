@@ -349,6 +349,7 @@
     #driversTable .col-name        { width: 100px; min-width: 90px; }
     #driversTable .col-master-dmc,
     #driversTable .col-dmc         { width: 100px; min-width: 90px; }
+    #driversTable .col-country     { width: 90px;  min-width: 80px; }
     #driversTable .col-city        { width: 80px;  min-width: 70px; }
     #driversTable .col-mobile      { width: 90px;  min-width: 80px; }
     #driversTable .col-email       { width: 110px; min-width: 95px; }
@@ -446,6 +447,7 @@
                                 <th class="th-tooltip col-master-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master</th>
                                 <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
+                            <th class="th-tooltip col-country" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
                             <th class="th-tooltip col-city" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip col-mobile" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Mobile Number">Mobile</th>
                             <th class="th-tooltip col-email" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Email Address">Email</th>
@@ -481,7 +483,8 @@
                                 <td class="col-dmc">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                             @endif
 
-                            <td class="col-city">{{ $driver->city }}</td>
+                            <td class="col-country">{{ $driver->country ?: '—' }}</td>
+                            <td class="col-city">{{ $driver->city ?: '—' }}</td>
                             <td class="col-mobile">{{ $driver->phone }}</td>
                             <td class="col-email">{{ $driver->email }}</td>
                             <td class="col-license">{{ $driver->license_no }}</td>
@@ -593,6 +596,7 @@
             columnDefs: [
                 { targets: '.col-no',         width: '38px'  },
                 { targets: '.col-name',       width: '100px' },
+                { targets: '.col-country',    width: '90px'  },
                 { targets: '.col-city',       width: '80px'  },
                 { targets: '.col-mobile',     width: '90px'  },
                 { targets: '.col-email',      width: '110px' },
