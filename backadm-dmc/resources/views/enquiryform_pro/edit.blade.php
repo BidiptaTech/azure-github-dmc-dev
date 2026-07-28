@@ -1871,8 +1871,8 @@
             
             <!-- Right Side: Action Buttons -->
             <div style="display: flex; gap: 6px;">
-                <button class="btn btn-success btn-sm" onclick="saveEnquiryData()">
-                    <i class="ri-save-line me-1"></i>{{ $isEditMode ? 'Update Enquiry' : 'Create Enquiry' }}
+                <button class="btn btn-success btn-sm" type="button" id="enquiry-submit-btn" onclick="saveEnquiryData()">
+                    <i class="ri-save-line me-1"></i><span id="enquiry-submit-btn-label">{{ $isEditMode ? 'Update Enquiry' : 'Create Enquiry' }}</span>
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" id="enquiryProCancelBtn" onclick="cancelEnquiryProEdit()">Cancel</button>
             </div>
@@ -13499,6 +13499,9 @@
                     transferDestinationId: arrivalDestinationId,
                     transferDestinationName: arrivalDestinationName
                 };
+                if (typeof stampArrivalDepartureGeo === 'function') {
+                    stampArrivalDepartureGeo(arrivalDepartureList[index], arrDepCity);
+                }
                 
                 const arrivalXferFoc = document.getElementById('arrivalFocServiceDiscount')?.checked === true;
 
@@ -13789,6 +13792,9 @@
                     transferDestinationId: departureDestinationId,
                     transferDestinationName: departureDestinationName
                 };
+                if (typeof stampArrivalDepartureGeo === 'function') {
+                    stampArrivalDepartureGeo(arrivalDepartureList[index], arrDepCity);
+                }
                 
                 const departureCost = parseFloat(document.getElementById('departureCost')?.value || 0);
                 const departureSell = parseFloat(document.getElementById('departureSell')?.value || 0);
@@ -14177,6 +14183,9 @@
                     accommodationIndex: null,
                     focServiceDiscount: arrivalFocSvc
                 };
+                if (typeof stampArrivalDepartureGeo === 'function') {
+                    stampArrivalDepartureGeo(arrivalEntry, arrDepCity);
+                }
                 
                 // Add to transfer list if transfer is checked
                 if (arrivalTransfer) {
@@ -14187,6 +14196,9 @@
                         isStandalone: false,
                         sourceType: 'arrival',
                         sourceId: arrivalId,
+                        city: arrivalEntry.city || arrDepCity,
+                        country: arrivalEntry.country || '',
+                        currency: arrivalEntry.currency || '',
                         dateTime: arrivalDateTime,
                         portName: arrivalPortName,
                         destination: arrivalDestinationName ? `Arrival: ${arrivalPortName} → ${arrivalDestinationName}` : `Arrival: ${arrivalPortName}`,
@@ -14415,6 +14427,9 @@
                     accommodationIndex: null,
                     focServiceDiscount: departureFocSvc
                 };
+                if (typeof stampArrivalDepartureGeo === 'function') {
+                    stampArrivalDepartureGeo(departureEntry, arrDepCity);
+                }
                 
                 // Add to transfer list if transfer is checked
                 if (departureTransfer) {
@@ -14425,6 +14440,9 @@
                         isStandalone: false,
                         sourceType: 'departure',
                         sourceId: departureId,
+                        city: departureEntry.city || arrDepCity,
+                        country: departureEntry.country || '',
+                        currency: departureEntry.currency || '',
                         dateTime: departureDateTime,
                         portName: departurePortName,
                         destination: departureDestinationName ? `Departure: ${departureDestinationName} → ${departurePortName}` : `Departure: ${departurePortName}`,
@@ -14660,12 +14678,15 @@
 
             await syncHotelArrDepToGlobal({ preserveGuideSelection: true });
 
-            const syncedArr = arrivalDepartureList.find(
-                e => e.travel_type === 'entry_port' && e.sourceType === 'hotel'
-            );
-            const syncedDep = arrivalDepartureList.find(
-                e => e.travel_type === 'exit_port' && e.sourceType === 'hotel'
-            );
+            const hotelCity = (typeof getHotelServiceCity === 'function')
+                ? getHotelServiceCity(accommodationList[editAccIdx])
+                : (accommodationList[editAccIdx]?.destination || accommodationList[editAccIdx]?.city || '');
+            const syncedArr = (typeof findHotelSyncedArrDep === 'function')
+                ? findHotelSyncedArrDep(arrivalDepartureList, 'entry_port', hotelCity)
+                : arrivalDepartureList.find(e => e.travel_type === 'entry_port' && e.sourceType === 'hotel');
+            const syncedDep = (typeof findHotelSyncedArrDep === 'function')
+                ? findHotelSyncedArrDep(arrivalDepartureList, 'exit_port', hotelCity)
+                : arrivalDepartureList.find(e => e.travel_type === 'exit_port' && e.sourceType === 'hotel');
             accommodationList[editAccIdx].arrivalDepartureIds = [syncedArr?.id, syncedDep?.id].filter(Boolean);
 
             window.editingAccommodationIndex = null;
@@ -14918,6 +14939,87 @@
         if (changed && typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
     }
 
+    function updateAccommodationTable() {
+        try { window.updateEnquirySubmitButton && window.updateEnquirySubmitButton(); } catch (e) { /* ignore */ }
+        const tbody = document.getElementById('accommodationTableBody');
+        const table = document.getElementById('accommodationTable');
+        const emptyMessage = document.getElementById('emptyAccommodationMessage');
+
+        if (accommodationList.length === 0) {
+            table.style.display = 'none';
+            emptyMessage.style.display = 'block';
+            return;
+        }
+
+        table.style.display = 'table';
+        emptyMessage.style.display = 'none';
+
+        tbody.innerHTML = accommodationList.map((hotel, index) => {
+            // Ensure checkIn and checkOut have time component
+            let checkInValue = hotel.checkIn;
+            let checkOutValue = hotel.checkOut;
+            
+            // If no time component, use hotel policy times from hotels table
+            if (checkInValue && !checkInValue.includes('T')) {
+                checkInValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                    ? enquiryProAppendHotelTimeToDateValue(checkInValue, 'checkIn', hotel)
+                    : checkInValue + 'T11:00';
+            }
+            if (checkOutValue && !checkOutValue.includes('T')) {
+                checkOutValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
+                    ? enquiryProAppendHotelTimeToDateValue(checkOutValue, 'checkOut', hotel)
+                    : checkOutValue + 'T10:00';
+            }
+            
+            // Determine displayed prices - show actual price only if checkbox is checked, otherwise show 0
+            const displayExtraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0).toFixed(2) : '0.00';
+            const displayCwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0).toFixed(2) : '0.00';
+            const displayCnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0).toFixed(2) : '0.00';
+            const displayInfantPrice = hotel.hasInfant ? (parseFloat(hotel.infantPrice) || 0).toFixed(2) : '0.00';
+            
+            return `
+            <tr>
+                <td><input type="checkbox" class="accommodation-checkbox" value="${hotel.id}"></td>
+                <td>
+                    <a href="javascript:void(0)" onclick="editAccommodation(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
+                        <strong>${hotel.hotelName}</strong><br>
+                        <small style="color: #666; font-size: 0.6rem;">
+                            Room: ${hotel.roomType || 'N/A'} | Bed: ${hotel.bedType || 'N/A'} | Meal: ${hotel.mealPlan || 'N/A'} | Meal Pax: ${hotel.mealPax != null ? hotel.mealPax : '—'}
+                        </small>
+                    </a>
+                </td>
+                <td><input type="datetime-local" value="${checkInValue}" onchange="updateAccommodationField(${index}, 'checkIn', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="datetime-local" value="${checkOutValue}" onchange="updateAccommodationField(${index}, 'checkOut', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
+                <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)"></td>
+                <td><input type="text" class="accommodation-price-field" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
+                <td><input type="text" class="accommodation-price-field" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
+                <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
+                <td><input type="text" value="${displayInfantPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
+                ${buildOutsideFocCellHtml(isServiceFocChecked(hotel, true), `updateAccommodationField(${index}, 'focServiceDiscount', this.checked)`)}
+                <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
+            </tr>
+        `;
+        }).join('');
+        refreshOutsideFocCheckboxState();
+        
+        // Expand header dates based on accommodation check-in/check-out dates
+        if (accommodationList && accommodationList.length > 0) {
+            accommodationList.forEach(hotel => {
+                if (hotel.checkIn) {
+                    expandHeaderDatesIfNeeded(hotel.checkIn, false);
+                }
+                if (hotel.checkOut) {
+                    expandHeaderDatesIfNeeded(hotel.checkOut, false);
+                }
+            });
+        }
+
+        recalculateEntryExitPorts();
+    }
+
     // Auto-calculate entry_port (arrival) and exit_port (departure) from hotel check-in/check-out dates
     function recalculateEntryExitPorts() {
         const infoPanel  = document.getElementById('hotelArrivalDepartureInfo');
@@ -14936,34 +15038,60 @@
             return;
         }
 
-        // MIN check-in → arrival, MAX check-out → departure
-        const checkIns  = hotels.map(h => h.checkIn.substring(0, 10));
-        const checkOuts = hotels.map(h => h.checkOut.substring(0, 10));
-        const minCheckIn  = checkIns.reduce((a, b) => a < b ? a : b);
-        const maxCheckOut = checkOuts.reduce((a, b) => a > b ? a : b);
-
         function fmtDate(d) {
             if (!d) return '—';
             const dt = new Date(d + 'T00:00:00');
             return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         }
 
+        const cityGroups = (typeof groupHotelsByServiceCity === 'function')
+            ? groupHotelsByServiceCity(hotels)
+            : null;
+
+        // Global min/max still shown in the compact inputs (overall tour window)
+        const checkIns  = hotels.map(h => h.checkIn.substring(0, 10));
+        const checkOuts = hotels.map(h => h.checkOut.substring(0, 10));
+        const minCheckIn  = checkIns.reduce((a, b) => a < b ? a : b);
+        const maxCheckOut = checkOuts.reduce((a, b) => a > b ? a : b);
         entryInput.value = fmtDate(minCheckIn);
         exitInput.value  = fmtDate(maxCheckOut);
-
-        // Store raw ISO dates for form submission
         entryInput.dataset.isoDate = minCheckIn;
         exitInput.dataset.isoDate  = maxCheckOut;
 
-        // Dynamic messages
-        const firstHotelName = hotels.find(h => h.checkIn.substring(0, 10) === minCheckIn)?.hotelName || 'first hotel';
-        const lastHotelName  = hotels.find(h => h.checkOut.substring(0, 10) === maxCheckOut)?.hotelName || 'last hotel';
         if (msgSpan) {
-            msgSpan.innerHTML =
-                `<i class="ri-hotel-line me-1 text-primary"></i>` +
-                `Arrival based on <strong>${firstHotelName}</strong> (${fmtDate(minCheckIn)}) &nbsp;|&nbsp; ` +
-                `<i class="ri-hotel-line me-1 text-danger"></i>` +
-                `Departure based on <strong>${lastHotelName}</strong> (${fmtDate(maxCheckOut)})`;
+            if (cityGroups && cityGroups.size > 1) {
+                const parts = [];
+                cityGroups.forEach((group) => {
+                    const cityHotels = group.hotels || [];
+                    if (!cityHotels.length) return;
+                    const ins = cityHotels.map(h => h.checkIn.substring(0, 10));
+                    const outs = cityHotels.map(h => h.checkOut.substring(0, 10));
+                    const minIn = ins.reduce((a, b) => a < b ? a : b);
+                    const maxOut = outs.reduce((a, b) => a > b ? a : b);
+                    const firstName = cityHotels.find(h => h.checkIn.substring(0, 10) === minIn)?.hotelName || 'hotel';
+                    const lastName = cityHotels.find(h => h.checkOut.substring(0, 10) === maxOut)?.hotelName || 'hotel';
+                    const label = group.cityName || 'City';
+                    parts.push(
+                        `<span class="d-inline-block me-2 mb-1">` +
+                        `<strong>${label}</strong>: ` +
+                        `Arr <strong>${firstName}</strong> (${fmtDate(minIn)}) → ` +
+                        `Dep <strong>${lastName}</strong> (${fmtDate(maxOut)})` +
+                        `</span>`
+                    );
+                });
+                msgSpan.innerHTML =
+                    `<i class="ri-map-pin-line me-1 text-primary"></i>` +
+                    `Multi-city: one Arrival + one Departure per city. ` +
+                    parts.join(' ');
+            } else {
+                const firstHotelName = hotels.find(h => h.checkIn.substring(0, 10) === minCheckIn)?.hotelName || 'first hotel';
+                const lastHotelName  = hotels.find(h => h.checkOut.substring(0, 10) === maxCheckOut)?.hotelName || 'last hotel';
+                msgSpan.innerHTML =
+                    `<i class="ri-hotel-line me-1 text-primary"></i>` +
+                    `Arrival based on <strong>${firstHotelName}</strong> (${fmtDate(minCheckIn)}) &nbsp;|&nbsp; ` +
+                    `<i class="ri-hotel-line me-1 text-danger"></i>` +
+                    `Departure based on <strong>${lastHotelName}</strong> (${fmtDate(maxCheckOut)})`;
+            }
         }
 
         infoPanel.style.display = 'block';
@@ -15003,8 +15131,24 @@
                         ? window.editingAccommodationIndex : -1;
         const savedDates = accommodationList.filter((h, idx) => h.checkIn && h.checkOut && idx !== editIdx);
 
-        let allIns  = savedDates.map(h => h.checkIn.substring(0, 10));
-        let allOuts = savedDates.map(h => h.checkOut.substring(0, 10));
+        // Scope dates to THIS hotel city (multi-city: Batam dates must not use Kolkata hotels)
+        const modalHotelCityEarly = String(
+            document.getElementById('hotelDestination')?.value
+            || document.getElementById('arrivalDepartureCity')?.value
+            || ''
+        ).trim();
+        const modalCityKeyEarly = (typeof serviceCityKey === 'function')
+            ? serviceCityKey(modalHotelCityEarly)
+            : modalHotelCityEarly.toLowerCase();
+        const sameCitySaved = modalCityKeyEarly
+            ? savedDates.filter(h => {
+                const hCity = (typeof getHotelServiceCity === 'function') ? getHotelServiceCity(h) : (h.city || h.destination || '');
+                return ((typeof serviceCityKey === 'function') ? serviceCityKey(hCity) : String(hCity).toLowerCase()) === modalCityKeyEarly;
+            })
+            : savedDates;
+
+        let allIns  = sameCitySaved.map(h => h.checkIn.substring(0, 10));
+        let allOuts = sameCitySaved.map(h => h.checkOut.substring(0, 10));
         if (checkIn)  allIns.push(checkIn.substring(0, 10));
         if (checkOut) allOuts.push(checkOut.substring(0, 10));
 
@@ -15016,30 +15160,50 @@
         if (arrDT && minIn) {
             arrDT.value = minIn + 'T00:00'; arrDT.readOnly = true;
             arrDT.style.cssText += ';background:#eaf4ff!important;color:#1a6fa0!important;font-weight:700!important;';
-            arrDT.title = 'Auto-set from earliest hotel check-in';
+            arrDT.title = 'Auto-set from earliest hotel check-in (this city)';
         }
         // Lock departure date
         const depDT = document.getElementById('departureDateTime');
         if (depDT && maxOut) {
             depDT.value = maxOut + 'T00:00'; depDT.readOnly = true;
             depDT.style.cssText += ';background:#fff0f0!important;color:#c0392b!important;font-weight:700!important;';
-            depDT.title = 'Auto-set from latest hotel check-out';
+            depDT.title = 'Auto-set from latest hotel check-out (this city)';
         }
 
         // Update section title
         const titleEl = document.getElementById('arrivalDepartureSectionTitle');
         if (titleEl) titleEl.innerHTML = '<i class="ri-lock-line me-1" style="color:#f0a000;"></i>Arrival/Departure ' +
-            '<small style="color:#888;">(dates locked to hotel check-in / check-out)</small>';
+            '<small style="color:#888;">(dates locked to hotel check-in / check-out' +
+            (modalHotelCityEarly ? ' — ' + modalHotelCityEarly : '') + ')</small>';
 
-        // ---- Pre-populate from existing hotel-linked entries (support normalized + legacy rows) ----
-        const existingArr = arrivalDepartureList.find(e =>
-            (e.travel_type === 'entry_port' && e.sourceType === 'hotel') ||
-            ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Arrival')
-        );
-        const existingDep = arrivalDepartureList.find(e =>
-            (e.travel_type === 'exit_port' && e.sourceType === 'hotel') ||
-            ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Departure')
-        );
+        // ---- Pre-populate from existing hotel-linked entries for THIS city ----
+        let existingArr = (typeof findHotelSyncedArrDep === 'function')
+            ? findHotelSyncedArrDep(arrivalDepartureList, 'entry_port', modalHotelCityEarly)
+            : null;
+        let existingDep = (typeof findHotelSyncedArrDep === 'function')
+            ? findHotelSyncedArrDep(arrivalDepartureList, 'exit_port', modalHotelCityEarly)
+            : null;
+        if (!existingArr) {
+            existingArr = arrivalDepartureList.find(e =>
+                (e.travel_type === 'entry_port' && e.sourceType === 'hotel') ||
+                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Arrival')
+            );
+            // Multi-city: do not restore another city's row into this modal
+            if (existingArr && modalHotelCityEarly) {
+                const eCity = String(existingArr.city || existingArr.destination || '').trim();
+                if (eCity && eCity.toLowerCase() !== modalHotelCityEarly.toLowerCase()) existingArr = null;
+            }
+        }
+        if (!existingDep) {
+            existingDep = arrivalDepartureList.find(e =>
+                (e.travel_type === 'exit_port' && e.sourceType === 'hotel') ||
+                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Departure')
+            );
+            if (existingDep && modalHotelCityEarly) {
+                const eCity = String(existingDep.city || existingDep.destination || '').trim();
+                if (eCity && eCity.toLowerCase() !== modalHotelCityEarly.toLowerCase()) existingDep = null;
+            }
+        }
 
         function getLinkedGuideEntry(kind, entry) {
             const k = (kind || '').toLowerCase();
@@ -15211,7 +15375,7 @@
                 currentHotelUniqueId = hd.hotel_unique_id || hd.id || currentHotelSel.value;
             } catch(e) { currentHotelUniqueId = currentHotelSel.value; }
         }
-        const allForDefaults = savedDates.map(h => ({
+        const allForDefaults = sameCitySaved.map(h => ({
             checkIn:       h.checkIn.substring(0, 10),
             checkOut:      h.checkOut.substring(0, 10),
             hotelUniqueId: h.hotel_unique_id || ''
@@ -15225,11 +15389,7 @@
         const depDefault = allForDefaults.reduce((best, h) => !best || h.checkOut > best.checkOut ? h : best, null);
 
         // Active city for this modal (2nd hotel Batam must not keep Kolkata A/D values)
-        const modalHotelCity = String(
-            document.getElementById('hotelDestination')?.value
-            || document.getElementById('arrivalDepartureCity')?.value
-            || ''
-        ).trim();
+        const modalHotelCity = modalHotelCityEarly;
         const arrDepCitySelModal = document.getElementById('arrivalDepartureCity');
         if (arrDepCitySelModal && modalHotelCity) {
             arrDepCitySelModal.value = modalHotelCity;
@@ -15306,7 +15466,18 @@
         setTimeout(() => {
             window._suppressArrDepZoneRefresh = false;
             window._suppressArrDepLiveSync = false;
-        }, 400);
+            // Re-fetch zone prices after ports/drop-off/vehicles are fully set
+            if (typeof scheduleArrivalZonePriceRefresh === 'function') {
+                scheduleArrivalZonePriceRefresh();
+            } else if (typeof refreshArrivalTransferZonePrice === 'function') {
+                refreshArrivalTransferZonePrice();
+            }
+            if (typeof scheduleDepartureZonePriceRefresh === 'function') {
+                scheduleDepartureZonePriceRefresh();
+            } else if (typeof refreshDepartureTransferZonePrice === 'function') {
+                refreshDepartureTransferZonePrice();
+            }
+        }, 450);
     }
 
     // Debounced live sync: hotel modal arr/dep → outside tables (does NOT re-fetch zone prices)
@@ -15358,7 +15529,11 @@
     }
 
     function scheduleArrivalZonePriceRefresh() {
-        if (window._suppressArrDepZoneRefresh) return;
+        if (window._suppressArrDepZoneRefresh) {
+            window._pendingArrivalZoneRefresh = true;
+            return;
+        }
+        window._pendingArrivalZoneRefresh = false;
         clearTimeout(window._arrivalZonePriceTimer);
         window._arrivalZonePriceTimer = setTimeout(() => {
             refreshArrivalTransferZonePrice().then(() => {
@@ -15368,7 +15543,11 @@
     }
 
     function scheduleDepartureZonePriceRefresh() {
-        if (window._suppressArrDepZoneRefresh) return;
+        if (window._suppressArrDepZoneRefresh) {
+            window._pendingDepartureZoneRefresh = true;
+            return;
+        }
+        window._pendingDepartureZoneRefresh = false;
         clearTimeout(window._departureZonePriceTimer);
         window._departureZonePriceTimer = setTimeout(() => {
             refreshDepartureTransferZonePrice().then(() => {
@@ -15377,50 +15556,36 @@
         }, 200);
     }
 
-    // Reads the full Arrival/Departure form and syncs ONE entry_port + ONE exit_port
-    // (with guide data) into arrivalDepartureList / guideList.
+    // Sync hotel arrival/departure into arrivalDepartureList:
+    // - Same country/city: ONE arrival (earliest check-in) + ONE departure (latest check-out)
+    // - Different country/city: one A/D pair per city group
     async function syncHotelArrDepToGlobal(options = {}) {
         const preserveGuideSelection = options.preserveGuideSelection === true;
         const dmcId = '{{ $dmc_id ?? "" }}';
-        const previewHotel = options.previewHotel || null;
-        const editIdxForPreview = (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined)
-            ? window.editingAccommodationIndex
-            : null;
+        let allHotels = accommodationList.filter(h => h.checkIn && h.checkOut);
 
-        // Build sync source from saved hotels, with optional in-modal preview override.
-        // This enables instant min/max hotel date and price updates before Save & Close.
-        let allHotels = accommodationList
-            .map((h, idx) => ({ ...h, __idx: idx }))
-            .filter(h => h.checkIn && h.checkOut);
-
+        // Edit live-preview: overlay in-modal hotel dates onto the list before grouping
+        const previewHotel = options.previewHotel;
         if (previewHotel && previewHotel.checkIn && previewHotel.checkOut) {
-            let appliedPreview = false;
-            if (editIdxForPreview !== null) {
-                allHotels = allHotels.map(h => {
-                    if (h.__idx === editIdxForPreview) {
-                        appliedPreview = true;
-                        return {
-                            ...h,
-                            checkIn: previewHotel.checkIn,
-                            checkOut: previewHotel.checkOut,
-                            hotel_unique_id: previewHotel.hotel_unique_id || h.hotel_unique_id,
-                            hotelName: previewHotel.hotelName || h.hotelName
-                        };
-                    }
-                    return h;
-                });
-            }
-
-            // If no matching saved row exists yet (edge case), include preview as a candidate.
-            if (!appliedPreview) {
-                allHotels.push({
-                    checkIn: previewHotel.checkIn,
-                    checkOut: previewHotel.checkOut,
-                    hotel_unique_id: previewHotel.hotel_unique_id || '',
-                    hotelName: previewHotel.hotelName || '',
-                    __idx: -1
-                });
-            }
+            const editIdx = (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined)
+                ? window.editingAccommodationIndex : -1;
+            const base = (editIdx >= 0 && accommodationList[editIdx]) ? { ...accommodationList[editIdx] } : {};
+            const previewCity = String(
+                document.getElementById('hotelDestination')?.value
+                || document.getElementById('arrivalDepartureCity')?.value
+                || base.destination || base.city || ''
+            ).trim();
+            const overlay = {
+                ...base,
+                checkIn: previewHotel.checkIn,
+                checkOut: previewHotel.checkOut,
+                hotel_unique_id: previewHotel.hotel_unique_id || base.hotel_unique_id || '',
+                hotelName: previewHotel.hotelName || base.hotelName || '',
+                destination: previewCity || base.destination || '',
+                city: previewCity || base.city || ''
+            };
+            allHotels = allHotels.filter((_, idx) => idx !== editIdx);
+            allHotels.push(overlay);
         }
 
         if (allHotels.length === 0) {
@@ -15428,24 +15593,46 @@
             return;
         }
 
-        // Snapshot hotel port rows BEFORE removing them — otherwise normalized entry_port/exit_port data
-        // (vehicle, ports, pax) is lost and sync reads stale UI / empty rows after the filter.
-        const snapArrRow = arrivalDepartureList.find(e =>
-            (e.sourceType === 'hotel' && e.travel_type === 'entry_port') ||
-            ((e.type || '').toString() === 'Arrival' && (!e.travel_type || e.travel_type === ''))
-        ) || null;
-        const snapDepRow = arrivalDepartureList.find(e =>
-            (e.sourceType === 'hotel' && e.travel_type === 'exit_port') ||
-            ((e.type || '').toString() === 'Departure' && (!e.travel_type || e.travel_type === ''))
-        ) || null;
-        // Keep stable ids across the filter+rebuild so linked transfers (sourceId / transferId) still match when
-        // adding hotels (preserveGuideSelection is false — e.g. normal save flow).
-        const preservedEntryPortId = snapArrRow?.id || null;
-        const preservedExitPortId = snapDepRow?.id || null;
-        const preservedArrTransferId = snapArrRow?.transferId || null;
-        const preservedDepTransferId = snapDepRow?.transferId || null;
+        const cityGroups = (typeof groupHotelsByServiceCity === 'function')
+            ? groupHotelsByServiceCity(allHotels)
+            : (function () {
+                const map = new Map();
+                map.set('__all__', { cityName: '', hotels: allHotels });
+                return map;
+            })();
 
-        // Replace only hotel-synced port rows (same as create). Do NOT wipe unrelated arrival/departure or guides.
+        const activeCityName = String(
+            document.getElementById('hotelDestination')?.value
+            || document.getElementById('arrivalDepartureCity')?.value
+            || ''
+        ).trim();
+        const activeCityKey = (typeof serviceCityKey === 'function')
+            ? serviceCityKey(activeCityName)
+            : activeCityName.toLowerCase();
+
+        // Snapshot existing hotel-synced rows by city + travel_type (preserve ids/transfers across rebuild)
+        const snapByCity = {};
+        const legacySnaps = { entry_port: null, exit_port: null };
+        arrivalDepartureList.forEach(e => {
+            if (!e) return;
+            const tt = e.travel_type;
+            const ty = (e.type || '').toString();
+            const isHotel = e.sourceType === 'hotel' && (tt === 'entry_port' || tt === 'exit_port');
+            const isLegacy = (!tt || tt === '') && (ty === 'Arrival' || ty === 'Departure');
+            if (!isHotel && !isLegacy) return;
+            const travelType = isHotel ? tt : (ty === 'Arrival' ? 'entry_port' : 'exit_port');
+            const cKey = (typeof serviceCityKey === 'function')
+                ? serviceCityKey(e.city || e.destination || '')
+                : String(e.city || e.destination || '').toLowerCase().trim();
+            if (cKey) {
+                if (!snapByCity[cKey]) snapByCity[cKey] = {};
+                if (!snapByCity[cKey][travelType]) snapByCity[cKey][travelType] = e;
+            } else if (!legacySnaps[travelType]) {
+                legacySnaps[travelType] = e;
+            }
+        });
+
+        // Drop hotel-synced port rows; rebuild one pair per city group below.
         arrivalDepartureList = arrivalDepartureList.filter(item => {
             if (item.sourceType === 'hotel' && (item.travel_type === 'entry_port' || item.travel_type === 'exit_port')) {
                 return false;
@@ -15453,194 +15640,114 @@
             return true;
         });
 
-        // *** Always recalculate dates from accommodationList directly (never trust stale form field) ***
-        const allIns  = allHotels.map(h => h.checkIn.substring(0, 10));
-        const allOuts = allHotels.map(h => h.checkOut.substring(0, 10));
-        const minIn   = allIns.reduce((a, b)  => a < b ? a : b);
-        const maxOut  = allOuts.reduce((a, b) => a > b ? a : b);
-        const arrHotel = allHotels.find(h => h.checkIn.substring(0, 10) === minIn);
-        const depHotel = allHotels.find(h => h.checkOut.substring(0, 10) === maxOut);
-        const arrDTVal = normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00');
-        const depDTVal = normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00');
+        const keptPortIds = new Set();
+        const syncedEntries = [];
 
-        // Also update the locked display fields with the correct calculated dates
-        const arrDTEl = document.getElementById('arrivalDateTime');
-        if (arrDTEl) { arrDTEl.value = arrDTVal; }
-        const depDTEl = document.getElementById('departureDateTime');
-        if (depDTEl) { depDTEl.value = depDTVal; }
-
-        const existingArrPortRow = snapArrRow;
-        const existingDepPortRow = snapDepRow;
-
-        function resolveVehicleMeta(selectEl, vehicleId, fallbackName = '', fallbackType = '') {
-            if (!vehicleId) {
-                return { vehicleName: fallbackName || '', vehicleType: fallbackType || '' };
-            }
-
-            let opt = null;
-            if (selectEl?.options?.length) {
-                opt = Array.from(selectEl.options).find(o => String(o.value) === String(vehicleId)) || null;
-            }
-
-            const resolvedName = (opt?.text || fallbackName || '').trim();
-            const resolvedType = (opt?.getAttribute('data-type') || fallbackType || '').trim();
-
-            return {
-                vehicleName: resolvedName && resolvedName.toLowerCase() !== 'select vehicle' ? resolvedName : (fallbackName || ''),
-                vehicleType: resolvedType
-            };
-        }
-
-        // ---- Arrival fields ----
-        const arrPortSel     = document.getElementById('arrivalPort');
-        const arrPortId      = arrPortSel?.value || existingArrPortRow?.portId || '';
-        const arrPortName    = (arrPortSel?.value && arrPortSel?.selectedOptions[0]?.text) || existingArrPortRow?.portName || '';
-        const arrFlightNo    = document.getElementById('arrivalFlightNo')?.value || existingArrPortRow?.flightNo || '';
-        const arrHasTransfer = document.getElementById('arrivalTransfer')?.checked
-            ?? existingArrPortRow?.hasTransfer
-            ?? false;
-        const arrTypeVal     = document.getElementById('arrivalTransferType')?.value
-            || existingArrPortRow?.transferType
-            || 'S';
-        const arrVehicleSel  = document.getElementById('arrivalVehicleType');
-        const arrVehicleId   = arrVehicleSel?.value
-            || existingArrPortRow?.vehicleId
-            || '';
-        const arrVehicleMeta = resolveVehicleMeta(
-            arrVehicleSel,
-            arrVehicleId,
-            existingArrPortRow?.vehicleName || '',
-            existingArrPortRow?.vehicleType || ''
-        );
-        const arrVehicleName = arrVehicleMeta.vehicleName;
-        const arrVehicleType = arrVehicleMeta.vehicleType;
-        const arrAdults      = preserveGuideSelection
-            ? parseInt((existingArrPortRow?.adultsQty ?? existingArrPortRow?.adults ?? document.getElementById('arrivalAdults')?.value ?? 2), 10)
-            : parseInt((document.getElementById('arrivalAdults')?.value ?? 2), 10);
-        const arrChild       = preserveGuideSelection
-            ? parseInt((existingArrPortRow?.childQty ?? existingArrPortRow?.child ?? document.getElementById('arrivalChild')?.value ?? 0), 10)
-            : parseInt((document.getElementById('arrivalChild')?.value ?? 0), 10);
-        const arrInfant      = parseInt(document.getElementById('arrivalInfant')?.value  || 0);
-        const arrDestSel     = document.getElementById('arrivalDestination');
-        // Always use hotel_unique_id from accommodationList as the authoritative destination
-        const arrDestId      = arrHotel?.hotel_unique_id || arrDestSel?.value || '';
-        const arrDestOpt     = arrDestSel ? Array.from(arrDestSel.options).find(o => o.value === arrDestId) : null;
-        const arrDestName    = arrDestOpt?.getAttribute('data-name') || arrHotel?.hotelName || '';
-        const arrDestType    = 'hotel';
-        // Sync dropdown to reflect the correct hotel
-        if (arrDestSel && arrDestId && arrDestSel.value !== arrDestId) { arrDestSel.value = arrDestId; }
-
-        // ---- Departure fields ----
-        const depPortSel     = document.getElementById('departurePort');
-        const depPortId      = depPortSel?.value || existingDepPortRow?.portId || '';
-        const depPortName    = (depPortSel?.value && depPortSel?.selectedOptions[0]?.text) || existingDepPortRow?.portName || '';
-        const depFlightNo    = document.getElementById('departureFlightNo')?.value || existingDepPortRow?.flightNo || '';
-        const depHasTransfer = document.getElementById('departureTransfer')?.checked
-            ?? existingDepPortRow?.hasTransfer
-            ?? false;
-        const depTypeVal     = document.getElementById('departureTransferType')?.value
-            || existingDepPortRow?.transferType
-            || 'S';
-        const depVehicleSel  = document.getElementById('departureVehicleType');
-        const depVehicleId   = depVehicleSel?.value
-            || existingDepPortRow?.vehicleId
-            || '';
-        const depVehicleMeta = resolveVehicleMeta(
-            depVehicleSel,
-            depVehicleId,
-            existingDepPortRow?.vehicleName || '',
-            existingDepPortRow?.vehicleType || ''
-        );
-        const depVehicleName = depVehicleMeta.vehicleName;
-        const depVehicleType = depVehicleMeta.vehicleType;
-        const depAdults      = preserveGuideSelection
-            ? parseInt((existingDepPortRow?.adultsQty ?? existingDepPortRow?.adults ?? document.getElementById('departureAdults')?.value ?? 2), 10)
-            : parseInt((document.getElementById('departureAdults')?.value ?? 2), 10);
-        const depChild       = preserveGuideSelection
-            ? parseInt((existingDepPortRow?.childQty ?? existingDepPortRow?.child ?? document.getElementById('departureChild')?.value ?? 0), 10)
-            : parseInt((document.getElementById('departureChild')?.value ?? 0), 10);
-        const depInfant      = parseInt(document.getElementById('departureInfant')?.value  || 0);
-        const depDestSel     = document.getElementById('departureDestination');
-        // Always use hotel_unique_id from accommodationList as the authoritative destination
-        const depDestId      = depHotel?.hotel_unique_id || depDestSel?.value || '';
-        const depDestOpt     = depDestSel ? Array.from(depDestSel.options).find(o => o.value === depDestId) : null;
-        const depDestName    = depDestOpt?.getAttribute('data-name') || depHotel?.hotelName || '';
-        const depDestType    = 'hotel';
-        // Sync dropdown to reflect the correct hotel
-        if (depDestSel && depDestId && depDestSel.value !== depDestId) { depDestSel.value = depDestId; }
-
-        // ---- Fetch zone prices for arrival transfer ----
-        let arrVehiclePrice = 0;
-        let arrZonePrice = { private_price: 0, shared_price: 0 };
-        if (arrHasTransfer && arrVehicleId && arrPortId && arrDestId) {
-            let actualArrDestId = arrDestId;
-            if (arrDestType === 'hotel') {
-                const huId = arrDestOpt?.getAttribute('data-hotel-unique-id');
-                if (huId) actualArrDestId = huId;
-            }
-            try {
-                arrZonePrice = await fetchZonePrice(arrVehicleId, arrPortId, 'port', actualArrDestId, arrDestType, dmcId);
-                if (zonePriceHasMapping(arrZonePrice)) {
-                    const prices = calculateTransferPrice(arrZonePrice, arrTypeVal, 'one-way', arrAdults, arrChild);
-                    arrVehiclePrice = prices.cost || 0;
-                }
-            } catch(e) { console.warn('syncHotelArrDep: arrival zone price fetch failed', e); }
-        }
-
-        // ---- Fetch zone prices for departure transfer ----
-        let depVehiclePrice = 0;
-        let depZonePrice = { private_price: 0, shared_price: 0 };
-        if (depHasTransfer && depVehicleId && depPortId && depDestId) {
-            let actualDepDestId = depDestId;
-            if (depDestType === 'hotel') {
-                const huId = depDestOpt?.getAttribute('data-hotel-unique-id');
-                if (huId) actualDepDestId = huId;
-            }
-            try {
-                depZonePrice = await fetchZonePrice(depVehicleId, actualDepDestId, depDestType, depPortId, 'port', dmcId);
-                if (zonePriceHasMapping(depZonePrice)) {
-                    const prices = calculateTransferPrice(depZonePrice, depTypeVal, 'one-way', depAdults, depChild);
-                    depVehiclePrice = prices.cost || 0;
-                }
-            } catch(e) { console.warn('syncHotelArrDep: departure zone price fetch failed', e); }
-        }
-
-        function upsertPort(travelType, dtVal, portId, portName, flightNo, hasTransfer,
-                            xferType, vehicleId, vehicleType, vehicleName,
-                            nAdults, nChild, nInfant, destId, destName, vehiclePrice, zonePrice) {
+        async function upsertCityPort(travelType, cityName, cityKey, arrHotel, depHotel, snapRow, useForm) {
             const isArrival = travelType === 'entry_port';
-            // Reuse existing global rows (legacy rows may have no travel_type) instead of appending new ones.
-            const desiredType = isArrival ? 'Arrival' : 'Departure';
-            const matchingIdxs = [];
-            arrivalDepartureList.forEach((e, i) => {
-                const tt = e.travel_type;
-                const ty = (e.type || '').toString();
-                const isHotelSynced = e.sourceType === 'hotel' && (tt === 'entry_port' || tt === 'exit_port');
-                const isLegacyGlobal = (!tt || tt === '') && (ty === 'Arrival' || ty === 'Departure');
+            const hotel = isArrival ? arrHotel : depHotel;
+            const minIn = arrHotel?.checkIn?.substring(0, 10) || '';
+            const maxOut = depHotel?.checkOut?.substring(0, 10) || '';
+            const dtVal = isArrival
+                ? (normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00'))
+                : (normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00'));
 
-                if ((isHotelSynced && tt === travelType) || (isLegacyGlobal && ty === desiredType)) {
-                    matchingIdxs.push(i);
-                }
-            });
+            const portSelId = isArrival ? 'arrivalPort' : 'departurePort';
+            const flightId = isArrival ? 'arrivalFlightNo' : 'departureFlightNo';
+            const xferChkId = isArrival ? 'arrivalTransfer' : 'departureTransfer';
+            const xferTypeId = isArrival ? 'arrivalTransferType' : 'departureTransferType';
+            const vehicleSelId = isArrival ? 'arrivalVehicleType' : 'departureVehicleType';
+            const adultsId = isArrival ? 'arrivalAdults' : 'departureAdults';
+            const childId = isArrival ? 'arrivalChild' : 'departureChild';
+            const infantId = isArrival ? 'arrivalInfant' : 'departureInfant';
+            const destSelId = isArrival ? 'arrivalDestination' : 'departureDestination';
+            const focId = isArrival ? 'arrivalFocServiceDiscount' : 'departureFocServiceDiscount';
 
-            const idx = matchingIdxs.length ? matchingIdxs[0] : -1;
-            const base = idx >= 0 ? arrivalDepartureList[idx] : {};
+            const portSel = document.getElementById(portSelId);
+            const vehicleSel = document.getElementById(vehicleSelId);
+            const destSel = document.getElementById(destSelId);
 
-            // If duplicates already exist, remove extras now (keep the first so list ends with one arrival + one departure)
-            if (matchingIdxs.length > 1) {
-                const toRemove = new Set(matchingIdxs.slice(1));
-                arrivalDepartureList = arrivalDepartureList.filter((_, i) => !toRemove.has(i));
+            let portId, portName, flightNo, hasTransfer, xferType, vehicleId, vehicleName, vehicleType;
+            let nAdults, nChild, nInfant;
+
+            if (useForm) {
+                portId = portSel?.value || snapRow?.portId || '';
+                portName = (portSel?.value && portSel?.selectedOptions[0]?.text) || snapRow?.portName || '';
+                flightNo = document.getElementById(flightId)?.value || snapRow?.flightNo || '';
+                hasTransfer = preserveGuideSelection
+                    ? (snapRow?.hasTransfer ?? (document.getElementById(xferChkId)?.checked || false))
+                    : (document.getElementById(xferChkId)?.checked || false);
+                xferType = preserveGuideSelection
+                    ? (snapRow?.transferType || document.getElementById(xferTypeId)?.value || 'S')
+                    : (document.getElementById(xferTypeId)?.value || 'S');
+                vehicleId = preserveGuideSelection
+                    ? (snapRow?.vehicleId || vehicleSel?.value || '')
+                    : (vehicleSel?.value || '');
+                const vehicleOpt = vehicleSel?.selectedOptions[0];
+                vehicleName = vehicleOpt?.text || snapRow?.vehicleName || '';
+                vehicleType = vehicleOpt?.getAttribute('data-type') || snapRow?.vehicleType || '';
+                nAdults = preserveGuideSelection
+                    ? parseInt((snapRow?.adultsQty ?? snapRow?.adults ?? document.getElementById(adultsId)?.value ?? 2), 10)
+                    : parseInt((document.getElementById(adultsId)?.value ?? 2), 10);
+                nChild = preserveGuideSelection
+                    ? parseInt((snapRow?.childQty ?? snapRow?.child ?? document.getElementById(childId)?.value ?? 0), 10)
+                    : parseInt((document.getElementById(childId)?.value ?? 0), 10);
+                nInfant = parseInt(document.getElementById(infantId)?.value || snapRow?.infantQty || snapRow?.infant || 0, 10);
+            } else {
+                portId = snapRow?.portId || '';
+                portName = snapRow?.portName || '';
+                flightNo = snapRow?.flightNo || '';
+                hasTransfer = snapRow?.hasTransfer !== false;
+                xferType = snapRow?.transferType || 'S';
+                vehicleId = snapRow?.vehicleId || '';
+                vehicleName = snapRow?.vehicleName || '';
+                vehicleType = snapRow?.vehicleType || '';
+                nAdults = parseInt((snapRow?.adultsQty ?? snapRow?.adults ?? document.getElementById('adultCountInput')?.value ?? 2), 10);
+                nChild = parseInt((snapRow?.childQty ?? snapRow?.child ?? document.getElementById('childCountInput')?.value ?? 0), 10);
+                nInfant = parseInt((snapRow?.infantQty ?? snapRow?.infant ?? 0), 10);
             }
 
-            const entryId = base.id
-                || (isArrival ? preservedEntryPortId : preservedExitPortId)
-                || generateId('port');
+            const destId = hotel?.hotel_unique_id || snapRow?.transferDestinationId || destSel?.value || '';
+            const destOpt = destSel ? Array.from(destSel.options || []).find(o => o.value === destId) : null;
+            const destName = destOpt?.getAttribute('data-name') || hotel?.hotelName || snapRow?.transferDestinationName || '';
+            const destType = 'hotel';
 
+            // Only sync visible dropdowns for the active city being edited in the modal
+            if (useForm && destSel && destId && destSel.value !== destId) {
+                destSel.value = destId;
+            }
+
+            let vehiclePrice = 0;
+            let zonePrice = { private_price: 0, shared_price: 0 };
+            if (hasTransfer && vehicleId && portId && destId) {
+                let actualDestId = destId;
+                if (destType === 'hotel') {
+                    const huId = destOpt?.getAttribute('data-hotel-unique-id');
+                    if (huId) actualDestId = huId;
+                }
+                try {
+                    if (isArrival) {
+                        zonePrice = await fetchZonePrice(vehicleId, portId, 'port', actualDestId, destType, dmcId);
+                    } else {
+                        zonePrice = await fetchZonePrice(vehicleId, actualDestId, destType, portId, 'port', dmcId);
+                    }
+                    if (zonePriceHasMapping(zonePrice)) {
+                        const prices = calculateTransferPrice(zonePrice, xferType, 'one-way', nAdults, nChild);
+                        vehiclePrice = prices.cost || 0;
+                    }
+                } catch (e) {
+                    console.warn('syncHotelArrDep: zone price fetch failed', travelType, cityName, e);
+                }
+            } else if (snapRow && !useForm) {
+                vehiclePrice = parseFloat(snapRow.adultCost || snapRow.cost || snapRow.sell || 0) || 0;
+            }
+
+            const entryId = snapRow?.id || generateId('port');
             const sourceKey = isArrival ? 'arrival' : 'departure';
             const prefix = isArrival ? 'Arrival:' : 'Departure:';
 
             function findBestTransferIndex() {
-                const expectedXferId = base.transferId || (isArrival ? preservedArrTransferId : preservedDepTransferId);
+                const expectedXferId = snapRow?.transferId || null;
                 const scored = [];
                 transferList.forEach((t, i) => {
                     if ((t.sourceType || '').toLowerCase() !== sourceKey) return;
@@ -15655,53 +15762,57 @@
                     scored.sort((a, b) => b.score - a.score);
                     return scored[0].i;
                 }
-                const loose = [];
-                transferList.forEach((t, i) => {
-                    if ((t.sourceType || '').toLowerCase() !== sourceKey) return;
-                    const dest = String(t.destination || t.service || '');
-                    if (dest.indexOf(prefix) === 0) loose.push(i);
-                });
-                if (loose.length === 1) return loose[0];
-                if (loose.length > 1 && expectedXferId) {
-                    const hit = loose.find(i => String(transferList[i].id) === String(expectedXferId));
-                    if (hit !== undefined) return hit;
-                }
-                return loose.length ? loose[0] : -1;
+                return -1;
             }
             const existingTransferIdx = findBestTransferIndex();
             const prevTransfer = existingTransferIdx !== -1 ? transferList[existingTransferIdx] : null;
 
             const depFocWrap = document.getElementById('departureTransferFocRowWrap');
-            const focSvc = isArrival
-                ? (document.getElementById('arrivalFocServiceDiscount')?.checked === true)
-                : (depFocWrap && depFocWrap.style.display === 'none'
-                    ? !!(prevTransfer?.focServiceDiscount || existingDepPortRow?.focServiceDiscount)
-                    : (document.getElementById('departureFocServiceDiscount')?.checked === true));
+            let focSvc;
+            if (isArrival) {
+                focSvc = useForm
+                    ? (document.getElementById(focId)?.checked === true)
+                    : !!(snapRow?.focServiceDiscount);
+            } else {
+                focSvc = useForm
+                    ? (depFocWrap && depFocWrap.style.display === 'none'
+                        ? !!(prevTransfer?.focServiceDiscount || snapRow?.focServiceDiscount)
+                        : (document.getElementById(focId)?.checked === true))
+                    : !!(snapRow?.focServiceDiscount || prevTransfer?.focServiceDiscount);
+            }
+
             const updated = {
-                ...base, id: entryId, travel_type: travelType,
-                type: isArrival ? 'Arrival' : 'Departure', dateTime: dtVal,
-                portId, portName, flightNo, hasTransfer, transferType: xferType, transferWay: 'one-way',
+                ...(snapRow || {}),
+                id: entryId,
+                travel_type: travelType,
+                type: isArrival ? 'Arrival' : 'Departure',
+                dateTime: dtVal,
+                portId, portName, flightNo,
+                hasTransfer, transferType: xferType, transferWay: 'one-way',
                 vehicleId, vehicleType, vehicleName,
-                adults: nAdults, adultsQty: nAdults, child: nChild, childQty: nChild,
+                adults: nAdults, adultsQty: nAdults,
+                child: nChild, childQty: nChild,
                 infant: nInfant, infantQty: nInfant,
                 adultCost: vehiclePrice, adultSell: vehiclePrice,
                 childCost: vehiclePrice, childSell: vehiclePrice,
                 transferDestinationId: destId, transferDestinationName: destName,
                 cost: vehiclePrice, sell: vehiclePrice,
                 accommodationIndex: null, sourceType: 'hotel', isStandalone: true,
-                focServiceDiscount: focSvc
+                focServiceDiscount: focSvc,
+                hotelCityKey: cityKey
             };
+            if (typeof stampArrivalDepartureGeo === 'function') {
+                stampArrivalDepartureGeo(updated, cityName);
+            } else {
+                updated.city = cityName;
+            }
+
             const effectiveVehicleId = vehicleId || (prevTransfer?.vehicleId || '');
             const effectiveVehicleType = vehicleType || (prevTransfer?.vehicleType || '');
             const effectiveVehicleName = vehicleName || (prevTransfer?.vehicleName || '');
-            const effectiveAdults = nAdults;
-            const effectiveChild = nChild;
-            // Always apply freshly computed zone-based prices when syncing hotels. prevTransfer.cost/sell must not
-            // win here: `??` only replaces null/undefined, so stale numbers (e.g. 120) would block the new zone price (e.g. 140).
-            const effectiveCost = vehiclePrice;
-            const effectiveSell = vehiclePrice;
+            const effectiveAdults = preserveGuideSelection ? (prevTransfer?.adults ?? nAdults) : nAdults;
+            const effectiveChild = preserveGuideSelection ? (prevTransfer?.child ?? nChild) : nChild;
 
-            // Create or update transfer list entry if transfer is enabled
             if (hasTransfer && effectiveVehicleId) {
                 const transferId = existingTransferIdx !== -1
                     ? transferList[existingTransferIdx].id
@@ -15709,7 +15820,7 @@
                 const destination = isArrival
                     ? (destName ? `Arrival: ${portName} → ${destName}` : `Arrival: ${portName}`)
                     : (destName ? `Departure: ${destName} → ${portName}` : `Departure: ${portName}`);
-                const transferPayload = {
+                const payload = {
                     id: transferId,
                     transportMode: 'local',
                     isStandalone: false,
@@ -15718,6 +15829,9 @@
                     dateTime: dtVal,
                     portName,
                     destination,
+                    city: updated.city || cityName,
+                    country: updated.country || '',
+                    currency: updated.currency || '',
                     vehicleId: effectiveVehicleId,
                     vehicleType: effectiveVehicleType,
                     vehicleName: effectiveVehicleName,
@@ -15727,234 +15841,203 @@
                     hasTransfer: true,
                     adults: effectiveAdults,
                     child: effectiveChild,
-                    adultCost: effectiveCost,
-                    adultSell: effectiveSell,
-                    childCost: effectiveCost,
-                    childSell: effectiveSell,
-                    cost: effectiveCost,
-                    sell: effectiveSell,
-                    basePrice: effectiveCost,
-                    base_price: effectiveCost,
+                    cost: vehiclePrice,
+                    sell: vehiclePrice,
                     zonePrivatePrice: zonePrice?.private_price || 0,
-                    zoneSharedPrice:  zonePrice?.shared_price  || 0,
+                    zoneSharedPrice: zonePrice?.shared_price || 0,
                     taxIncluded: false,
                     focServiceDiscount: focSvc
                 };
-
                 if (existingTransferIdx !== -1) {
-                    const prev = transferList[existingTransferIdx];
-                    transferList[existingTransferIdx] = {
-                        ...prev,
-                        ...transferPayload
-                    };
+                    transferList[existingTransferIdx] = { ...transferList[existingTransferIdx], ...payload };
                 } else {
-                    transferList.push(transferPayload);
+                    transferList.push(payload);
                 }
                 updated.transferId = transferId;
             } else {
-                // Keep previous transfer link untouched instead of deleting transfer row
-                updated.transferId = base.transferId || null;
+                updated.transferId = snapRow?.transferId || null;
             }
 
-            if (idx >= 0) {
-                arrivalDepartureList[idx] = updated;
-            } else {
-                arrivalDepartureList.push(updated);
-            }
-            // Return the updated row (could have been a legacy row that is now normalized with travel_type)
-            return arrivalDepartureList.find(e => e.travel_type === travelType && e.sourceType === 'hotel')
-                || arrivalDepartureList.find(e => (e.type || '').toString() === desiredType && (!e.travel_type || e.travel_type === '') && e.sourceType === 'hotel');
+            arrivalDepartureList.push(updated);
+            keptPortIds.add(String(entryId));
+            return updated;
         }
 
-        const arrEntry = upsertPort('entry_port', arrDTVal, arrPortId, arrPortName, arrFlightNo,
-                                    arrHasTransfer, arrTypeVal, arrVehicleId, arrVehicleType, arrVehicleName,
-                                    arrAdults, arrChild, arrInfant, arrDestId, arrDestName, arrVehiclePrice, arrZonePrice);
+        function syncGuideForEntry(entry, travelLabel, guideCheckboxId, guideSelectId, adultQtyId, childQtyId, useForm) {
+            if (!entry) return;
+            const cityKey = (typeof serviceCityKey === 'function')
+                ? serviceCityKey(entry.city || '')
+                : String(entry.city || '').toLowerCase();
 
-        const depEntry = upsertPort('exit_port',  depDTVal, depPortId, depPortName, depFlightNo,
-                                    depHasTransfer, depTypeVal, depVehicleId, depVehicleType, depVehicleName,
-                                    depAdults, depChild, depInfant, depDestId, depDestName, depVehiclePrice, depZonePrice);
+            if (useForm) {
+                const guideChecked = document.getElementById(guideCheckboxId)?.checked || false;
+                const guideSelect = document.getElementById(guideSelectId);
+                const guideAdultQty = parseInt(document.getElementById(adultQtyId)?.value || 0);
+                const guideChildQty = parseInt(document.getElementById(childQtyId)?.value || 0);
 
-        // Drop stale duplicate airport port transfers left from older syncs (keep rows linked to current port ids).
-        if (arrEntry?.id && depEntry?.id) {
-            transferList = transferList.filter(t => {
-                const st = (t.sourceType || '').toLowerCase();
-                if (st !== 'arrival' && st !== 'departure') return true;
-                const dest = String(t.destination || t.service || '');
-                if (st === 'arrival' && dest.indexOf('Arrival:') === 0) {
-                    return String(t.sourceId) === String(arrEntry.id);
+                if (guideChecked && guideSelect?.value) {
+                    const guideId = guideSelect.value;
+                    const guideOpt = guideSelect.selectedOptions[0];
+                    const guideName = guideOpt?.getAttribute('data-name') || guideOpt?.text || '';
+                    const guideLang = guideOpt?.getAttribute('data-languages') || '';
+                    const guidePrice = parseFloat(guideOpt?.getAttribute('data-twelve-hour-price') || 0);
+                    const linkedTo = travelLabel;
+                    const linkedKey = String(linkedTo || '').toLowerCase();
+
+                    let existingIdx = guideList.findIndex(g =>
+                        String(g.linkedTo || '').toLowerCase() === linkedKey
+                        && String(g.arrivalId) === String(entry.id));
+                    if (existingIdx === -1) {
+                        existingIdx = guideList.findIndex(g =>
+                            String(g.linkedTo || '').toLowerCase() === linkedKey
+                            && (typeof serviceCityKey === 'function'
+                                ? serviceCityKey(g.city || g.destination || '') === cityKey
+                                : true)
+                            && String(g.arrivalId) === String(entry.id));
+                    }
+                    if (existingIdx === -1 && cityKey) {
+                        existingIdx = guideList.findIndex(g =>
+                            String(g.linkedTo || '').toLowerCase() === linkedKey
+                            && serviceCityKey(g.city || g.destination || '') === cityKey);
+                    }
+
+                    const guideObj = {
+                        dateTime: entry.dateTime,
+                        tourActivity: `${travelLabel === 'arrival' ? 'Arrival' : 'Departure'} Guide`,
+                        language: guideLang || 'N/A', guideName, guideId,
+                        hours: 12, cost: guidePrice, sell: guidePrice,
+                        supplement: false, isStandalone: false,
+                        linkedTo, arrivalId: entry.id,
+                        city: entry.city || '',
+                        country: entry.country || '',
+                        currency: entry.currency || '',
+                        adultsQty: guideAdultQty, childQty: guideChildQty,
+                        focServiceDiscount: document.getElementById(
+                            travelLabel === 'arrival' ? 'arrivalGuideFocServiceDiscount' : 'departureGuideFocServiceDiscount'
+                        )?.checked === true
+                    };
+                    if (existingIdx !== -1) {
+                        guideList[existingIdx] = { ...guideList[existingIdx], ...guideObj };
+                        entry.guideId = guideList[existingIdx].id;
+                    } else {
+                        const guideEntryId = generateId('guide');
+                        guideList.push({ id: guideEntryId, ...guideObj });
+                        entry.guideId = guideEntryId;
+                    }
+                } else if (!guideChecked && entry?.guideId && !preserveGuideSelection) {
+                    const idx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
+                    if (idx !== -1) guideList.splice(idx, 1);
+                    entry.guideId = null;
                 }
-                if (st === 'departure' && dest.indexOf('Departure:') === 0) {
-                    return String(t.sourceId) === String(depEntry.id);
+            } else if (preserveGuideSelection && entry.guideId) {
+                const gi = guideList.findIndex(g => String(g.id) === String(entry.guideId));
+                if (gi !== -1) {
+                    guideList[gi] = {
+                        ...guideList[gi],
+                        arrivalId: entry.id,
+                        dateTime: entry.dateTime,
+                        city: entry.city || guideList[gi].city || '',
+                        country: entry.country || guideList[gi].country || '',
+                        currency: entry.currency || guideList[gi].currency || ''
+                    };
                 }
-                return true;
-            });
-        }
-
-        // ---- Guide handling (same logic as saveArrivalDepartureOnly) ----
-        function syncGuide(entry, travelLabel, guideCheckboxId, guideSelectId, adultQtyId, childQtyId) {
-            const guideChecked  = document.getElementById(guideCheckboxId)?.checked || false;
-            const guideSelect   = document.getElementById(guideSelectId);
-            const guideAdultQty = parseInt(document.getElementById(adultQtyId)?.value || 0);
-            const guideChildQty = parseInt(document.getElementById(childQtyId)?.value || 0);
-
-            if (guideChecked && guideSelect?.value && entry) {
-                const guideId   = guideSelect.value;
-                const guideOpt  = guideSelect.selectedOptions[0];
-                const guideName = guideOpt?.getAttribute('data-name') || guideOpt?.text || '';
-                const guideLang = guideOpt?.getAttribute('data-languages') || '';
-                const guidePrice = parseFloat(guideOpt?.getAttribute('data-twelve-hour-price') || 0);
-                const arrivalId  = entry.id;
-                const linkedTo   = travelLabel;
-
-                const linkedKey = String(linkedTo || '').toLowerCase();
-                let existingIdx = guideList.findIndex(g =>
-                    String(g.linkedTo || '').toLowerCase() === linkedKey && String(g.arrivalId) === String(arrivalId));
-                if (existingIdx === -1 && (linkedKey === 'arrival' || linkedKey === 'departure')) {
-                    existingIdx = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === linkedKey);
-                }
-                const portLabel = entry?.portName || '';
-                const guideObj = {
-                    dateTime: entry.dateTime,
-                    tourActivity: `${travelLabel === 'arrival' ? 'Arrival' : 'Departure'} Guide${portLabel ? ' - ' + portLabel : ''}`,
-                    language: guideLang || 'N/A', guideName, guideId,
-                    hours: 12, cost: guidePrice, sell: guidePrice,
-                    supplement: false, isStandalone: false,
-                    linkedTo, arrivalId,
-                    adultsQty: guideAdultQty, childQty: guideChildQty,
-                    focServiceDiscount: document.getElementById(travelLabel === 'arrival' ? 'arrivalGuideFocServiceDiscount' : 'departureGuideFocServiceDiscount')?.checked === true
-                };
-                if (existingIdx !== -1) {
-                    guideList[existingIdx] = { ...guideList[existingIdx], ...guideObj };
-                    entry.guideId = guideList[existingIdx].id;
-                } else {
-                    const guideEntryId = generateId('guide');
-                    guideList.push({ id: guideEntryId, ...guideObj });
-                    entry.guideId = guideEntryId;
-                }
-            } else if (!guideChecked && entry?.guideId && !preserveGuideSelection) {
-                const idx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
-                if (idx !== -1) guideList.splice(idx, 1);
-                entry.guideId = null;
-            }
-        }
-
-        syncGuide(arrEntry, 'arrival',   'arrivalGuideCheckbox',   'arrivalGuide',   'arrivalGuideAdultQty',   'arrivalGuideChildQty');
-        syncGuide(depEntry, 'departure',  'departureGuideCheckbox', 'departureGuide', 'departureGuideAdultQty', 'departureGuideChildQty');
-
-        // When preserveGuideSelection: keep guides if modal checkboxes are hidden, but still refresh from modal when checked.
-        if (preserveGuideSelection) {
-            if (document.getElementById('arrivalGuideCheckbox')?.checked && arrEntry) {
-                syncGuide(arrEntry, 'arrival', 'arrivalGuideCheckbox', 'arrivalGuide', 'arrivalGuideAdultQty', 'arrivalGuideChildQty');
-            } else {
-                const arrGi = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === 'arrival');
-                if (arrGi !== -1 && arrEntry) {
-                    guideList[arrGi] = { ...guideList[arrGi], arrivalId: arrEntry.id, dateTime: arrEntry.dateTime };
-                    arrEntry.guideId = guideList[arrGi].id;
-                }
-            }
-            if (document.getElementById('departureGuideCheckbox')?.checked && depEntry) {
-                syncGuide(depEntry, 'departure', 'departureGuideCheckbox', 'departureGuide', 'departureGuideAdultQty', 'departureGuideChildQty');
-            } else {
-                const depGi = guideList.findIndex(g => String(g.linkedTo || '').toLowerCase() === 'departure');
-                if (depGi !== -1 && depEntry) {
-                    guideList[depGi] = { ...guideList[depGi], arrivalId: depEntry.id, dateTime: depEntry.dateTime };
-                    depEntry.guideId = guideList[depGi].id;
+            } else if (preserveGuideSelection) {
+                const linkedKey = String(travelLabel || '').toLowerCase();
+                const gi = guideList.findIndex(g =>
+                    String(g.linkedTo || '').toLowerCase() === linkedKey
+                    && (cityKey
+                        ? serviceCityKey(g.city || g.destination || '') === cityKey
+                        : true));
+                if (gi !== -1) {
+                    guideList[gi] = {
+                        ...guideList[gi],
+                        arrivalId: entry.id,
+                        dateTime: entry.dateTime,
+                        city: entry.city || guideList[gi].city || ''
+                    };
+                    entry.guideId = guideList[gi].id;
                 }
             }
         }
 
-        if (typeof updateGuideTable    === 'function') updateGuideTable();
+        // Process each city group independently
+        for (const [cityKey, group] of cityGroups.entries()) {
+            const hotels = group.hotels || [];
+            if (!hotels.length) continue;
+            const cityName = group.cityName
+                || (typeof getHotelServiceCity === 'function' ? getHotelServiceCity(hotels[0]) : '')
+                || activeCityName;
+
+            const allIns = hotels.map(h => h.checkIn.substring(0, 10));
+            const allOuts = hotels.map(h => h.checkOut.substring(0, 10));
+            const minIn = allIns.reduce((a, b) => a < b ? a : b);
+            const maxOut = allOuts.reduce((a, b) => a > b ? a : b);
+            const arrHotel = hotels.find(h => h.checkIn.substring(0, 10) === minIn) || hotels[0];
+            const depHotel = hotels.find(h => h.checkOut.substring(0, 10) === maxOut) || hotels[hotels.length - 1];
+
+            const snapArr = (snapByCity[cityKey] && snapByCity[cityKey].entry_port)
+                || ((!cityKey || cityKey === '__none__') ? legacySnaps.entry_port : null)
+                || (cityGroups.size === 1 ? legacySnaps.entry_port : null);
+            const snapDep = (snapByCity[cityKey] && snapByCity[cityKey].exit_port)
+                || ((!cityKey || cityKey === '__none__') ? legacySnaps.exit_port : null)
+                || (cityGroups.size === 1 ? legacySnaps.exit_port : null);
+
+            // Form fields apply to the city currently open in the hotel modal (other cities keep snap).
+            // Single-city itineraries always use the form (same behavior as before).
+            let useForm = !!activeCityKey && cityKey === activeCityKey;
+            if (!useForm && cityGroups.size === 1) {
+                useForm = true;
+            }
+
+            // Update locked modal date fields only for the active city
+            if (useForm) {
+                const arrDTVal = normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00');
+                const depDTVal = normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00');
+                const arrDTEl = document.getElementById('arrivalDateTime');
+                if (arrDTEl) arrDTEl.value = arrDTVal;
+                const depDTEl = document.getElementById('departureDateTime');
+                if (depDTEl) depDTEl.value = depDTVal;
+            }
+
+            const arrEntry = await upsertCityPort('entry_port', cityName, cityKey, arrHotel, depHotel, snapArr, useForm);
+            const depEntry = await upsertCityPort('exit_port', cityName, cityKey, arrHotel, depHotel, snapDep, useForm);
+            syncedEntries.push({ cityKey, cityName, arrEntry, depEntry, useForm });
+
+            syncGuideForEntry(arrEntry, 'arrival', 'arrivalGuideCheckbox', 'arrivalGuide',
+                'arrivalGuideAdultQty', 'arrivalGuideChildQty', useForm);
+            syncGuideForEntry(depEntry, 'departure', 'departureGuideCheckbox', 'departureGuide',
+                'departureGuideAdultQty', 'departureGuideChildQty', useForm);
+        }
+
+        // Keep only airport transfers linked to current hotel-synced port ids
+        transferList = transferList.filter(t => {
+            const st = (t.sourceType || '').toLowerCase();
+            if (st !== 'arrival' && st !== 'departure') return true;
+            const dest = String(t.destination || t.service || '');
+            if (st === 'arrival' && dest.indexOf('Arrival:') === 0) {
+                return keptPortIds.has(String(t.sourceId));
+            }
+            if (st === 'departure' && dest.indexOf('Departure:') === 0) {
+                return keptPortIds.has(String(t.sourceId));
+            }
+            return true;
+        });
+
+        // Link each hotel to its city A/D pair ids
+        accommodationList.forEach(hotel => {
+            if (!hotel || !hotel.checkIn || !hotel.checkOut) return;
+            const cName = (typeof getHotelServiceCity === 'function') ? getHotelServiceCity(hotel) : '';
+            const cKey = (typeof serviceCityKey === 'function') ? serviceCityKey(cName) : String(cName).toLowerCase();
+            const pair = syncedEntries.find(p => p.cityKey === cKey)
+                || syncedEntries.find(p => p.cityKey === (cKey || '__none__'))
+                || (syncedEntries.length === 1 ? syncedEntries[0] : null);
+            if (pair) {
+                hotel.arrivalDepartureIds = [pair.arrEntry?.id, pair.depEntry?.id].filter(Boolean);
+            }
+        });
+
+        if (typeof updateGuideTable === 'function') updateGuideTable();
         if (typeof updateTransferTable === 'function') updateTransferTable();
-    }
-
-    // Update main accommodation table
-    function updateAccommodationTable() {
-        const tbody = document.getElementById('accommodationTableBody');
-        const table = document.getElementById('accommodationTable');
-        const emptyMessage = document.getElementById('emptyAccommodationMessage');
-
-        if (accommodationList.length === 0) {
-            table.style.display = 'none';
-            emptyMessage.style.display = 'block';
-            return;
-        }
-
-        table.style.display = 'table';
-        emptyMessage.style.display = 'none';
-
-        tbody.innerHTML = accommodationList.map((hotel, index) => {
-            // Ensure checkIn and checkOut have time component
-            let checkInValue = hotel.checkIn;
-            let checkOutValue = hotel.checkOut;
-            
-            // If no time component, use hotel policy times from hotels table
-            if (checkInValue && !checkInValue.includes('T')) {
-                checkInValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
-                    ? enquiryProAppendHotelTimeToDateValue(checkInValue, 'checkIn', hotel)
-                    : checkInValue + 'T11:00';
-            }
-            if (checkOutValue && !checkOutValue.includes('T')) {
-                checkOutValue = typeof enquiryProAppendHotelTimeToDateValue === 'function'
-                    ? enquiryProAppendHotelTimeToDateValue(checkOutValue, 'checkOut', hotel)
-                    : checkOutValue + 'T10:00';
-            }
-            
-            // Determine displayed prices - show actual price only if checkbox is checked, otherwise show 0
-            const displayExtraBedPrice = hotel.hasExtraBed ? (parseFloat(hotel.extraBedPrice) || 0).toFixed(2) : '0.00';
-            const displayCwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0).toFixed(2) : '0.00';
-            const displayCnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0).toFixed(2) : '0.00';
-            const displayInfantPrice = hotel.hasInfant ? (parseFloat(hotel.infantPrice) || 0).toFixed(2) : '0.00';
-            
-            return `
-            <tr>
-                <td><input type="checkbox" class="accommodation-checkbox" value="${hotel.id}"></td>
-                <td>
-                    <a href="javascript:void(0)" onclick="editAccommodation(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
-                        <strong>${hotel.hotelName}</strong><br>
-                        <small style="color: #666; font-size: 0.6rem;">
-                            Room: ${hotel.roomType || 'N/A'} | Bed: ${hotel.bedType || 'N/A'} | Meal: ${hotel.mealPlan || 'N/A'} | Meal Pax: ${hotel.mealPax != null ? hotel.mealPax : '—'}
-                        </small>
-                    </a>
-                </td>
-                <td><input type="datetime-local" value="${checkInValue}" onchange="updateAccommodationField(${index}, 'checkIn', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
-                <td><input type="datetime-local" value="${checkOutValue}" onchange="updateAccommodationField(${index}, 'checkOut', this.value); recalculateNights(${index})" style="width: 130px; font-size: 11px; padding: 2px 4px;"></td>
-                <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5; width: 50px;"></td>
-                <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)" style="width: 50px;"></td>
-                <td><input type="text" class="accommodation-price-field" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="text" class="accommodation-price-field" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
-                <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
-                <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
-                <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
-                <td><input type="text" value="${displayInfantPrice}" readonly style="background-color: #f5f5f5; width: 70px;" title="Edit in popup to change"></td>
-                ${buildOutsideFocCellHtml(isServiceFocChecked(hotel, true), `updateAccommodationField(${index}, 'focServiceDiscount', this.checked)`)}
-                <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
-            </tr>
-        `;
-        }).join('');
-        refreshOutsideFocCheckboxState();
-        
-        // Expand header dates based on accommodation check-in/check-out dates
-        if (accommodationList && accommodationList.length > 0) {
-            accommodationList.forEach(hotel => {
-                if (hotel.checkIn) {
-                    expandHeaderDatesIfNeeded(hotel.checkIn, false);
-                }
-                if (hotel.checkOut) {
-                    expandHeaderDatesIfNeeded(hotel.checkOut, false);
-                }
-            });
-        }
-        
-        // Recalculate footer totals after table is updated to ensure correct values
-        // Use setTimeout to ensure DOM is fully updated
-        setTimeout(() => {
-            if (typeof recalculateTotals === 'function') {
-                recalculateTotals();
-            }
-        }, 10);
-
-        recalculateEntryExitPorts();
-        syncHotelLinkedPortDatesFromAccommodations();
     }
 
     // Update accommodation field
@@ -16308,7 +16391,7 @@
         });
     }
 
-    // When hotels are removed, drop arrival/departure that pointed at those hotels
+    // When hotels are removed, drop arrival/departure for cities that no longer have hotels
     function removeArrDepForRemovedHotels(removedHotels) {
         const remaining = accommodationList.filter(h => h.checkIn && h.checkOut);
         if (remaining.length === 0) {
@@ -16316,29 +16399,42 @@
             return;
         }
 
-        const normUid = (h) => String(h.hotel_unique_id || h.hotelId || '').replace(/^hotel_/, '');
-        const removedUids = new Set(removedHotels.map(normUid).filter(Boolean));
+        const remainingCityKeys = new Set(
+            remaining.map(h => {
+                const c = (typeof getHotelServiceCity === 'function') ? getHotelServiceCity(h) : (h.city || h.destination || '');
+                return (typeof serviceCityKey === 'function') ? serviceCityKey(c) : String(c).toLowerCase();
+            }).filter(Boolean)
+        );
 
-        function removePortSide(travelType, linkedToLabel) {
-            const idx = arrivalDepartureList.findIndex(e =>
-                e.sourceType === 'hotel' && e.travel_type === travelType);
-            if (idx === -1) return;
-            const entry = arrivalDepartureList[idx];
-            const destUid = String(entry.transferDestinationId || '').replace(/^hotel_/, '');
-            if (!removedUids.has(destUid)) return;
+        const removedPortIds = new Set();
+        const removedGuideIds = new Set();
+        arrivalDepartureList = arrivalDepartureList.filter(item => {
+            const isHotelSync = item.sourceType === 'hotel' && (
+                item.travel_type === 'entry_port' || item.travel_type === 'exit_port'
+            );
+            if (!isHotelSync) return true;
+            const cKey = (typeof serviceCityKey === 'function')
+                ? serviceCityKey(item.city || item.destination || '')
+                : String(item.city || item.destination || '').toLowerCase();
+            // Keep A/D for cities that still have hotels
+            if (cKey && remainingCityKeys.has(cKey)) return true;
+            // If city unknown and any hotels remain, keep (legacy) — sync will rebuild
+            if (!cKey && remaining.length) return true;
+            if (item.id) removedPortIds.add(String(item.id));
+            if (item.transferId) removedPortIds.add(String(item.transferId));
+            if (item.guideId) removedGuideIds.add(String(item.guideId));
+            return false;
+        });
 
-            if (entry.transferId) {
-                transferList = transferList.filter(t => String(t.id) !== String(entry.transferId));
-            }
-            if (entry.guideId) {
-                guideList = guideList.filter(g => String(g.id) !== String(entry.guideId));
-            }
-            guideList = guideList.filter(g => String(g.linkedTo || '').toLowerCase() !== linkedToLabel);
-            arrivalDepartureList.splice(idx, 1);
+        if (removedPortIds.size) {
+            transferList = transferList.filter(t => {
+                const st = (t.sourceType || '').toLowerCase();
+                if (st !== 'arrival' && st !== 'departure') return true;
+                if (t.sourceId && removedPortIds.has(String(t.sourceId))) return false;
+                return true;
+            });
+            guideList = guideList.filter(g => !removedGuideIds.has(String(g.id)));
         }
-
-        removePortSide('entry_port', 'arrival');
-        removePortSide('exit_port', 'departure');
     }
 
     // Edit accommodation - opens modal with hotel data
@@ -16790,7 +16886,8 @@
             // Get vehicle name
             const vehicleNameDisplay = item.vehicleName || '-';
             const pickupDropDisplay = item.transferDestinationName || item.destinationName || '-';
-            
+            const cityLabel = item.city ? ` <small class="text-muted">(${item.city})</small>` : '';
+
             return `
             <tr>
                 <td><input type="checkbox" class="arrivalDeparture-checkbox" value="${item.id}"></td>
@@ -16802,7 +16899,7 @@
                 </td>
                 <td>${pickupDropDisplay}</td>
                 <td>${item.flightNo || '-'}</td>
-                <td>${item.type}</td>
+                <td>${item.type}${cityLabel}</td>
                 <td style="text-align: center; vertical-align: middle;">${transferDisplay}</td>
                 <td style="text-align: center; vertical-align: middle;">${vehicleNameDisplay}</td>
                 <td style="text-align: center; vertical-align: middle;">${vehicleTypeDisplay}</td>
@@ -17507,18 +17604,60 @@
         if (meta) meta.textContent = metaText || '';
     }
 
+    function getArrDepSelectValue(elOrId) {
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return '';
+        let value = '';
+        if (typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+            const jv = jQuery(el).val();
+            value = Array.isArray(jv) ? (jv[0] || '') : (jv || '');
+        }
+        if (!value) value = el.value || '';
+        return String(value || '').trim();
+    }
+
     function resolveArrDepDestMeta(destSel) {
         if (!destSel) return { id: '', type: 'hotel', name: '', zoneId: '' };
-        let value = String(destSel.value || '').trim();
-        let opt = destSel.selectedOptions?.[0] || null;
-        if ((!opt || !value) && value) {
+        let value = getArrDepSelectValue(destSel);
+        let opt = null;
+        if (value) {
             opt = destSel.querySelector('option[value="' + (typeof escapeCssAttr === 'function' ? escapeCssAttr(value) : value) + '"]');
         }
+        if (!opt) opt = destSel.selectedOptions?.[0] || null;
+        // Value may be hotel_unique_id while option.value differs
+        if ((!opt || !opt.value) && value) {
+            opt = Array.from(destSel.options || []).find(o =>
+                String(o.getAttribute('data-hotel-unique-id') || '') === value
+                || String(o.getAttribute('data-attraction-id') || '') === value
+                || String(o.getAttribute('data-restaurant-id') || '') === value
+                || String(o.getAttribute('data-port-id') || '') === value
+            ) || null;
+            if (opt && !destSel.value) {
+                destSel.value = opt.value;
+            }
+        }
+        // Filter may have disabled the selected option — re-enable so value/id resolve
         if (opt && (opt.disabled || opt.hidden) && typeof setOptionCityVisibility === 'function') {
             setOptionCityVisibility(opt, true);
             if (!value) value = String(opt.value || '').trim();
         }
         if (!value && opt) value = String(opt.value || '').trim();
+        if (!value && !opt) {
+            // Last resort: currently selected hotel in accommodation modal
+            const hotelSel = document.getElementById('hotelSelect');
+            const mOpt = hotelSel?.selectedOptions?.[0];
+            const mUid = mOpt?.getAttribute('data-hotel-unique-id') || hotelSel?.value || '';
+            if (mUid) {
+                opt = Array.from(destSel.options || []).find(o =>
+                    String(o.value) === String(mUid)
+                    || String(o.getAttribute('data-hotel-unique-id') || '') === String(mUid)
+                ) || null;
+                if (opt) {
+                    value = String(opt.value || mUid).trim();
+                    destSel.value = opt.value;
+                }
+            }
+        }
         if (!value) return { id: '', type: 'hotel', name: '', zoneId: '' };
 
         const type = (opt?.getAttribute('data-type') || 'hotel').toLowerCase();
@@ -17569,7 +17708,10 @@
     }
 
     async function refreshArrivalTransferZonePrice() {
-        if (window._suppressArrDepZoneRefresh) return;
+        if (window._suppressArrDepZoneRefresh) {
+            window._pendingArrivalZoneRefresh = true;
+            return;
+        }
         const transferChecked = document.getElementById('arrivalTransfer')?.checked;
         if (!transferChecked) {
             setArrDepTransferPriceUI('arrival', 0, 0, '', false);
@@ -17577,9 +17719,8 @@
         }
         const fetchSeq = ++window._arrivalZoneFetchSeq;
         const vSel = document.getElementById('arrivalVehicleType');
-        const vOpt = vSel?.selectedOptions?.[0];
-        const vehicleId = vSel?.value || '';
-        const portId = document.getElementById('arrivalPort')?.value || '';
+        const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(vSel) : '') || vSel?.value || '';
+        const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('arrivalPort') : '') || document.getElementById('arrivalPort')?.value || '';
         const dest = resolveArrDepDestMeta(document.getElementById('arrivalDestination'));
         const transferType = document.getElementById('arrivalTransferType')?.value || 'S';
         const adults = parseInt(document.getElementById('arrivalAdults')?.value || '2', 10);
@@ -17614,16 +17755,18 @@
     }
 
     async function refreshDepartureTransferZonePrice() {
-        if (window._suppressArrDepZoneRefresh) return;
+        if (window._suppressArrDepZoneRefresh) {
+            window._pendingDepartureZoneRefresh = true;
+            return;
+        }
         const transferChecked = document.getElementById('departureTransfer')?.checked;
         if (!transferChecked) {
             setArrDepTransferPriceUI('departure', 0, 0, '', false);
             return;
         }
         const vSel = document.getElementById('departureVehicleType');
-        const vOpt = vSel?.selectedOptions?.[0];
-        const vehicleId = vSel?.value || '';
-        const portId = document.getElementById('departurePort')?.value || '';
+        const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(vSel) : '') || vSel?.value || '';
+        const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('departurePort') : '') || document.getElementById('departurePort')?.value || '';
         const dest = resolveArrDepDestMeta(document.getElementById('departureDestination'));
         const transferType = document.getElementById('departureTransferType')?.value || 'S';
         const adults = parseInt(document.getElementById('departureAdults')?.value || '2', 10);
@@ -23283,12 +23426,26 @@
                     
                     const vehicleSelect = document.getElementById('restaurantTransferVehicleType');
                     if (vehicleSelect && tInfo.vehicleId) {
-                        vehicleSelect.value = tInfo.vehicleId;
-                        // Trigger change event for Select2 if it's being used
+                        if (typeof filterRestaurantVehiclesByServiceType === 'function') {
+                            filterRestaurantVehiclesByServiceType();
+                        }
+                        const vid = String(tInfo.vehicleId);
+                        const exact = Array.from(vehicleSelect.options || []).find(o => String(o.value) === vid && !o.disabled);
+                        if (exact) {
+                            vehicleSelect.value = exact.value;
+                        } else if (tInfo.vehicleName) {
+                            const vName = String(tInfo.vehicleName).trim().toLowerCase();
+                            const byName = Array.from(vehicleSelect.options || []).find(o =>
+                                !o.disabled && String(o.text || '').trim().toLowerCase().indexOf(vName) !== -1
+                            );
+                            vehicleSelect.value = byName ? byName.value : tInfo.vehicleId;
+                        } else {
+                            vehicleSelect.value = tInfo.vehicleId;
+                        }
                         if (window.jQuery && jQuery(vehicleSelect).hasClass('select2-hidden-accessible')) {
                             jQuery(vehicleSelect).trigger('change');
                         }
-                        console.log('Set vehicle to:', tInfo.vehicleId);
+                        console.log('Set vehicle to:', vehicleSelect.value);
                     }
                     
                     // Set "Is PickUp?" checkbox state
@@ -23378,10 +23535,34 @@
                 
                 if (guideSelect && guideInfo) {
                     // Use guideId from guideInfo (could be guideId or guide_id)
-                    const guideIdToUse = guideInfo.guideId || guideInfo.guide_id || meal.guideId;
-                    guideSelect.value = guideIdToUse;
-                    console.log('Set guide to:', guideIdToUse);
+                    const guideIdToUse = String(guideInfo.guideId || guideInfo.guide_id || meal.guideId || '');
+                    let matched = false;
+                    if (guideIdToUse) {
+                        const byValue = Array.from(guideSelect.options || []).find(o => String(o.value) === guideIdToUse);
+                        if (byValue) {
+                            guideSelect.value = byValue.value;
+                            matched = true;
+                        }
+                    }
+                    if (!matched && (guideInfo.guideName || guideInfo.name)) {
+                        const name = String(guideInfo.guideName || guideInfo.name || '').trim().toLowerCase();
+                        const byName = Array.from(guideSelect.options || []).find(o =>
+                            String(o.getAttribute('data-name') || o.text || '').trim().toLowerCase() === name
+                        );
+                        if (byName) {
+                            guideSelect.value = byName.value;
+                            matched = true;
+                        }
+                    }
+                    if (!matched && guideIdToUse) {
+                        guideSelect.value = guideIdToUse;
+                    }
+                    console.log('Set guide to:', guideSelect.value, 'matched:', matched);
                     
+                    if (typeof $ !== 'undefined' && $(guideSelect).data('select2')) {
+                        $(guideSelect).trigger('change');
+                    }
+
                     if (hoursSelect && guideInfo.hours) {
                         hoursSelect.value = guideInfo.hours;
                         console.log('Set hours to:', guideInfo.hours);
@@ -24293,19 +24474,27 @@
             let actualPickupType = pickupType;
             let actualDropType = dropType;
             
-            // Handle different ID formats
+            // Only split legacy "type_id" values (e.g. hotel_123). Do NOT split
+            // hotel_unique_id / other ids that merely contain underscores.
+            const knownLocTypes = ['hotel', 'port', 'attraction', 'restaurant', 'zone'];
             if (pickupId.includes('_')) {
                 const parts = pickupId.split('_');
-                actualPickupType = parts[0];
-                actualPickupId = parts.slice(1).join('_');
-                console.log('  Extracted pickup type from ID:', actualPickupType, 'ID:', actualPickupId);
+                const maybeType = String(parts[0] || '').toLowerCase();
+                if (knownLocTypes.includes(maybeType) && parts.length > 1) {
+                    actualPickupType = maybeType;
+                    actualPickupId = parts.slice(1).join('_');
+                    console.log('  Extracted pickup type from ID:', actualPickupType, 'ID:', actualPickupId);
+                }
             }
             
             if (dropId.includes('_')) {
                 const parts = dropId.split('_');
-                actualDropType = parts[0];
-                actualDropId = parts.slice(1).join('_');
-                console.log('  Extracted drop type from ID:', actualDropType, 'ID:', actualDropId);
+                const maybeType = String(parts[0] || '').toLowerCase();
+                if (knownLocTypes.includes(maybeType) && parts.length > 1) {
+                    actualDropType = maybeType;
+                    actualDropId = parts.slice(1).join('_');
+                    console.log('  Extracted drop type from ID:', actualDropType, 'ID:', actualDropId);
+                }
             }
             
             // For hotels, extract hotel_unique_id from data attribute
@@ -24484,6 +24673,8 @@
             if (actualPickupType === 'port') {
                 const pickupSelects = [
                     document.getElementById('localPickup'),
+                    document.getElementById('arrivalPort'),
+                    document.getElementById('departurePort'),
                     document.getElementById('arrivalDestination'),
                     document.getElementById('departureDestination')
                 ].filter(s => s !== null);
@@ -24555,6 +24746,8 @@
             if (actualDropType === 'port') {
                 const dropSelects = [
                     document.getElementById('localDrop'),
+                    document.getElementById('arrivalPort'),
+                    document.getElementById('departurePort'),
                     document.getElementById('arrivalDestination'),
                     document.getElementById('departureDestination')
                 ].filter(s => s !== null);
@@ -24742,7 +24935,8 @@
             // Query vehicle_zone_mappings directly for prices
             // Query: vehicle_id, (from_zone_id = pickupid AND to_zone_id = dropid) OR (from_zone_id = dropid AND to_zone_id = pickupid)
             // Also includes from_zone_type and to_zone_type to match SingleTourPackageController logic
-            const apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType)}&drop_type=${encodeURIComponent(actualDropType)}`;
+            // dmc_id is required so the API can resolve hotel/attraction/restaurant zone_assignments
+            const apiUrl = `{{ route('enquiry-form-pro.get-zone-prices') }}?vehicle_id=${encodeURIComponent(vehicleId)}&pickup_id=${encodeURIComponent(actualPickupId)}&drop_id=${encodeURIComponent(actualDropId)}&pickup_type=${encodeURIComponent(actualPickupType)}&drop_type=${encodeURIComponent(actualDropType)}&dmc_id=${encodeURIComponent(dmcId)}`;
             console.log('API URL:', apiUrl);
             console.log('Querying vehicle_zone_mappings with:');
             console.log('  vehicle_id:', vehicleId);
@@ -24750,6 +24944,7 @@
             console.log('  drop_id (to_zone_id):', actualDropId);
             console.log('  pickup_type (from_zone_type):', actualPickupType);
             console.log('  drop_type (to_zone_type):', actualDropType);
+            console.log('  dmc_id:', dmcId);
             
             const response = await fetch(apiUrl, {
                 method: 'GET',
@@ -26328,7 +26523,7 @@
                         // Column 9: Extra Bed, Column 10: CWB, Column 11: CNB, Column 12: Infant
                         const nightsInput = matchingRow.querySelector('td:nth-child(5) input');
                         const costInput = matchingRow.querySelector('td:nth-child(7) input');
-                        const sellInput = matchingRow.querySelector('td:nth-child(8) input[type="number"]');
+                        const sellInput = matchingRow.querySelector('td:nth-child(8) input');
                         const extraBedInput = matchingRow.querySelector('td:nth-child(9) input');
                         const cwbInput = matchingRow.querySelector('td:nth-child(10) input');
                         const cnbInput = matchingRow.querySelector('td:nth-child(11) input');
@@ -27585,6 +27780,84 @@
         }
     }
 
+    /** Resolve guide cost/sell from one or more payloads (guideInfo, guide_options, guide order). */
+    function extractGuideCostSell(src) {
+        if (!src || typeof src !== 'object') return { cost: 0, sell: 0 };
+        const num = (v) => {
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const cost = num(src.cost) || num(src.Cost) || num(src.adultCost) || num(src.adult_cost)
+            || num(src.basePrice) || num(src.base_price) || 0;
+        const sell = num(src.sell) || num(src.Sell) || num(src.adultSell) || num(src.adult_sell)
+            || num(src.price) || num(src.totalPrice) || num(src.total_price)
+            || num(src.basePrice) || num(src.base_price) || cost || 0;
+        return {
+            cost: cost || (sell > 0 ? sell : 0),
+            sell: sell || cost || 0
+        };
+    }
+
+    function applyGuideCostSellIfMissing(target, ...sources) {
+        if (!target || typeof target !== 'object') return target;
+        let cost = parseFloat(target.cost) || 0;
+        let sell = parseFloat(target.sell) || 0;
+        for (const src of sources) {
+            const p = extractGuideCostSell(src);
+            if (cost <= 0 && p.cost > 0) cost = p.cost;
+            if (sell <= 0 && p.sell > 0) sell = p.sell;
+        }
+        if (cost <= 0 && sell > 0) cost = sell;
+        if (sell <= 0 && cost > 0) sell = cost;
+        if (cost > 0) {
+            target.cost = cost;
+            if (!(parseFloat(target.adultCost) > 0)) target.adultCost = cost;
+        }
+        if (sell > 0) {
+            target.sell = sell;
+            if (!(parseFloat(target.adultSell) > 0)) target.adultSell = sell;
+            if (!(parseFloat(target.price) > 0)) target.price = sell;
+            if (!(parseFloat(target.basePrice) > 0)) target.basePrice = sell;
+            if (!(parseFloat(target.totalPrice) > 0)) target.totalPrice = sell;
+        }
+        return target;
+    }
+
+    /** After meals load, apply prices from linked restaurant guide orders that arrived earlier. */
+    function hydrateRestaurantGuidesFromPendingLinkedOrders() {
+        const pending = window._pendingLinkedRestaurantGuides;
+        if (!Array.isArray(pending) || !pending.length) return;
+        pending.forEach(({ data, prices }) => {
+            if (!data) return;
+            const guideDbId = String(data.guide_id || data.guideId || '');
+            const guideName = String(data.guide_name || data.guideName || data.name || '').trim().toLowerCase();
+            const bookingLink = String(data.linked_to_restaurant || '');
+            let match = (guideList || []).find(g => String(g.linkedTo || '').toLowerCase() === 'restaurant' && (
+                (guideDbId && String(g.guideId || g.guide_id || '') === guideDbId)
+                || (guideName && String(g.guideName || g.name || '').trim().toLowerCase() === guideName)
+            ));
+            if (!match && bookingLink) {
+                const meal = (mealList || []).find(m =>
+                    String(m.bookingId || '') === bookingLink
+                    || String(m.orderId || '') === bookingLink
+                    || String(m.id || '') === bookingLink
+                );
+                if (meal?.guideId) {
+                    match = (guideList || []).find(g => String(g.id) === String(meal.guideId));
+                }
+            }
+            if (match) {
+                applyGuideCostSellIfMissing(match, prices || data, data);
+                if (match.sourceId) {
+                    const meal = (mealList || []).find(m => String(m.id) === String(match.sourceId));
+                    if (meal?.guideInfo) applyGuideCostSellIfMissing(meal.guideInfo, prices || data, data);
+                    if (meal?.guide_options) applyGuideCostSellIfMissing(meal.guide_options, prices || data, data);
+                }
+            }
+        });
+        window._pendingLinkedRestaurantGuides = [];
+    }
+
     /** Recompute footer FOC total after all services are loaded (edit mode). */
     function syncFocDiscountAfterOrdersLoaded() {
         if (typeof refreshGroupFocDiscountUiVisibility === 'function') {
@@ -27721,7 +27994,10 @@
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
-                    ...serviceOrderGeo(typeof item !== 'undefined' ? item : {}, destination),
+                    ...serviceOrderGeo(
+                        item,
+                        item.city || item.destination || document.getElementById('arrivalDepartureCity')?.value || destination
+                    ),
                     fullName: customerInfo.fullName,
                     email: customerInfo.email,
                     phone: customerInfo.phone,
@@ -27888,7 +28164,10 @@
                     distance: 0,
                     Night_Start_Time: null,
                     Night_End_Time: null,
-                    ...serviceOrderGeo(typeof item !== 'undefined' ? item : {}, destination),
+                    ...serviceOrderGeo(
+                        item,
+                        item.city || item.destination || document.getElementById('arrivalDepartureCity')?.value || destination
+                    ),
                     vehicle_type: vehicleDetails.vehicle_type || item.vehicleType || "",
                     vehicleType: vehicleDetails.vehicle_type || item.vehicleType || "",
                     vehicle_model: vehicleDetails.vehicle_model,
@@ -29204,6 +29483,20 @@
         // If user submits now, treat currently removed items as final deletions.
         finalizePendingRemovals();
 
+        if (window._enquiryProSubmitting) {
+            return;
+        }
+
+        const submitBtn = document.getElementById('enquiry-submit-btn');
+        const submitBtnOriginalHtml = submitBtn ? submitBtn.innerHTML : '';
+        const isEditModeLabel = {{ $isEditMode ? 'true' : 'false' }};
+        window._enquiryProSubmitting = true;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span id="enquiry-submit-btn-label">' +
+                (isEditModeLabel ? 'Updating...' : 'Creating...') + '</span>';
+        }
+
         const headerCities = (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 0)
             ? [...selectedDestinations]
             : [];
@@ -29243,14 +29536,20 @@
         // Validate required fields
         if (!destination || destination.trim() === '') {
             alert('Please enter a destination');
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
             return;
         }
         if (!startDate || !endDate) {
             alert('Please select start and end dates');
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
             return;
         }
         if (!agentId || !agencyId) {
             alert('Please select agency and agent');
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
             return;
         }
         
@@ -29401,6 +29700,7 @@
         .then(data => {
             // Hide loading modal
             loadingModal.hide();
+            window._enquiryProSubmitting = false;
             
             if (data.success) {
                 // Re-enable form inputs so the success modal button works
@@ -29416,15 +29716,28 @@
             } else {
                 // Re-enable form on error
                 allInputs.forEach(input => input.disabled = false);
+                const submitBtnErr = document.getElementById('enquiry-submit-btn');
+                if (submitBtnErr) {
+                    submitBtnErr.disabled = false;
+                    submitBtnErr.innerHTML = '<i class="ri-save-line me-1"></i><span id="enquiry-submit-btn-label">' +
+                        (isEditMode ? 'Update Enquiry' : 'Create Enquiry') + '</span>';
+                }
                 alert('Error: ' + (data.message || `Failed to ${isEditMode ? 'update' : 'save'} tour`));
             }
         })
         .catch(error => {
             // Hide loading modal
             loadingModal.hide();
+            window._enquiryProSubmitting = false;
             
             // Re-enable form on error
             allInputs.forEach(input => input.disabled = false);
+            const submitBtnErr = document.getElementById('enquiry-submit-btn');
+            if (submitBtnErr) {
+                submitBtnErr.disabled = false;
+                submitBtnErr.innerHTML = '<i class="ri-save-line me-1"></i><span id="enquiry-submit-btn-label">' +
+                    (isEditMode ? 'Update Enquiry' : 'Create Enquiry') + '</span>';
+            }
             
             console.error('Error:', error);
             alert(`An error occurred while ${isEditMode ? 'updating' : 'saving'} the tour. Please try again.`);
@@ -29500,13 +29813,8 @@
                 Night_Start_Time: null,
                 Night_End_Time: null,
                 ...serviceOrderGeo(
-                    (typeof hotel !== 'undefined' && hotel) ? hotel
-                        : ((typeof guide !== 'undefined' && guide) ? guide
-                        : ((typeof meal !== 'undefined' && meal) ? meal
-                        : ((typeof misc !== 'undefined' && misc) ? misc
-                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
-                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
-                    destination
+                    item,
+                    item.city || item.destination || destination
                 ),
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
@@ -29598,13 +29906,8 @@
                 Night_Start_Time: null,
                 Night_End_Time: null,
                 ...serviceOrderGeo(
-                    (typeof hotel !== 'undefined' && hotel) ? hotel
-                        : ((typeof guide !== 'undefined' && guide) ? guide
-                        : ((typeof meal !== 'undefined' && meal) ? meal
-                        : ((typeof misc !== 'undefined' && misc) ? misc
-                        : ((typeof transfer !== 'undefined' && transfer) ? transfer
-                        : ((typeof item !== 'undefined' && item) ? item : {}))))),
-                    destination
+                    item,
+                    item.city || item.destination || destination
                 ),
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
@@ -31492,10 +31795,19 @@
         
         // Extract destinations from loaded orders
         extractDestinationsFromOrders();
+
+        // Linked restaurant guide orders may load before meals — apply queued prices now
+        if (typeof hydrateRestaurantGuidesFromPendingLinkedOrders === 'function') {
+            hydrateRestaurantGuidesFromPendingLinkedOrders();
+        }
         
         // Update all tables after loading data
         setTimeout(() => {
             console.log('=== UPDATING ALL TABLES ===');
+            // Final pass in case any linked guide orders were processed out of order
+            if (typeof hydrateRestaurantGuidesFromPendingLinkedOrders === 'function') {
+                hydrateRestaurantGuidesFromPendingLinkedOrders();
+            }
             console.log('arrivalDepartureList:', arrivalDepartureList.length, 'items');
             console.log('accommodationList:', accommodationList.length, 'items');
             console.log('tourList:', tourList.length, 'items');
@@ -31954,7 +32266,7 @@
             hotelId: hotelId,
             hotel_unique_id: hotel_unique_id, // Store unique ID separately for matching
             hotelName: data.hotelName || data.hotel_name || hotelDetails.hotel_name || '',
-            destination: data.destination || hotelDetails.city || '',
+            destination: data.destination || hotelDetails.city || data.city || '',
             checkIn: checkIn,
             checkOut: checkOut,
             check_in_time: data.check_in_time || null,
@@ -31979,8 +32291,22 @@
             bedId: firstBed.bed_id || data.bedId || data.bed_id || '',
             databaseRoomId: firstRoom.room_id || data.databaseRoomId || '', // Store database room_id for proper matching
             maxOccupancy: firstBed.max_occupancy || data.maxOccupancy || data.max_occupancy || 3,
-            cost: parseFloat(firstBed.cost || data.cost || 0),
-            sell: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
+            cost: (function () {
+                const c = parseFloat(firstBed.cost || data.cost || 0) || 0;
+                if (c > 0) return c;
+                const total = parseFloat(data.totalCost || 0) || 0;
+                const n = Math.max(1, nights || 1);
+                const r = Math.max(1, numberOfRooms || 1);
+                return total > 0 ? (total / (n * r)) : 0;
+            })(),
+            sell: (function () {
+                const s = parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0) || 0;
+                if (s > 0) return s;
+                const total = parseFloat(data.totalPrice || data.price || 0) || 0;
+                const n = Math.max(1, nights || 1);
+                const r = Math.max(1, numberOfRooms || 1);
+                return total > 0 ? (total / (n * r)) : 0;
+            })(),
             roomPrice: parseFloat(firstBed.sell || firstBed.price || data.sell || data.price || 0),
             extraBedPrice: parseFloat(data.extra_bed?.price ?? data.extraBedPrice ?? data.extra_bed_price ?? 0),
             cwbPrice: parseFloat(data.child_with_bed?.price ?? data.cwbPrice ?? data.cwb_price ?? data.child_with_bed_price ?? 0),
@@ -31998,14 +32324,22 @@
                 : null,
             savedTotalPrice: parseFloat(data.totalPrice ?? data.price ?? 0) || null,
             hotelDetails: hotelDetails,
-            country: data.country || data.destination || '',
-            city: data.city || data.destination || '',
+            country: data.country || '',
+            city: data.city || hotelDetails.city || data.destination || '',
+            currency: data.currency || '',
             supplement: data.supplement || false,
             focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             arrivalDepartureIds: [],
             transferIds: [],
             isStandalone: true
         };
+        if (!hotel.roomPrice && hotel.sell) hotel.roomPrice = hotel.sell;
+        if ((!hotel.country || hotel.country === hotel.city) && hotel.city && typeof resolveCountryForCity === 'function') {
+            hotel.country = resolveCountryForCity(hotel.city) || hotel.country || '';
+        }
+        if (!hotel.currency && hotel.country && typeof resolveCurrencyForCountry === 'function') {
+            hotel.currency = resolveCurrencyForCountry(hotel.country) || '';
+        }
         enquiryProSyncHotelAddonQuantities(hotel);
         
         accommodationList.push(hotel);
@@ -32378,6 +32712,18 @@
             mealList = [];
         }
         
+        const mealAdults = Math.max(1, parseInt(data.adults || data.adultsQty || data.adultCount || 1, 10) || 1);
+        const mealAdultSellDirect = parseFloat(data.adultSell ?? data.adult_sell);
+        const mealTotalSell = parseFloat(data.sell ?? data.totalPrice ?? data.mealPrice ?? data.price ?? 0) || 0;
+        let mealAdultSell = (Number.isFinite(mealAdultSellDirect) && mealAdultSellDirect > 0)
+            ? mealAdultSellDirect
+            : (mealTotalSell > 0 ? (mealTotalSell / mealAdults) : (Number.isFinite(mealAdultSellDirect) ? mealAdultSellDirect : 0));
+        const mealAdultCostDirect = parseFloat(data.adultCost ?? data.adult_cost);
+        const mealTotalCost = parseFloat(data.cost ?? 0) || 0;
+        let mealAdultCost = (Number.isFinite(mealAdultCostDirect) && mealAdultCostDirect > 0)
+            ? mealAdultCostDirect
+            : (mealTotalCost > 0 ? (mealTotalCost / mealAdults) : (Number.isFinite(mealAdultCostDirect) ? mealAdultCostDirect : 0));
+
         const meal = {
             id: data.id || order.order_id || generateId('meal'),
             orderId: order.id || order.order_id,
@@ -32394,14 +32740,14 @@
             adultsQty: parseInt(data.adults || data.adultsQty || 0),
             childQty: parseInt(data.children || data.childQty || 0),
             infantQty: parseInt(data.infants || data.infantQty || 0),
-            adultCost: parseFloat(data.adultCost || data.adult_cost || 0),
+            adultCost: mealAdultCost,
             childCost: parseFloat(data.childCost || data.child_cost || 0),
             infantCost: parseFloat(data.infantCost || data.infant_cost || 0),
-            adultSell: parseFloat(data.adultSell || data.adult_sell || 0),
+            adultSell: mealAdultSell,
             childSell: parseFloat(data.childSell || data.child_sell || 0),
             infantSell: parseFloat(data.infantSell || data.infant_sell || 0),
-            cost: parseFloat(data.cost || 0),
-            sell: parseFloat(data.sell || 0),
+            cost: mealTotalCost || mealAdultCost,
+            sell: mealTotalSell || mealAdultSell,
             supplement: data.supplement || false,
             focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             destination: data.destination || data.country || data.city || '',
@@ -32618,15 +32964,15 @@
         // Check for guideInfo directly in data (priority) or guide_options
         const guideInfo = data.guideInfo || null;
         const guideOptions = data.guide_options || null;
-        const hasGuide = guideInfo || (guideOptions && (guideOptions.guideId || guideOptions.guide_id || guideOptions.guideName || guideOptions.guide_name || guideOptions.name || guideOptions.cost || guideOptions.sell));
+        const hasGuide = guideInfo || (guideOptions && (guideOptions.guideId || guideOptions.guide_id || guideOptions.guideName || guideOptions.guide_name || guideOptions.name || guideOptions.cost || guideOptions.sell || guideOptions.price || guideOptions.basePrice || guideOptions.totalPrice));
         
         if (hasGuide) {
             if (!Array.isArray(guideList)) {
                 guideList = [];
             }
             
-            // Use guideInfo if available, otherwise use guide_options
-            let guideData = guideInfo;
+            // Prefer guideInfo, but always merge prices from guide_options (JSON often has sell only there)
+            let guideData = guideInfo ? Object.assign({}, guideInfo) : null;
             if (!guideData && guideOptions) {
                 // Build guideInfo from guide_options
                 guideData = {
@@ -32639,9 +32985,12 @@
                     hours: guideOptions.hours || guideOptions.service_hours || 12,
                     adultsQty: guideOptions.adultsQty || guideOptions.adults_qty || 0,
                     childQty: guideOptions.childQty || guideOptions.child_qty || 0,
-                    cost: parseFloat(guideOptions.cost || guideOptions.Cost || 0),
-                    sell: parseFloat(guideOptions.sell || guideOptions.Sell || 0)
+                    cost: 0,
+                    sell: 0
                 };
+            }
+            if (guideData) {
+                applyGuideCostSellIfMissing(guideData, guideInfo, guideOptions, data);
             }
             
             if (guideData && (guideData.guideId || guideData.guide_id || guideData.guideName || guideData.name)) {
@@ -32651,6 +33000,7 @@
                 const languagesArray = Array.isArray(languages) ? languages : (languages ? [languages] : ['N/A']);
                 const restaurantName = meal.restaurantName || data.restaurant_name || data.restaurantName || '';
                 const mealType = meal.mealType || data.meal_type || data.mealType || 'Meal';
+                const guidePrices = extractGuideCostSell(guideData);
                 
                 // Check if this guide already exists in guideList (shared guide for multiple meals from SAME popup submission)
                 // Match by: the saved guideInfo.id - this is the unique ID generated when meals were added together
@@ -32679,16 +33029,16 @@
                         guideId: guideId,
                         guide_id: guideId,
                         hours: parseInt(guideData.hours || 12),
-                        cost: parseFloat(guideData.cost || 0),
-                        sell: parseFloat(guideData.sell || 0),
+                        cost: guidePrices.cost,
+                        sell: guidePrices.sell,
                         // Use guide's own PAX, not meal's PAX (to prevent multiplication)
                         adultsQty: parseInt(guideData.adultsQty) || 0,
                         adults: parseInt(guideData.adultsQty) || 0,
                         childQty: parseInt(guideData.childQty) || 0,
                         children: parseInt(guideData.childQty) || 0,
-                        adultCost: parseFloat(guideData.cost || 0),
+                        adultCost: guidePrices.cost,
                         childCost: 0,
-                        adultSell: parseFloat(guideData.sell || 0),
+                        adultSell: guidePrices.sell,
                         childSell: 0,
                         supplement: false,
                         focServiceDiscount: resolveFocServiceDiscountFromPayload(guideOptions || guideData),
@@ -32699,11 +33049,13 @@
                         restaurantName: restaurantName
                     };
                     applyGuidePaxFallback(guideEntry, meal.adultsQty, meal.childQty);
+                    applyGuideCostSellIfMissing(guideEntry, guideData, guideOptions, guideInfo);
                     
                     guideList.push(guideEntry);
                     console.log('Created guide entry from meal:', guideEntry);
                 } else {
                     console.log('Guide already exists, linking meal to existing guide:', guideEntryId);
+                    applyGuideCostSellIfMissing(existingGuide, guideData, guideOptions, guideInfo);
                 }
                 
                 meal.guideId = guideEntryId;
@@ -32720,9 +33072,14 @@
                     hours: parseInt(guideData.hours || 12),
                     adultsQty: parseInt(guideData.adultsQty) || 0,
                     childQty: parseInt(guideData.childQty) || 0,
-                    cost: parseFloat(guideData.cost || 0),
-                    sell: parseFloat(guideData.sell || 0)
+                    cost: guidePrices.cost,
+                    sell: guidePrices.sell
                 };
+                applyGuideCostSellIfMissing(meal.guideInfo, guideData, guideOptions, guideInfo);
+                if (guideOptions) {
+                    meal.guide_options = Object.assign({}, guideOptions);
+                    applyGuideCostSellIfMissing(meal.guide_options, guideData, guideInfo);
+                }
                 
                 console.log('Stored guideInfo in meal:', meal.guideInfo);
             }
@@ -33060,10 +33417,51 @@
                          data.linkedTo === 'local_transport' ||
                          data.sourceType === 'meal' ||
                          data.sourceType === 'tour' ||
-                         data.sourceType === 'transfer';
+                         data.sourceType === 'transfer' ||
+                         !!(data.linked_to_restaurant || data.linked_to_attraction || data.linked_to_tour);
         
         if (isLinked) {
-            console.log('Skipping linked guide (will be loaded from parent service):', data);
+            const isRestaurantLinked = data.linkedTo === 'restaurant'
+                || data.sourceType === 'meal'
+                || !!(data.linked_to_restaurant);
+            if (isRestaurantLinked) {
+                const prices = extractGuideCostSell(data);
+                const guideDbId = String(data.guide_id || data.guideId || '');
+                const guideName = String(data.guide_name || data.guideName || data.name || '').trim().toLowerCase();
+                const bookingLink = String(data.linked_to_restaurant || '');
+
+                let match = guideList.find(g => String(g.linkedTo || '').toLowerCase() === 'restaurant' && (
+                    (guideDbId && String(g.guideId || g.guide_id || '') === guideDbId)
+                    || (guideName && String(g.guideName || g.name || '').trim().toLowerCase() === guideName)
+                ));
+
+                if (!match && bookingLink) {
+                    const meal = (mealList || []).find(m =>
+                        String(m.bookingId || '') === bookingLink
+                        || String(m.orderId || '') === bookingLink
+                        || String(m.id || '') === bookingLink
+                    );
+                    if (meal?.guideId) {
+                        match = guideList.find(g => String(g.id) === String(meal.guideId));
+                    }
+                }
+
+                if (match) {
+                    applyGuideCostSellIfMissing(match, prices, data);
+                    if (match.sourceId) {
+                        const meal = (mealList || []).find(m => String(m.id) === String(match.sourceId));
+                        if (meal?.guideInfo) applyGuideCostSellIfMissing(meal.guideInfo, prices, data);
+                        if (meal?.guide_options) applyGuideCostSellIfMissing(meal.guide_options, prices, data);
+                    }
+                    console.log('Hydrated restaurant guide prices from linked guide order:', match);
+                } else {
+                    window._pendingLinkedRestaurantGuides = window._pendingLinkedRestaurantGuides || [];
+                    window._pendingLinkedRestaurantGuides.push({ data, order, prices });
+                    console.log('Queued linked restaurant guide for later price hydrate:', data);
+                }
+            } else {
+                console.log('Skipping linked guide (will be loaded from parent service):', data);
+            }
             return;
         }
         
