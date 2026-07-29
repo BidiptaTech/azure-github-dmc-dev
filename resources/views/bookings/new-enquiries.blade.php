@@ -1574,7 +1574,9 @@
     @foreach($tours as $tour)
     @php
     // Orders are preloaded in BookingsController::hydrateTourNegotiationCurrencyData()
+    // (includes orders.country + orders.currency per booking_id for all service types)
     $orders = $tour->booking ?? collect();
+    $pageCurrency = $currency ?? 'SGD';
     $svc = [
         'hotel' => 0,
         'attraction' => 0,
@@ -1621,6 +1623,7 @@
                 @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
                     @foreach($serviceData['hotel'] as $index => $hotelOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hotelOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
                     @endphp
                     
@@ -1933,6 +1936,7 @@
                 @if(isset($serviceData['attraction']) && count($serviceData['attraction']) > 0)
                     @foreach($serviceData['attraction'] as $index => $attractionOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($attractionOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $attractionData = is_string($attractionOrder->data) ? json_decode($attractionOrder->data, true) : $attractionOrder->data;
                     @endphp
                     
@@ -2318,6 +2322,7 @@
                 @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
                     @foreach($serviceData['restaurant'] as $index => $restaurantOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($restaurantOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
                     @endphp
                     
@@ -2747,6 +2752,7 @@
                 @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
                     @foreach($serviceData['guide'] as $index => $guideOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($guideOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data;
                     @endphp
                     
@@ -2954,6 +2960,7 @@
                 @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                     @foreach($serviceData['entry_port'] as $index => $entryOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($entryOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $entryData = is_string($entryOrder->data) ? json_decode($entryOrder->data, true) : $entryOrder->data;
                     @endphp
                     
@@ -3273,6 +3280,7 @@
                 @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                     @foreach($serviceData['exit_port'] as $index => $exitOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($exitOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $exitData = is_string($exitOrder->data) ? json_decode($exitOrder->data, true) : $exitOrder->data;
                     @endphp
                     
@@ -3601,6 +3609,7 @@
                     @if(isset($serviceData['travel_hourly']) && count($serviceData['travel_hourly']) > 0)
                         @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hourlyOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $hourlyData = is_string($hourlyOrder->data) ? json_decode($hourlyOrder->data, true) : $hourlyOrder->data;
                             @endphp
                             
@@ -3834,6 +3843,7 @@
                     @if(isset($serviceData['travel_point']) && count($serviceData['travel_point']) > 0)
                         @foreach($serviceData['travel_point'] as $index => $pointOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($pointOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $pointData = is_string($pointOrder->data) ? json_decode($pointOrder->data, true) : $pointOrder->data;
                             @endphp
                             
@@ -4110,6 +4120,7 @@
                     @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
                         @foreach($serviceData['local_transport'] as $index => $transportOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($transportOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $transportData = is_string($transportOrder->data) ? json_decode($transportOrder->data, true) : $transportOrder->data;
                             @endphp
                             
@@ -4358,6 +4369,7 @@
                     @if(isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
                         @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($miscOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data;
                             @endphp
                             @if(is_array($miscData))
