@@ -11,20 +11,6 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
-    .section-title {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: #405189;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.25rem;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .meal-price-table { font-size: 0.8125rem; margin-bottom: 0; }
-    .meal-price-table th,
-    .meal-price-table td { padding: 0.35rem 0.5rem; vertical-align: middle; }
-    .meal-price-table thead th { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
-    .meal-price-table .form-control { max-width: 100%; }
-    .meal-price-table .age-badge { font-size: 0.7rem; padding: 0.2em 0.45em; }
 </style>
 
 <!-- Start of the form -->
@@ -128,78 +114,79 @@
                                     @enderror
                                 </div>
 
-                                <div class="col-12 mb-3" id="meal_pricing_section" style="display: none;">
-                                    <div class="section-title">
-                                        <i class="ri-money-dollar-circle-line me-1"></i> Pricing
-                                        <small class="text-muted fw-normal">(Cost = meal fee · Sell = customer pays)</small>
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-sm meal-price-table">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th style="width:20%">Type</th>
-                                                    <th>Cost <span class="text-danger">*</span></th>
-                                                    <th>Sell <span class="text-danger">*</span></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr id="child_price_row" style="display: none;">
-                                                    <td><span class="badge bg-info-subtle text-info age-badge">Child</span></td>
-                                                    <td>
-                                                        <input value="{{ old('child_cost_price', $meals->child_cost_price ?? '') }}" type="text" class="form-control form-control-sm meal-cost-input meal-price-input" id="child_cost_price" name="child_cost_price"
-                                                               data-sell-target="child_price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="child_cost_price-validation-message"></small>
-                                                        @error('child_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                    <td>
-                                                        <input value="{{ old('child_price', $meals->child_price) }}" type="text" class="form-control form-control-sm meal-sell-input meal-price-input" id="child_price" name="child_price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="child_price-validation-message"></small>
-                                                        @error('child_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                </tr>
-                                                <tr id="adult_price_row" style="display: none;">
-                                                    <td><span class="badge bg-primary-subtle text-primary age-badge">Adult</span></td>
-                                                    <td>
-                                                        <input value="{{ old('adult_cost_price', $meals->adult_cost_price ?? '') }}" type="text" class="form-control form-control-sm meal-cost-input meal-price-input" id="adult_cost_price" name="adult_cost_price"
-                                                               data-sell-target="adult_price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="adult_cost_price-validation-message"></small>
-                                                        @error('adult_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                    <td>
-                                                        <input value="{{ old('adult_price', $meals->adult_price) }}" type="text" class="form-control form-control-sm meal-sell-input meal-price-input" id="adult_price" name="adult_price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="adult_price-validation-message"></small>
-                                                        @error('adult_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                </tr>
-                                                <tr id="item_price_row" style="display: none;">
-                                                    <td><span class="badge bg-secondary-subtle text-secondary age-badge">Item</span></td>
-                                                    <td>
-                                                        <input value="{{ old('item_cost_price', $meals->item_cost_price ?? '') }}" type="text" class="form-control form-control-sm meal-cost-input meal-price-input" id="item_cost_price" name="item_cost_price"
-                                                               data-sell-target="price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="item_cost_price-validation-message"></small>
-                                                        @error('item_cost_price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                    <td>
-                                                        <input value="{{ old('price', $meals->price) }}" type="text" class="form-control form-control-sm meal-sell-input meal-price-input" id="price" name="price"
-                                                               placeholder="0.00" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                                               oninput="validatePrice(this)">
-                                                        <small class="validation-message" id="price-validation-message"></small>
-                                                        @error('price')<div class="text-danger small">{{ $message }}</div>@enderror
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <!-- Item Cost Price -->
+                                <div class="col-md-3 mb-3" id="item_cost_price_container" style="display: none;">
+                                    <label for="item_cost_price" class="form-label"><strong>Item Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input value="{{ old('item_cost_price', $meals->item_cost_price ?? '') }}" type="text" class="form-control meal-cost-input" id="item_cost_price" name="item_cost_price"
+                                           data-sell-target="price"
+                                           placeholder="Enter Item Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="item_cost_price-validation-message"></small>
+                                    @error('item_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Item Sell Price -->
+                                <div class="col-md-3 mb-3" id="item_price_container" style="display: none;">
+                                    <label for="price" class="form-label"><strong>Item SellPrice</strong><span class="text-danger">*</span></label>
+                                    <input value="{{$meals->price}}" type="text" class="form-control meal-sell-input" id="price" name="price"
+                                           placeholder="Enter Item Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="price-validation-message"></small>
+                                    @error('price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Adult Cost Price -->
+                                <div class="col-md-3 mb-3" id="adult_cost_price_container" style="display: none;">
+                                    <label for="adult_cost_price" class="form-label"><strong>Adult Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input value="{{ old('adult_cost_price', $meals->adult_cost_price ?? '') }}" type="text" class="form-control meal-cost-input" id="adult_cost_price" name="adult_cost_price"
+                                           data-sell-target="adult_price"
+                                           placeholder="Enter Adult Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="adult_cost_price-validation-message"></small>
+                                    @error('adult_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Adult Sell Price -->
+                                <div class="col-md-3 mb-3" id="adult_price_container" style="display: none;">
+                                    <label for="adult_price" class="form-label"><strong>Adult Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input value="{{$meals->adult_price}}" type="text" class="form-control meal-sell-input" id="adult_price" name="adult_price"
+                                           placeholder="Enter Adult Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="adult_price-validation-message"></small>
+                                    @error('adult_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Cost Price -->
+                                <div class="col-md-3 mb-3" id="child_cost_price_container" style="display: none;">
+                                    <label for="child_cost_price" class="form-label"><strong>Child Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input value="{{ old('child_cost_price', $meals->child_cost_price ?? '') }}" type="text" class="form-control meal-cost-input" id="child_cost_price" name="child_cost_price"
+                                           data-sell-target="child_price"
+                                           placeholder="Enter Child Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="child_cost_price-validation-message"></small>
+                                    @error('child_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Sell Price -->
+                                <div class="col-md-3 mb-3" id="child_price_container" style="display: none;">
+                                    <label for="child_price" class="form-label"><strong>Child Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input value="{{$meals->child_price}}" type="text" class="form-control meal-sell-input" id="child_price" name="child_price"
+                                           placeholder="Enter Child Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="child_price-validation-message"></small>
+                                    @error('child_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
                                 </div>
                                 <!-- Veg/Nonveg Type -->
                                 <div class="col-md-3 mb-3" id="veg_container" style="display: none;">
@@ -313,11 +300,13 @@
     function toggleFields() {
         var mealType = document.getElementById("meal_type") ? document.getElementById("meal_type").value : document.querySelector("select[name='meal_type']").value;
         var itemNameContainer = document.getElementById("item_name_container");
-        var mealPricingSection = document.getElementById("meal_pricing_section");
-        var adultPriceRow = document.getElementById("adult_price_row");
-        var childPriceRow = document.getElementById("child_price_row");
-        var itemPriceRow = document.getElementById("item_price_row");
+        var itemPriceContainer = document.getElementById("item_price_container");
+        var itemCostPriceContainer = document.getElementById("item_cost_price_container");
         var itemFileContainer = document.getElementById("item_file_container");
+        var adultPriceContainer = document.getElementById("adult_price_container");
+        var adultCostPriceContainer = document.getElementById("adult_cost_price_container");
+        var childPriceContainer = document.getElementById("child_price_container");
+        var childCostPriceContainer = document.getElementById("child_cost_price_container");
         var vegContainer = document.getElementById("veg_container");
         var itemNameInput = document.querySelector("input[name='name']");
         var itemPriceInput = document.querySelector("input[name='price']");
@@ -332,11 +321,13 @@
             if (itemFileContainer) itemFileContainer.style.display = "block";
             if (itemNameContainer) itemNameContainer.style.display = "none";
 
-            if (mealPricingSection) mealPricingSection.style.display = "block";
-            if (adultPriceRow) adultPriceRow.style.display = "";
-            if (childPriceRow) childPriceRow.style.display = "";
-            if (itemPriceRow) itemPriceRow.style.display = "none";
+            if (adultPriceContainer) adultPriceContainer.style.display = "block";
+            if (childPriceContainer) childPriceContainer.style.display = "block";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "block";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "block";
             if (vegContainer) vegContainer.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
             if (itemFileInput) itemFileInput.removeAttribute("required");
             if (itemPriceInput) { itemPriceInput.value = ""; itemPriceInput.removeAttribute("required"); }
             if (itemCostPriceInput) { itemCostPriceInput.value = ""; itemCostPriceInput.removeAttribute("required"); }
@@ -348,10 +339,12 @@
         } else if (mealType === "3") { // A-La-Carte
             if (itemFileContainer) itemFileContainer.style.display = "none";
             if (itemNameContainer) itemNameContainer.style.display = "block";
-            if (mealPricingSection) mealPricingSection.style.display = "block";
-            if (itemPriceRow) itemPriceRow.style.display = "";
-            if (adultPriceRow) adultPriceRow.style.display = "none";
-            if (childPriceRow) childPriceRow.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "block";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "block";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
             if (vegContainer) vegContainer.style.display = "block";
             if (itemFileInput) { itemFileInput.value = ""; itemFileInput.removeAttribute("required"); }
             if (itemNameInput) itemNameInput.setAttribute("required", "required");
@@ -362,10 +355,12 @@
         } else { // Default (no selection)
             if (itemFileContainer) itemFileContainer.style.display = "none";
             if (itemNameContainer) itemNameContainer.style.display = "none";
-            if (mealPricingSection) mealPricingSection.style.display = "none";
-            if (itemPriceRow) itemPriceRow.style.display = "none";
-            if (adultPriceRow) adultPriceRow.style.display = "none";
-            if (childPriceRow) childPriceRow.style.display = "none";
+            if (itemPriceContainer) itemPriceContainer.style.display = "none";
+            if (itemCostPriceContainer) itemCostPriceContainer.style.display = "none";
+            if (adultPriceContainer) adultPriceContainer.style.display = "none";
+            if (childPriceContainer) childPriceContainer.style.display = "none";
+            if (adultCostPriceContainer) adultCostPriceContainer.style.display = "none";
+            if (childCostPriceContainer) childCostPriceContainer.style.display = "none";
             if (itemNameInput) itemNameInput.removeAttribute("required");
             if (itemPriceInput) itemPriceInput.removeAttribute("required");
             if (itemCostPriceInput) itemCostPriceInput.removeAttribute("required");

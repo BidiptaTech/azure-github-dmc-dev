@@ -7501,6 +7501,96 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return number_format(round($value, $decimals), $decimals);
     }
 
+    /**
+     * Display currency for a single order row (all service modals).
+     * Always prefer this order's orders.currency / orders.country for its tour_id + booking_id.
+     * Do not force the DMC/page currency when the order has its own country/currency.
+     *
+     * @param  \App\Models\Order|object|array|null  $order
+     */
+    public static function resolveOrderDisplayCurrency($order, ?string $fallback = null): string
+    {
+        $fallback = strtoupper(trim((string) ($fallback ?: 'SGD'))) ?: 'SGD';
+        if ($order === null) {
+            return $fallback;
+        }
+
+        $rawCurrency = null;
+        $countryName = '';
+        $payload = null;
+
+        if (is_object($order)) {
+            $rawCurrency = isset($order->currency) ? trim((string) $order->currency) : '';
+            $countryName = isset($order->country) ? trim((string) $order->country) : '';
+            $payload = $order->data ?? null;
+        } elseif (is_array($order)) {
+            $rawCurrency = isset($order['currency']) ? trim((string) $order['currency']) : '';
+            $countryName = isset($order['country']) ? trim((string) $order['country']) : '';
+            $payload = $order['data'] ?? $order;
+        }
+
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            $payload = is_array($decoded) ? $decoded : null;
+        }
+        if (is_array($payload)) {
+            $first = (isset($payload[0]) && is_array($payload[0])) ? $payload[0] : $payload;
+            if ($rawCurrency === '' && is_array($first)) {
+                foreach (['currency', 'currency_code'] as $key) {
+                    if (!empty($first[$key]) && is_string($first[$key])) {
+                        $rawCurrency = trim($first[$key]);
+                        break;
+                    }
+                }
+            }
+            if ($countryName === '' && is_array($first) && !empty($first['country']) && is_string($first['country'])) {
+                $countryName = trim($first['country']);
+            }
+        }
+
+        // Broad display allow-list (not limited to payment currencies)
+        $displayCodes = array_values(array_unique(array_merge(
+            self::getPaymentAvailableCurrencies(),
+            [
+                'SGD', 'USD', 'EUR', 'GBP', 'INR', 'IDR', 'VND', 'THB', 'MYR', 'AUD', 'AED',
+                'PHP', 'JPY', 'CNY', 'HKD', 'KRW', 'TWD', 'NZD', 'CAD', 'CHF', 'SAR', 'QAR',
+                'BDT', 'LKR', 'PKR', 'NPR', 'MMK', 'KHR', 'LAK', 'BND',
+            ]
+        )));
+
+        $toCode = static function (?string $raw) use ($displayCodes): string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return '';
+            }
+            $upper = strtoupper($raw);
+            if (strlen($upper) === 3 && ctype_alpha($upper)) {
+                return $upper;
+            }
+
+            return CurrencyHelper::normalizeCurrencyToCode($raw, $displayCodes, '');
+        };
+
+        // 1) orders.currency column (this booking_id row)
+        $code = $toCode($rawCurrency);
+        if ($code !== '') {
+            return $code;
+        }
+
+        // 2) orders.country → countries.currency
+        if ($countryName !== '') {
+            $country = Country::query()
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($countryName)])
+                ->first(['name', 'currency']);
+            $code = $toCode($country->currency ?? null);
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallback;
+    }
+
     // Get DMC Dynamic Currency
     public static function getDmcCurrencyByCountry()
     {

@@ -136,12 +136,38 @@
                         </div>
                     </div>
                 </div>
+                @php
+                    $pkgTravelDateYmd = function ($booking) {
+                        $td = is_array($booking->travel_dates ?? null)
+                            ? ($booking->travel_dates ?? [])
+                            : (is_string($booking->travel_dates ?? null) ? (json_decode($booking->travel_dates, true) ?: []) : []);
+                        $rawIn = $td['check_in'] ?? $td['check_in_date'] ?? $td['start_date'] ?? $td['startDate'] ?? null;
+                        try {
+                            return $rawIn ? \Carbon\Carbon::parse($rawIn)->toDateString() : null;
+                        } catch (\Throwable $e) {
+                            return null;
+                        }
+                    };
+                    $pkgCheckInToday = $bookings->filter(function ($b) use ($pkgTravelDateYmd) {
+                        return $pkgTravelDateYmd($b) === now()->toDateString();
+                    })->count();
+                    $pkgCheckInThisMonth = $bookings->filter(function ($b) use ($pkgTravelDateYmd) {
+                        $d = $pkgTravelDateYmd($b);
+                        if (!$d) return false;
+                        try {
+                            $c = \Carbon\Carbon::parse($d);
+                            return $c->year === now()->year && $c->month === now()->month;
+                        } catch (\Throwable $e) {
+                            return false;
+                        }
+                    })->count();
+                @endphp
                 <div class="col-12 col-md-4">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-calendar-line text-white"></i></div>
                         <div class="min-w-0">
-                            <span class="stat-value d-block lh-1">{{ $bookings->where('created_at', '>=', now()->today())->count() }}</span>
-                            <span class="stat-label text-muted">Today</span>
+                            <span class="stat-value d-block lh-1">{{ $pkgCheckInToday }}</span>
+                            <span class="stat-label text-muted">Check-in Today</span>
                         </div>
                     </div>
                 </div>
@@ -149,8 +175,8 @@
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-time-line text-white"></i></div>
                         <div class="min-w-0">
-                            <span class="stat-value d-block lh-1">{{ $bookings->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }}</span>
-                            <span class="stat-label text-muted">{{ date('F') }}</span>
+                            <span class="stat-value d-block lh-1">{{ $pkgCheckInThisMonth }}</span>
+                            <span class="stat-label text-muted">{{ date('F') }} Check-ins</span>
                         </div>
                     </div>
                 </div>
@@ -182,12 +208,12 @@
                     </select>
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    <label class="form-label mb-0 small text-muted">Check-in From</label>
+                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter" value="{{ now()->startOfMonth()->toDateString() }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <label class="form-label mb-0 small text-muted">Check-out To</label>
+                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" min="{{ now()->startOfMonth()->toDateString() }}" value="{{ now()->copy()->addMonths(3)->endOfMonth()->toDateString() }}">
                 </div>
                 @if(!empty($showBookingStatusColumn))
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -493,7 +519,7 @@
             pkgTable.column(4).search(v, false, true).draw();
         });
 
-        // Date range filter by data-created-at (YYYY-MM-DD)
+        // Date range filter by package check-in / check-out (YYYY-MM-DD), future dates allowed
         $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
             if (settings.nTable.id !== 'packageBookingsTable') return true;
 
@@ -502,16 +528,35 @@
             if (!start && !end) return true;
 
             const rowNode = pkgTable.row(dataIndex).node();
-            const createdAt = rowNode?.getAttribute('data-created-at') || '';
-            if (!createdAt) return false;
+            const checkIn = rowNode?.getAttribute('data-check-in') || '';
+            const checkOut = rowNode?.getAttribute('data-check-out') || checkIn;
+            if (!checkIn && !checkOut) return false;
 
-            if (start && createdAt < start) return false;
-            if (end && createdAt > end) return false;
+            // Overlap: booking [checkIn, checkOut] intersects filter [start, end]
+            if (start && checkOut && checkOut < start) return false;
+            if (end && checkIn && checkIn > end) return false;
             return true;
         });
 
-        $('#pkgStartDateFilter, #pkgEndDateFilter').on('change', function () {
-            pkgTable.draw();
+        function syncPkgCheckoutMinDate() {
+            const sd = document.getElementById('pkgStartDateFilter');
+            const ed = document.getElementById('pkgEndDateFilter');
+            if (!sd || !ed) return;
+            if (sd.value) {
+                ed.setAttribute('min', sd.value);
+                if (ed.value && ed.value < sd.value) {
+                    ed.value = sd.value;
+                }
+            } else {
+                ed.removeAttribute('min');
+            }
+        }
+
+        syncPkgCheckoutMinDate();
+
+        $('#pkgStartDateFilter, #pkgEndDateFilter').on('change input', function () {
+            syncPkgCheckoutMinDate();
+            if (pkgTable) pkgTable.draw();
         });
 
         @if(!empty($showBookingStatusColumn))
@@ -598,7 +643,10 @@
         if (a) a.value = '';
         if (st) st.value = '';
         if (sd) sd.value = '{{ now()->startOfMonth()->toDateString() }}';
-        if (ed) ed.value = '{{ now()->toDateString() }}';
+        if (ed) {
+            ed.value = '{{ now()->copy()->addMonths(3)->endOfMonth()->toDateString() }}';
+            ed.setAttribute('min', sd ? sd.value : '{{ now()->startOfMonth()->toDateString() }}');
+        }
         if (pkgTable) {
             pkgTable.search('').columns().search('');
             pkgTable.draw();

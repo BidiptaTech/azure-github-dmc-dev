@@ -159,72 +159,6 @@
         }
     }
 
-    .guide-rate-fieldset {
-        padding: 1rem !important;
-        background: #fff;
-    }
-
-    .guide-rate-section-title {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: #405189;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.35rem;
-        border-bottom: 1px solid #e9ecef;
-    }
-
-    .guide-rate-table {
-        width: 100%;
-        table-layout: fixed;
-        font-size: 0.8125rem;
-        margin-bottom: 0;
-    }
-
-    .guide-rate-table th,
-    .guide-rate-table td {
-        padding: 0.5rem 0.65rem;
-        vertical-align: top;
-    }
-
-    .guide-rate-table thead th {
-        background: #f8f9fa;
-        color: #566a7f;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .guide-rate-table .duration-column {
-        width: 20%;
-        vertical-align: middle;
-    }
-
-    .guide-rate-table .price-column {
-        width: 40%;
-    }
-
-    .guide-rate-table .validation-message,
-    .guide-rate-table .text-danger {
-        font-size: 0.7rem;
-    }
-
-    .guide-duration-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.35rem;
-        background: #eef1ff;
-        color: #405189;
-        font-size: 0.75rem;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-
-    .guide-rate-helper {
-        font-size: 0.72rem;
-        color: #6c757d;
-    }
-
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -627,227 +561,217 @@
                             </fieldset>
 
                             <!-- Rate -->
-                            <fieldset id="rate" class="border rounded mb-4 guide-rate-fieldset">
-                                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-                                    <div>
-                                        <h5 class="card-title mb-1">Guide Rates</h5>
-                                        <small class="text-muted">Enter Cost; Sell can be calculated using the profit helper.</small>
+                            <fieldset id="rate" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Rates</h5>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                        <select id="guide_profit_margin" class="form-select js-guide-profit-type">
+                                            <option value="percentage" selected>%</option>
+                                            <option value="flat">Flat</option>
+                                        </select>
+                                        <small class="text-muted">Helper only — not saved</small>
                                     </div>
-                                    <div class="d-flex flex-wrap align-items-end gap-2">
-                                        <div>
-                                            <label for="guide_profit_margin" class="form-label mb-1 small"><strong>Profit Type</strong></label>
-                                            <select id="guide_profit_margin" class="form-select form-select-sm js-guide-profit-type">
-                                                <option value="percentage" selected>Percentage</option>
-                                                <option value="flat">Flat</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label for="guide_profit_amount" class="form-label mb-1 small"><strong>Profit On Cost</strong></label>
-                                            <input type="number" id="guide_profit_amount"
-                                                class="form-control form-control-sm js-guide-profit-amount"
-                                                value="0" min="0" step="0.01" placeholder="0.00">
-                                        </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                        <input type="number" id="guide_profit_amount" class="form-control js-guide-profit-amount"
+                                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                        <small class="text-muted">Auto-fills Sell from Cost</small>
                                     </div>
-                                </div>
 
-                                <div class="guide-rate-section-title">
-                                    <i class="ri-money-dollar-circle-line me-1"></i> Cost & Sell Pricing
-                                    <small class="text-muted fw-normal">(Cost = guide fee · Sell = customer pays)</small>
-                                </div>
+                                    <!-- Minimum Cost then Sell -->
+                                    <div class="col-md-3">
+                                        <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="text" id="minimum_cost_price"
+                                            class="form-control js-guide-cost" name="minimum_cost_price" data-sell-target="day_rate"
+                                            placeholder="Enter Minimum Cost Price" required
+                                            oninput="validateNumericPrice(this); calculateEditHourlyCostRates(); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
+                                        @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input value="{{$guide->day_rate}}" type="text" id="day_rate"
+                                            class="form-control js-guide-sell" name="day_rate" placeholder="Enter Minimum Sell Price" required
+                                            oninput="validateNumericPrice(this); calculateEditHourlyRates();">
+                                        <small class="validation-message text-danger" id="day_rate-validation-message"></small>
+                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
+                                        @error('day_rate')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
 
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-sm guide-rate-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="duration-column">Duration</th>
-                                                <th class="price-column">Cost <span class="text-danger">*</span></th>
-                                                <th class="price-column">Sell <span class="text-danger">*</span></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td class="duration-column">
-                                                    <span class="guide-duration-badge"><i class="ri-price-tag-3-line"></i> Minimum</span>
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="text"
-                                                        id="minimum_cost_price" class="form-control js-guide-cost"
-                                                        name="minimum_cost_price" data-sell-target="day_rate" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); calculateEditHourlyCostRates(); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
-                                                    @error('minimum_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('day_rate', $guide->day_rate) }}" type="text"
-                                                        id="day_rate" class="form-control js-guide-sell" name="day_rate"
-                                                        placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); calculateEditHourlyRates();">
-                                                    <small class="validation-message text-danger" id="day_rate-validation-message"></small>
-                                                    <div class="guide-rate-helper mt-1">Base rate used to calculate duration prices.</div>
-                                                    @error('day_rate')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 1 Hour</span></td>
-                                                <td>
-                                                    <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text"
-                                                        id="hourly_cost_price" class="form-control js-guide-cost"
-                                                        name="hourly_cost_price" data-sell-target="hourly_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
-                                                    @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="text"
-                                                        id="hourly_price" class="form-control js-guide-sell" name="hourly_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
-                                                    @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 2 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text"
-                                                        id="two_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="two_hour_cost_price" data-sell-target="two_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
-                                                    @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="text"
-                                                        id="two_hour_price" class="form-control js-guide-sell" name="two_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
-                                                    @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 4 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text"
-                                                        id="four_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="four_hour_cost_price" data-sell-target="four_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
-                                                    @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="text"
-                                                        id="four_hour_price" class="form-control js-guide-sell" name="four_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
-                                                    @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 6 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text"
-                                                        id="six_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="six_hour_cost_price" data-sell-target="six_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
-                                                    @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="text"
-                                                        id="six_hour_price" class="form-control js-guide-sell" name="six_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
-                                                    @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 8 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text"
-                                                        id="eight_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="eight_hour_cost_price" data-sell-target="eight_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
-                                                    @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="text"
-                                                        id="eight_hour_price" class="form-control js-guide-sell" name="eight_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
-                                                    @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 10 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text"
-                                                        id="ten_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="ten_hour_cost_price" data-sell-target="ten_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
-                                                    @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="text"
-                                                        id="ten_hour_price" class="form-control js-guide-sell" name="ten_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
-                                                    @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="duration-column"><span class="guide-duration-badge"><i class="ri-time-line"></i> 12 Hours</span></td>
-                                                <td>
-                                                    <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="text"
-                                                        id="twelve_hour_cost_price" class="form-control js-guide-cost"
-                                                        name="twelve_hour_cost_price" data-sell-target="twelve_hour_price" placeholder="0.00" required
-                                                        oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
-                                                    <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
-                                                    @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                                <td>
-                                                    <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text"
-                                                        id="twelve_hour_price" class="form-control js-guide-sell" name="twelve_hour_price"
-                                                        placeholder="0.00" required oninput="validateNumericPrice(this)">
-                                                    <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
-                                                    @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div class="guide-rate-section-title mt-3">
-                                    <i class="ri-moon-line me-1"></i> Night Surcharge Settings
-                                </div>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label for="night_surcharge" class="form-label mb-1">
-                                            <strong>Night Surcharge</strong><span class="text-danger">*</span>
-                                        </label>
-                                        <input value="{{ old('night_surcharge', $guide->night_surcharge) }}" type="text"
-                                            id="night_surcharge" class="form-control" name="night_surcharge"
-                                            placeholder="0.00" required oninput="validateNumericPrice(this)">
+                                    <!-- night_surcharge -->
+                                    <div class="col-md-3">
+                                        <label for="night_surcharge" class="form-label"><strong>Night
+                                                Surcharge</strong><span class="text-danger">*</span></label>
+                                        <input value="{{$guide->night_surcharge}}" type="text" id="night_surcharge"
+                                            class="form-control" name="night_surcharge"
+                                            placeholder="Enter Night Surcharge" required
+                                            oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="night_surcharge-validation-message"></small>
-                                        @error('night_surcharge')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        @error('night_surcharge')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="night_start_time" class="form-label mb-1">
-                                            <strong>Night Start Time</strong><span class="text-danger">*</span>
-                                        </label>
-                                        <input value="{{ old('night_start_time', $guide->night_start_time) }}"
-                                            id="night_start_time" type="text" class="form-control"
+
+                                    <!-- Night Start Time -->
+                                    <div class="col-md-2">
+                                        <label for="night_start_time" class="form-label"><strong>Night Start
+                                                Time</strong><span class="text-danger">*</span></label>
+                                        <input value="{{$guide->night_start_time}}" id="night_start_time" type="text" class="form-control"
                                             name="night_start_time" placeholder="Select start time">
-                                        @error('night_start_time')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        @error('night_start_time')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
                                     </div>
-                                    <div class="col-md-4">
-                                        <label for="night_end_time" class="form-label mb-1">
-                                            <strong>Night End Time</strong><span class="text-danger">*</span>
-                                        </label>
-                                        <input value="{{ old('night_end_time', $guide->night_end_time) }}"
-                                            id="night_end_time" type="text" class="form-control"
+
+                                    <!-- Night End Time -->
+                                    <div class="col-md-2">
+                                        <label for="night_end_time" class="form-label"><strong>Night End
+                                                Time</strong><span class="text-danger">*</span></label>
+                                        <input value="{{$guide->night_end_time}}" id="night_end_time" type="text" class="form-control"
                                             name="night_end_time" placeholder="Select end time">
-                                        @error('night_end_time')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        @error('night_end_time')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+
+                                    <!-- Hourly Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text" id="hourly_cost_price"
+                                            class="form-control js-guide-cost" name="hourly_cost_price" data-sell-target="hourly_price"
+                                            placeholder="Enter Hourly Cost Price"
+                                            required oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="text" id="hourly_price"
+                                            class="form-control js-guide-sell" name="hourly_price" placeholder="Enter Hourly Sell Price"
+                                            required oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
+                                        @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Two Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text" id="two_hour_cost_price"
+                                            class="form-control js-guide-cost" name="two_hour_cost_price" data-sell-target="two_hour_price"
+                                            placeholder="Enter Two Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="text" id="two_hour_price"
+                                            class="form-control js-guide-sell" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
+                                        @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Four Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text" id="four_hour_cost_price"
+                                            class="form-control js-guide-cost" name="four_hour_cost_price" data-sell-target="four_hour_price"
+                                            placeholder="Enter Four Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="text" id="four_hour_price"
+                                            class="form-control js-guide-sell" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
+                                        @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Six Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text" id="six_hour_cost_price"
+                                            class="form-control js-guide-cost" name="six_hour_cost_price" data-sell-target="six_hour_price"
+                                            placeholder="Enter Six Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="text" id="six_hour_price"
+                                            class="form-control js-guide-sell" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
+                                        @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Eight Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text" id="eight_hour_cost_price"
+                                            class="form-control js-guide-cost" name="eight_hour_cost_price" data-sell-target="eight_hour_price"
+                                            placeholder="Enter Eight Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="text" id="eight_hour_price"
+                                            class="form-control js-guide-sell" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
+                                        @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Ten Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text" id="ten_hour_cost_price"
+                                            class="form-control js-guide-cost" name="ten_hour_cost_price" data-sell-target="ten_hour_price"
+                                            placeholder="Enter Ten Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="text" id="ten_hour_price"
+                                            class="form-control js-guide-sell" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
+                                        @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+
+                                    <!-- Twelve Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="text" id="twelve_hour_cost_price"
+                                            class="form-control js-guide-cost" name="twelve_hour_cost_price" data-sell-target="twelve_hour_price"
+                                            placeholder="Enter Twelve Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
+                                        @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text" id="twelve_hour_price"
+                                            class="form-control js-guide-sell" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>
