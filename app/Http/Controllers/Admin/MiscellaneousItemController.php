@@ -178,6 +178,9 @@ class MiscellaneousItemController extends Controller
                 $item->adult_price = $price->adult_price;
                 $item->child_price = $price->child_price;
                 $item->infant_price = $price->infant_price;
+                $item->adult_cost = $price->adult_cost;
+                $item->child_cost = $price->child_cost;
+                $item->infant_cost = $price->infant_cost;
                 $item->price_id = $price->id;
                 return $item;
             });
@@ -231,9 +234,9 @@ class MiscellaneousItemController extends Controller
                         'adult_price' => $data['adult_price'] ?? 0,
                         'child_price' => $data['child_price'] ?? 0,
                         'infant_price' => $data['infant_price'] ?? 0,
-                        'adult_cost' => 0,  // Cost fields not required
-                        'child_cost' => 0,
-                        'infant_cost' => 0,
+                        'adult_cost' => $data['adult_cost'] ?? 0,
+                        'child_cost' => $data['child_cost'] ?? 0,
+                        'infant_cost' => $data['infant_cost'] ?? 0,
                         'status' => 1
                     ]);
                 } else {
@@ -243,9 +246,9 @@ class MiscellaneousItemController extends Controller
                         'adult_price' => $data['adult_price'] ?? 0,
                         'child_price' => $data['child_price'] ?? 0,
                         'infant_price' => $data['infant_price'] ?? 0,
-                        'adult_cost' => 0,  // Cost fields not required
-                        'child_cost' => 0,
-                        'infant_cost' => 0,
+                        'adult_cost' => $data['adult_cost'] ?? 0,
+                        'child_cost' => $data['child_cost'] ?? 0,
+                        'infant_cost' => $data['infant_cost'] ?? 0,
                         'status' => 1
                     ]);
                 }
@@ -357,9 +360,9 @@ class MiscellaneousItemController extends Controller
                     $price->adult_price = $request->adult_price ?? 0;
                     $price->child_price = $request->child_price ?? 0;
                     $price->infant_price = $request->infant_price ?? 0;
-                    $price->adult_cost = 0;
-                    $price->child_cost = 0;
-                    $price->infant_cost = 0;
+                    $price->adult_cost = $request->adult_cost ?? 0;
+                    $price->child_cost = $request->child_cost ?? 0;
+                    $price->infant_cost = $request->infant_cost ?? 0;
                 }
 
                 $price->save();
@@ -370,9 +373,9 @@ class MiscellaneousItemController extends Controller
                     'adult_price' => $request->adult_price ?? 0,
                     'child_price' => $request->child_price ?? 0,
                     'infant_price' => $request->infant_price ?? 0,
-                    'adult_cost' => 0,  // Cost fields not required
-                    'child_cost' => 0,
-                    'infant_cost' => 0,
+                    'adult_cost' => $request->adult_cost ?? 0,
+                    'child_cost' => $request->child_cost ?? 0,
+                    'infant_cost' => $request->infant_cost ?? 0,
                     'status' => 1
                 ]);
             }
@@ -387,7 +390,9 @@ class MiscellaneousItemController extends Controller
                 'success' => true,
                 'message' => $action === 'restored'
                     ? 'Miscellaneous item restored with previous prices.'
-                    : 'Miscellaneous item added successfully!',
+                    : ($action === 'updated'
+                        ? 'Miscellaneous item prices updated successfully!'
+                        : 'Miscellaneous item added successfully!'),
                 'action' => $action,
                 'data' => [
                     'item_id' => $itemId,
@@ -398,6 +403,9 @@ class MiscellaneousItemController extends Controller
                     'adult_price' => (float) ($price->adult_price ?? 0),
                     'child_price' => (float) ($price->child_price ?? 0),
                     'infant_price' => (float) ($price->infant_price ?? 0),
+                    'adult_cost' => (float) ($price->adult_cost ?? 0),
+                    'child_cost' => (float) ($price->child_cost ?? 0),
+                    'infant_cost' => (float) ($price->infant_cost ?? 0),
                 ],
             ]);
 

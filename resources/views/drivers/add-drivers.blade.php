@@ -85,7 +85,7 @@
                 </div>
             @endif
 
-            <form id="driverForm" method="POST" action="{{ route('driver.store') }}" enctype="multipart/form-data" class="card-body">
+            <form id="driverForm" method="POST" action="{{ route('driver.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <input id="userId" type="hidden" class="form-control" name="user_id" >
@@ -373,7 +373,13 @@
 
                         <!-- Submit Buttons -->
                         <div class="d-flex gap-3 mt-4">
-                            <button type="submit" class="btn btn-primary px-4">Save</button>
+                            <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                <span class="js-submit-loader-btn-text">Save</span>
+                                <span class="js-submit-loader-btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Saving...
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -382,6 +388,7 @@
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
