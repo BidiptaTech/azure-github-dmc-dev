@@ -19679,7 +19679,7 @@
                                             <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0)">
                                                 <option value="">Select City</option>
                                             </select>
-                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_1">Please select a city first.</small>
+                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_0">Please select a city first.</small>
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -24545,114 +24545,15 @@
             // Load zones for the new transport using existing zone data
             const newPickupSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_pickup_zone_id"]`);
             const newDropoffSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_dropoff_zone_id"]`);
-            
-                    if (newPickupSelect && window.allLocationsData) {
-                // Populate pickup location select with existing locations data
-                newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                window.allLocationsData.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    newPickupSelect.appendChild(option);
-                });
-                newPickupSelect.disabled = false;
-                
-                // Prepare dropoff location select for locations initially
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-            } else if (newPickupSelect && window.allZonesData) {
-                // For dynamic transport, we should use locations data, not zones
-                // If locations data is not available, fetch it from API
-                console.log('Locations data not available, fetching from API for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Loading locations...</option>';
-                newPickupSelect.disabled = true;
-                
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.locations && Array.isArray(data.locations)) {
-                            newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                            
-                            data.locations.forEach(location => {
-                                const option = document.createElement('option');
-                                option.value = location.id;
-                                
-                                // Enhanced display format with icons for different types
-                                let icon = '';
-                                switch(location.type) {
-                                    case 'hotel':
-                                        icon = '🏨';
-                                        break;
-                                    case 'restaurant':
-                                        icon = '🍽️';
-                                        break;
-                                    case 'attraction':
-                                        icon = '🎯';
-                                        break;
-                                    default:
-                                        icon = '📍';
-                                }
-                                
-                                option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                                option.dataset.type = location.type;
-                                option.dataset.latitude = location.latitude || '';
-                                option.dataset.longitude = location.longitude || '';
-                                newPickupSelect.appendChild(option);
-                            });
-                            
-                            newPickupSelect.disabled = false;
-                            console.log('Dynamic transport pickup populated with locations');
-                        } else {
-                            // Fallback to zones only if API fails
-                            console.log('API failed, falling back to zones for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                window.allZonesData.forEach(zone => {
-                    newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                });
-                newPickupSelect.disabled = false;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching locations for dynamic transport:', error);
-                        // Fallback to zones on error
-                        newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                    window.allZonesData.forEach(zone => {
-                            newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                        });
-                        newPickupSelect.disabled = false;
-                    });
-                
-                // Prepare dropoff location select - don't pre-populate with zones
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-                
-                console.log(`Zones loaded for new transport section ${newIndex}`);
+
+            // A new transport row has no city yet, so its pickup list stays empty until one is chosen;
+            // once a city is selected the row loads only that city's locations.
+            if (newPickupSelect) {
+                const newRowCitySelect = document.getElementById(`day${day}_transport_city_${newIndex}`);
+                window.loadTransportZonesForCity(day, newRowCitySelect ? newRowCitySelect.value : '', newIndex);
+                console.log(`Pickup locations initialized for new transport section ${newIndex}`);
             } else {
-                console.log('No zones data available for new transport section');
+                console.error(`Dynamic transport pickup select not found for index ${newIndex}`);
             }
             
             // Initialize Google Maps autocomplete for the new transport fields
@@ -24866,7 +24767,7 @@
                 // For local transfer additional transport sections, use location data
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -24949,7 +24850,7 @@
                     // Use API for dynamic transport dropoff (same as static transport)
                     dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                     
-                    fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                    fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                         .then(response => response.json())
                         .then(data => {
                             if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -27169,13 +27070,138 @@
         }, 1000);
     }
 
+    // ---- Local transfer pickup/dropoff locations are city scoped ----
+    // Zone-assigned locations must be requested per city, otherwise every city of the country
+    // is offered (e.g. Batam hotels while Barrackpore is selected).
+    window.zoneAssignedLocationsUrl = function (city) {
+        const base = "{{ route('fetch-zone-assigned-locations') }}";
+        const cityName = String(city || '').trim();
+        return cityName ? `${base}?city=${encodeURIComponent(cityName)}` : base;
+    };
+
+    // City chosen on a given transport row (static row uses index 0), with sensible fallbacks.
+    window.getTransportRowCity = function (day, index) {
+        const idx = (index === null || index === undefined) ? 0 : index;
+        const rowCity = document.getElementById(`day${day}_transport_city_${idx}`);
+        if (rowCity && rowCity.value) {
+            return rowCity.value;
+        }
+        const anyTransportCity = document.querySelector('.transport-city-select');
+        if (anyTransportCity && anyTransportCity.value) {
+            return anyTransportCity.value;
+        }
+        return (typeof window.getSingleCityName === 'function') ? window.getSingleCityName() : '';
+    };
+
+    // Shared option label for zone-assigned locations (hotel/restaurant/attraction).
+    window.buildTransportLocationOption = function (location) {
+        let icon = '';
+        switch (location.type) {
+            case 'hotel':
+                icon = '🏨';
+                break;
+            case 'restaurant':
+                icon = '🍽️';
+                break;
+            case 'attraction':
+                icon = '🎯';
+                break;
+            default:
+                icon = '📍';
+        }
+
+        const option = document.createElement('option');
+        option.value = location.id;
+        option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
+        option.dataset.type = location.type;
+        option.dataset.latitude = location.latitude || '';
+        option.dataset.longitude = location.longitude || '';
+        return option;
+    };
+
+    /**
+     * Reload a transport row's pickup locations for the newly selected city.
+     * Wired to the city select's onchange (both static and dynamically added transport rows).
+     */
+    window.loadTransportZonesForCity = function (day, cityName, index) {
+        const idx = (index === null || index === undefined) ? 0 : parseInt(index, 10) || 0;
+        const pickupName = idx > 0 ? `day${day}_transport_${idx}_pickup_zone_id` : `day${day}_transport_pickup_zone_id`;
+        const dropoffName = idx > 0 ? `day${day}_transport_${idx}_dropoff_zone_id` : `day${day}_transport_dropoff_zone_id`;
+
+        const bundleRoot = document.getElementById('segmentServicesBundle');
+        const scope = bundleRoot || document;
+        const pickupSelect = scope.querySelector(`select[name="${pickupName}"]`);
+        const dropoffSelect = scope.querySelector(`select[name="${dropoffName}"]`);
+        const cityMessage = document.getElementById(`day${day}_transport_city_message_${idx}`);
+        const vehicleSelect = scope.querySelector(`select[name="${idx > 0 ? `day${day}_transport_${idx}_vehicle_id` : `day${day}_transport_vehicle_id`}"]`);
+
+        const refreshSelect2 = function (select) {
+            if (!select) return;
+            if (typeof jQuery !== 'undefined' && jQuery(select).data('select2')) {
+                jQuery(select).trigger('change.select2');
+            }
+        };
+
+        if (dropoffSelect) {
+            dropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
+            dropoffSelect.disabled = true;
+            refreshSelect2(dropoffSelect);
+        }
+        if (vehicleSelect) {
+            vehicleSelect.innerHTML = '<option value="">Select pickup first</option>';
+            vehicleSelect.disabled = true;
+            refreshSelect2(vehicleSelect);
+        }
+
+        if (!cityName) {
+            if (pickupSelect) {
+                pickupSelect.innerHTML = '<option value="">Select city first</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            }
+            if (cityMessage) cityMessage.style.display = 'block';
+            return;
+        }
+
+        if (cityMessage) cityMessage.style.display = 'none';
+        if (!pickupSelect) return;
+
+        pickupSelect.innerHTML = '<option value="">Loading pickup locations...</option>';
+        pickupSelect.disabled = true;
+        refreshSelect2(pickupSelect);
+
+        fetch(window.zoneAssignedLocationsUrl(cityName))
+            .then(response => response.json())
+            .then(data => {
+                pickupSelect.innerHTML = '<option value="">Select pickup location</option>';
+
+                if (data.success && Array.isArray(data.locations) && data.locations.length) {
+                    data.locations.forEach(location => {
+                        pickupSelect.appendChild(window.buildTransportLocationOption(location));
+                    });
+                    pickupSelect.disabled = false;
+                } else {
+                    pickupSelect.innerHTML = '<option value="">No locations available in this city</option>';
+                    pickupSelect.disabled = true;
+                }
+
+                refreshSelect2(pickupSelect);
+            })
+            .catch(error => {
+                console.error('Error loading pickup locations for city:', cityName, error);
+                pickupSelect.innerHTML = '<option value="">Error loading locations</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            });
+    };
+
     function fetchZonesForAllTransportSections(city) {
     console.log('Fetching zones and locations for city:', city);
     
     // Fetch both zones and locations data
     Promise.all([
         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`).then(response => response.json()),
-        fetch(`{{ route('fetch-zone-assigned-locations') }}`).then(response => response.json())
+        fetch(window.zoneAssignedLocationsUrl(city)).then(response => response.json())
     ]).then(([zonesData, locationsData]) => {
         console.log('Zones data received:', zonesData);
         console.log('Locations data received:', locationsData);
@@ -27210,33 +27236,24 @@
             // For local transfer pickup selects, use location data with hotels, attractions, restaurants
             if (select.name && select.name.includes('_transport_') && locationsData.success && locationsData.locations) {
                 console.log(`Updating local transfer pickup select ${index} with locations:`, select.name);
+
+                // Each transport row has its own city: when the row's city differs from the city
+                // this batch was fetched for, reload that row so it only lists its own city's locations.
+                const rowMatch = select.name.match(/^day(\d+)_transport_(?:(\d+)_)?pickup_zone_id$/);
+                if (rowMatch) {
+                    const rowDay = rowMatch[1];
+                    const rowIndex = rowMatch[2] ? parseInt(rowMatch[2], 10) : 0;
+                    const rowCity = window.getTransportRowCity(rowDay, rowIndex);
+                    if (rowCity && String(rowCity).toLowerCase() !== String(city || '').toLowerCase()) {
+                        window.loadTransportZonesForCity(rowDay, rowCity, rowIndex);
+                        return;
+                    }
+                }
+
                 select.innerHTML = '<option value="">Select pickup location</option>';
                 
                 locationsData.locations.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    select.appendChild(option);
+                    select.appendChild(window.buildTransportLocationOption(location));
                 });
                 
                 select.disabled = false;
@@ -28690,7 +28707,7 @@
                 // For local transfer dropoff, populate with zone-assigned locations (excluding pickup location)
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);
@@ -29061,7 +29078,7 @@
                 
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);

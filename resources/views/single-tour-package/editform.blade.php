@@ -89,45 +89,15 @@
         $currentUserRole = $currentUser->role_id;
         $displayCurrency = strtoupper(trim((string) ($currentUser->currency ?? 'SGD')));
         
-        // Determine DMC ID based on role hierarchy (same as controller logic)
-        $dmcId = null;
+        // Resolve the DMC through the same helper the controller uses. Re-implementing the role hierarchy
+        // here only covered roles 11/33/34/37/38/124/125, so every other role family (35, 36, 74-78,
+        // 128-138, agent logins, ...) fell through to null. That left $dmcUser null and silently disabled
+        // everything gated on the DMC's flags — the zone_on "Local Transfer" option, price_hide, and the
+        // dmc_id posted with the form.
+        $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
         $dmcUser = null;
         $isPointToPoint = false;
-        
-        if($currentUserRole == 11){
-            $dmcId = $currentUser->userId;
-        }elseif(in_array($currentUserRole, [33, 34])){
-            $user = \App\Models\User::where('userId', $currentUser->userId)->first();
-            $dmcId = $user->created_by;
-        }elseif(in_array($currentUserRole, [37, 124])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcId = $user->created_by;
-            } else {
-                // Fallback: if user not found, try direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }elseif(in_array($currentUserRole, [38, 125])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcIdss = $user->created_by;
-                $user = \App\Models\User::where('userId', $dmcIdss)->first();
-                if($user) {
-                    $dmcId = $user->created_by;
-                } else {
-                    // Fallback: if second user not found, use first user's created_by
-                    $dmcId = $dmcIds;
-                }
-            } else {
-                // Fallback: if first user not found, use direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }else{
-            $dmcId = null;
-        }
-        
+
         // Get DMC user information
         if ($dmcId) {
             $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
@@ -8552,7 +8522,7 @@
                                     <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Hourly
                                 </label>
                             </div>
-                            @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
+                            @if(isset($UserDmc->zone_on) && $UserDmc->zone_on != 0)
                             <div class="form-check">
                                 <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')">
                                 <label class="form-check-label fw-semibold" for="local_transfer_service_type_local" style="font-size: 0.8rem; color: #10b981;">
@@ -8669,7 +8639,7 @@
                             <!-- Point To Point Fields (Hidden Initially) -->
                             <div class="col-12">
                                 <div id="point_to_point_fields" class="row g-2 point-to-point-fields d-none">
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
                                         </label>
@@ -8680,7 +8650,7 @@
                                             <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
                                         </label>
@@ -8705,13 +8675,8 @@
                                         </div>
                                         <input type="hidden" name="point_pickup_time" id="local_transfer_point_pickup_time">
                                     </div>
-                                    <div class="col-md-6 col-lg-2">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
-                                        </label>
-                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" onchange="syncPointToPointPickupDateFromDisplay()">
-                                        <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
-                                    </div>
+                                    {{-- Pick up date is not chosen here: the transfer defaults to the tour start date. --}}
+                                    <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
                                     <div class="col-md-6 col-lg-2">
                                         <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
                                             &nbsp;
@@ -13098,12 +13063,14 @@
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
         const all_bundles = @json($packagedAttractions ?? []);
-        const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
+        const cityKey = (typeof cityMatchKey === 'function')
+            ? cityMatchKey(city)
+            : (city || '').trim().toLowerCase();
         const attractions = all_attractions.filter(function(attraction) {
-            const loc = (typeof normalizeCityText === 'function')
-                ? normalizeCityText(attraction.location)
-                : (attraction.location || '').trim();
-            return loc === normCity;
+            const loc = (typeof cityMatchKey === 'function')
+                ? cityMatchKey(attraction.location)
+                : (attraction.location || '').trim().toLowerCase();
+            return loc === cityKey;
         });
         // Add attraction options
         attractions.forEach(attraction => {
@@ -14106,57 +14073,6 @@
         if (typeof checkHourlyFormCompletion === 'function') checkHourlyFormCompletion();
     }
 
-    // Point To Point pickup date: display dd-mm-yyyy, submit Y-m-d
-    function parseDdMmYyyyToYmd(str) {
-        if (!str || typeof str !== 'string') return null;
-        const cleaned = str.trim().replace(/\s/g, '');
-        const parts = cleaned.split(/[-/.]/);
-        if (parts.length !== 3) return null;
-        const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
-        if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > 2100) return null;
-        const date = new Date(y, m - 1, d);
-        if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
-        return String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    }
-    function ymdToDdMmYyyy(ymd) {
-        if (!ymd || typeof ymd !== 'string') return '';
-        const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!match) return '';
-        return match[3] + '-' + match[2] + '-' + match[1];
-    }
-    function formatPointToPointPickupDateInput(el) {
-        if (!el || !el.value) return;
-        let v = el.value.replace(/\D/g, '');
-        if (v.length > 8) v = v.slice(0, 8);
-        if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
-        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
-        el.value = v;
-    }
-    function syncPointToPointPickupDateFromDisplay() {
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        if (!display || !hidden) return;
-        // type="date" inputs use Y-m-d format natively
-        let ymd = display.value && display.value.match(/^\d{4}-\d{2}-\d{2}$/) ? display.value : parseDdMmYyyyToYmd(display.value);
-        const min = display.getAttribute('data-min') || display.min || '';
-        const max = display.getAttribute('data-max') || display.max || '';
-        if (ymd) {
-            if (min && ymd < min) { hidden.value = min; display.value = min; }
-            else if (max && ymd > max) { hidden.value = max; display.value = max; }
-            else { hidden.value = ymd; }
-        } else if (!display.value || display.value.trim() === '') {
-            hidden.value = '';
-        }
-        if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
-    }
-    function syncPointToPointPickupDateToDisplay() {
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        if (!hidden || !display) return;
-        // type="date" inputs require Y-m-d format
-        display.value = (hidden.value && hidden.value.match(/^\d{4}-\d{2}-\d{2}$/)) ? hidden.value : ymdToDdMmYyyy(hidden.value);
-    }
-    
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
         console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate, serviceType });
         
@@ -14231,7 +14147,6 @@
                             handleLocalTransferServiceTypeChange('hourly');
                         } else                         if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
                             handleLocalTransferServiceTypeChange('point_to_point');
-                            syncPointToPointPickupDateToDisplay();
                         } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
                             handleLocalTransferServiceTypeChange('local_transfer');
                         }
@@ -14437,25 +14352,25 @@
         
         // Local transfer search button is handled by onclick attribute
         
-        // Set default service type to 'point_to_point'
+        // Default to the zone based Local Transfer flow for a zone-enabled DMC, otherwise Point To Point.
+        const zoneStatus = {{ (int) ($UserDmc->zone_on ?? 0) }};
         const pointToPointRadio = document.getElementById('local_transfer_service_type_point');
-        if (pointToPointRadio) {
+        const localTransferRadio = document.getElementById('local_transfer_service_type_local');
+        if (zoneStatus != 0 && localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
+        } else if (pointToPointRadio) {
             pointToPointRadio.checked = true;
             handleLocalTransferServiceTypeChange('point_to_point');
-            syncPointToPointPickupDateToDisplay();
+        } else if (localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
         } else {
-            // Fallback: check if local transfer radio exists
-            const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
-            if (localTransferServiceType) {
-                localTransferServiceType.checked = true;
-                handleLocalTransferServiceTypeChange('local_transfer');
-            } else {
-                // If neither exists, set default to point_to_point
-                window.currentLocalTransferServiceType = 'point_to_point';
-                const modalTitle = document.getElementById('localTransferSelectionModalLabel');
-                if (modalTitle) {
-                    modalTitle.textContent = 'Point To Point Service Selection';
-                }
+            // If neither exists, set default to point_to_point
+            window.currentLocalTransferServiceType = 'point_to_point';
+            const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+            if (modalTitle) {
+                modalTitle.textContent = 'Point To Point Service Selection';
             }
         }
         
@@ -23623,8 +23538,20 @@
     }
     
     // City mode helpers (used by modals + tour header)
+    // Strips the "(Country)" and "[start→end]" decorations that city labels carry, e.g.
+    // "Singapore (Singapore) [2026-08-05→2026-08-07]" -> "Singapore".
     function normalizeCityText(s) {
-        return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
+        return (s || '')
+            .toString()
+            .replace(/\[[^\]]*\]/g, ' ')
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // Comparison key for two city labels that may differ in case or decoration.
+    function cityMatchKey(s) {
+        return normalizeCityText(s).toLowerCase();
     }
 
     function getCurrentCityMode() {
@@ -23663,16 +23590,17 @@
 
     function setSelectToCity(selectEl, cityValue) {
         if (!selectEl || !cityValue) return false;
-        const desired = normalizeCityText(cityValue);
+        const desired = cityMatchKey(cityValue);
         const opts = Array.from(selectEl.options || []);
-        const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-        let match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        const exact = opts.find(o => cityMatchKey(o.value) === desired) || opts.find(o => cityMatchKey(o.textContent) === desired);
+        let match = exact || opts.find(o => desired && cityMatchKey(o.textContent).startsWith(desired));
         if (!match) {
             // City not in the rendered option list (e.g. server filtered them out) — inject it so
-            // auto-fill still works instead of silently leaving the field empty.
+            // auto-fill still works instead of silently leaving the field empty. Use the normalized
+            // name so the value still matches the city stored on hotels/attractions/etc.
             match = document.createElement('option');
-            match.value = cityValue;
-            match.textContent = cityValue;
+            match.value = normalizeCityText(cityValue);
+            match.textContent = match.value;
             selectEl.appendChild(match);
         }
 
@@ -23697,8 +23625,10 @@
         return true;
     }
 
-    function lockModalCitySelectIfSingle(selectEl) {
-        if (!selectEl || getCurrentCityMode() !== 'single') return;
+    // The city a service belongs to is decided by the tour's city plan (the single city, or the active
+    // segment in multi-city mode), so it is shown read-only in the service modals rather than editable.
+    function lockModalCitySelect(selectEl) {
+        if (!selectEl) return;
         selectEl.disabled = true;
         const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
         if ($sel && $sel.length && $sel.data('select2')) {
@@ -23727,7 +23657,7 @@
             const sel = modal.querySelector('#' + id);
             if (!sel) return;
             setSelectToCity(sel, city);
-            lockModalCitySelectIfSingle(sel);
+            lockModalCitySelect(sel);
         });
 
         const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
