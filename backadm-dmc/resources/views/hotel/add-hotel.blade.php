@@ -59,7 +59,37 @@
         width: 60%;
     }
 
+    .hotel-save-loader {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hotel-save-loader.active {
+        display: flex;
+    }
+
+    .hotel-save-loader__box {
+        background: #fff;
+        border-radius: 0.5rem;
+        padding: 1.25rem 1.5rem;
+        min-width: 180px;
+        text-align: center;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    }
+
 </style>
+
+<div id="hotelSaveLoader" class="hotel-save-loader" aria-live="polite" aria-busy="false">
+    <div class="hotel-save-loader__box">
+        <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
+        <div class="fw-semibold">Saving hotel...</div>
+    </div>
+</div>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -704,7 +734,13 @@
 
                     <!-- Submit Button -->
                     <div class="d-flex align-items-center gap-3">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" id="hotelSaveBtn" class="btn btn-primary px-4">
+                            <span class="hotel-save-btn-text">Save</span>
+                            <span class="hotel-save-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -1737,5 +1773,27 @@
             chargeTypeSpan.textContent = '';
         }
     }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const hotelForm = document.getElementById('hotelForm');
+    const saveBtn = document.getElementById('hotelSaveBtn');
+    const loader = document.getElementById('hotelSaveLoader');
+
+    if (!hotelForm || !saveBtn || !loader) return;
+
+    hotelForm.addEventListener('submit', function () {
+        // Only runs when HTML5 validation passes
+        loader.classList.add('active');
+        loader.setAttribute('aria-busy', 'true');
+        saveBtn.disabled = true;
+
+        const textEl = saveBtn.querySelector('.hotel-save-btn-text');
+        const loadingEl = saveBtn.querySelector('.hotel-save-btn-loading');
+        if (textEl) textEl.classList.add('d-none');
+        if (loadingEl) loadingEl.classList.remove('d-none');
+    });
+});
 </script>
 @endsection

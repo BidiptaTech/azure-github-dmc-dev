@@ -248,7 +248,7 @@
                     <div class="tab-pane fade show active" id="add-single" role="tabpanel" aria-labelledby="add-single-tab">
                         <div class="p-4">
             <form id="hotelForm" method="POST" action="{{ route('storebed') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <input type="hidden" class="form-control" name="hotel_id" id="hotel_id"
                     value="{{ $hotel->hotel_unique_id }}">
@@ -459,7 +459,13 @@
 
                             <!-- Submit Buttons -->
                             <div class="d-flex gap-3">
-                                <button type="submit" class="btn btn-primary px-4">Save</button>
+                                <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                    <span class="js-submit-loader-btn-text">Save</span>
+                                    <span class="js-submit-loader-btn-loading d-none">
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        Saving...
+                                    </span>
+                                </button>
                                 <!-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}"
                                     class="btn btn-success px-4">Save</a> -->
                             </div>
@@ -669,6 +675,7 @@
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')

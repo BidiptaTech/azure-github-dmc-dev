@@ -208,7 +208,7 @@
             </h5>
             <x-alert />
             <form id="packagedAttractionForm" method="POST" action="{{ route('packaged-attractions.store') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Creating packaged attraction...">
                 @csrf
                 
                 <div class="row">
@@ -440,8 +440,12 @@
                 <!-- Submit Button -->
                 <div class="row">
                     <div class="col-12 text-center">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i> Create Packaged Attraction
+                        <button type="submit" class="btn btn-primary js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text"><i class="fas fa-save me-2"></i> Create Packaged Attraction</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Creating...
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -449,6 +453,7 @@
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Creating packaged attraction..." />
 @endsection
 
 @section('scripts')

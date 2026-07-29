@@ -59,7 +59,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form id="portsForm" action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body" novalidate>
+            <form id="portsForm" action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving..." novalidate>
                 @csrf 
                 <input type="text" id="hotel_id" name="hotel_id" class="form-control" value="{{ $hotel->hotel_unique_id }}" hidden>
                 @if ($errors->any())
@@ -241,13 +241,20 @@
 
                 </div>
                 <div class="d-flex justify-content-between mt-4">
-                    <button type="submit" class="btn btn-primary px-4"
-                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Save</button>
+                    <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn"
+                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                        <span class="js-submit-loader-btn-text">Save</span>
+                        <span class="js-submit-loader-btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
