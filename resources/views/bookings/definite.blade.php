@@ -4384,13 +4384,102 @@
         $latestEnquiryRow = \App\Models\Enquiry::where('tour_id', $tour->tour_id)
             ->orderByDesc('enquiry_id')
             ->first();
+        $pricingEnquiry = $confirmedEnquiry ?: $latestEnquiryRow;
+
+        // Prefer enquiry currency (set at confirm) so breakdown matches payment currency.
+        $enquiryCurrency = is_string($tour->enquiry_currency ?? null) ? trim($tour->enquiry_currency) : '';
+        if ($enquiryCurrency === '' && $pricingEnquiry) {
+            $enquiryCurrency = is_string($pricingEnquiry->currency ?? null) ? trim($pricingEnquiry->currency) : '';
+        }
+        $userCurrency = is_string($tour->user_currency ?? null) ? trim($tour->user_currency) : '';
+        $tourCurrency = $enquiryCurrency !== ''
+            ? $enquiryCurrency
+            : ($userCurrency !== ''
+                ? $userCurrency
+                : ($currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()));
+        $tourCurrency = strtoupper(trim((string) $tourCurrency));
+
         $lastNegotiatedAmount = 0;
         if ($confirmedEnquiry && (float) ($confirmedEnquiry->amount ?? 0) > 0) {
             $lastNegotiatedAmount = (float) $confirmedEnquiry->amount;
         } elseif ($latestEnquiryRow && (float) ($latestEnquiryRow->amount ?? 0) > 0) {
             $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
         }
-        $grossTourAmount = round($tourTotalPrice);
+
+        // Rebuild converted totals from negotiation_details (handles multi-currency confirm).
+        // Older rows only store conversion_rate + converted_amount for negotiated offers;
+        // convert gross/payable with the same rate so Gross/Negotiation match tour currency.
+        $convertedGrossFromDetails = 0.0;
+        $convertedPayableFromDetails = 0.0;
+        $convertedNegotiatedFromDetails = 0.0;
+        $hasConvertedPricing = false;
+        $details = is_array($pricingEnquiry?->negotiation_details ?? null) ? $pricingEnquiry->negotiation_details : [];
+        if (!empty($details)) {
+            $convertedGrossFromDetails = 0.0;
+            $convertedPayableFromDetails = 0.0;
+            $convertedNegotiatedFromDetails = 0.0;
+            $usableRows = 0;
+            foreach ($details as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $rowTarget = strtoupper(trim((string) ($row['target_currency'] ?? '')));
+                $rate = (float) ($row['conversion_rate'] ?? 0);
+                $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? '')));
+
+                // Prefer explicit converted_* fields when present (new confirms).
+                $rowConvertedNegotiated = isset($row['converted_amount']) ? (float) $row['converted_amount'] : null;
+                $rowConvertedPayable = isset($row['converted_actual_amount']) ? (float) $row['converted_actual_amount'] : null;
+                $rowConvertedGross = isset($row['converted_gross']) ? (float) $row['converted_gross'] : null;
+
+                if ($rate <= 0) {
+                    if ($fromCurrency !== '' && $tourCurrency !== '' && $fromCurrency === $tourCurrency) {
+                        $rate = 1.0;
+                    } elseif ($rowTarget !== '' && $rowTarget === $tourCurrency && $rowConvertedNegotiated !== null) {
+                        $rate = 1.0; // already in target; use converted_amount only
+                    }
+                }
+
+                if ($rate <= 0 && $rowConvertedNegotiated === null) {
+                    continue;
+                }
+                if ($rowTarget !== '' && $tourCurrency !== '' && $rowTarget !== $tourCurrency && $rate <= 0) {
+                    continue;
+                }
+
+                $grossSrc = (float) ($row['gross'] ?? 0);
+                $payableSrc = (float) ($row['actual_amount'] ?? 0);
+                $negotiatedSrc = (float) ($row['amount'] ?? 0);
+
+                $convertedGrossFromDetails += $rowConvertedGross !== null
+                    ? $rowConvertedGross
+                    : round(max(0, $grossSrc) * $rate, 2);
+                $convertedPayableFromDetails += $rowConvertedPayable !== null
+                    ? $rowConvertedPayable
+                    : round(max(0, $payableSrc) * $rate, 2);
+                $convertedNegotiatedFromDetails += $rowConvertedNegotiated !== null
+                    ? $rowConvertedNegotiated
+                    : round(max(0, $negotiatedSrc) * $rate, 2);
+                $usableRows++;
+            }
+            $hasConvertedPricing = $usableRows > 0 && ($convertedNegotiatedFromDetails > 0 || $convertedGrossFromDetails > 0);
+        }
+
+        if ($hasConvertedPricing) {
+            $grossTourAmount = (float) ceil($convertedGrossFromDetails);
+            if ($convertedNegotiatedFromDetails > 0) {
+                $lastNegotiatedAmount = (float) ceil($convertedNegotiatedFromDetails);
+            }
+        } else {
+            // Fallback: enquiry.gross_amount when it looks like a real gross (not equal to negotiated-only legacy bug).
+            $enquiryGross = (float) ($pricingEnquiry->gross_amount ?? 0);
+            $enquiryAmount = (float) ($pricingEnquiry->amount ?? 0);
+            if ($enquiryGross > 0 && abs($enquiryGross - $enquiryAmount) > 0.009) {
+                $grossTourAmount = (float) ceil($enquiryGross);
+            } else {
+                $grossTourAmount = (float) ceil($tourTotalPrice);
+            }
+        }
 
         // Markup stored on the tour (markup_amount holds the % when type = percentage,
         // otherwise a flat money value). Markup increases the payable amount.
@@ -4423,7 +4512,13 @@
         // Price after markup and discount = Gross + Markup − Discount (business calculation).
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
         $netPayableBase = (int) ceil($priceAfterFoc);
-        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
+        // Prefer converted country payable totals (already include markup/discount at negotiation time).
+        if ($hasConvertedPricing && $convertedPayableFromDetails > 0) {
+            $netPayableBase = (int) ceil($convertedPayableFromDetails);
+        }
+        $baseAmount = $lastNegotiatedAmount > 0
+            ? (float) ceil($lastNegotiatedAmount)
+            : (float) $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
@@ -4453,14 +4548,6 @@
             }
         }
         $remainingAmount = max(0, round($finalAmount - $totalPaid));
-        // Prefer enquiry_comments.currency when set; else tour user_currency; else DMC currency.
-        $enquiryCurrency = is_string($tour->enquiry_currency ?? null) ? trim($tour->enquiry_currency) : '';
-        $userCurrency = is_string($tour->user_currency ?? null) ? trim($tour->user_currency) : '';
-        $tourCurrency = $enquiryCurrency !== ''
-            ? $enquiryCurrency
-            : ($userCurrency !== ''
-                ? $userCurrency
-                : ($currency ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()));
     @endphp
     <script>window.tourPaymentData = window.tourPaymentData || {}; window.tourPaymentData[{{ $tour->tour_id }}] = @json($paymentData ?? []);</script>
 
@@ -4727,124 +4814,33 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Hidden input for validation -->
-                            <input type="hidden" id="amount{{ $tour->tour_id }}" name="amount" value="{{ $remainingAmount }}">
+                            <input type="hidden" id="amount{{ $tour->tour_id }}" value="{{ $remainingAmount }}">
+                            <input type="hidden" name="currency" value="{{ $tourCurrency }}">
+                            <input type="hidden" name="exchange_rate" value="1">
                         </div>
                         
-                        <!-- Currency Selection -->
-                        <div class="mb-4">
-                            <label for="currency{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-coins text-warning me-2"></i>Select Currency
-                            </label>
-                            <select class="form-select form-control-lg" 
-                                id="currency{{ $tour->tour_id }}" 
-                                name="currency" 
-                                onchange="updatePaymentAmountEnhanced({{ $tour->tour_id }}, this.value)"
-                                required>
-                                <option value="">Select Currency</option>
-                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currency)
-                                    <option value="{{ $currency }}" {{ $currency == $tourCurrency ? 'selected' : '' }}>
-                                        {{ $currency }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        
-                        <!-- Exchange Rate (Editable) -->
-                        <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
-                            <div class="mb-3" id="exchangeRateSourceOptions{{ $tour->tour_id }}">
-                                <label class="form-label fw-bold mb-2">
-                                    <i class="fas fa-sliders-h text-primary me-2"></i>Rate Options
-                                </label>
-                                <div class="d-flex flex-wrap gap-3 align-items-center">
-                                    <label class="form-check form-check-inline m-0">
-                                        <input
-                                            class="form-check-input"
-                                            type="radio"
-                                            name="rate_source{{ $tour->tour_id }}"
-                                            id="rateSourceLive{{ $tour->tour_id }}"
-                                            value="live"
-                                            data-rate-source-radio="1"
-                                            data-tour-id="{{ $tour->tour_id }}"
-                                            checked
-                                        >
-                                        <span class="form-check-label">API Rate</span>
-                                    </label>
-
-                                    <label class="form-check form-check-inline m-0">
-                                        <input
-                                            class="form-check-input"
-                                            type="radio"
-                                            name="rate_source{{ $tour->tour_id }}"
-                                            id="rateSourceDmc{{ $tour->tour_id }}"
-                                            value="dmc"
-                                            data-rate-source-radio="1"
-                                            data-tour-id="{{ $tour->tour_id }}"
-                                        >
-                                        <span class="form-check-label">DMC Rate</span>
-                                    </label>
-
-                                    <label class="form-check form-check-inline m-0" id="rateSourcePreviousWrap{{ $tour->tour_id }}">
-                                        <input
-                                            class="form-check-input"
-                                            type="radio"
-                                            name="rate_source{{ $tour->tour_id }}"
-                                            id="rateSourcePrevious{{ $tour->tour_id }}"
-                                            value="previous"
-                                            data-rate-source-radio="1"
-                                            data-tour-id="{{ $tour->tour_id }}"
-                                        >
-                                        <span class="form-check-label">Previous Rate</span>
-                                    </label>
-                                </div>
-                                <small class="text-muted d-block mt-2" id="rateSourceHint{{ $tour->tour_id }}" style="display:none;"></small>
-                            </div>
-                            <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light">1 {{ $tourCurrency }} =</span>
-                                <input type="number" 
-                                    class="form-control form-control-lg" 
-                                    id="exchange_rate{{ $tour->tour_id }}" 
-                                    name="exchange_rate" 
-                                    value="1.00" 
-                                    min="0" 
-                                    step="0.0001"
-                                    oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
-                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
-                                    <i class="fas fa-globe me-1"></i>
-                                    Rate Source: <span id="rateSourceText{{ $tour->tour_id }}">API</span>
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <!-- Payment Amount in Selected Currency -->
                         <div class="mb-4">
                             <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">{{ $tourCurrency }}</span>
+                                <span class="input-group-text bg-light">{{ $tourCurrency }}</span>
                                 <input type="number" 
                                     class="form-control form-control-lg" 
                                     id="payment_amount{{ $tour->tour_id }}" 
                                     name="payment_amount" 
                                     placeholder="Enter payment amount" 
                                     required
-                                    min="0" 
+                                    min="0.01" 
                                     max="{{ $remainingAmount }}"
                                     step="0.01"
+                                    value="{{ $remainingAmount }}"
                                     oninput="validatePaymentAmountInput({{ $tour->tour_id }})"
                                     onblur="validatePaymentAmountInput({{ $tour->tour_id }})">
                             </div>
-                            <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
-                                <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Amount in {{ $tourCurrency }}: {{ number_format(round($remainingAmount), 2) }}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    Maximum: {{ number_format(ceil($remainingAmount), 2) }} {{ $tourCurrency }}
                                 </small>
                             </div>
                             <div class="mt-1">
@@ -23595,45 +23591,48 @@ function recalculateFromExchangeRate(tourId) {
 }
 
 function validatePaymentAmountInput(tourId) {
-    const baseCurrency = getTourPaymentCurrency(tourId);
-    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value);
-    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
-    const maxBaseAmount = Math.round(parseFloat(document.getElementById(`amount${tourId}`).value) || 0);
-    const selectedCurrency = document.getElementById(`currency${tourId}`).value;
-    const isForeignCurrency = selectedCurrency && selectedCurrency !== baseCurrency;
-
-    updatePaymentAmountMax(tourId);
-    
+    const paymentInput = document.getElementById(`payment_amount${tourId}`);
+    const maxRemainingEl = document.getElementById(`amount${tourId}`);
     const validationError = document.getElementById(`paymentValidationError${tourId}`);
     const validationMessage = document.getElementById(`validationMessage${tourId}`);
-    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
-    
-    if (!paymentAmount || paymentAmount <= 0) {
-        validationError.style.display = 'block';
-        validationMessage.textContent = 'Please enter a valid payment amount';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+    const saveBtn = document.getElementById(`savePaymentBtn${tourId}`);
+    const baseCurrency = getTourPaymentCurrency(tourId);
+
+    if (!paymentInput) {
         return;
     }
-    
-    const equivalentBase = isForeignCurrency ? Math.round(paymentAmount / exchangeRate) : Math.round(paymentAmount);
-    const maxPaymentAmount = isForeignCurrency ? (maxBaseAmount * exchangeRate) : maxBaseAmount;
-    
-    if (equivalentBase > maxBaseAmount) {
-        validationError.style.display = 'block';
-        const maxDisplay = isForeignCurrency ? maxPaymentAmount.toFixed(2) : String(maxBaseAmount);
-        const maxCurrency = isForeignCurrency ? selectedCurrency : baseCurrency;
-        validationMessage.textContent = `Amount exceeds maximum allowed (${maxDisplay} ${maxCurrency})`;
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
-    } else {
-        validationError.style.display = 'none';
-        document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
+
+    const maxRemaining = Math.ceil(parseFloat(maxRemainingEl?.value) || 0);
+    updatePaymentAmountMax(tourId);
+
+    let paymentAmount = parseFloat(paymentInput.value);
+    if (isNaN(paymentAmount)) {
+        paymentAmount = 0;
     }
-    
-    if (selectedCurrency !== baseCurrency) {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in ${baseCurrency}: ${equivalentBase.toFixed(2)}`;
-    } else {
-        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} ${baseCurrency}`;
+
+    if (paymentAmount > maxRemaining && maxRemaining > 0) {
+        paymentInput.value = String(maxRemaining);
+        paymentAmount = maxRemaining;
     }
+
+    if (!paymentAmount || paymentAmount <= 0) {
+        if (validationError) validationError.style.display = 'block';
+        if (validationMessage) validationMessage.textContent = 'Please enter a valid payment amount';
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (maxRemaining > 0 && paymentAmount > maxRemaining) {
+        if (validationError) validationError.style.display = 'block';
+        if (validationMessage) {
+            validationMessage.textContent = `Amount cannot exceed ${maxRemaining.toFixed(2)} ${baseCurrency}`;
+        }
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+    }
+
+    if (validationError) validationError.style.display = 'none';
+    if (saveBtn) saveBtn.disabled = false;
 }
 
 function submitPaymentForm(tourId) {
@@ -23871,15 +23870,14 @@ document.addEventListener('DOMContentLoaded', function() {
     paymentModals.forEach(modal => {
         modal.addEventListener('shown.bs.modal', function() {
             const tourId = this.id.replace('addPaymentModal', '');
-            initPaymentRateSourcesForTour(tourId);
-
-            const liveEl = document.getElementById(`rateSourceLive${tourId}`);
-            if (liveEl) liveEl.checked = true;
-
-            const currencySelect = document.getElementById(`currency${tourId}`);
-            if (currencySelect) {
-                updatePaymentAmountEnhanced(tourId, currencySelect.value);
+            const maxRemainingEl = document.getElementById(`amount${tourId}`);
+            const paymentInput = document.getElementById(`payment_amount${tourId}`);
+            const maxRemaining = maxRemainingEl ? (maxRemainingEl.value || '') : '';
+            if (paymentInput && maxRemaining !== '') {
+                paymentInput.value = maxRemaining;
+                paymentInput.setAttribute('max', maxRemaining);
             }
+            validatePaymentAmountInput(tourId);
         });
 
         modal.addEventListener('hidden.bs.modal', function() {
@@ -23907,15 +23905,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
             }
             
-            // Reset currency selection to page currency
-            const currencySelect = form.querySelector('select[name="currency"]');
-            if (currencySelect) {
-                const baseCurrency = getTourPaymentCurrency(tourId);
-                currencySelect.value = baseCurrency;
-                const liveEl = document.getElementById(`rateSourceLive${tourId}`);
-                if (liveEl) liveEl.checked = true;
-                updatePaymentAmountEnhanced(tourId, baseCurrency);
+            const maxRemainingEl = document.getElementById(`amount${tourId}`);
+            const paymentInput = document.getElementById(`payment_amount${tourId}`);
+            const maxRemaining = maxRemainingEl ? (maxRemainingEl.value || '') : '';
+            if (paymentInput && maxRemaining !== '') {
+                paymentInput.value = maxRemaining;
+                paymentInput.setAttribute('max', maxRemaining);
             }
+            validatePaymentAmountInput(tourId);
         });
     });
 });

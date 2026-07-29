@@ -59,9 +59,18 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body">
+            <form id="portsForm" action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving..." novalidate>
                 @csrf 
                 <input type="text" id="hotel_id" name="hotel_id" class="form-control" value="{{ $hotel->hotel_unique_id }}" hidden>
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="row">
                     <!-- Port of Exit Section -->
                     <div class="row">
@@ -82,7 +91,7 @@
                             <!-- Name Select Box -->
                             <div class="mb-3 col-md-3">
                                 <label for="exit_port_name_{{ $index }}" class="form-label"><strong>Port Type</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <select id="exit_port_name_{{ $index }}" name="exit_port_name[]" class="form-control"
+                                <select id="exit_port_name_{{ $index }}" name="exit_port_name[]" class="form-control" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="">Select a Port</option>
                                     <option value="Airport" {{ old('exit_port_name.' . $index, $exit['type'] ?? '') == 'Airport' ? 'selected' : '' }}>Airport</option>
@@ -95,21 +104,21 @@
                             <!-- Latitude Field -->
                             <div class="mb-3 col-md-3">
                                 <label for="exit_latitude_{{ $index }}" class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_latitude_{{ $index }}" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" value="{{ old('exit_latitude.' . $index, $exit['latitude'] ?? '') }}" oninput="validateLatitude(this)"
+                                <input type="text" id="exit_latitude_{{ $index }}" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" value="{{ old('exit_latitude.' . $index, $exit['latitude'] ?? '') }}" oninput="validateLatitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_latitude_{{ $index }}-validation-message"></small>
                             </div>
                             <!-- Longitude Field -->
                             <div class="mb-3 col-md-3">
                                 <label for="exit_longitude_{{ $index }}" class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_longitude_{{ $index }}" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" value="{{ old('exit_longitude.' . $index, $exit['longitude'] ?? '') }}" oninput="validateLongitude(this)"
+                                <input type="text" id="exit_longitude_{{ $index }}" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" value="{{ old('exit_longitude.' . $index, $exit['longitude'] ?? '') }}" oninput="validateLongitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_longitude_{{ $index }}-validation-message"></small>
                             </div>
                             <!-- Distance Field -->
                             <div class="mb-3 col-md-2">
                                 <label for="exit_distance_{{ $index }}" class="form-label"><strong>Distance</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_distance_{{ $index }}" name="exit_distance[]" class="form-control" placeholder="Enter Distance" value="{{ old('exit_distance.' . $index, $exit['distance'] ?? '') }}" oninput="validateDistance(this)"
+                                <input type="text" id="exit_distance_{{ $index }}" name="exit_distance[]" class="form-control" placeholder="Enter Distance" value="{{ old('exit_distance.' . $index, $exit['distance'] ?? '') }}" oninput="validateDistance(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_distance_{{ $index }}-validation-message"></small>
                             </div>
@@ -153,7 +162,7 @@
                                 </label>
                                 <input type="text" id="others_port_name_{{ $index }}" name="others_port_name[]" class="form-control" 
                                     placeholder="Enter Name" 
-                                    value="{{ old('others_port_name.' . $index, $other['type'] ?? '') }}"
+                                    value="{{ old('others_port_name.' . $index, $other['type'] ?? '') }}" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                             </div>
 
@@ -164,7 +173,7 @@
                                 </label>
                                 <input type="text" id="others_latitude_{{ $index }}" name="others_latitude[]" class="form-control" 
                                     placeholder="Enter Latitude" 
-                                    value="{{ old('others_latitude.' . $index, $other['latitude'] ?? '') }}" oninput="validateLatitude(this)"
+                                    value="{{ old('others_latitude.' . $index, $other['latitude'] ?? '') }}" oninput="validateLatitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_latitude_{{ $index }}-validation-message"></small>
                             </div>
@@ -176,7 +185,7 @@
                                 </label>
                                 <input type="text" id="others_longitude_{{ $index }}" name="others_longitude[]" class="form-control" 
                                     placeholder="Enter Longitude" 
-                                    value="{{ old('others_longitude.' . $index, $other['longitude'] ?? '') }}" oninput="validateLongitude(this)"
+                                    value="{{ old('others_longitude.' . $index, $other['longitude'] ?? '') }}" oninput="validateLongitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_longitude_{{ $index }}-validation-message"></small>
                             </div>
@@ -185,7 +194,7 @@
                                 <label for="others_type_{{ $index }}" class="form-label">
                                     <strong>Type</strong><span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <select id="others_type_{{ $index }}" name="others_type[]" class="form-select"
+                                <select id="others_type_{{ $index }}" name="others_type[]" class="form-select" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="">Select Type</option>
                                     <option value="Transit" {{ old('others_type.' . $index, $other['port_name'] ?? '') == 'Transit' ? 'selected' : '' }}>Transit</option>
@@ -207,7 +216,7 @@
                                 </label>
                                 <input type="text" id="others_distance_{{ $index }}" name="others_distance[]" class="form-control" 
                                     placeholder="Enter Distance" 
-                                    value="{{ old('others_distance.' . $index, $other['distance'] ?? '') }}" oninput="validateDistance(this)"
+                                    value="{{ old('others_distance.' . $index, $other['distance'] ?? '') }}" oninput="validateDistance(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_distance_{{ $index }}-validation-message"></small>
                             </div>
@@ -232,13 +241,20 @@
 
                 </div>
                 <div class="d-flex justify-content-between mt-4">
-                    <button type="submit" class="btn btn-primary px-4"
-                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Save</button>
+                    <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn"
+                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                        <span class="js-submit-loader-btn-text">Save</span>
+                        <span class="js-submit-loader-btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -264,7 +280,7 @@
                     nameField.innerHTML = `
                         <label class="form-label"><strong>Port Name</strong><span style="color: red; font-weight: bold;">*</span></label>
                             <input type="text" class="form-control port-name-input" name="${'exit_port_specific_name[]'}" 
-                            value="${portNameValue}" placeholder="Enter name of the ${this.value}"
+                            value="${portNameValue}" placeholder="Enter name of the ${this.value}" required
                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                             <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
                     `;
@@ -364,9 +380,9 @@
                         nameField = document.createElement('div');
                                 nameField.className = 'port-name-field col-md-3 position-relative';
                         nameField.innerHTML = `
-                                    <label>Port Name</label>
+                                    <label class="form-label"><strong>Port Name</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <input type="text" name="${'exit_port_specific_name[]'}" class="form-control port-name-input" 
-                                    placeholder="Enter name of the ${this.value}" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                                    placeholder="Enter name of the ${this.value}" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
                                 `;
                                 this.closest('.col-md-3').insertAdjacentElement('afterend', nameField);
@@ -453,9 +469,9 @@
         newExitContainer.classList.add('mt-3', 'border', 'p-3');
         newExitContainer.innerHTML = `
                 <div class="row">
-                    <div  class="col-md-3">
-                        <label for="exit_port_type">Port Type</label>
-                        <select name="exit_port_name[]" class="form-select port-type-select" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                    <div class="col-md-3 mb-3">
+                        <label for="exit_port_type" class="form-label"><strong>Port Type</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <select name="exit_port_name[]" class="form-select port-type-select" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                             <option value="">Select a Port</option>
                             <option value="Airport">Airport</option>
                             <option value="Seaport">Seaport</option>
@@ -463,19 +479,18 @@
                             <option value="Railway">Railway</option>
                             <option value="BusStand">Bus Stand</option>
                         </select>
-                        <!-- Removed duplicate input field with same name -->
                     </div>
-                    <div class="col-md-3">
-                        <label for="exit_latitude">Latitude</label>
-                        <input type="text" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-3 mb-3">
+                        <label for="exit_latitude" class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
-                    <div class="col-md-3">
-                        <label for="exit_longitude">Longitude</label>
-                        <input type="text" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-3 mb-3">
+                        <label for="exit_longitude" class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
-                    <div class="col-md-2">
-                        <label for="exit_distance">Distance</label>
-                        <input type="text" name="exit_distance[]" class="form-control" placeholder="Enter Distance" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-2 mb-3">
+                        <label for="exit_distance" class="form-label"><strong>Distance</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" name="exit_distance[]" class="form-control" placeholder="Enter Distance" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
                     <div class="mb-3 col-md-1">
                         <button type="button" class="btn btn-danger delete-exit" style="margin-top: 27px;" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
@@ -595,17 +610,17 @@
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_latitude[]" class="form-control" placeholder="Enter Latitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <input type="text" name="others_latitude[]" class="form-control" placeholder="Enter Latitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_longitude[]" class="form-control" placeholder="Enter Longitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <input type="text" name="others_longitude[]" class="form-control" placeholder="Enter Longitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Type</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <select name="others_type[]" class="form-select" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                        <select name="others_type[]" class="form-select" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                             <option value="">Select Type</option>
                             <option value="Transit">Transit</option>
                             <option value="Transport">Transport</option>
@@ -618,7 +633,7 @@
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Distance</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_distance[]" class="form-control" placeholder="Enter Distance" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <input type="text" name="others_distance[]" class="form-control" placeholder="Enter Distance" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                     </div>
 
                     <div class="mb-3 col-md-1">
@@ -1204,6 +1219,7 @@ function validateLatitude(input) {
     
     if (value === '') {
         showValidationMessage(input, false, 'Latitude is required');
+        return false;
     } else if (!latitudeRegex.test(value)) {
         showValidationMessage(input, false, `
             Please enter a valid latitude:
@@ -1214,8 +1230,10 @@ function validateLatitude(input) {
                 <li>Example: 23.456789802</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
 
@@ -1247,6 +1265,7 @@ function validateLongitude(input) {
     
     if (value === '') {
         showValidationMessage(input, false, 'Longitude is required');
+        return false;
     } else if (!longitudeRegex.test(value)) {
         showValidationMessage(input, false, `
             Please enter a valid longitude:
@@ -1257,8 +1276,10 @@ function validateLongitude(input) {
                 <li>Example: 78.123456658</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
 
@@ -1281,6 +1302,7 @@ function validateDistance(input) {
     
     if (value === '') {
         showValidationMessage(input, false, 'Distance is required');
+        return false;
     } else if (!distanceRegex.test(value)) {
         showValidationMessage(input, false, `
             Please enter a valid distance:
@@ -1290,10 +1312,167 @@ function validateDistance(input) {
                 <li>Example: 25.5</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
+
+function markFieldInvalid(field, message) {
+    if (!field) return;
+    field.classList.add('is-invalid');
+    field.classList.remove('is-valid');
+    if (typeof showValidationMessage === 'function' && field.tagName === 'INPUT') {
+        // Prefer existing validation message slot when available
+        const existingMsg = document.getElementById(field.id + '-validation-message');
+        if (existingMsg) {
+            showValidationMessage(field, false, message);
+            return;
+        }
+    }
+    let feedback = field.parentElement.querySelector('.ports-required-feedback');
+    if (!feedback) {
+        feedback = document.createElement('div');
+        feedback.className = 'text-danger ports-required-feedback mt-1';
+        field.parentElement.appendChild(feedback);
+    }
+    feedback.textContent = message;
+}
+
+function clearFieldInvalid(field) {
+    if (!field) return;
+    field.classList.remove('is-invalid');
+    const feedback = field.parentElement ? field.parentElement.querySelector('.ports-required-feedback') : null;
+    if (feedback) feedback.remove();
+}
+
+function validateRequiredSelectOrText(field, label) {
+    const value = (field.value || '').toString().trim();
+    if (!value) {
+        markFieldInvalid(field, label + ' is required');
+        return false;
+    }
+    clearFieldInvalid(field);
+    field.classList.add('is-valid');
+    return true;
+}
+
+function validatePortsFormBeforeSave() {
+    let isValid = true;
+    let firstInvalid = null;
+
+    const exitEnabled = document.getElementById('port_of_exit')?.checked;
+    const othersEnabled = document.getElementById('others')?.checked;
+
+    if (exitEnabled) {
+        const exitRows = document.querySelectorAll('#exit_fields_container .row');
+        exitRows.forEach(function (row) {
+            // Skip utility rows that don't contain port fields
+            const typeSelect = row.querySelector('select[name="exit_port_name[]"]');
+            if (!typeSelect) return;
+
+            if (!validateRequiredSelectOrText(typeSelect, 'Port Type')) {
+                isValid = false;
+                firstInvalid = firstInvalid || typeSelect;
+            }
+
+            const portName = row.querySelector('input[name="exit_port_specific_name[]"]');
+            if (typeSelect.value) {
+                if (!portName) {
+                    isValid = false;
+                    markFieldInvalid(typeSelect, 'Port Name is required');
+                    firstInvalid = firstInvalid || typeSelect;
+                } else if (!validateRequiredSelectOrText(portName, 'Port Name')) {
+                    isValid = false;
+                    firstInvalid = firstInvalid || portName;
+                }
+            }
+
+            const lat = row.querySelector('input[name="exit_latitude[]"]');
+            const lng = row.querySelector('input[name="exit_longitude[]"]');
+            const dist = row.querySelector('input[name="exit_distance[]"]');
+
+            if (lat && !validateLatitude(lat)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lat;
+            }
+            if (lng && !validateLongitude(lng)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lng;
+            }
+            if (dist && !validateDistance(dist)) {
+                isValid = false;
+                firstInvalid = firstInvalid || dist;
+            }
+        });
+    }
+
+    if (othersEnabled) {
+        const otherRows = document.querySelectorAll('#others_fields_container .row');
+        otherRows.forEach(function (row) {
+            const nameInput = row.querySelector('input[name="others_port_name[]"]');
+            if (!nameInput) return;
+
+            if (!validateRequiredSelectOrText(nameInput, 'Name')) {
+                isValid = false;
+                firstInvalid = firstInvalid || nameInput;
+            }
+
+            const typeSelect = row.querySelector('select[name="others_type[]"]');
+            if (typeSelect && !validateRequiredSelectOrText(typeSelect, 'Type')) {
+                isValid = false;
+                firstInvalid = firstInvalid || typeSelect;
+            }
+
+            const lat = row.querySelector('input[name="others_latitude[]"]');
+            const lng = row.querySelector('input[name="others_longitude[]"]');
+            const dist = row.querySelector('input[name="others_distance[]"]');
+
+            if (lat && !validateLatitude(lat)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lat;
+            }
+            if (lng && !validateLongitude(lng)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lng;
+            }
+            if (dist && !validateDistance(dist)) {
+                isValid = false;
+                firstInvalid = firstInvalid || dist;
+            }
+        });
+    }
+
+    if (!isValid && firstInvalid) {
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstInvalid.focus();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete or invalid fields',
+                text: 'Please fill all mandatory fields with valid values before saving.'
+            });
+        } else {
+            alert('Please fill all mandatory fields with valid values before saving.');
+        }
+    }
+
+    return isValid;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const portsForm = document.getElementById('portsForm');
+    if (portsForm) {
+        portsForm.addEventListener('submit', function (e) {
+            if (!validatePortsFormBeforeSave()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        });
+    }
+});
 
 // Add CSS for validation messages and icons
 document.head.insertAdjacentHTML('beforeend', `

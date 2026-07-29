@@ -171,7 +171,7 @@
                   <i class="mdi mdi-arrow-left"></i> Back
                </a>
          </h5>
-         <form id="hotelForm" method="POST" action="{{ route('storerates') }}" enctype="multipart/form-data" class="card-body">
+         <form id="hotelForm" method="POST" action="{{ route('storerates') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
             @csrf
             <input type="hidden" class="form-control" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
             
@@ -299,7 +299,13 @@
 
             <!-- Submit Buttons -->
             <div class="d-flex gap-3">
-               <button type="submit" class="btn btn-primary px-4">Save</button>
+               <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                    <span class="js-submit-loader-btn-text">Save</span>
+                    <span class="js-submit-loader-btn-loading d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Saving...
+                    </span>
+               </button>
                {{-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}" class="btn btn-success px-4">Save</a> --}}
             </div>
          </form>
@@ -418,6 +424,7 @@
    </div>
 </div>
 
+<x-form-submit-loader message="Saving..." />
 @endsection
 @section('scripts')  
 

@@ -264,7 +264,7 @@
             </div>
             
             <div class="card-body">
-                <form action="{{ route('store.facility.image') }}" method="POST" enctype="multipart/form-data" id="facility-form">
+                <form action="{{ route('store.facility.image') }}" method="POST" enctype="multipart/form-data" id="facility-form" data-loader-message="Saving facilities...">
                     @csrf
                     <input type="hidden" id="hotel_id" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
                     <input type="hidden" name="selected_facilities" id="selected-facilities" value="{{ json_encode(collect($facilities)->pluck('facilityId')) }}">
@@ -283,9 +283,13 @@
                                 @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <i class="fas fa-check-double me-2"></i>Select All
                             </button>
-                            <button type="submit" class="btn btn-primary action-button"
+                            <button type="submit" class="btn btn-primary action-button js-submit-loader-btn"
                                 @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
-                                <i class="fas fa-save me-2"></i>Save Facilities
+                                <span class="js-submit-loader-btn-text"><i class="fas fa-save me-2"></i>Save Facilities</span>
+                                <span class="js-submit-loader-btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Saving...
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -326,6 +330,7 @@
             </div>
         </div>
 
+<x-form-submit-loader message="Saving facilities..." />
 @endsection
 
 @section('scripts')  
@@ -615,8 +620,12 @@
             updateSelectedFacilities();
             
             // Show loading state
-            $(this).find('button[type="submit"]').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
-            $(this).find('button[type="submit"]').prop('disabled', true);
+            if (typeof window.showFormSubmitLoader === 'function') {
+                window.showFormSubmitLoader($(this).find('button[type="submit"]')[0], 'Saving facilities...');
+            } else {
+                $(this).find('button[type="submit"]').html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
+                $(this).find('button[type="submit"]').prop('disabled', true);
+            }
             
             return true;
         });
