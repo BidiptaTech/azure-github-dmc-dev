@@ -798,6 +798,37 @@
         'toursUrl' => route('bookings.definite'),
         'packagesUrl' => route('package-bookings.definite'),
     ])
+    @php
+        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
+        $filterMinDate = now()->subYear()->toDateString();
+        $filterMaxDate = now()->addYear()->toDateString();
+        $filterStartDate = now()->toDateString();
+        $filterEndDate = now()->addDays(30)->toDateString();
+        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
+
+        $toDateOnly = function ($value) {
+            if (empty($value)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($value)->toDateString();
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+
+        // Rows whose stay overlaps the default window, used for the initial stat counts.
+        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
+            $stayStart = $toDateOnly($tour->check_in_time ?? null);
+            $stayEnd = $toDateOnly($tour->check_out_time ?? null);
+            if (!$stayStart && !$stayEnd) {
+                return false;
+            }
+
+            return ($stayStart ?: $stayEnd) <= $filterEndDate && ($stayEnd ?: $stayStart) >= $filterStartDate;
+        });
+    @endphp
+
      <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -807,14 +838,14 @@
                 </h4>
                 <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage definite bookings ready for processing</span>
                 <span class="badge bg-light text-success border border-success border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
-                    <i class="ri-check-double-line me-1"></i><span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span> <span id="rangeLabel">{{ date('F') }}</span>
+                    <i class="ri-check-double-line me-1"></i><span id="rangeCount">{{ $defaultRangeTours->count() }}</span> <span id="rangeLabel">{{ $filterRangeLabel }}</span>
                 </span>
             </div>
             <div class="row g-2 new-enq-stats-grid flex-grow-1">
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-check-double-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span><span class="stat-label text-muted" id="statConfirmedLabel">{{ date('F') }} Definite</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statConfirmedCount">{{ $defaultRangeTours->count() }}</span><span class="stat-label text-muted" id="statConfirmedLabel">Definite - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
@@ -826,13 +857,13 @@
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-user-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statAdultsCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</span><span class="stat-label text-muted" id="statAdultsLabel">{{ date('F') }} Adults</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statAdultsCount">{{ $defaultRangeTours->where('adult', '>', 0)->sum('adult') }}</span><span class="stat-label text-muted" id="statAdultsLabel">Adults - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-warning rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-user-smile-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statChildrenCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</span><span class="stat-label text-muted" id="statChildrenLabel">{{ date('F') }} Children</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statChildrenCount">{{ $defaultRangeTours->where('child', '>', 0)->sum('child') }}</span><span class="stat-label text-muted" id="statChildrenLabel">Children - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
             </div>
@@ -893,11 +924,15 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter"
+                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
+                        value="{{ $filterStartDate }}" data-default-value="{{ $filterStartDate }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter"
+                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
+                        value="{{ $filterEndDate }}" data-default-value="{{ $filterEndDate }}">
                 </div>
             </div>
         </div>
@@ -982,6 +1017,8 @@
                             data-is-pro="{{ $tour->is_pro ?? 0 }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
+                            data-stay-start="{{ $toDateOnly($tour->check_in_time ?? null) }}"
+                            data-stay-end="{{ $toDateOnly($tour->check_out_time ?? null) }}"
                             data-execution-status="{{ $executionStatus }}"
                             data-destination="{{ $tour->destination ?? '' }}"
                             data-agent-name="{{ $tour->agent_name ?? '' }}"
@@ -24426,6 +24463,30 @@ function showUpcomingTours() {
     filterTable();
 }
 
+// Every data row in display order, including the ones DataTables keeps off the current page
+window.getFilterableRows = function() {
+    if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
+        try {
+            return Array.from(table.rows({ order: 'applied' }).nodes());
+        } catch (e) {
+            // DataTables not ready yet, fall back to whatever is in the DOM
+        }
+    }
+    return Array.from(document.querySelectorAll('#toursTable tbody tr'));
+};
+
+// Renumber the '#' column so it counts the filtered rows, continuing across pages
+window.renumberVisibleRows = function(visibleRows) {
+    const rows = visibleRows || window.getFilterableRows()
+        .filter(r => r.style.display !== 'none' && r.cells.length > 1);
+
+    rows.forEach((row, index) => {
+        if (row.classList.contains('child')) return; // DataTables responsive detail row
+        const cell = row.querySelector('.row-index-cell') || row.cells[0];
+        if (cell) cell.textContent = index + 1;
+    });
+};
+
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
@@ -24434,8 +24495,8 @@ window.filterTable = function() {
     const startDateValue = document.getElementById('startDateFilter')?.value || '';
     const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
-    const rows = document.querySelectorAll('#toursTable tbody tr');
-    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
+    const rows = window.getFilterableRows();
+    const totalRows = rows.filter(r => r.cells.length > 1).length;
     
     if (typeof table !== 'undefined' && table && table.rows) {
         table.rows('.dt-hasChild').every(function() {
@@ -24454,8 +24515,8 @@ window.filterTable = function() {
         const agent = (row.getAttribute('data-agent-name') || '').trim();
         const createdBy = (row.getAttribute('data-created-by-name') || row.cells[7]?.textContent || '').trim().toLowerCase();
         const executionStatus = row.getAttribute('data-execution-status') || '';
-        const updatedAt = row.getAttribute('data-updated-at');
-        const createdAtAttr = row.getAttribute('data-created-at');
+        const stayStartAttr = (row.getAttribute('data-stay-start') || '').trim();
+        const stayEndAttr = (row.getAttribute('data-stay-end') || '').trim();
         
         let show = true;
         
@@ -24484,49 +24545,30 @@ window.filterTable = function() {
             show = false;
         }
         
-        if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
-            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
-            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
-            let dateInRange = false;
-            
-            if (updatedAt) {
-                const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange && createdAtAttr) {
-                const createdDate = new Date(createdAtAttr + 'T00:00:00');
-                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange) {
+        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
+        if (startDateValue || endDateValue) {
+            if (!stayStartAttr && !stayEndAttr) {
+                // No travel dates recorded, so the tour cannot match a travel window
                 show = false;
+            } else {
+                const stayStart = stayStartAttr || stayEndAttr;
+                const stayEnd = stayEndAttr || stayStartAttr;
+                const startsAfterRange = endDateValue && stayStart > endDateValue;
+                const endsBeforeRange = startDateValue && stayEnd < startDateValue;
+                if (startsAfterRange || endsBeforeRange) {
+                    show = false;
+                }
             }
-        } else if (startDateValue || endDateValue) {
-            show = false;
         }
         
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     });
 
-    // Renumber visible rows so # column stays 1, 2, 3… after filters hide rows
-    let visibleRowNumber = 0;
-    rows.forEach(row => {
-        if (row.cells.length <= 1) return;
-        if (row.style.display === 'none') return;
-        visibleRowNumber++;
-        const indexCell = row.querySelector('.row-index-cell') || row.cells[0];
-        if (indexCell) indexCell.textContent = visibleRowNumber;
-    });
-    
     updateFilterResults(visibleCount, totalRows);
 
-    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    const visibleRows = rows.filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    renumberVisibleRows(visibleRows);
     const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
@@ -24581,11 +24623,10 @@ window.filterTable = function() {
         if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
         if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
     } else {
-        const month = new Date().toLocaleString('default', { month: 'long' });
-        if (labelEl) labelEl.textContent = month;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Definite`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+        if (labelEl) labelEl.textContent = 'All Dates';
+        if (statConfirmedLabel) statConfirmedLabel.textContent = 'Definite - All Dates';
+        if (statAdultsLabel) statAdultsLabel.textContent = 'Adults - All Dates';
+        if (statChildrenLabel) statChildrenLabel.textContent = 'Children - All Dates';
     }
 };
 
@@ -24613,10 +24654,13 @@ function resetFilters() {
         agentSelect.value = '';
     }
     
-    if (startDateInput) startDateInput.value = '';
+    // Dates go back to the default travel window rather than being cleared
+    if (startDateInput) startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     if (endDateInput) {
-        endDateInput.value = '';
-        endDateInput.removeAttribute('min');
+        endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
+        if (startDateInput && startDateInput.value) {
+            endDateInput.setAttribute('min', startDateInput.value);
+        }
     }
     filterTable();
     
@@ -24662,7 +24706,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
     const endDateFilter = document.getElementById('endDateFilter');
-    const today = new Date().toISOString().split('T')[0];
+    // Selectable travel window bounds come from the rendered min/max (one year either side of today)
+    const rangeMinDate = startDateFilter?.getAttribute('min') || '';
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -24670,7 +24715,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
     // They will trigger filterTable when changed via Select2's change event
     if (startDateFilter) {
-        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
             if (endDateFilter) {
                 if (startDateFilter.value) {
@@ -24678,15 +24722,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
                         endDateFilter.value = startDateFilter.value;
                     }
-                } else {
-                    endDateFilter.removeAttribute('min');
+                } else if (rangeMinDate) {
+                    endDateFilter.setAttribute('min', rangeMinDate);
                 }
             }
             filterTable();
         });
     }
     if (endDateFilter) {
-        endDateFilter.setAttribute('max', today);
         if (startDateFilter && startDateFilter.value) {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
@@ -24700,7 +24743,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show today's data
+    // Apply initial filter on page load to show the default travel window
     filterTable();
 });
 
@@ -27555,6 +27598,20 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             ],
             initComplete: function() {
                 console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Paging/sorting swaps the rows in the DOM, so re-apply the filters and renumber afterwards
+        let isReapplyingFilters = false;
+        table.on('draw.dt', function() {
+            if (isReapplyingFilters) return;
+            isReapplyingFilters = true;
+            try {
+                if (typeof filterTable === 'function') {
+                    filterTable();
+                }
+            } finally {
+                isReapplyingFilters = false;
             }
         });
 
