@@ -227,6 +227,58 @@
         from { opacity: 0; transform: translateY(-5px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    .vehicle-rate-fieldset {
+        padding: 1rem !important;
+        background: #fff;
+    }
+    .vehicle-rate-section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #405189;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .vehicle-rate-table {
+        width: 100%;
+        table-layout: fixed;
+        font-size: 0.8125rem;
+        margin-bottom: 0;
+    }
+    .vehicle-rate-table th,
+    .vehicle-rate-table td {
+        padding: 0.5rem 0.65rem;
+        vertical-align: top;
+    }
+    .vehicle-rate-table thead th {
+        background: #f8f9fa;
+        color: #566a7f;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .vehicle-rate-table .rate-column {
+        width: 28%;
+        vertical-align: middle;
+    }
+    .vehicle-rate-table .price-column { width: 36%; }
+    .vehicle-rate-table .text-danger { font-size: 0.7rem; }
+    .vehicle-rate-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.35rem;
+        background: #eef1ff;
+        color: #405189;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .vehicle-rate-helper {
+        font-size: 0.72rem;
+        color: #6c757d;
+    }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
@@ -586,174 +638,181 @@
                                 @enderror
                             </div> -->
 
-                            <fieldset id="vehicle_profit" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">Profit</h5>
-                                <div class="row">
-                                    <div class="col-md-3 mb-3">
-                                        <label for="day_profit_type" class="form-label"><strong>Type</strong></label>
-                                        <select id="day_profit_type" name="day_profit_type" class="form-select form-select-sm">
-                                            <option value="percentage" {{ old('day_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
-                                            <option value="flat" {{ old('day_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
-                                        </select>
+                            <fieldset id="tarrifs" class="border rounded mb-4 vehicle-rate-fieldset">
+                                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+                                    <div>
+                                        <h5 class="card-title mb-1">Private Car Tariffs</h5>
+                                        <small class="text-muted">Enter Cost; Sell can be calculated using the profit helper.</small>
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="mark_up" class="form-label"><strong>Mark up</strong></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="mark_up" name="mark_up" placeholder="0.00" value="{{ old('mark_up') }}">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-3 mb-3">
-                                        <label for="night_profit_type" class="form-label"><strong>Type</strong></label>
-                                        <select id="night_profit_type" name="night_profit_type" class="form-select form-select-sm">
-                                            <option value="percentage" {{ old('night_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
-                                            <option value="flat" {{ old('night_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong></label>
-                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge" placeholder="0.00" value="{{ old('night_surcharge') }}">
+                                    <div class="d-flex flex-wrap align-items-end gap-2" id="vehicle_profit">
+                                        <div>
+                                            <label for="day_profit_type" class="form-label mb-1 small"><strong>Day Profit Type</strong></label>
+                                            <select id="day_profit_type" name="day_profit_type" class="form-select form-select-sm">
+                                                <option value="percentage" {{ old('day_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                                <option value="flat" {{ old('day_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="mark_up" class="form-label mb-1 small"><strong>Day Profit On Cost</strong></label>
+                                            <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="mark_up" name="mark_up" placeholder="0.00" value="{{ old('mark_up') }}">
+                                        </div>
                                     </div>
                                 </div>
-                            </fieldset>
 
-                            <!-- Regular Pricing Fields -->
+                                <div id="taxi_day_charges">
+                                    <div class="vehicle-rate-section-title">
+                                        <i class="ri-sun-line me-1"></i> Day Charges
+                                        <small class="text-muted fw-normal">(Cost = supplier · Sell = customer pays)</small>
+                                    </div>
+                                    @php
+                                        $dayRateRows = [
+                                            ['label' => 'Base', 'icon' => 'ri-price-tag-3-line', 'cost' => 'base_cost_price', 'sell' => 'base_price', 'auto' => false],
+                                            ['label' => 'Per Hour', 'icon' => 'ri-time-line', 'cost' => 'per_hour_cost_price', 'sell' => 'cost_per_hour', 'auto' => false],
+                                        ];
+                                    @endphp
+                                    <div class="table-responsive mb-3">
+                                        <table class="table table-bordered table-sm vehicle-rate-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="rate-column">Rate</th>
+                                                    <th class="price-column">Cost <span class="text-danger">*</span></th>
+                                                    <th class="price-column">Sell <span class="text-danger">*</span></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($dayRateRows as $rate)
+                                                    <tr>
+                                                        <td class="rate-column">
+                                                            <span class="vehicle-rate-badge">
+                                                                <i class="{{ $rate['icon'] }}"></i>{{ $rate['label'] }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01"
+                                                                class="form-control vehicle-day-cost-input"
+                                                                id="{{ $rate['cost'] }}" name="{{ $rate['cost'] }}"
+                                                                data-sell-target="{{ $rate['sell'] }}"
+                                                                placeholder="0.00"
+                                                                value="{{ old($rate['cost'], $vehicle->{$rate['cost']}) }}" required>
+                                                            @error($rate['cost'])<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01"
+                                                                class="form-control vehicle-day-sell-input"
+                                                                id="{{ $rate['sell'] }}" name="{{ $rate['sell'] }}"
+                                                                placeholder="0.00"
+                                                                value="{{ old($rate['sell'], $vehicle->{$rate['sell']}) }}" required>
+                                                            @error($rate['sell'])<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
 
-                            <fieldset id="tarrifs" class="border p-4 rounded mb-4">
-                                <h5 class="card-title mb-3">Private Car Tarrifs</h5>
-                                <fieldset id="taxi_day_charges" class="border p-4 rounded mb-4">
-                                    <h5 class="card-title mb-3">Day Charges</h5>
-                                    <div class="row">
-                                        <div class="col-md-3 mb-3">
-                                            <label for="base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="base_cost_price" name="base_cost_price" data-sell-target="base_price" value="{{ old('base_cost_price', $vehicle->base_cost_price) }}" placeholder="Enter Base Cost Price" required>
-                                            @error('base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                <div id="taxi_night_charges">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+                                        <div class="vehicle-rate-section-title mb-0 border-0 pb-0">
+                                            <i class="ri-moon-line me-1"></i> Night Charges
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="base_price" name="base_price" value="{{ old('base_price', $vehicle->base_price) }}" placeholder="Enter Base Sell Price" required>
-                                            @error('base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        {{-- Per KM pricing temporarily hidden
-                                        <div class="col-md-3 mb-3">
-                                            <label for="per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_below_10_cost_price" data-sell-target="cost_per_km_below_10" value="{{ old('per_km_below_10_cost_price', $vehicle->per_km_below_10_cost_price) }}" placeholder="Enter Cost Price" required>
-                                            @error('per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_below_10" value="{{ old('cost_per_km_below_10', $vehicle->cost_per_km_below_10) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_10_to_25_cost_price" data-sell-target="cost_per_km_10_to_25" value="{{ old('per_km_10_to_25_cost_price', $vehicle->per_km_10_to_25_cost_price) }}" placeholder="Enter Cost Price" required>
-                                            @error('per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_10_to_25" value="{{ old('cost_per_km_10_to_25', $vehicle->cost_per_km_10_to_25) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_above_25_cost_price" data-sell-target="cost_per_km_above_25" value="{{ old('per_km_above_25_cost_price', $vehicle->per_km_above_25_cost_price) }}" placeholder="Enter Cost Price" required>
-                                            @error('per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_above_25" value="{{ old('cost_per_km_above_25', $vehicle->cost_per_km_above_25) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        --}}
-                                        <div class="col-md-3 mb-3">
-                                            <label for="per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="per_hour_cost_price" name="per_hour_cost_price" data-sell-target="cost_per_hour" value="{{ old('per_hour_cost_price', $vehicle->per_hour_cost_price) }}" placeholder="Enter Cost Price" required>
-                                            @error('per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="cost_per_hour" name="cost_per_hour" value="{{ old('cost_per_hour', $vehicle->cost_per_hour) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        <div class="d-flex flex-wrap align-items-end gap-2">
+                                            <div>
+                                                <label for="night_profit_type" class="form-label mb-1 small"><strong>Night Profit Type</strong></label>
+                                                <select id="night_profit_type" name="night_profit_type" class="form-select form-select-sm">
+                                                    <option value="percentage" {{ old('night_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                                    <option value="flat" {{ old('night_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="night_surcharge" class="form-label mb-1 small"><strong>Night Surcharge</strong></label>
+                                                <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge" placeholder="0.00" value="{{ old('night_surcharge') }}">
+                                            </div>
                                         </div>
                                     </div>
-                                </fieldset>
-
-                                <!-- Night charges -->
-                                <fieldset id="taxi_night_charges" class="border p-4 rounded mb-4">
-                                    <h5 class="card-title mb-3">Night Charges</h5>
-                                    <div class="row">
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-night-cost-input" id="night_base_cost_price" name="night_base_cost_price" data-sell-target="night_base_price" value="{{ old('night_base_cost_price', $vehicle->night_base_cost_price) }}" placeholder="Enter Base Cost Price" required>
-                                            @error('night_base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control vehicle-night-sell-input" id="night_base_price" name="night_base_price" value="{{ old('night_base_price', $vehicle->night_base_price) }}" placeholder="Enter Base Sell Price" required>
-                                            @error('night_base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        {{-- Per KM pricing temporarily hidden
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_below_10_cost_price" data-sell-target="night_cost_per_km_below_10" value="{{ old('night_per_km_below_10_cost_price', $vehicle->night_per_km_below_10_cost_price) }}" placeholder="Auto-calculated" required>
-                                            @error('night_per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_below_10" value="{{ old('night_cost_per_km_below_10', $vehicle->night_cost_per_km_below_10) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_10_to_25_cost_price" data-sell-target="night_cost_per_km_10_to_25" value="{{ old('night_per_km_10_to_25_cost_price', $vehicle->night_per_km_10_to_25_cost_price) }}" placeholder="Auto-calculated" required>
-                                            @error('night_per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_10_to_25" value="{{ old('night_cost_per_km_10_to_25', $vehicle->night_cost_per_km_10_to_25) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_above_25_cost_price" data-sell-target="night_cost_per_km_above_25" value="{{ old('night_per_km_above_25_cost_price', $vehicle->night_per_km_above_25_cost_price) }}" placeholder="" required>
-                                            @error('night_per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_above_25" value="{{ old('night_cost_per_km_above_25', $vehicle->night_cost_per_km_above_25) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        --}}
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" id="night_per_hour_cost_price" name="night_per_hour_cost_price" data-sell-target="night_cost_per_hour" value="{{ old('night_per_hour_cost_price', $vehicle->night_per_hour_cost_price) }}" placeholder="Enter Hourly Cost" required>
-                                            @error('night_per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" id="night_cost_per_hour" name="night_cost_per_hour" value="{{ old('night_cost_per_hour', $vehicle->night_cost_per_hour) }}" placeholder="Enter Sell Price" required>
-                                            @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
+                                    @php
+                                        $nightRateRows = [
+                                            ['label' => 'Base', 'icon' => 'ri-price-tag-3-line', 'cost' => 'night_base_cost_price', 'sell' => 'night_base_price', 'auto' => false],
+                                            ['label' => 'Per Hour', 'icon' => 'ri-time-line', 'cost' => 'night_per_hour_cost_price', 'sell' => 'night_cost_per_hour', 'auto' => true],
+                                        ];
+                                    @endphp
+                                    <div class="table-responsive mb-3">
+                                        <table class="table table-bordered table-sm vehicle-rate-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="rate-column">Rate</th>
+                                                    <th class="price-column">Cost <span class="text-danger">*</span></th>
+                                                    <th class="price-column">Sell <span class="text-danger">*</span></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($nightRateRows as $rate)
+                                                    <tr>
+                                                        <td class="rate-column">
+                                                            <span class="vehicle-rate-badge">
+                                                                <i class="{{ $rate['icon'] }}"></i>{{ $rate['label'] }}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01"
+                                                                class="form-control vehicle-night-cost-input {{ $rate['auto'] ? 'auto-calculated-cost' : '' }}"
+                                                                id="{{ $rate['cost'] }}" name="{{ $rate['cost'] }}"
+                                                                data-sell-target="{{ $rate['sell'] }}"
+                                                                placeholder="0.00"
+                                                                value="{{ old($rate['cost'], $vehicle->{$rate['cost']}) }}" required>
+                                                            @error($rate['cost'])<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" step="0.01"
+                                                                class="form-control vehicle-night-sell-input {{ $rate['auto'] ? 'auto-calculated-sell' : '' }}"
+                                                                id="{{ $rate['sell'] }}" name="{{ $rate['sell'] }}"
+                                                                placeholder="0.00"
+                                                                value="{{ old($rate['sell'], $vehicle->{$rate['sell']}) }}" required>
+                                                            @error($rate['sell'])<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </fieldset>
+                                </div>
 
-                                <fieldset id="taxi_cancellation" class="border p-4 rounded mb-4">
-                                    <h5 class="card-title mb-3">Cancellation</h5>
-                                    <div class="row">
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cancellation_cost" class="form-label"><strong>Cancellation Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" id="cancellation_cost" name="cancellation_cost" value="{{ old('cancellation_cost', $vehicle->cancellation_cost ?? $vehicle->cancel_cost_price) }}" placeholder="From Base Cost Price" required>
-                                            @error('cancellation_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cancellation_sell" class="form-label"><strong>Cancellation Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" id="cancellation_sell" name="cancellation_sell" value="{{ old('cancellation_sell', $vehicle->cancellation_sell ?? $vehicle->cancel_cost) }}" placeholder="From Base Sell Price" required>
-                                            @error('cancellation_sell')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
+                                <div id="taxi_cancellation">
+                                    <div class="vehicle-rate-section-title">
+                                        <i class="ri-close-circle-line me-1"></i> Cancellation
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-sm vehicle-rate-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="rate-column">Type</th>
+                                                    <th class="price-column">Cost <span class="text-danger">*</span></th>
+                                                    <th class="price-column">Sell <span class="text-danger">*</span></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td class="rate-column">
+                                                        <span class="vehicle-rate-badge">
+                                                            <i class="ri-close-circle-line"></i>Cancellation
+                                                        </span>
+                                                        <div class="vehicle-rate-helper mt-1">Defaults from base prices.</div>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" step="0.01" class="form-control" id="cancellation_cost" name="cancellation_cost" placeholder="0.00" value="{{ old('cancellation_cost', $vehicle->cancellation_cost ?? $vehicle->cancel_cost_price) }}" required>
+                                                        @error('cancellation_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" step="0.01" class="form-control" id="cancellation_sell" name="cancellation_sell" placeholder="0.00" value="{{ old('cancellation_sell', $vehicle->cancellation_sell ?? $vehicle->cancel_cost) }}" required>
+                                                        @error('cancellation_sell')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                     <input type="hidden" name="night_cancel_cost_price" id="night_cancel_cost_price" value="{{ old('night_cancel_cost_price', $vehicle->night_cancel_cost_price) }}">
                                     <input type="hidden" name="night_cancel_cost" id="night_cancel_cost" value="{{ old('night_cancel_cost', $vehicle->night_cancel_cost) }}">
-                                </fieldset>
+                                </div>
                             </fieldset>
 
                             
@@ -4585,21 +4644,12 @@ function initNightChargeAutoPopulate() {
         const style = document.createElement('style');
         style.id = 'auto-calculated-style';
         style.textContent = `
-            .auto-calculated, .auto-calculated-sell, .auto-calculated-cost {
-                background-color: #f8f9fa !important;
-                border-left: 3px solid #17a2b8 !important;
-                transition: all 0.2s ease;
-            }
-            .auto-calculated:focus, .auto-calculated-sell:focus, .auto-calculated-cost:focus {
-                background-color: #fff !important;
-                border-left-color: #007bff !important;
-            }
             .auto-calculated.value-updated, .auto-calculated-sell.value-updated, .auto-calculated-cost.value-updated {
                 animation: highlightUpdate 0.8s ease-in-out;
             }
             @keyframes highlightUpdate {
                 0% { background-color: #e8f7ff; }
-                100% { background-color: #f8f9fa; }
+                100% { background-color: #fff; }
             }
         `;
         document.head.appendChild(style);
