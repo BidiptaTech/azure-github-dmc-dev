@@ -168,10 +168,11 @@ class EnquiryFormPro extends Controller
             if ($candidate === '') {
                 continue;
             }
-            // Header may send multi-city CSV â€” take first segment that maps to a city row.
+            // Header may send multi-city CSV — take first segment that maps to a city row.
+            // Skip transfer labels like "Arrival: Port → Hotel".
             foreach (preg_split('/\s*,\s*/', $candidate) as $part) {
                 $part = trim((string) $part);
-                if ($part === '') {
+                if ($part === '' || preg_match('/^(Arrival|Departure)\s*:/i', $part)) {
                     continue;
                 }
                 if (City::where('name', $part)->exists()) {
@@ -2181,7 +2182,14 @@ class EnquiryFormPro extends Controller
                     // AUTO-CREATE GUIDE IF GUIDE IS OPTED FOR RESTAURANT
                     if (isset($meal['guideInfo']) && !empty($meal['guideInfo']) && isset($meal['guideId'])) {
                         $guideInfo = $meal['guideInfo'];
+                        $guideOptions = $meal['guide_options'] ?? [];
                         $guideDate = $meal['bookingDate'] ?? date('Y-m-d');
+                        $guideCost = floatval($guideInfo['cost'] ?? $guideOptions['cost'] ?? $guideOptions['Cost'] ?? 0);
+                        $guideSell = floatval($guideInfo['sell'] ?? $guideOptions['sell'] ?? $guideOptions['Sell'] ?? $guideCost);
+                        $guideHours = intval($guideInfo['hours'] ?? $guideOptions['hours'] ?? $guideOptions['service_hours'] ?? 12);
+                        $guideCity = trim((string) ($meal['city'] ?? $meal['destination'] ?? ''));
+                        $guideCountry = trim((string) ($meal['country'] ?? ''));
+                        $guideCurrency = trim((string) ($meal['currency'] ?? ''));
                         
                         // Create unique guide identifier to prevent duplicates
                         $guideIdentifier = md5(
@@ -2208,26 +2216,36 @@ class EnquiryFormPro extends Controller
                                 'state' => $meal['state'] ?? '',
                                 'zip' => $meal['zip'] ?? '',
                                 'specialRequests' => $meal['specialRequests'] ?? '',
-                                'guide_id' => intval($meal['guideId'] ?? 0),
-                                'guide_name' => $guideInfo['guideName'] ?? 'Guide',
+                                'guide_id' => intval($guideInfo['guideId'] ?? $guideInfo['guide_id'] ?? $meal['guideId'] ?? 0),
+                                'guide_name' => $guideInfo['guideName'] ?? $guideInfo['name'] ?? 'Guide',
                                 'image' => '',
-                                'entrytime' => 2, // Default 2 hours for restaurant guide
-                                'adults' => intval($meal['adultCount'] ?? 0),
-                                'children' => intval($meal['childCount'] ?? 0),
-                                'hours' => 2, // Default 2 hours
-                                'basePrice' => 0,
+                                'entrytime' => $guideHours,
+                                'adults' => intval($guideInfo['adultsQty'] ?? $meal['adultCount'] ?? 0),
+                                'children' => intval($guideInfo['childQty'] ?? $meal['childCount'] ?? 0),
+                                'hours' => $guideHours,
+                                'basePrice' => $guideSell,
                                 'surcharge' => 0,
-                                'totalPrice' => 0,
+                                'totalPrice' => $guideSell,
                                 'pickupdate' => $guideDate,
                                 'bookingDate' => $guideDate,
                                 'dayIndex' => 1,
                                 'Tax' => '7.00',
-                                'city' => 'Singapore',
-                                'country' => 'Singapore',
-                                'languages' => $guideInfo['languages'] ? explode(', ', $guideInfo['languages']) : [],
+                                'city' => $guideCity !== '' ? $guideCity : 'Singapore',
+                                'country' => $guideCountry !== '' ? $guideCountry : 'Singapore',
+                                'currency' => $guideCurrency,
+                                'languages' => is_array($guideInfo['languages'] ?? null)
+                                    ? ($guideInfo['languages'] ?? [])
+                                    : (isset($guideInfo['language']) ? (array) $guideInfo['language'] : []),
                                 'experience' => 0,
-                                'price' => 0,
+                                'cost' => $guideCost,
+                                'sell' => $guideSell,
+                                'adultCost' => $guideCost,
+                                'adultSell' => $guideSell,
+                                'price' => $guideSell,
                                 'booking_id' => 0,
+                                'isStandalone' => false,
+                                'linkedTo' => 'restaurant',
+                                'sourceType' => 'meal',
                                 'linked_to_restaurant' => $bookingId
                             ];
                             

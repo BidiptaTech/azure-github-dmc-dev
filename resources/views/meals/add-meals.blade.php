@@ -55,7 +55,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body">
+            <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving meal...">
                 @csrf
                 <!-- Hidden Fields -->
 
@@ -244,7 +244,13 @@
                 <!-- Submit Buttons -->
                 <div class="row mt-4">
                     <div class="col-md-12 text-center">
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="submit" class="btn btn-primary js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text">Submit</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
                 </div>
             </form>
@@ -276,6 +282,7 @@
 </div>
 <!-- End Modal -->
 <!-- End of the form -->
+<x-form-submit-loader message="Saving meal..." />
 @endsection
 
 @section('scripts') 

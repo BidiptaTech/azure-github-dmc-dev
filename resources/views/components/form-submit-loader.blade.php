@@ -51,10 +51,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!btn) return;
         btn.disabled = true;
 
-        const label = btn.querySelector('.js-submit-loader-btn-text');
+        const label = btn.querySelector('.js-submit-loader-btn-text') || btn.querySelector('.btn-spinner-label');
         const loading = btn.querySelector('.js-submit-loader-btn-loading');
-        if (label) label.classList.add('d-none');
-        if (loading) loading.classList.remove('d-none');
+        const spinnerIcon = btn.querySelector('.btn-spinner-icon');
+        if (loading) {
+            if (label) label.classList.add('d-none');
+            loading.classList.remove('d-none');
+        } else {
+            if (spinnerIcon) spinnerIcon.classList.remove('d-none');
+            if (label && message) label.textContent = message;
+        }
     }
 
     window.showFormSubmitLoader = showFormSubmitLoader;

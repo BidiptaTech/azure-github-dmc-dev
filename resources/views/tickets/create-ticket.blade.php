@@ -36,7 +36,7 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <form action="{{ route('tickets.store') }}" method="POST">
+                            <form action="{{ route('tickets.store') }}" method="POST" class="js-submit-loader-form" data-loader-message="Creating ticket...">
                                 @csrf
                                 <div class="row">
                                     <!-- Ticket Name -->
@@ -142,7 +142,13 @@
                                 
                                 <div class="row mt-3">
                                     <div class="col-md-12">
-                                        <button type="submit" class="btn btn-primary">Create Ticket</button>
+                                        <button type="submit" class="btn btn-primary js-submit-loader-btn">
+                                            <span class="js-submit-loader-btn-text">Create Ticket</span>
+                                            <span class="js-submit-loader-btn-loading d-none">
+                                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                Creating...
+                                            </span>
+                                        </button>
                                         <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Cancel</a>
                                     </div>
                                 </div>
@@ -153,6 +159,7 @@
             </div>
         </div>
     </div>
+<x-form-submit-loader message="Creating ticket..." />
 @endsection 
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>

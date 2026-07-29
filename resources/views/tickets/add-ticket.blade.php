@@ -70,7 +70,7 @@
                             </div>
                         </div>
                         <div class="card-body ticket-form-compact">
-                            <form action="{{ route('tickets.store', Crypt::encrypt($attraction->attraction_id)) }}" method="POST">
+                            <form action="{{ route('tickets.store', Crypt::encrypt($attraction->attraction_id)) }}" method="POST" class="js-submit-loader-form" data-loader-message="Creating ticket...">
                                 @csrf
                                 <div class="row g-2">
                                     <input type="hidden" name="attraction_id" value="{{ $attraction->attraction_id }}">
@@ -233,11 +233,15 @@
                                 
                                 <div class="row mt-2">
                                     <div class="col-md-12">
-                                        <button type="submit" class="btn btn-primary" id="submitBtn"
+                                        <button type="submit" class="btn btn-primary js-submit-loader-btn" id="submitBtn"
                                             @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
                                                 @if($dmcUsers->count() == 0) disabled title="Cannot submit: No DMCs available for this attraction" @endif
                                             @endif>
-                                            Create Ticket
+                                            <span class="js-submit-loader-btn-text">Create Ticket</span>
+                                            <span class="js-submit-loader-btn-loading d-none">
+                                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                Creating...
+                                            </span>
                                         </button>
                                         <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Cancel</a>
                                         @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
@@ -387,6 +391,7 @@
     </div>
 </div>
 <!-- End Modal -->
+<x-form-submit-loader message="Creating ticket..." />
 @endsection 
 @section('scripts')
 @include('components.currency-price-note-dmc-script')

@@ -5115,20 +5115,8 @@
                                         <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted" 
-                                            @if(!empty($taxBreakdown))
-                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
-                                            @endif>
-                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
-                                        </small>
+                                        <small class="text-muted">Tax</small>
                                         <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $tourCurrency }}</div>
-                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
-                                            <div style="font-size: 0.7rem; margin-top: 2px;">
-                                                @foreach($taxBreakdown as $taxName => $taxVal)
-                                                    <div>{{ $taxName }}: {{ number_format(round($taxVal), 2) }}</div>
-                                                @endforeach
-                                            </div>
-                                        @endif
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>

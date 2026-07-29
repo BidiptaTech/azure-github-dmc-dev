@@ -232,6 +232,49 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .categories-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .categories-infinite-footer .categories-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .categories-infinite-footer.is-loading .categories-scroll-loader {
+        display: inline-flex;
+    }
+
+    .categories-infinite-footer .categories-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .categories-infinite-footer.is-end .categories-scroll-end {
+        display: block;
+    }
+
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     /* Hide default DataTables buttons (we use the custom Export dropdown) */
     .dataTables_wrapper .dt-buttons {
         display: none !important;
@@ -432,6 +475,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="categoriesInfiniteFooter" class="categories-infinite-footer">
+                    <div class="categories-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more categories…</span>
+                    </div>
+                    <div class="categories-scroll-end">All categories loaded</div>
+                </div>
                 </div>
             </div>
         </div>
@@ -448,45 +498,75 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
-            responsive: true,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
-            buttons: [
-                'copy',
-                'csv',
-                'excel',
-                'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
-            ],
+        var categoriesBatchSize = 25;
+        var categoriesTable = $('.datatables-basic').DataTable({
+            responsive: false,
+            autoWidth: false,
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
+            buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: categoriesBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
         });
 
-        // Custom export button functionality (for the dropdown)
-        $('#exportCopy').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-copy').trigger();
-        });
+        var $infiniteFooter = $('#categoriesInfiniteFooter');
+        var categoriesInfiniteLoading = false;
+        var categoriesInfiniteGuard = false;
 
-        $('#exportCSV').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-csv').trigger();
-        });
+        function updateCategoriesInfiniteFooter() {
+            var info = categoriesTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            categoriesInfiniteLoading = false;
+        }
 
-        $('#exportExcel').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-excel').trigger();
-        });
+        function loadMoreCategoriesIfNeeded() {
+            if (categoriesInfiniteLoading) return;
+            var info = categoriesTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateCategoriesInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            categoriesInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = categoriesTable.page.info();
+                categoriesTable.page.len(Math.min(currentInfo.length + categoriesBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updateCategoriesInfiniteFooter();
+            }, 150);
+        }
 
-        $('#exportPDF').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-pdf').trigger();
+        categoriesTable.on('length.dt', function(e, settings, len) {
+            categoriesBatchSize = len;
+            updateCategoriesInfiniteFooter();
         });
+        categoriesTable.on('search.dt', function() {
+            if (categoriesInfiniteGuard) return;
+            categoriesInfiniteGuard = true;
+            categoriesTable.page.len(categoriesBatchSize).draw(false);
+            categoriesInfiniteGuard = false;
+            updateCategoriesInfiniteFooter();
+        });
+        categoriesTable.on('draw.dt', function() {
+            if (!categoriesInfiniteGuard) updateCategoriesInfiniteFooter();
+        });
+        $(window).on('scroll.categoriesInfinite resize.categoriesInfinite', loadMoreCategoriesIfNeeded);
+        updateCategoriesInfiniteFooter();
+        loadMoreCategoriesIfNeeded();
 
-        $('#exportPrint').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-print').trigger();
-        });
+        $('#exportCopy').on('click', function() { categoriesTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click', function() { categoriesTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { categoriesTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click', function() { categoriesTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { categoriesTable.button('.buttons-print').trigger(); });
     });
 </script>
 <!-- End DataTable JS -->
