@@ -558,7 +558,7 @@
                 </a>
             </h5>
             <form id="roomCategoryForm" method="POST" action="{{ route('storeroom') }}" enctype="multipart/form-data"
-                class="card-body">
+                class="card-body js-submit-loader-form" data-loader-message="Saving room...">
                 @csrf
                 <input type="hidden" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
                 
@@ -988,7 +988,13 @@
                 </div>
                 <!-- Submit Buttons -->
                 <div class="d-flex gap-3">
-                    <button type="submit" class="btn btn-primary px-4">Save and Add More Rooms</button>
+                    <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                        <span class="js-submit-loader-btn-text">Save and Add More Rooms</span>
+                        <span class="js-submit-loader-btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -1232,6 +1238,7 @@
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving room..." />
 @endsection
 
 @section('scripts')
@@ -1940,6 +1947,11 @@ $(document).ready(function() {
         if (!$('#total_rooms').val().trim()) {
             $('#total_rooms').addClass('is-invalid');
             isValid = false;
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            return false;
         }
     });
 });

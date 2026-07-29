@@ -232,7 +232,7 @@
                 </div>
             @endif
             <form id="guideForm" method="POST" action="{{ route('guide.store') }}" enctype="multipart/form-data"
-                class="card-body">
+                class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
 
@@ -874,13 +874,14 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <x-button-spinner id="saveGuideBtn" label="Save" loadingText="Saving..." />
+                        <x-button-spinner id="saveGuideBtn" class="js-submit-loader-btn" label="Save" loadingText="Saving..." />
                     </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
