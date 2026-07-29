@@ -216,20 +216,20 @@
                                 '<th>Product</th>' +
                                 '<th class="text-end">Sell</th>' +
                                 '<th class="text-end">Cost</th>' +
-                                '<th class="text-end">P/L</th>' +
+                                '<th class="text-end">Margin</th>' +
                             '</tr></thead>' +
                             '<tbody>' + rows + '</tbody>' +
                         '</table>' +
                         '<div class="nego-profit-segments">' +
                             '<div class="nego-profit-segment">' +
-                                '<div class="nego-profit-segment-title">Country Profit / Loss</div>' +
+                                '<div class="nego-profit-segment-title">Country Margin</div>' +
                                 '<div class="nego-profit-val ' + (totalProfit >= 0 ? 'text-success' : 'text-danger') + '">' +
                                     (totalProfit >= 0 ? '+' : '') + escapeNegotiationHtml(currency) + ' ' + formatNegotiationProfitNumber(totalProfit) +
                                 '</div>' +
                                 '<small class="text-muted" style="font-size:0.62rem;">Sell ' + formatNegotiationProfitNumber(totalSell) + ' · Cost ' + formatNegotiationProfitNumber(totalCost) + '</small>' +
                             '</div>' +
                             '<div class="nego-profit-segment">' +
-                                '<div class="nego-profit-segment-title">Profit Margin</div>' +
+                                '<div class="nego-profit-segment-title">Margin %</div>' +
                                 '<div class="nego-profit-val ' + (totalMargin >= 0 ? 'text-info' : 'text-danger') + '">' +
                                     formatNegotiationProfitNumber(totalMargin) + '%' +
                                 '</div>' +
@@ -239,11 +239,11 @@
             }).join('');
 
             panel.innerHTML =
-                '<div class="nego-profit-panel-title">Country-wise profit view</div>' +
+                '<div class="nego-profit-panel-title">Country-wise Margin View</div>' +
                 countriesHtml;
         } catch (error) {
-            console.error('Failed to render negotiation profit panel', error);
-            panel.innerHTML = '<div class="nego-profit-empty">Unable to load profit view.</div>';
+            console.error('Failed to render negotiation margin panel', error);
+            panel.innerHTML = '<div class="nego-profit-empty">Unable to load margin view.</div>';
         }
     }
 </script>
