@@ -763,40 +763,6 @@
         'toursUrl' => route('bookings.new-enquiries'),
         'packagesUrl' => route('package-bookings.new-enquiries'),
     ])
-    @php
-        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
-        $filterMinDate = now()->subYear()->toDateString();
-        $filterMaxDate = now()->addYear()->toDateString();
-        $filterStartDate = now()->toDateString();
-        $filterEndDate = now()->addDays(30)->toDateString();
-        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
-
-        $toDateOnly = function ($value) {
-            if (empty($value)) {
-                return null;
-            }
-            try {
-                return \Carbon\Carbon::parse($value)->toDateString();
-            } catch (\Throwable $e) {
-                return null;
-            }
-        };
-
-        // Rows whose stay overlaps the default window, used for the initial stat counts.
-        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
-            $stayStart = $toDateOnly($tour->check_in_time ?? null);
-            $stayEnd = $toDateOnly($tour->check_out_time ?? null);
-            if (!$stayStart && !$stayEnd) {
-                return false;
-            }
-
-            return ($stayStart ?: $stayEnd) <= $filterEndDate && ($stayEnd ?: $stayStart) >= $filterStartDate;
-        });
-
-        $defaultRangeTodayCount = $defaultRangeTours->filter(function ($tour) use ($toDateOnly) {
-            return $toDateOnly($tour->destination_created_at ?? $tour->created_at) === now()->toDateString();
-        })->count();
-    @endphp
     <!-- Compact Header + Stats Bar -->
     <div class="new-enq-header-bar p-3 mb-3">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -806,38 +772,38 @@
                 </h4>
                 <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage enquiries and convert to bookings</span>
                 <span class="badge bg-light text-primary border border-primary border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
-                    <i class="ri-file-list-line me-1"></i><span id="rangeCount">{{ $defaultRangeTours->count() }}</span> <span id="rangeLabel">{{ $filterRangeLabel }}</span>
+                    <i class="ri-file-list-line me-1"></i><span id="rangeCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }}</span> <span id="rangeLabel">{{ date('F') }}</span>
                 </span>
             </div>
             <div class="row g-2 new-enq-stats-grid flex-grow-1">
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-primary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-questionnaire-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statEnquiriesCount">{{ $defaultRangeTours->count() }}</span><span class="stat-label text-muted" id="statEnquiriesLabel">Enquiries - {{ $filterRangeLabel }}</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statEnquiriesCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }}</span><span class="stat-label text-muted" id="statEnquiriesLabel">{{ date('F') }} Enquiries</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-calendar-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statTodayCount">{{ $defaultRangeTodayCount }}</span><span class="stat-label text-muted">Today</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statTodayCount">{{ $tours->where('created_at', '>=', now()->today())->count() }}</span><span class="stat-label text-muted">Today</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-user-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statAdultsCount">{{ $defaultRangeTours->sum('adult') }}</span><span class="stat-label text-muted" id="statAdultsLabel">Adults - {{ $filterRangeLabel }}</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statAdultsCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('adult', '>', 0)->sum('adult') }}</span><span class="stat-label text-muted" id="statAdultsLabel">Adults</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-warning rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-user-smile-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statChildrenCount">{{ $defaultRangeTours->sum('child') }}</span><span class="stat-label text-muted" id="statChildrenLabel">Children - {{ $filterRangeLabel }}</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statChildrenCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('child', '>', 0)->sum('child') }}</span><span class="stat-label text-muted" id="statChildrenLabel">Children</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-secondary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-user-heart-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statInfantsCount">{{ $defaultRangeTours->sum('infant') }}</span><span class="stat-label text-muted" id="statInfantsLabel">Infants - {{ $filterRangeLabel }}</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statInfantsCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('infant', '>', 0)->sum('infant') }}</span><span class="stat-label text-muted" id="statInfantsLabel">Infants</span></div>
                     </div>
                 </div>
             </div>
@@ -889,15 +855,11 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter"
-                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
-                        value="{{ $filterStartDate }}" data-default-value="{{ $filterStartDate }}">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter"
-                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
-                        value="{{ $filterEndDate }}" data-default-value="{{ $filterEndDate }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -968,11 +930,6 @@
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-infant="{{ (int)($tour->infant ?? 0) }}"
                             data-tour-status="{{ $tour->tour_status ?? '' }}"
-                            data-check-in="{{ $toDateOnly($tour->check_in_time ?? null) }}"
-                            data-check-out="{{ $toDateOnly($tour->check_out_time ?? null) }}"
-                            data-agent="{{ $tour->agent_name ?? '' }}"
-                            data-destination="{{ $tour->destination ?? '' }}"
-                            data-created-by="{{ $tour->created_by_name ?? '' }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -1617,7 +1574,9 @@
     @foreach($tours as $tour)
     @php
     // Orders are preloaded in BookingsController::hydrateTourNegotiationCurrencyData()
+    // (includes orders.country + orders.currency per booking_id for all service types)
     $orders = $tour->booking ?? collect();
+    $pageCurrency = $currency ?? 'SGD';
     $svc = [
         'hotel' => 0,
         'attraction' => 0,
@@ -1664,6 +1623,7 @@
                 @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
                     @foreach($serviceData['hotel'] as $index => $hotelOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hotelOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
                     @endphp
                     
@@ -1976,6 +1936,7 @@
                 @if(isset($serviceData['attraction']) && count($serviceData['attraction']) > 0)
                     @foreach($serviceData['attraction'] as $index => $attractionOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($attractionOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $attractionData = is_string($attractionOrder->data) ? json_decode($attractionOrder->data, true) : $attractionOrder->data;
                     @endphp
                     
@@ -2361,6 +2322,7 @@
                 @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
                     @foreach($serviceData['restaurant'] as $index => $restaurantOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($restaurantOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
                     @endphp
                     
@@ -2790,6 +2752,7 @@
                 @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
                     @foreach($serviceData['guide'] as $index => $guideOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($guideOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data;
                     @endphp
                     
@@ -2997,6 +2960,7 @@
                 @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
                     @foreach($serviceData['entry_port'] as $index => $entryOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($entryOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $entryData = is_string($entryOrder->data) ? json_decode($entryOrder->data, true) : $entryOrder->data;
                     @endphp
                     
@@ -3316,6 +3280,7 @@
                 @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
                     @foreach($serviceData['exit_port'] as $index => $exitOrder)
                     @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($exitOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                         $exitData = is_string($exitOrder->data) ? json_decode($exitOrder->data, true) : $exitOrder->data;
                     @endphp
                     
@@ -3644,6 +3609,7 @@
                     @if(isset($serviceData['travel_hourly']) && count($serviceData['travel_hourly']) > 0)
                         @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hourlyOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $hourlyData = is_string($hourlyOrder->data) ? json_decode($hourlyOrder->data, true) : $hourlyOrder->data;
                             @endphp
                             
@@ -3877,6 +3843,7 @@
                     @if(isset($serviceData['travel_point']) && count($serviceData['travel_point']) > 0)
                         @foreach($serviceData['travel_point'] as $index => $pointOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($pointOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $pointData = is_string($pointOrder->data) ? json_decode($pointOrder->data, true) : $pointOrder->data;
                             @endphp
                             
@@ -4153,6 +4120,7 @@
                     @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
                         @foreach($serviceData['local_transport'] as $index => $transportOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($transportOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $transportData = is_string($transportOrder->data) ? json_decode($transportOrder->data, true) : $transportOrder->data;
                             @endphp
                             
@@ -4401,6 +4369,7 @@
                     @if(isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
                         @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($miscOrder, $pageCurrency ?? ($currency ?? 'SGD'));
                                 $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data;
                             @endphp
                             @if(is_array($miscData))
@@ -4502,14 +4471,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
     const endDateFilter = document.getElementById('endDateFilter');
-    // Selectable travel window bounds come from the rendered min/max (one year either side of today)
-    const rangeMinDate = startDateFilter?.getAttribute('min') || '';
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
             if (endDateFilter) {
                 if (startDateFilter.value) {
@@ -4517,14 +4486,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
                         endDateFilter.value = startDateFilter.value;
                     }
-                } else if (rangeMinDate) {
-                    endDateFilter.setAttribute('min', rangeMinDate);
+                } else {
+                    endDateFilter.removeAttribute('min');
                 }
             }
             filterTable();
         });
     }
     if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
         if (startDateFilter && startDateFilter.value) {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
@@ -4553,30 +4523,6 @@ document.addEventListener('DOMContentLoaded', function() {
     filterTable();
 });
 
-// Every data row in display order, including the ones DataTables keeps off the current page
-window.getFilterableRows = function() {
-    if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
-        try {
-            return Array.from(table.rows({ order: 'applied' }).nodes());
-        } catch (e) {
-            // DataTables not ready yet, fall back to whatever is in the DOM
-        }
-    }
-    return Array.from(document.querySelectorAll('#toursTable tbody tr'));
-};
-
-// Renumber the '#' column so it counts the filtered rows, continuing across pages
-window.renumberVisibleRows = function(visibleRows) {
-    const rows = visibleRows || window.getFilterableRows()
-        .filter(r => r.style.display !== 'none' && r.cells.length > 1);
-
-    rows.forEach((row, index) => {
-        if (row.classList.contains('child')) return; // DataTables responsive detail row
-        const cell = row.cells[0];
-        if (cell) cell.textContent = index + 1;
-    });
-};
-
 function filterTable() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const countryFilter = document.getElementById('countryFilter')?.value || '';
@@ -4584,8 +4530,8 @@ function filterTable() {
     const startDateValue = document.getElementById('startDateFilter')?.value || '';
     const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
-    const rows = window.getFilterableRows();
-    const totalRows = rows.filter(r => r.cells.length > 1).length;
+    const rows = document.querySelectorAll('#toursTable tbody tr');
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
     if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
         table.rows('.dt-hasChild').every(function() {
             if (this.child.isShown()) this.child.hide();
@@ -4598,11 +4544,11 @@ function filterTable() {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
-        const destination = row.getAttribute('data-destination') || '';
-        const agent = (row.getAttribute('data-agent') || '').trim();
-        const createdBy = row.getAttribute('data-created-by') || '';
-        const checkIn = (row.getAttribute('data-check-in') || '').trim();
-        const checkOut = (row.getAttribute('data-check-out') || '').trim();
+        const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
+        const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
+        const createdBy = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
+        const createdAt = row.getAttribute('data-created-at');
+        const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
@@ -4630,19 +4576,30 @@ function filterTable() {
             show = false;
         }
         
-        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
-        if (startDateValue || endDateValue) {
-            if (!checkIn && !checkOut) {
-                // No travel dates recorded, so the tour cannot match a travel window
-                show = false;
-            } else {
-                const stayStart = checkIn || checkOut;
-                const stayEnd = checkOut || checkIn;
-                const startsAfterRange = endDateValue && stayStart > endDateValue;
-                const endsBeforeRange = startDateValue && stayEnd < startDateValue;
-                if (startsAfterRange || endsBeforeRange) {
-                    show = false;
+        // Date filtering (check both created_at and updated_at)
+        if ((startDateValue || endDateValue) && (createdAt || updatedAt)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
+            let dateInRange = false;
+            
+            // Check created_at if available
+            if (createdAt) {
+                const createdDate = new Date(createdAt + 'T00:00:00');
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
+                    dateInRange = true;
                 }
+            }
+            
+            // Check updated_at if available and created_at didn't match
+            if (!dateInRange && updatedAt) {
+                const updatedDate = new Date(updatedAt + 'T00:00:00');
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
+                    dateInRange = true;
+                }
+            }
+            
+            if (!dateInRange) {
+                show = false;
             }
         }
         
@@ -4651,8 +4608,7 @@ function filterTable() {
     });
 
     // Update header/cards counts based on visible rows
-    const visibleRows = rows.filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    renumberVisibleRows(visibleRows);
+    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
     const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
@@ -4717,11 +4673,12 @@ function filterTable() {
         if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
         if (label && statInfantsLabel) statInfantsLabel.textContent = `Infants - ${label}`;
     } else {
-        if (labelEl) labelEl.textContent = 'All Dates';
-        if (statEnquiriesLabel) statEnquiriesLabel.textContent = 'Enquiries - All Dates';
-        if (statAdultsLabel) statAdultsLabel.textContent = 'Adults - All Dates';
-        if (statChildrenLabel) statChildrenLabel.textContent = 'Children - All Dates';
-        if (statInfantsLabel) statInfantsLabel.textContent = 'Infants - All Dates';
+        const month = new Date().toLocaleString('default', { month: 'long' });
+        if (labelEl) labelEl.textContent = month;
+        if (statEnquiriesLabel) statEnquiriesLabel.textContent = `${month} Enquiries`;
+        if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
+        if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+        if (statInfantsLabel) statInfantsLabel.textContent = `${month} Infants`;
     }
 }
 
@@ -4744,15 +4701,12 @@ function resetFilters() {
     } else if (agentSelect) {
         agentSelect.value = '';
     }
-    // Dates go back to the default travel window rather than being cleared
     if (startDateInput) {
-        startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
+        startDateInput.value = '';
     }
     if (endDateInput) {
-        endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
-        if (startDateInput && startDateInput.value) {
-            endDateInput.setAttribute('min', startDateInput.value);
-        }
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
     }
     filterTable();
     
@@ -5166,21 +5120,6 @@ function testServices() {
             },
             drawCallback: function() {
                 setTimeout(initServiceTooltips, 150);
-            }
-        });
-
-        // DataTables rebuilds the tbody on paging/sorting, which drops our row visibility
-        // and numbering, so re-apply the filters after every draw.
-        var isReapplyingFilters = false;
-        table.on('draw.dt', function() {
-            if (isReapplyingFilters) return;
-            isReapplyingFilters = true;
-            try {
-                if (typeof filterTable === 'function') {
-                    filterTable();
-                }
-            } finally {
-                isReapplyingFilters = false;
             }
         });
         

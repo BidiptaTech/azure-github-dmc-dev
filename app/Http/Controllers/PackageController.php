@@ -887,6 +887,9 @@ class PackageController extends Controller
             DB::beginTransaction();
 
             $mainImagePath = $package->main_image;
+            if ($request->boolean('remove_main_image') && !$request->hasFile('main_image')) {
+                $mainImagePath = null;
+            }
             if ($request->hasFile('main_image')) {
                 $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
                 if (!empty($imageData['master_value'])) {
@@ -895,6 +898,12 @@ class PackageController extends Controller
             }
 
             $galleryImages = is_array($package->gallery_images) ? $package->gallery_images : (is_string($package->gallery_images) ? (json_decode($package->gallery_images, true) ?: []) : []);
+            $removeGalleryImages = array_values(array_filter((array) $request->input('remove_gallery_images', [])));
+            if (!empty($removeGalleryImages) && !$request->hasFile('gallery_images')) {
+                $galleryImages = array_values(array_filter($galleryImages, function ($img) use ($removeGalleryImages) {
+                    return !in_array((string) $img, array_map('strval', $removeGalleryImages), true);
+                }));
+            }
             if ($request->hasFile('gallery_images')) {
                 $galleryImages = [];
                 foreach ($request->file('gallery_images') as $image) {
