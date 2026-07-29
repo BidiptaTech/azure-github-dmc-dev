@@ -1509,7 +1509,7 @@
     
     <!-- Negotiate by Agent Modal -->
     <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <form class="modal-content negotiation-modal-content border-0 shadow-lg" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}" data-update-price-url="{{ route('update-price-comment') }}">
                 @csrf
                 <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
@@ -1524,35 +1524,40 @@
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body pt-3 pb-2">
-                    <div class="mb-3">
-                        <span class="negotiation-label">Tour</span>
-                        <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
-                    </div>
-                    <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
-                    <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
-                        Each country shows its booked services total in that country's currency. Enter an offer for every country.
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Agent Offer</span>
-                                <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                <div class="modal-body negotiation-split-body">
+                    <div class="negotiation-main-scroll">
+                        <div class="mb-3">
+                            <span class="negotiation-label">Tour</span>
+                            <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
+                        </div>
+                        <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
+                        <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
+                            Each country shows its booked services total in that country's currency. Enter an offer for every country.
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Agent Offer</span>
+                                    <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Remarks</span>
+                                    <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Remarks</span>
-                                <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
-                            </div>
+                        <div class="mb-2">
+                            <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
+                            <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                        </div>
+                        <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
+                            Negotiated amount cannot exceed the payable amount.
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
-                    </div>
-                    <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
-                        Negotiated amount cannot exceed the payable amount.
+                    <div class="negotiation-profit-scroll" id="agentNegotiationProfitPanel">
+                        <div class="nego-profit-empty">Open a tour to see country-wise sell, cost, and profit.</div>
                     </div>
                 </div>
                 <div class="modal-footer negotiation-modal-footer border-0 d-flex flex-wrap align-items-center justify-content-end gap-2">
@@ -4997,6 +5002,7 @@ function testServices() {
 </script>
 @endsection
 @section('scripts')
+@include('bookings.partials.negotiation-profit-breakdown')
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
@@ -5544,6 +5550,10 @@ function testServices() {
                 lastAgentOffer: lastAgentOffer,
                 isLocked: isLocked
             };
+
+            if (typeof renderAgentNegotiationProfitPanel === 'function') {
+                renderAgentNegotiationProfitPanel(countryGroups);
+            }
 
             if (blocksEl) {
                 blocksEl.innerHTML = '';
