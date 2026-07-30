@@ -41,7 +41,6 @@ class UserController extends Controller
         });
     }
 
-
     /* 
     * Display a listing of the Users.
     * Date: 04-10-2024 
@@ -839,7 +838,6 @@ class UserController extends Controller
 
         return view('users.users',compact('users'));
     }
-
     
     /*
     * Show the form for creating a new User.
@@ -1442,6 +1440,7 @@ class UserController extends Controller
                 'phone' => 'required',
                 'email' => 'required|email',
                 'password' => 'required|min:8',
+                'thirdparty' => 'nullable|in:yes,no',
             ]);
         
             // Step 2: Check for validation errors first
@@ -1545,7 +1544,11 @@ class UserController extends Controller
             ? implode(',', $request->country_names)
             : ($get_country_name ?? null);
         $userCurrency = $this->resolveCurrencyForCountry($userCountry);
-        
+
+        // Third party flag only applies to DMC roles; everyone else stays 'no'.
+        $isDmcRole = in_array((int) $role, [11, 20], true);
+        $thirdParty = $isDmcRole && $request->input('thirdparty') === 'yes' ? 'yes' : 'no';
+
         $user = User::create([
             'salutation' => $request->input('salutation'),
             'name' => $request->input('yourname'),
@@ -1573,6 +1576,8 @@ class UserController extends Controller
             'password' => bcrypt($request->input('password')),
             'sales_manager_admin' => (int) ($salemg_admin ?? 0), // Ensure integer
             'company_name' => $request->company_name ?? Auth::user()->company_name ?? 'Travclicks',
+            'thirdparty' => $thirdParty,
+            'thirdparty_enabled' => 'no',
             'company_code' => $request->input('company_code') ?: null,
             'user_code' => $request->input('user_code') ?: null,
             'company_reg_no' => $request->input('company_reg_no') ?: null,
@@ -2126,6 +2131,7 @@ class UserController extends Controller
             $validationRules['markup_price_attraction'] = 'nullable|numeric|min:0';
             $validationRules['markup_type_flight'] = 'nullable|in:0,1';
             $validationRules['markup_price_flight'] = 'nullable|numeric|min:0';
+            $validationRules['thirdparty'] = 'nullable|in:yes,no';
             // Only require country_name if it's being sent (created by Master DMC)
             if ($request->has('country_name')) {
                 $validationRules['country_name'] = 'required|string';
@@ -2242,6 +2248,9 @@ class UserController extends Controller
             $updateData['markup_price_flight'] = $request->filled('markup_price_flight')
                 ? (float) $request->markup_price_flight
                 : (float) ($user->markup_price_flight ?? 0);
+            $updateData['thirdparty'] = $request->has('thirdparty')
+                ? ($request->input('thirdparty') === 'yes' ? 'yes' : 'no')
+                : ($user->thirdparty ?? 'no');
         }
 
         // Optional codes / registration fields (update only when present in request)
@@ -2621,6 +2630,42 @@ class UserController extends Controller
         $user->zone_on = $request->zone_on;
         $user->save();
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
+    }
+
+    /**
+     * Toggle third party access (thirdparty_enabled) for a DMC user.
+     */
+    public function updateThirdPartyEnabled(Request $request)
+    {
+        if (!hasPermission('edit users')) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission to update third party access.'], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'thirdparty_enabled' => 'required|in:yes,no',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        if (!in_array((int) $user->role_id, [11, 20], true)) {
+            return response()->json(['success' => false, 'message' => 'Third party access applies to DMC users only.'], 422);
+        }
+
+        $user->thirdparty_enabled = $request->input('thirdparty_enabled');
+        $user->save();
+
+        $label = $user->thirdparty_enabled === 'yes' ? 'enabled' : 'disabled';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Third party access {$label} successfully.",
+            'user_id' => $user->userId,
+            'thirdparty_enabled' => $user->thirdparty_enabled,
+        ]);
     }
 
     /**

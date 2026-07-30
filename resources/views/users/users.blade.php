@@ -5,12 +5,15 @@
 @section('content')
 @php
   $settingsRoleIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  $dmcRoleIds = [11, 20];
   $authRoleId = (int) (auth()->user()->role_id ?? 0);
   $authUserIsPro = (int) (auth()->user()->is_pro ?? 0);
+  $canManageThirdParty = hasPermission('edit users');
   $usersCollection = $users instanceof \Illuminate\Pagination\AbstractPaginator ? $users->getCollection() : collect($users);
-  $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $authRoleId) {
+  $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $dmcRoleIds, $authRoleId) {
       $rowRoleId = (int) ($u->role_id ?? 0);
       return in_array($rowRoleId, $settingsRoleIds, true)
+          || in_array($rowRoleId, $dmcRoleIds, true)
           || ($authRoleId === 10 && $rowRoleId === 11);
   });
   $showBookingTypeColumn = $usersCollection->contains(function ($u) use ($authRoleId) {
@@ -100,6 +103,12 @@
   .settings-controls-grid .form-check.form-switch .form-check-input {
     margin-left: 0;
     float: none;
+  }
+
+  /* Pin the third party switch to its header slot even when the other
+     settings controls are not rendered for that row. */
+  .settings-controls-grid .settings-col.third-party-col {
+    grid-column: 6;
   }
 
   .datatables-basic .booking-type-select,
@@ -198,6 +207,7 @@
                     <span>Auto Cancel</span>
                     {{-- <span>Guide Pax</span> --}}
                     <span>AI Response</span>
+                    <span>Third Party Access</span>
                   </div>
                 </th>
               @endif
@@ -222,6 +232,10 @@
                 $rowRoleId = (int) ($user->role_id ?? 0);
                 $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
                     || ($authRoleId === 10 && $rowRoleId === 11);
+                // Third party access is a DMC-only setting.
+                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true);
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
+                $thirdPartyEnabled = strtolower((string) ($user->thirdparty_enabled ?? 'no')) === 'yes';
                 $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
                     || ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11);
                 $bookingOptionsForRow = [
@@ -255,7 +269,7 @@
                 }
                 $userIsActive = (int) ($user->is_active ?? 1) === 1;
               @endphp
-              <tr class="{{ ($showSettingsForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
+              <tr class="{{ ($showSettingsCellForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
                 <td>{{ ++$key }}</td>
                 <td>{{ $user->company_name ?? 'N/A' }}</td>
                 <td>
@@ -287,8 +301,9 @@
 
                 @if($showSettingsColumn)
                 <td class="settings-controls-cell">
-                  @if($showSettingsForThisRow)
+                  @if($showSettingsCellForThisRow)
                     <div class="settings-controls-grid">
+                      @if($showSettingsForThisRow)
                       @if(auth::user()->role_id == 10)
                         <div class="settings-col">
                             <div class="form-check form-switch mb-0">
@@ -455,6 +470,22 @@
                                     <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
                                     <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
                                 </select>
+                            </div>
+                        </div>
+                      @endif
+                      @endif
+                      @if($showThirdPartyForThisRow)
+                        <div class="settings-col third-party-col">
+                            <div class="form-check form-switch mb-0">
+                                <input {{ $thirdPartyEnabled ? 'checked' : '' }}
+                                    class="form-check-input third-party-toggle"
+                                    data-user-id="{{ $user->userId }}"
+                                    type="checkbox"
+                                    id="thirdparty_enabled_{{ $user->userId }}"
+                                    value="1"
+                                    title="{{ $thirdPartyEnabled ? 'Third party access on' : 'Third party access off' }}"
+                                    style="width: 25px; height: 15px;"
+                                    {{ $canManageThirdParty ? '' : 'disabled' }}>
                             </div>
                         </div>
                       @endif
@@ -1112,6 +1143,43 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
+    $(document).on('change', '.third-party-toggle', function() {
+        const $toggle = $(this);
+        const userId = $toggle.data('user-id');
+        const isChecked = $toggle.is(':checked');
+
+        $toggle.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('users.update.thirdparty-enabled') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                thirdparty_enabled: isChecked ? 'yes' : 'no',
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $toggle.prop('disabled', false);
+                if (response.success) {
+                    $toggle.attr('title', isChecked ? 'Third party access on' : 'Third party access off');
+                    toastr.success(response.message || 'Third party access updated successfully');
+                } else {
+                    $toggle.prop('checked', !isChecked);
+                    toastr.error(response.message || 'Error updating third party access');
+                }
+            },
+            error: function(xhr) {
+                $toggle.prop('disabled', false);
+                $toggle.prop('checked', !isChecked);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating third party access';
+                toastr.error(msg);
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
     $(document).on('change', '.user-active-toggle', function() {
         const $toggle = $(this);
         const userId = $toggle.data('user-id');
