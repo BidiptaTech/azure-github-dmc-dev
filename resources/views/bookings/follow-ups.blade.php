@@ -484,35 +484,47 @@
 
     /* Negotiation modals – shared layout */
     .negotiation-modal-content {
-        border-radius: 0.75rem;
+        border-radius: 0.85rem;
         overflow: hidden;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
     }
     .negotiation-modal-header {
-        background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+        background: linear-gradient(135deg, #6366f1 0%, #7c83ed 55%, #818cf8 100%);
         color: #fff;
-        padding: 1rem 1.25rem;
+        padding: 1.05rem 1.35rem;
     }
     .negotiation-modal-header .modal-title {
-        font-size: 1.05rem;
+        font-size: 1.02rem;
         font-weight: 600;
+        letter-spacing: -0.01em;
+        color: #fff !important;
+    }
+    .negotiation-modal-header small {
+        font-size: 0.74rem;
+        color: rgba(255, 255, 255, 0.9) !important;
     }
     .negotiation-modal-header .btn-close {
         filter: brightness(0) invert(1);
-        opacity: 0.85;
+        opacity: 0.7;
+        transition: opacity 0.15s ease;
+    }
+    .negotiation-modal-header .btn-close:hover {
+        opacity: 1;
     }
     .negotiation-pricing-summary {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.65rem;
-        padding: 1rem 1.1rem;
+        background: #fff;
+        border: 1px solid #e5e9f0;
+        border-radius: 0.7rem;
+        padding: 0.95rem 1.05rem;
     }
-    .negotiation-pricing-item .negotiation-label {
+    .negotiation-pricing-item .negotiation-label,
+    .negotiation-pricing-summary .negotiation-label {
         display: block;
-        font-size: 0.68rem;
+        font-size: 0.66rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #64748b;
+        letter-spacing: 0.06em;
+        color: #7c879b;
         margin-bottom: 0.2rem;
     }
     .negotiation-pricing-item .negotiation-value {
@@ -520,6 +532,7 @@
         font-weight: 600;
         color: #0f172a;
         line-height: 1.3;
+        font-variant-numeric: tabular-nums;
     }
     .negotiation-pricing-item.negotiation-discount .negotiation-value {
         color: #dc2626;
@@ -533,17 +546,38 @@
         color: #94a3b8;
         margin-top: 0.65rem;
         padding-top: 0.55rem;
-        border-top: 1px dashed #e2e8f0;
+        border-top: 1px dashed #e5e9f0;
     }
     .negotiation-meta-block {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 0.65rem 0.85rem;
+        background: #fbfcfe;
+        border: 1px solid #e5e9f0;
+        border-radius: 0.55rem;
+        padding: 0.7rem 0.9rem;
+    }
+    .negotiation-meta-block .negotiation-label {
+        display: block;
+        font-size: 0.66rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #7c879b;
+        margin-bottom: 0.2rem;
+    }
+    .negotiation-meta-block .negotiation-value {
+        font-weight: 600;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
     }
     .negotiation-modal-footer {
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
+        background: #f7f9fc;
+        border-top: 1px solid #e5e9f0;
+        padding: 0.85rem 1.15rem;
+    }
+    .negotiation-modal-footer .btn {
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.86rem;
+        padding: 0.45rem 1.1rem;
     }
 
     /* Agent column: clear hierarchy for name + company */
@@ -1793,35 +1827,40 @@
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body pt-3 pb-2">
-                    <div class="mb-3">
-                        <span class="negotiation-label">Tour</span>
-                        <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
-                    </div>
-                    <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
-                    <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
-                        Each country shows its booked services total in that country's currency. Enter an offer for every country.
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Negotiated Amount</span>
-                                <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                <div class="modal-body negotiation-split-body">
+                    <div class="negotiation-main-scroll">
+                        <div class="mb-3">
+                            <span class="negotiation-label">Tour</span>
+                            <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
+                        </div>
+                        <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
+                        <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
+                            Each country shows its booked services total in that country's currency. Enter an offer for every country.
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Negotiated Amount</span>
+                                    <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Remarks</span>
+                                    <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Remarks</span>
-                                <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
-                            </div>
+                        <div class="mb-2">
+                            <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
+                            <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                        </div>
+                        <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
+                            Negotiated amount cannot exceed the payable amount.
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
-                    </div>
-                    <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
-                        Negotiated amount cannot exceed the payable amount.
+                    <div class="negotiation-profit-scroll" id="agentNegotiationProfitPanel">
+                        <div class="nego-profit-empty">Open a tour to see country-wise sell, cost, and profit.</div>
                     </div>
                 </div>
                 <div class="modal-footer negotiation-modal-footer border-0 d-flex flex-wrap align-items-center justify-content-end gap-2">
@@ -5083,6 +5122,7 @@ function showFilterResetMessage() {
 @endsection
 
 @section('scripts')
+@include('bookings.partials.negotiation-profit-breakdown')
 <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
@@ -5570,6 +5610,10 @@ function showFilterResetMessage() {
                 isLocked: isLocked
             };
 
+            if (typeof renderAgentNegotiationProfitPanel === 'function') {
+                renderAgentNegotiationProfitPanel(countryGroups);
+            }
+
             if (blocksEl) {
                 blocksEl.innerHTML = '';
                 if (countryGroups.length === 0) {
@@ -5608,6 +5652,7 @@ function showFilterResetMessage() {
                             '<input type="number" class="form-control agent-nego-offer-input" min="0" step="0.01" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + String(country).replace(/"/g, '&quot;') + '" data-currency="' + currency + '" ' +
                                 'data-gross="' + gross + '" data-payable="' + payable + '" value="' + defaultOffer + '" placeholder="Enter offer in ' + currency + '">' +
+                            '<div class="agent-nego-offer-error text-danger small mt-1 d-none" role="alert"></div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + String(country).replace(/"/g, '&quot;') + '">' +
                             '<input type="hidden" name="offers[' + index + '][currency]" value="' + currency + '">' +
                             '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
@@ -5621,7 +5666,17 @@ function showFilterResetMessage() {
                             const hidden = this.parentElement.querySelector('.agent-nego-offer-hidden');
                             if (hidden) hidden.value = this.value;
                             syncPrimaryNegotiationAmount();
+                            if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
+                                syncAgentNegotiationProfitFromOffers();
+                            }
+                            highlightExceededAgentOffer(this);
                         });
+                    });
+                    if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
+                        syncAgentNegotiationProfitFromOffers();
+                    }
+                    blocksEl.querySelectorAll('.agent-nego-offer-input').forEach(function (input) {
+                        highlightExceededAgentOffer(input);
                     });
                 }
             }
@@ -5652,6 +5707,74 @@ function showFilterResetMessage() {
             toggleAgentNegotiationActions(isLocked);
             agentNegotiationModalInstance.show();
         };
+
+        /** Max allowed offer for a country input (payable amount). */
+        function getAgentOfferMax(input) {
+            const max = parseFloat(input.getAttribute('data-max'));
+            return Number.isFinite(max) && max > 0 ? max : NaN;
+        }
+
+        function isAgentOfferExceeded(input) {
+            const value = parseFloat(input.value);
+            const max = getAgentOfferMax(input);
+            return Number.isFinite(value) && Number.isFinite(max) && value > max;
+        }
+
+        /** Inline feedback under that country's Offer Amount field. */
+        function highlightExceededAgentOffer(input) {
+            const card = input.closest('.negotiation-pricing-summary');
+            const fieldError = card ? card.querySelector('.agent-nego-offer-error') : null;
+            const globalWarning = document.getElementById('agentNegotiationWarning');
+            const exceeded = isAgentOfferExceeded(input);
+
+            input.classList.toggle('is-invalid', exceeded);
+
+            if (fieldError) {
+                if (exceeded) {
+                    const country = input.getAttribute('data-country') || 'this country';
+                    const currency = input.getAttribute('data-currency') || '';
+                    const limit = (currency ? currency + ' ' : '') + formatNegotiationAmount(getAgentOfferMax(input));
+                    fieldError.textContent = 'Price exceeded for ' + country + '. Offer cannot be more than the negotiated amount ' + limit + '.';
+                    fieldError.classList.remove('d-none');
+                } else {
+                    fieldError.textContent = '';
+                    fieldError.classList.add('d-none');
+                }
+            }
+
+            // Keep the shared banner hidden; each country shows its own message below its input.
+            if (globalWarning) {
+                globalWarning.classList.add('d-none');
+            }
+        }
+
+        /** Blocks submit when any country offer is above its payable amount. */
+        function validateAgentOffersWithinPayable(offerInputs) {
+            let firstExceeded = null;
+            offerInputs.forEach(function (input) {
+                highlightExceededAgentOffer(input);
+                if (!firstExceeded && isAgentOfferExceeded(input)) {
+                    firstExceeded = input;
+                }
+            });
+
+            if (!firstExceeded) {
+                return true;
+            }
+
+            const country = firstExceeded.getAttribute('data-country') || 'this country';
+            const currency = firstExceeded.getAttribute('data-currency') || '';
+            const limit = (currency ? currency + ' ' : '') + formatNegotiationAmount(getAgentOfferMax(firstExceeded));
+
+            firstExceeded.focus();
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Price exceeded',
+                text: 'The offer amount for ' + country + ' is exceeding the negotiated payable amount ' + limit + '. Please enter ' + limit + ' or less.'
+            });
+            return false;
+        }
 
         function syncPrimaryNegotiationAmount() {
             const firstOffer = document.querySelector('#agentNegotiationCountryBlocks .agent-nego-offer-input');
@@ -5711,6 +5834,10 @@ function showFilterResetMessage() {
                     const hidden = input.parentElement.querySelector('.agent-nego-offer-hidden');
                     if (hidden) hidden.value = input.value;
                 }
+
+                if (!validateAgentOffersWithinPayable(offerInputs)) {
+                    return;
+                }
                 syncPrimaryNegotiationAmount();
 
                 submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
@@ -5737,6 +5864,10 @@ function showFilterResetMessage() {
                     }
                     const hidden = input.parentElement.querySelector('.agent-nego-offer-hidden');
                     if (hidden) hidden.value = input.value;
+                }
+
+                if (!validateAgentOffersWithinPayable(offerInputs)) {
+                    return;
                 }
                 syncPrimaryNegotiationAmount();
 
