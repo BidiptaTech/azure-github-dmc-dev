@@ -7591,6 +7591,62 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         return $fallback;
     }
 
+    /**
+     * Human-readable meal plan label from hotel rooms/beds JSON.
+     * Prefer selectedMeals[].type, then mealTypes entries (string or {type}).
+     *
+     * @param  array|null  $rooms
+     */
+    public static function resolveHotelMealPlanLabel($rooms): string
+    {
+        if (!is_array($rooms) || count($rooms) === 0) {
+            return 'Room Only';
+        }
+
+        $firstRoom = $rooms[0] ?? null;
+        if (!is_array($firstRoom)) {
+            return 'Room Only';
+        }
+
+        $beds = $firstRoom['beds'] ?? null;
+        if (!is_array($beds) || count($beds) === 0) {
+            return 'Room Only';
+        }
+
+        $firstBed = $beds[0] ?? null;
+        if (!is_array($firstBed)) {
+            return 'Room Only';
+        }
+
+        $selected = $firstBed['selectedMeals'] ?? null;
+        if (is_array($selected) && count($selected) > 0) {
+            $labels = [];
+            foreach ($selected as $meal) {
+                if (is_string($meal) && trim($meal) !== '') {
+                    $labels[] = trim($meal);
+                } elseif (is_array($meal) && !empty($meal['type'])) {
+                    $labels[] = trim((string) $meal['type']);
+                }
+            }
+            if (count($labels) > 0) {
+                return implode(', ', $labels);
+            }
+        }
+
+        $mealTypes = $firstBed['mealTypes'] ?? null;
+        if (is_array($mealTypes) && count($mealTypes) > 0) {
+            $first = reset($mealTypes);
+            if (is_string($first) && trim($first) !== '') {
+                return trim($first);
+            }
+            if (is_array($first) && !empty($first['type'])) {
+                return trim((string) $first['type']);
+            }
+        }
+
+        return 'Room Only';
+    }
+
     // Get DMC Dynamic Currency
     public static function getDmcCurrencyByCountry()
     {
