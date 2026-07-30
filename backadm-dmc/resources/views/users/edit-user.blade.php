@@ -285,6 +285,18 @@
                             <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
                         </div>
                     </div>
+
+                    <!-- Third Party (DMC only) -->
+                    <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="thirdparty" class="form-label"><strong>Third Party DMC</strong></label>
+                            @php $currentThirdParty = old('thirdparty', $users->thirdparty ?? 'no'); @endphp
+                            <select class="form-select" id="thirdparty" name="thirdparty">
+                                <option value="no" @if($currentThirdParty !== 'yes') selected @endif>No</option>
+                                <option value="yes" @if($currentThirdParty === 'yes') selected @endif>Yes</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- DMC-Level Settings (Group Pax & Markup) -->
@@ -690,6 +702,7 @@
                 user_code_container: $('#user_code_container'),
                 company_reg_no_container: $('#company_reg_no_container'),
                 licence_no_container: $('#licence_no_container'),
+                thirdparty_container: $('#thirdparty_container'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
                 markuptypes: $('#markuptypes'),
                 dmc_settings_section: $('#dmc_settings_section'),
@@ -720,6 +733,7 @@
                 containers.company_name.show();
                 containers.company_reg_no_container.show();
                 containers.licence_no_container.show();
+                containers.thirdparty_container.show();
                 containers.dmc_settings_section.show();
                 containers.dmc_only_attr_flight_markup.show();
             } else if (userRole === 4) {
