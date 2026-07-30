@@ -387,6 +387,7 @@ class HotelBookingController extends Controller
             }
 
             $booking = $attractionData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($attractionOrder, null);
             
             Log::info('Attraction booking data found', [
                 'tour_id' => $tourId,
@@ -396,6 +397,7 @@ class HotelBookingController extends Controller
                 'total_price' => $booking['totalPrice'] ?? 0,
                 'booking_date' => $booking['bookingDate'] ?? null,
                 'visit_time' => $booking['visitTime'] ?? null,
+                'currency' => $orderCurrency,
                 'full_booking_keys' => array_keys($booking),
                 'raw_booking_data' => $booking
             ]);
@@ -419,6 +421,8 @@ class HotelBookingController extends Controller
                         'senior_count' => $booking['seniorCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        'country' => $attractionOrder->country ?? null,
+                        'currency' => $orderCurrency,
                         // Customer information
                         'full_name' => $booking['fullName'] ?? 'N/A',
                         'email' => $booking['email'] ?? 'N/A',
@@ -710,13 +714,15 @@ class HotelBookingController extends Controller
             }
 
             $booking = $restaurantData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($restaurantOrder, null);
             
             Log::info('✅ Found specific restaurant booking', [
                 'booking_index' => $bookingIndex,
                 'restaurant_name' => $booking['restaurantName'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
                 'visit_time' => $booking['visitTime'] ?? 'Unknown',
-                'meal_type' => $booking['mealType'] ?? 'Unknown'
+                'meal_type' => $booking['mealType'] ?? 'Unknown',
+                'currency' => $orderCurrency,
             ]);
 
             return response()->json([
@@ -737,6 +743,8 @@ class HotelBookingController extends Controller
                         'child_count' => $booking['childCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        'country' => $restaurantOrder->country ?? null,
+                        'currency' => $orderCurrency,
                         'is_approve' => $restaurantOrder->is_approve ?? false,
                         'reference_id' => $restaurantOrder->reference_id ?? null,
                         'display_due_date' => $restaurantOrder->display_due_date ?? null,
@@ -864,13 +872,15 @@ class HotelBookingController extends Controller
             }
 
             $booking = $guideData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($guideOrder, null);
             
             Log::info('✅ Found specific guide booking', [
                 'booking_index' => $bookingIndex,
                 'guide_name' => $booking['guide_name'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
                 'pickup_time' => $booking['entrytime'] ?? 'Unknown',
-                'hours' => $booking['hours'] ?? 'Unknown'
+                'hours' => $booking['hours'] ?? 'Unknown',
+                'currency' => $orderCurrency,
             ]);
 
             $response = [
@@ -907,6 +917,8 @@ class HotelBookingController extends Controller
                     'booking_type' => $booking['bookingType'] ?? 'Standard',
                     'mode' => $booking['Mode'] ?? 'dmc',
                     'dmc_id' => $booking['dmc_id'] ?? $booking['dmc_Id'] ?? null,
+                    'country' => $guideOrder->country ?? null,
+                    'currency' => $orderCurrency,
                     // ✅ Approval status fields from orders table
                     'is_approve' => $guideOrder->is_approve ?? false,
                     'reference_id' => $guideOrder->reference_id ?? null,
@@ -1151,6 +1163,8 @@ class HotelBookingController extends Controller
             }
 
             $booking = $hotelData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($hotelOrder, null);
+            $mealPlanLabel = CommonHelper::resolveHotelMealPlanLabel($booking['rooms'] ?? []);
             
             Log::info('Hotel booking data found', [
                 'tour_id' => $tourId,
@@ -1159,6 +1173,8 @@ class HotelBookingController extends Controller
                 'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown',
                 'total_price' => $booking['totalPrice'] ?? 0,
                 'booking_dates' => $booking['bookingDate'] ?? [],
+                'currency' => $orderCurrency,
+                'country' => $hotelOrder->country ?? null,
                 'full_booking_keys' => array_keys($booking)
             ]);
 
@@ -1183,6 +1199,10 @@ class HotelBookingController extends Controller
                         'check_in_time' => $booking['hotelDetails']['checkInTime'] ?? '12:00 PM',
                         'check_out_time' => $booking['hotelDetails']['checkOutTime'] ?? '11:00 AM',
                         'cancellation_charge' => $booking['hotelDetails']['cancellation_charge'] ?? null,
+                        // Per-order country / currency (same helper as new-enquiries / follow-ups)
+                        'country' => $hotelOrder->country ?? null,
+                        'currency' => $orderCurrency,
+                        'meal_plan' => $mealPlanLabel,
                         // Customer information
                         'full_name' => $booking['fullName'] ?? 'N/A',
                         'email' => $booking['email'] ?? 'N/A',
@@ -2467,6 +2487,7 @@ class HotelBookingController extends Controller
             }
 
             $specificBooking = $data[$keys[$bookingIndex]];
+            $orderCurrency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($localTransportOrder, 'SGD');
 
             // Extract relevant data
             $localTransportData = [
@@ -2499,6 +2520,8 @@ class HotelBookingController extends Controller
                     'tour_start_date' => $localTransportData['tour_start_date'],
                     'tour_end_date' => $localTransportData['tour_end_date'],
                     'local_transport_details' => $specificBooking, // Include full booking data for detailed display
+                    'currency' => $orderCurrency,
+                    'country' => $localTransportOrder->country ?? ($specificBooking['country'] ?? null),
                     // Include approval-related fields from orders table
                     'is_approve' => $localTransportOrder->is_approve ?? 0,
                     'reference_id' => $localTransportOrder->reference_id ?? null,
