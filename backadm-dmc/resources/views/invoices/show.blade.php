@@ -198,6 +198,7 @@ use Illuminate\Support\Facades\Crypt;
     <div class="row">
         <div class="col-12">
             @php
+                require resource_path('views/invoices/pdf/partials/currency-setup-inc.php');
                 // For is_pro = 1, use transfer_options.totalPrice for attraction/restaurant so display totals match follow-ups
                 $invoiceItems = $invoice->items ?? collect([]);
                 $isPro = $invoice->tour && (int)($invoice->tour->is_pro ?? 0) === 1;
@@ -455,12 +456,28 @@ use Illuminate\Support\Facades\Crypt;
                                 $finalPriceTop = $shouldShowTax ? ($baseAmountTop + $gstAmountTop) : $baseAmountTop;
                                 $paymentReceivedTop = $invoice->payment_received ?? 0;
                                 $outstandingBalanceTop = $finalPriceTop - $paymentReceivedTop;
+                                if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+                                    $tpSummaryTop = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+                                        $invoice,
+                                        $thirdPartyNegotiation,
+                                        $selectedCurrency,
+                                        $baseCurrency
+                                    );
+                                    $actualAmountTop = $tpSummaryTop['actualAmount'];
+                                    $baseAmountTop = $tpSummaryTop['baseAmount'];
+                                    $gstAmountTop = $tpSummaryTop['gstAmount'];
+                                    $finalPriceTop = $shouldShowTax ? $tpSummaryTop['finalPrice'] : $tpSummaryTop['negotiatedAmount'];
+                                    $paymentReceivedTop = $tpSummaryTop['paymentReceived'];
+                                    $outstandingBalanceTop = $shouldShowTax
+                                        ? $tpSummaryTop['outstandingBalance']
+                                        : max(0, $finalPriceTop - $paymentReceivedTop);
+                                }
                             @endphp
                             <div class="info-row">
                                 <span class="info-label">Total Amount:</span>
                                 <span class="info-value">
                                     <strong style="color: #28a745; font-size: 18px;">
-                                        {{ $baseCurrency }} {{ number_format(round($actualAmountTop)) }}
+                                        {{ $formatPrice($actualAmountTop) }}
                                     </strong>
                                 </span>
                             </div>
@@ -468,7 +485,7 @@ use Illuminate\Support\Facades\Crypt;
                             <div class="info-row">
                                 <span class="info-label">GST Amount:</span>
                                 <span class="info-value">
-                                    {{ $baseCurrency }} {{ number_format(round($gstAmountTop)) }}
+                                    {{ $formatPrice($gstAmountTop) }}
                                 </span>
                             </div>
                             @endif
@@ -476,7 +493,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label">Payment Received:</span>
                                 <span class="info-value">
                                     <strong style="color: #17a2b8;">
-                                        {{ $baseCurrency }} {{ number_format(round($paymentReceivedTop)) }}
+                                        {{ $formatPrice($paymentReceivedTop) }}
                                     </strong>
                                 </span>
                             </div>
@@ -484,7 +501,7 @@ use Illuminate\Support\Facades\Crypt;
                                 <span class="info-label" style="font-size: 16px; font-weight: 700;">Outstanding Balance:</span>
                                 <span class="info-value">
                                     <strong style="color: {{ $outstandingBalanceTop > 0 ? '#dc3545' : '#28a745' }}; font-size: 22px;">
-                                        {{ $baseCurrency }} {{ number_format(round($outstandingBalanceTop)) }}
+                                        {{ $formatPrice($outstandingBalanceTop) }}
                                     </strong>
                                 </span>
                             </div>
@@ -580,6 +597,8 @@ use Illuminate\Support\Facades\Crypt;
 
                 <div class="section-divider"></div>
 
+                @include('invoices.pdf.partials.multi-geo-thirdparty-notice')
+
                 <!-- Invoice Items -->
                 <div class="service-section">
                     <h4 class="mb-4" style="color: #495057; font-weight: 700;">
@@ -601,8 +620,9 @@ use Illuminate\Support\Facades\Crypt;
                     @endphp
 
                     @if($hotelItems->count() > 0)
+                    @foreach($groupItemsByGeo($hotelItems) as $geoGroup)
                     <!-- Hotel Services -->
-                    <h6 class="service-title">Hotel Services</h6>
+                    <h6 class="service-title">{{ $serviceSectionTitle('Hotel Service', 'Hotel Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -612,12 +632,12 @@ use Illuminate\Support\Facades\Crypt;
                                     <th>Check-out</th>
                                     <th>Nights</th>
                                     <th>Pax / Qty</th>
-                                    <th class="text-end">Unit Price / Rate (Per Night)</th>
-                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Unit Price / Rate (Per Night){{ $priceColumnSuffix() }}</th>
+                                    <th class="text-end">Total{{ $priceColumnSuffix() }}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($hotelItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $hotelName = $serviceDetails['hotel_name'] ?? ($item->description ?? 'N/A');
@@ -670,8 +690,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $checkOutDisplay }}</td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $totalPax }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @php
                                     $childWithBed = $serviceDetails['child_with_bed'] ?? null;
@@ -683,8 +703,8 @@ use Illuminate\Support\Facades\Crypt;
                                     <td colspan="2"></td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $childWithBed['children'] ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($childWithBed['price'] ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($childWithBed['total_cost'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($childWithBed['price'] ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($childWithBed['total_cost'] ?? 0, $item) }}</td>
                                 </tr>
                                 @endif
                                 @if($childWithoutBed)
@@ -693,19 +713,21 @@ use Illuminate\Support\Facades\Crypt;
                                     <td colspan="2"></td>
                                     <td>{{ $noOfDays }}</td>
                                     <td>{{ $childWithoutBed['children'] ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($childWithoutBed['price'] ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($childWithoutBed['total_cost'] ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($childWithoutBed['price'] ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($childWithoutBed['total_cost'] ?? 0, $item) }}</td>
                                 </tr>
                                 @endif
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($entryPortItems->count() > 0)
+                    @foreach($groupItemsByGeo($entryPortItems) as $geoGroup)
                     <!-- Arrival Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Arrival Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Arrival Service', 'Arrival Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -721,7 +743,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($entryPortItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -762,18 +784,20 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_type'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($attractionItems->count() > 0)
+                    @foreach($groupItemsByGeo($attractionItems) as $geoGroup)
                     <!-- Attraction Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Attraction Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Attraction Service', 'Attraction Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -795,7 +819,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($attractionItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -840,18 +864,20 @@ use Illuminate\Support\Facades\Crypt;
                                         $attractionDisplayTotal = isset($attractionCorrectedTotals[$item->id]) ? $attractionCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $attractionDisplayUnit = isset($attractionCorrectedTotals[$item->id]) ? $attractionDisplayTotal : ($item->unit_price ?? 0);
                                     @endphp
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($attractionDisplayUnit ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($attractionDisplayTotal ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($attractionDisplayUnit ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($attractionDisplayTotal ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($restaurantItems->count() > 0)
+                    @foreach($groupItemsByGeo($restaurantItems) as $geoGroup)
                     <!-- Restaurant Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Restaurant Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Restaurant Service', 'Restaurant Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -871,7 +897,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($restaurantItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -903,18 +929,20 @@ use Illuminate\Support\Facades\Crypt;
                                         $restaurantDisplayTotal = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $restaurantDisplayUnit = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantDisplayTotal : ($item->unit_price ?? 0);
                                     @endphp
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($restaurantDisplayUnit ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($restaurantDisplayTotal ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($restaurantDisplayUnit ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($restaurantDisplayTotal ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($guideItems->count() > 0)
+                    @foreach($groupItemsByGeo($guideItems) as $geoGroup)
                     <!-- Guide Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Guide Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Guide Service', 'Guide Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -930,7 +958,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($guideItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -950,18 +978,20 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $item->quantity_adults ?? 0 }}</td>
                                     <td>{{ $item->quantity_children ?? 0 }}</td>
                                     <td>{{ $item->quantity_infants ?? 0 }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($travelPointItems->count() > 0)
+                    @foreach($groupItemsByGeo($travelPointItems) as $geoGroup)
                     <!-- Travel Point Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Point to Point Transfer Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Point to Point Transfer', 'Point to Point Transfer Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -976,7 +1006,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($travelPointItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1016,18 +1046,20 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($travelHourlyItems->count() > 0)
+                    @foreach($groupItemsByGeo($travelHourlyItems) as $geoGroup)
                     <!-- Travel Hourly Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Hourly Tour Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Hourly Tour Service', 'Hourly Tour Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -1042,7 +1074,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($travelHourlyItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1082,18 +1114,20 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($localTransportItems->count() > 0)
+                    @foreach($groupItemsByGeo($localTransportItems) as $geoGroup)
                     <!-- Local Transport Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Local Transport Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Local Transport', 'Local Transport Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -1108,7 +1142,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($localTransportItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1148,18 +1182,20 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_name'] ?? 'N/A' }}</td>
                                     <td>{{ $pickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format(round($item->unit_price ?? 0), 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format(round($item->total_price ?? 0), 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($exitPortItems->count() > 0)
+                    @foreach($groupItemsByGeo($exitPortItems) as $geoGroup)
                     <!-- Departure Services -->
-                    <h6 class="service-title" style="margin-top: 30px;">Departure Services</h6>
+                    <h6 class="service-title" style="margin-top: 30px;">{{ $serviceSectionTitle('Departure Service', 'Departure Services', $geoGroup) }}</h6>
                     <div class="table-responsive">
                         <table class="table invoice-table">
                             <thead>
@@ -1175,7 +1211,7 @@ use Illuminate\Support\Facades\Crypt;
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($exitPortItems as $item)
+                                @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
                                     $exitPickupDate = $serviceDetails['exitpickupdate'] ?? '';
@@ -1216,13 +1252,14 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $serviceDetails['vehicle_type'] ?? 'N/A' }}</td>
                                     <td>{{ $exitPickupDateDisplay }}</td>
                                     <td>{{ $totalPersons }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    @endforeach
                     @endif
 
                     @if($otherItems->count() > 0)
@@ -1241,8 +1278,8 @@ use Illuminate\Support\Facades\Crypt;
                                 @foreach($otherItems as $item)
                                 <tr>
                                     <td>{{ $item->description ?? 'N/A' }}</td>
-                                    <td class="text-end price-cell unit">{{ $baseCurrency }} {{ number_format($item->unit_price ?? 0, 2) }}</td>
-                                    <td class="text-end price-cell">{{ $baseCurrency }} {{ number_format($item->total_price ?? 0, 2) }}</td>
+                                    <td class="text-end price-cell unit">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                                    <td class="text-end price-cell">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -1284,6 +1321,7 @@ use Illuminate\Support\Facades\Crypt;
                                 $baseAmount = $neg ?? $actualAmount;
                             }
                             $negotiatedAmount = $baseAmount; // negotiated amount adjusted with added services
+
                             $discount = $actualAmount - $baseAmount;
                             
                             $tour = $invoice->tour;
@@ -1296,25 +1334,73 @@ use Illuminate\Support\Facades\Crypt;
                             $finalPrice = $baseAmount + $gstAmount;
                             $paymentReceived = $invoice->payment_received ?? 0;
                             $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
+
+                            if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+                                $tpSummary = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+                                    $invoice,
+                                    $thirdPartyNegotiation,
+                                    $selectedCurrency,
+                                    $baseCurrency
+                                );
+                                $actualAmount = $tpSummary['actualAmount'];
+                                $negotiatedAmount = $tpSummary['negotiatedAmount'];
+                                $baseAmount = $tpSummary['baseAmount'];
+                                $discount = $tpSummary['discount'];
+                                $gstAmount = $tpSummary['gstAmount'];
+                                $taxBreakdown = $tpSummary['taxBreakdown'];
+                                $finalPrice = $tpSummary['finalPrice'];
+                                $paymentReceived = $tpSummary['paymentReceived'];
+                                $outstandingBalance = $tpSummary['outstandingBalance'];
+                            }
                         @endphp
+                        @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
+                        <div class="summary-row" style="background: #f1f5f9; padding: 12px 15px; border-radius: 6px; margin: 10px 0 6px;">
+                            <span class="summary-label" style="font-weight: 700; color: #1e293b;">Country-wise Negotiation</span>
+                            <span class="summary-value"></span>
+                        </div>
+                        @foreach($thirdPartyNegotiation['rows'] as $negRow)
+                        @php
+                            $negCountry = trim((string) ($negRow['country'] ?? ''));
+                            $negCurrency = strtoupper(trim((string) ($negRow['currency'] ?? $selectedCurrency)));
+                            $negLabel = $negCountry !== '' ? $negCountry : $negCurrency;
+                            $rowActual = (float) ($negRow['actual_selected'] ?? 0);
+                            $rowNeg = (float) ($negRow['negotiated_selected'] ?? 0);
+                            $rowDisc = (float) ($negRow['discount_selected'] ?? ($rowActual - $rowNeg));
+                        @endphp
+                        <div class="summary-row" style="background: #f8fafc; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">{{ $negLabel }} ({{ $negCurrency }}) — Actual</span>
+                            <span class="summary-value">{{ $formatPrice($rowActual) }}</span>
+                        </div>
+                        <div class="summary-row" style="background: #eef6ff; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">{{ $negLabel }} — Negotiated</span>
+                            <span class="summary-value">{{ $formatPrice($rowNeg) }}</span>
+                        </div>
+                        @if(abs($rowDisc) > 0.009)
+                        <div class="summary-row" style="background: {{ $rowDisc > 0 ? '#edf7ed' : '#fff8e6' }}; padding: 10px 15px; border-radius: 6px; margin: 4px 0;">
+                            <span class="summary-label">{{ $negLabel }} — {{ $rowDisc > 0 ? 'Discount' : 'Additional Charges' }}</span>
+                            <span class="summary-value">{{ $rowDisc > 0 ? '-' : '' }}{{ $formatPrice(abs($rowDisc)) }}</span>
+                        </div>
+                        @endif
+                        @endforeach
+                        @endif
                         <div class="summary-row">
                             <span class="summary-label">Total (Actual Amount):</span>
-                            <span class="summary-value">{{ $baseCurrency }} {{ number_format(round($actualAmount)) }}</span>
+                            <span class="summary-value">{{ $formatPrice($actualAmount) }}</span>
                         </div>
                         @if($negotiatedAmount !== null)
                         <div class="summary-row" style="background: #e7f3ff; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Last Negotiated Amount:</span>
-                            <span class="summary-value" style="color: #0056b3;">{{ $baseCurrency }} {{ number_format(round($negotiatedAmount)) }}</span>
+                            <span class="summary-value" style="color: #0056b3;">{{ $formatPrice($negotiatedAmount) }}</span>
                         </div>
                         @if($discount > 0)
                         <div class="summary-row" style="background: #d4edda; padding: 15px; border-radius: 6px; margin: 10px 0;">
-                            <span class="summary-label">Discount:</span>
-                            <span class="summary-value" style="color: #155724;">-{{ $baseCurrency }} {{ number_format(round($discount)) }}</span>
+                            <span class="summary-label">Total Discount:</span>
+                            <span class="summary-value" style="color: #155724;">-{{ $formatPrice($discount) }}</span>
                         </div>
                         @elseif($discount < 0)
                         <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
-                            <span class="summary-label">Additional Charges:</span>
-                            <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round(abs($discount))) }}</span>
+                            <span class="summary-label">Total Additional Charges:</span>
+                            <span class="summary-value" style="color: #856404;">{{ $formatPrice(abs($discount)) }}</span>
                         </div>
                         @endif
                         @endif
@@ -1324,47 +1410,53 @@ use Illuminate\Support\Facades\Crypt;
                             @foreach($taxBreakdown as $taxName => $taxValue)
                             <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
                                 <span class="summary-label">{{ $taxName }}:</span>
-                                <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round($taxValue)) }}</span>
+                                <span class="summary-value" style="color: #856404;">{{ $formatPrice($taxValue) }}</span>
                             </div>
                             @endforeach
                         @else
                         <div class="summary-row" style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Total Vat / GST Tax:</span>
-                            <span class="summary-value" style="color: #856404;">{{ $baseCurrency }} {{ number_format(round($gstAmount)) }}</span>
+                            <span class="summary-value" style="color: #856404;">{{ $formatPrice($gstAmount) }}</span>
                         </div>
                         @endif
                         @endif
                         
                         <div class="summary-row" style="background: #d4edda; padding: 20px; border-radius: 6px; margin-top: 15px; border-top: 3px solid #28a745;">
                             <span class="summary-label" style="font-size: 18px; font-weight: 700;">Final Price:</span>
-                            <span class="summary-value highlight">{{ $baseCurrency }} {{ number_format(round($finalPrice)) }}</span>
+                            <span class="summary-value highlight">{{ $formatPrice($finalPrice) }}</span>
                         </div>
                         
                         @if($shouldShowTax)
                         <div class="summary-row" style="background: #d1ecf1; padding: 15px; border-radius: 6px; margin: 10px 0;">
                             <span class="summary-label">Payment Received:</span>
-                            <span class="summary-value info">{{ $baseCurrency }} {{ number_format(round($paymentReceived)) }}</span>
+                            <span class="summary-value info">{{ $formatPrice($paymentReceived) }}</span>
                         </div>
                         <div class="summary-row" style="background: #f8d7da; padding: 20px; border-radius: 6px; margin-top: 15px; border-top: 3px solid #dc3545;">
                             <span class="summary-label" style="font-size: 18px; font-weight: 700;">Outstanding Balance:</span>
-                            <span class="summary-value danger" style="font-size: 24px;">{{ $baseCurrency }} {{ number_format(round($outstandingBalance)) }}</span>
+                            <span class="summary-value danger" style="font-size: 24px;">{{ $formatPrice($outstandingBalance) }}</span>
                         </div>
                         @endif
                     </div>
                 </div>
 
-                <!-- Currency Conversion (shown only when a non-SGD currency is selected) -->
+                <!-- Currency Conversion (aligned with Final Price / Outstanding) -->
+                @php
+                    if (isset($syncInvoiceCurrencyConversion) && is_callable($syncInvoiceCurrencyConversion)) {
+                        $syncInvoiceCurrencyConversion(!empty($shouldShowTax) ? $outstandingBalance : $finalPrice);
+                    }
+                @endphp
                 @if($selectedCurrency !== $baseCurrency && !empty($currencyConversion ?? []))
                 <div class="row mt-4">
                     <div class="col-12">
                         <div class="info-section" style="border-left-color: #4CAF50;">
                             <h5 style="color: #4CAF50;"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion</h5>
+                            <p class="small text-muted mb-2">Equivalent of {{ !empty($shouldShowTax) ? 'Outstanding Balance' : 'Final Price' }} in each currency.</p>
                             <div class="row">
                                 @foreach($currencyConversion as $curr => $amount)
                                 <div class="col-md-4 mb-3">
                                     <div class="currency-card">
                                         <div class="currency-label">{{ $curr }}</div>
-                                        <div class="currency-amount">{{ number_format(round($amount)) }}</div>
+                                        <div class="currency-amount">{{ number_format(round((float) $amount, 2), 2) }}</div>
                                     </div>
                                 </div>
                                 @endforeach

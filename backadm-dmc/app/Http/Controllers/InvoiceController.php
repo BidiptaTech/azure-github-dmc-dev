@@ -38,8 +38,21 @@ class InvoiceController extends Controller
         $selectedCurrency = CommonHelper::getInvoiceSelectedCurrency($request->query('currency'), $invoice);
         $currencyConversion = CommonHelper::buildInvoiceCurrencyConversion($invoice, $selectedCurrency);
         $exchangeRate = CommonHelper::getInvoiceExchangeRate($baseCurrency, $selectedCurrency, $currencyConversion);
+        $isThirdPartyInvoice = CommonHelper::isInvoiceThirdPartyEnabled($invoice);
+        $invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
 
-        return compact('baseCurrency', 'selectedCurrency', 'currencyConversion', 'exchangeRate');
+        if ($isThirdPartyInvoice) {
+            CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
+        }
+
+        return compact(
+            'baseCurrency',
+            'selectedCurrency',
+            'currencyConversion',
+            'exchangeRate',
+            'isThirdPartyInvoice',
+            'invoiceMultiGeo'
+        );
     }
 
     /**
