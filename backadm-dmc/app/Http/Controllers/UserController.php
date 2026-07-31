@@ -2641,6 +2641,11 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'You do not have permission to update third party access.'], 403);
         }
 
+        // Same gate as Zone On / Price Hide: only Master DMC may change this.
+        if ((int) ($this->auth_user->role_id ?? 0) !== 10) {
+            return response()->json(['success' => false, 'message' => 'Only the Master DMC can update third party access.'], 403);
+        }
+
         $request->validate([
             'user_id' => 'required|integer',
             'thirdparty_enabled' => 'required|in:yes,no',
@@ -2653,6 +2658,11 @@ class UserController extends Controller
 
         if (!in_array((int) $user->role_id, [11, 20], true)) {
             return response()->json(['success' => false, 'message' => 'Third party access applies to DMC users only.'], 422);
+        }
+
+        // Must be a DMC under this Master DMC — not another master's DMC.
+        if ((int) ($user->master_dmc_id ?? 0) !== (int) $this->auth_user->userId) {
+            return response()->json(['success' => false, 'message' => 'You can only update third party access for your own DMCs.'], 403);
         }
 
         $user->thirdparty_enabled = $request->input('thirdparty_enabled');

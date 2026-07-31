@@ -1219,7 +1219,18 @@ class SingleTourPackageController extends Controller
         }
 
         $userDmcId = CommonHelper::getDmcId(Auth::user());
-        $UserDmc = User::select('userId', 'zone_on')->where('userId', $userDmcId)->first();
+        $userDmcIdInt = $userDmcId ? (int) $userDmcId : 0;
+        $UserDmc = $userDmcIdInt > 0
+            ? User::select('userId', 'zone_on', 'thirdparty', 'thirdparty_enabled', 'country', 'master_dmc_id', 'role_id')
+                ->where('userId', $userDmcIdInt)
+                ->first()
+            : null;
+
+        // Third-party DMC with access disabled must only see its own inventory/geography.
+        // When thirdparty_enabled=yes (or the DMC is not third-party), keep existing master-DMC scope.
+        $thirdPartyScope = $this->resolveThirdPartyDmcScope($UserDmc);
+        $isRestrictedThirdParty = (bool) ($thirdPartyScope['is_restricted'] ?? false);
+        $ownDmcCountryNames = $thirdPartyScope['own_country_names'] ?? [];
 
         // The tour's `destination` field can hold a CITY name (e.g. "Batam"), not a country, and may hold a
         // comma separated list ("Indonesia, Singapore").
@@ -1242,9 +1253,49 @@ class SingleTourPackageController extends Controller
             }
         }
 
-        if ($userDmcId) {
+        // Restricted third-party: never broaden location filters to countries outside this DMC.
+        // Inventory queries still AND with dmc_id so sibling DMCs sharing a country cannot leak in.
+        if ($isRestrictedThirdParty && !empty($ownDmcCountryNames)) {
+            $tourDestinationNames = array_values(array_filter(
+                $tourDestinationNames,
+                function ($name) use ($ownDmcCountryNames) {
+                    foreach ($ownDmcCountryNames as $allowed) {
+                        if (strcasecmp((string) $name, (string) $allowed) === 0) {
+                            return true;
+                        }
+                    }
+                    // Keep city-like destinations; country fallback list is what we sanitise.
+                    $cityRow = City::where('name', $name)->first();
+                    if ($cityRow && !empty($cityRow->country)) {
+                        foreach ($ownDmcCountryNames as $allowed) {
+                            if (strcasecmp((string) $cityRow->country, (string) $allowed) === 0) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    return true;
+                }
+            ));
+            $cityMatchValues = array_values(array_unique(array_merge($tourCityNames, $tourDestinationNames)));
+
+            $portsCountryAllowed = false;
+            if ($portsCountry) {
+                foreach ($ownDmcCountryNames as $allowed) {
+                    if (strcasecmp((string) $portsCountry, (string) $allowed) === 0) {
+                        $portsCountryAllowed = true;
+                        break;
+                    }
+                }
+            }
+            if (!$portsCountryAllowed) {
+                $portsCountry = $ownDmcCountryNames[0] ?? null;
+            }
+        }
+
+        if ($userDmcIdInt > 0) {
             $hotels = Hotel::with(['rooms.bed'])
-                ->whereJsonContains('dmc_id', (int) $userDmcId)
+                ->whereJsonContains('dmc_id', $userDmcIdInt)
                 ->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
                     if (!empty($cityMatchValues)) {
                         $q->whereIn('city', $cityMatchValues);
@@ -1259,66 +1310,87 @@ class SingleTourPackageController extends Controller
         }
 
         // Load guides filtered by DMC, matching the tour's city (or country as fallback)
-        $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
-        $guidesQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
-            if (!empty($cityMatchValues)) {
-                $q->whereIn('city', $cityMatchValues);
-            }
-            if (!empty($tourDestinationNames)) {
-                $q->orWhereIn('country', $tourDestinationNames);
-            }
-        });
-        $guides = $guidesQuery->get();
+        $guides = collect();
+        if ($userDmcIdInt > 0) {
+            $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcIdInt);
+            $guidesQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
+                if (!empty($cityMatchValues)) {
+                    $q->whereIn('city', $cityMatchValues);
+                }
+                if (!empty($tourDestinationNames)) {
+                    $q->orWhereIn('country', $tourDestinationNames);
+                }
+            });
+            $guides = $guidesQuery->get();
+        }
 
         // Load restaurants filtered by DMC, matching the tour's city (or country as fallback)
-        $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
-            $query->where('dmc_id', $userDmcId);
-        }])
-            ->whereJsonContains('dmc_id', $userDmcId);
-        $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
-            if (!empty($cityMatchValues)) {
-                $q->whereIn('city', $cityMatchValues);
-            }
-            if (!empty($tourDestinationNames)) {
-                $q->orWhereIn('country', $tourDestinationNames);
-            }
-        });
-        $restaurants = $restaurantsQuery->get();
+        $restaurants = collect();
+        if ($userDmcIdInt > 0) {
+            $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcIdInt) {
+                $query->where('dmc_id', $userDmcIdInt);
+            }])
+                ->whereJsonContains('dmc_id', $userDmcIdInt);
+            $restaurantsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
+                if (!empty($cityMatchValues)) {
+                    $q->whereIn('city', $cityMatchValues);
+                }
+                if (!empty($tourDestinationNames)) {
+                    $q->orWhereIn('country', $tourDestinationNames);
+                }
+            });
+            $restaurants = $restaurantsQuery->get();
+        }
 
         // Load attractions filtered by DMC, matching the tour's city (attractions use `location`) or country
-        $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
-            $query->where('dmc_id', $userDmcId);
-        }])
-            ->whereJsonContains('dmc_id', $userDmcId);
-        $attractionsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
-            if (!empty($cityMatchValues)) {
-                $q->whereIn('location', $cityMatchValues);
-            }
-            if (!empty($tourDestinationNames)) {
-                $q->orWhereIn('country', $tourDestinationNames);
-            }
-        });
-        $attractions = $attractionsQuery->get();
+        $attractions = collect();
+        if ($userDmcIdInt > 0) {
+            $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcIdInt) {
+                $query->where('dmc_id', $userDmcIdInt);
+            }])
+                ->whereJsonContains('dmc_id', $userDmcIdInt);
+            $attractionsQuery->where(function ($q) use ($cityMatchValues, $tourDestinationNames) {
+                if (!empty($cityMatchValues)) {
+                    $q->whereIn('location', $cityMatchValues);
+                }
+                if (!empty($tourDestinationNames)) {
+                    $q->orWhereIn('country', $tourDestinationNames);
+                }
+            });
+            $attractions = $attractionsQuery->get();
+        }
 
-        $packagedAttractions = PackagedAttraction::where('status', 1)
-            ->where('dmc_id', $userDmcId)
-            ->orderBy('name')
-            ->get();
+        $packagedAttractions = $userDmcIdInt > 0
+            ? PackagedAttraction::where('status', 1)
+                ->where('dmc_id', $userDmcIdInt)
+                ->orderBy('name')
+                ->get()
+            : collect();
 
-        $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
+        $vehicles = $userDmcIdInt > 0
+            ? Vehicle::where('dmc_id', $userDmcIdInt)->get()
+            : collect();
 
-        // Same as create(): countries + cities come from the master DMC country list only
-        // (not the operating DMC, and not the full world city table).
-        $dmcCountryNames = $this->getDmcCountryNames();
+        // Geography scope:
+        // - Normal / thirdparty_enabled=yes: master DMC country list (existing behaviour)
+        // - Restricted third-party: only that DMC's own countries (never sibling DMCs via shared master countries)
+        $dmcCountryNames = $isRestrictedThirdParty
+            ? $ownDmcCountryNames
+            : $this->getDmcCountryNames();
 
         $countriesQuery = Country::where('is_active', 1);
         if (!empty($dmcCountryNames)) {
             $countriesQuery->whereIn('name', $dmcCountryNames);
+        } elseif ($isRestrictedThirdParty) {
+            // Restricted but no country on the DMC record — return empty rather than the full world list.
+            $countriesQuery->whereRaw('1 = 0');
         }
         $countries = $countriesQuery->orderBy('name')->get();
 
         if (!empty($dmcCountryNames)) {
             $cities = City::whereIn('country', $dmcCountryNames)->orderBy('name')->get();
+        } elseif ($isRestrictedThirdParty) {
+            $cities = collect();
         } else {
             // No master-DMC country mapping: fall back to the tour's resolved country only
             // (never dump the entire cities table into the master list).
@@ -1329,6 +1401,7 @@ class SingleTourPackageController extends Controller
 
         // Keep any cities already saved on this tour visible/selected, even if they fall
         // outside the current master-DMC country list (legacy / migrated tours).
+        // For restricted third-party DMCs, only keep cities that belong to this DMC's countries.
         $existingTourCityNames = $tourCityNames;
         if (!empty($existingTourCityNames)) {
             $missingCityNames = array_values(array_diff(
@@ -1336,29 +1409,65 @@ class SingleTourPackageController extends Controller
                 $cities->pluck('name')->all()
             ));
             if (!empty($missingCityNames)) {
-                $extraCities = City::whereIn('name', $missingCityNames)->orderBy('name')->get();
+                $extraCitiesQuery = City::whereIn('name', $missingCityNames);
+                if ($isRestrictedThirdParty && !empty($ownDmcCountryNames)) {
+                    $extraCitiesQuery->whereIn('country', $ownDmcCountryNames);
+                }
+                $extraCities = $extraCitiesQuery->orderBy('name')->get();
                 $cities = $cities->concat($extraCities)->unique('name')->sortBy('name')->values();
             }
         }
 
-        $ports = $this->getPortsForDmc($portsCountry ?: null);
+        if ($isRestrictedThirdParty) {
+            // Ports have no dmc_id — scope strictly to this DMC's countries, never the master list.
+            $portsQuery = Port::query();
+            if (Schema::hasColumn('ports', 'status')) {
+                $portsQuery->where('status', 1);
+            }
+            if (!empty($ownDmcCountryNames)) {
+                $portsQuery->where(function ($q) use ($ownDmcCountryNames) {
+                    foreach ($ownDmcCountryNames as $index => $countryName) {
+                        $method = $index === 0 ? 'where' : 'orWhere';
+                        $q->{$method}(function ($inner) use ($countryName) {
+                            $inner->where('country', $countryName)
+                                ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $countryName)]);
+                        });
+                    }
+                });
+                if ($portsCountry) {
+                    $portsQuery->where(function ($q) use ($portsCountry) {
+                        $q->where('country', $portsCountry)
+                            ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $portsCountry)]);
+                    });
+                }
+                $ports = $portsQuery->orderBy('port_name')->get();
+            } else {
+                $ports = collect();
+            }
+        } else {
+            $ports = $this->getPortsForDmc($portsCountry ?: null);
+        }
 
-        $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
-        $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))
-            ->orderBy('name')
-            ->get();
+        // Agencies / agents: always owned by this operating DMC id — never by shared country.
+        $agencies = $userDmcIdInt > 0
+            ? Agency::whereJsonContains('dmc_id', $userDmcIdInt)->get()
+            : collect();
+        $agents = $agencies->isNotEmpty()
+            ? Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->orderBy('name')->get()
+            : collect();
 
         // Multi Restaurant (Buffet) packages – include breakfast_time, lunch_time, dinner_time for time slot dropdown
         $multiRestaurants = collect();
-        if (Schema::hasColumn('multi_restaurants', 'dmc_id')) {
-            $multiRestaurant = MultiRestaurant::where('dmc_id', (int) $userDmcId)
+        if ($userDmcIdInt > 0 && Schema::hasColumn('multi_restaurants', 'dmc_id')) {
+            $multiRestaurant = MultiRestaurant::where('dmc_id', $userDmcIdInt)
                 ->where('status', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
             if ($multiRestaurant) {
                 $multiRestaurants = collect([$multiRestaurant]);
             }
-        } else {
+        } elseif (!$isRestrictedThirdParty) {
+            // Legacy fallback only when not a restricted third-party DMC (avoids leaking another DMC's package).
             $multiRestaurant = MultiRestaurant::where('status', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -1957,6 +2066,44 @@ class SingleTourPackageController extends Controller
         $names = array_map('trim', explode(',', (string) $mdmcUser->country));
 
         return array_values(array_filter($names));
+    }
+
+    /**
+     * Decide whether the operating DMC is a restricted third-party DMC.
+     *
+     * - thirdparty=yes AND thirdparty_enabled=yes → full existing scope (master countries, etc.)
+     * - thirdparty=yes AND thirdparty_enabled=no  → own DMC records / own countries only
+     * - not third-party → unrestricted (existing behaviour)
+     *
+     * @return array{is_third_party: bool, is_restricted: bool, own_country_names: array<int, string>}
+     */
+    private function resolveThirdPartyDmcScope(?User $dmcUser): array
+    {
+        if (!$dmcUser) {
+            return [
+                'is_third_party' => false,
+                'is_restricted' => false,
+                'own_country_names' => [],
+            ];
+        }
+
+        $isThirdParty = strtolower((string) ($dmcUser->thirdparty ?? 'no')) === 'yes';
+        $isEnabled = strtolower((string) ($dmcUser->thirdparty_enabled ?? 'no')) === 'yes';
+        $isRestricted = $isThirdParty && !$isEnabled;
+
+        $ownCountryNames = [];
+        if (!empty($dmcUser->country)) {
+            $ownCountryNames = array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) $dmcUser->country)
+            )));
+        }
+
+        return [
+            'is_third_party' => $isThirdParty,
+            'is_restricted' => $isRestricted,
+            'own_country_names' => $ownCountryNames,
+        ];
     }
 
     /**
