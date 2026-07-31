@@ -1599,7 +1599,9 @@ class SingleTourPackageController extends Controller
             'cities',
             'UserDmc',
             'multiRestaurants',
-            'agencies'
+            'agencies',
+            'isRestrictedThirdParty',
+            'ownDmcCountryNames'
         ));
     }
 

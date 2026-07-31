@@ -2660,6 +2660,10 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'Third party access applies to DMC users only.'], 422);
         }
 
+        if (strtolower((string) ($user->thirdparty ?? 'no')) !== 'yes') {
+            return response()->json(['success' => false, 'message' => 'This DMC is not a third party DMC.'], 422);
+        }
+
         // Must be a DMC under this Master DMC — not another master's DMC.
         if ((int) ($user->master_dmc_id ?? 0) !== (int) $this->auth_user->userId) {
             return response()->json(['success' => false, 'message' => 'You can only update third party access for your own DMCs.'], 403);
