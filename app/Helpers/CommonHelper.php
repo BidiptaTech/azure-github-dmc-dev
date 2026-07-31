@@ -4141,6 +4141,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $tourPrices = self::calculateTourPrices($tourId);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
+        // Native country/currency totals from orders.country + orders.currency
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
         
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
@@ -4220,6 +4222,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'travelDetails' => $travelDetails,
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
+                'countryQuotationGroups' => $countryQuotationGroups,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
@@ -4265,6 +4268,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'travelDetails' => $travelDetails,
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
+                    'countryQuotationGroups' => $countryQuotationGroups,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'exclusions' => $exclusions,
@@ -4535,6 +4539,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         // Calculate tour prices
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
         
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
@@ -4611,6 +4616,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'travelDetails' => $travelDetails,
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
+            'countryQuotationGroups' => $countryQuotationGroups,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
@@ -4641,6 +4647,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'double_sharing' => 0,
                 'triple_sharing' => 0,
                 'baby_cot_sharing' => 0,
+                'other_services_single' => 0,
+                'other_services_double' => 0,
+                'country_sharing' => [],
+                'hotel_price_options' => [],
                 'segregated' => [
                     'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
                     'attraction' => ['single' => 0, 'double' => 0],
@@ -4694,6 +4704,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $otherServiceDouble = 0.0;
         // Track child-specific pricing component across attraction/restaurant services
         $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
+
+        // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
+        $countryOtherBuckets = []; // key => ['country','currency','single','double']
+        $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -4763,6 +4777,32 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 continue;
             }
 
+            $orderCountry = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $orderCurrency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($orderCountry === '') {
+                $orderCountry = $orderCurrency !== '' ? $orderCurrency : 'Other';
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = $fallbackCurrency;
+            }
+            $orderCurrency = strtoupper($orderCurrency);
+            $countryPriceKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
+            if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                $countryOtherBuckets[$countryPriceKey] = [
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                ];
+            }
+            $trackCountryOther = function (float $single, float $double) use (&$countryOtherBuckets, $countryPriceKey): void {
+                if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                    return;
+                }
+                $countryOtherBuckets[$countryPriceKey]['single'] += $single;
+                $countryOtherBuckets[$countryPriceKey]['double'] += $double;
+            };
+
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
             $babyCotPrice = null;
@@ -4822,6 +4862,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'hotel_name' => $hotelName,
                             'date_range' => $rangeLabel,
                             'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
+                            'country' => $orderCountry,
+                            'currency' => $orderCurrency,
                         ];
                     }
                     
@@ -5448,6 +5490,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle entry_port and exit_port
@@ -5468,6 +5511,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
@@ -5488,6 +5532,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
@@ -5505,6 +5550,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Default calculation for other service types
@@ -5528,6 +5574,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
 
@@ -5650,9 +5697,106 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'hotel_name' => $meta['hotel_name'] ?? null,
                 'date_range' => $meta['date_range'] ?? null,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
+                'country' => $meta['country'] ?? null,
+                'currency' => $meta['currency'] ?? null,
                 'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
                 'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
                 'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
+            ];
+        }
+
+        // Country-wise single/double/triple (same formula as overall, native currency per country)
+        $countryHotelBuckets = [];
+        foreach ($hotelBuckets as $hotelKey => $bucket) {
+            if (!is_array($bucket)) continue;
+            $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $cName = trim((string) ($meta['country'] ?? ''));
+            $cCurr = strtoupper(trim((string) ($meta['currency'] ?? $fallbackCurrency)));
+            if ($cName === '') {
+                $cName = $cCurr !== '' ? $cCurr : 'Other';
+            }
+            if ($cCurr === '') {
+                $cCurr = $fallbackCurrency;
+            }
+            $ck = mb_strtolower($cName) . '|' . $cCurr;
+            if (!isset($countryHotelBuckets[$ck])) {
+                $countryHotelBuckets[$ck] = [
+                    'country' => $cName,
+                    'currency' => $cCurr,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                    'triple' => 0.0,
+                ];
+            }
+            $countryHotelBuckets[$ck]['single'] += (float) ($bucket['single'] ?? 0);
+            $countryHotelBuckets[$ck]['double'] += (float) ($bucket['double'] ?? 0);
+            $countryHotelBuckets[$ck]['triple'] += (float) ($bucket['triple'] ?? 0);
+        }
+
+        $allCountryKeys = array_values(array_unique(array_merge(
+            array_keys($countryHotelBuckets),
+            array_keys($countryOtherBuckets)
+        )));
+
+        $preferredCountryOrder = [];
+        $destinationRaw = (string) ($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferredCountryOrder[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        usort($allCountryKeys, function ($a, $b) use ($preferredCountryOrder, $countryHotelBuckets, $countryOtherBuckets) {
+            $aCountry = $countryHotelBuckets[$a]['country'] ?? ($countryOtherBuckets[$a]['country'] ?? $a);
+            $bCountry = $countryHotelBuckets[$b]['country'] ?? ($countryOtherBuckets[$b]['country'] ?? $b);
+            $aPos = array_key_exists(mb_strtolower($aCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($aCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            $bPos = array_key_exists(mb_strtolower($bCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($bCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a, $b);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        $countrySharing = [];
+        foreach ($allCountryKeys as $ck) {
+            $hotelRow = $countryHotelBuckets[$ck] ?? [
+                'country' => $countryOtherBuckets[$ck]['country'] ?? 'Other',
+                'currency' => $countryOtherBuckets[$ck]['currency'] ?? $fallbackCurrency,
+                'single' => 0.0,
+                'double' => 0.0,
+                'triple' => 0.0,
+            ];
+            $otherRow = $countryOtherBuckets[$ck] ?? [
+                'single' => 0.0,
+                'double' => 0.0,
+            ];
+
+            $cHotelSingle = (float) $hotelRow['single'] * $hotelFactor;
+            $cHotelDouble = (float) $hotelRow['double'] * $hotelFactor;
+            $cHotelTriple = (float) $hotelRow['triple'] * $hotelFactor;
+            $cOtherSingle = (float) $otherRow['single'] * $otherFactor;
+            $cOtherDouble = (float) $otherRow['double'] * $otherFactor;
+
+            $countrySharing[] = [
+                'key' => $ck,
+                'country' => $hotelRow['country'],
+                'currency' => strtoupper((string) $hotelRow['currency']),
+                'hotel_single' => ceil($cHotelSingle),
+                'hotel_double' => ceil($cHotelDouble),
+                'hotel_triple' => ceil($cHotelTriple),
+                'other_services_single' => ceil($cOtherSingle),
+                'other_services_double' => ceil($cOtherDouble),
+                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
+                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
+                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
             ];
         }
 
@@ -5708,6 +5852,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Other services per-head total (non-hotel, non-supplement)
             'other_services_single' => ceil($otherServiceSingle),
             'other_services_double' => ceil($otherServiceDouble),
+            // Country + currency wise single/double/triple (native amounts)
+            'country_sharing'      => $countrySharing,
             // Supplements (hotel + other services marked supplement=true)
             'supplements'          => $supplementsFormatted,
             'supplyments'          => $supplementsFormatted,
@@ -6453,6 +6599,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'type' => $serviceType,
             'title' => $title,
             'subtitle' => $location,
+            'country' => (function () use ($order, $item) {
+                $country = '';
+                if (is_object($order) && !empty($order->country)) {
+                    $country = trim((string) $order->country);
+                }
+                if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                    $country = trim($item['country']);
+                }
+                if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                    $country = trim($item['hotelDetails']['country']);
+                }
+                return $country !== '' ? $country : null;
+            })(),
+            'currency' => self::resolveOrderDisplayCurrency(
+                $order,
+                (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+            ),
             'time' => $time,
             'pax' => $pax,
             'adult_count' => (is_numeric($adultCountStd) && (float)$adultCountStd > 0) ? (int)$adultCountStd : null,
@@ -6507,6 +6670,139 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return $value;
+    }
+
+    /**
+     * Group booked order totals by orders.country + orders.currency (native amounts, no FX).
+     * Used by quotation PDF so Singapore shows SGD and Indonesia shows IDR clearly.
+     *
+     * @param  \Illuminate\Support\Collection|array  $orders
+     * @return array<int, array{key:string,country:string,currency:string,hotel_total:float,other_total:float,total:float,order_count:int}>
+     */
+    protected static function buildCountryQuotationGroups($orders, $tour = null): array
+    {
+        $isPro = (int) (is_object($tour) ? ($tour->is_pro ?? 0) : 0);
+        $fallbackCurrency = (is_object($tour) && !empty($tour->currency))
+            ? strtoupper(trim((string) $tour->currency))
+            : 'SGD';
+
+        $groups = [];
+        foreach ($orders as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $country = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($country === '') {
+                $country = $currency !== '' ? $currency : 'Other';
+            }
+            if ($currency === '') {
+                $currency = $fallbackCurrency;
+            }
+
+            $amount = self::extractOrderGrossAmount($order, $isPro);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $key = mb_strtolower($country) . '|' . strtoupper($currency);
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'currency' => strtoupper($currency),
+                    'hotel_total' => 0.0,
+                    'other_total' => 0.0,
+                    'total' => 0.0,
+                    'order_count' => 0,
+                ];
+            }
+
+            $type = strtolower(str_replace(' ', '_', (string) ($order->type ?? '')));
+            if ($type === 'hotel') {
+                $groups[$key]['hotel_total'] += $amount;
+            } else {
+                $groups[$key]['other_total'] += $amount;
+            }
+            $groups[$key]['total'] += $amount;
+            $groups[$key]['order_count']++;
+        }
+
+        // Prefer tour destination order
+        $preferred = [];
+        $destinationRaw = is_object($tour) ? (string) ($tour->destination ?? '') : '';
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferred[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        $list = array_values($groups);
+        usort($list, function ($a, $b) use ($preferred) {
+            $aKey = mb_strtolower($a['country']);
+            $bKey = mb_strtolower($b['country']);
+            $aPos = array_key_exists($aKey, $preferred) ? array_search($aKey, array_keys($preferred), true) : PHP_INT_MAX;
+            $bPos = array_key_exists($bKey, $preferred) ? array_search($bKey, array_keys($preferred), true) : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a['country'] . $a['currency'], $b['country'] . $b['currency']);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        return $list;
+    }
+
+    /**
+     * Sum native sell amount for one order (same rules as negotiation gross).
+     */
+    protected static function extractOrderGrossAmount($order, int $isPro = 0): float
+    {
+        $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        $items = isset($data[0]) ? $data : [$data];
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 
     /**
@@ -6678,6 +6974,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'option_number' => $hotelIndex++,
                     'hotel_name' => $hotelName,
                     'hotel_category' => $hotelCategory,
+                    'country' => (function () use ($order, $item) {
+                        $country = '';
+                        if (is_object($order) && !empty($order->country)) {
+                            $country = trim((string) $order->country);
+                        }
+                        if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                            $country = trim($item['country']);
+                        }
+                        if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                            $country = trim($item['hotelDetails']['country']);
+                        }
+                        return $country !== '' ? $country : null;
+                    })(),
+                    'currency' => self::resolveOrderDisplayCurrency(
+                        $order,
+                        (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+                    ),
                     // Keep raw rooms payload so email template can extract beds[*].head_count
                     'rooms' => is_array($rooms) ? $rooms : [],
                     'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),

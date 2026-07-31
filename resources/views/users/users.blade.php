@@ -14,8 +14,10 @@
   $usersCollection = $users instanceof \Illuminate\Pagination\AbstractPaginator ? $users->getCollection() : collect($users);
   $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $dmcRoleIds, $authRoleId) {
       $rowRoleId = (int) ($u->role_id ?? 0);
+      $isThirdPartyDmc = in_array($rowRoleId, $dmcRoleIds, true)
+          && strtolower((string) ($u->thirdparty ?? 'no')) === 'yes';
       return in_array($rowRoleId, $settingsRoleIds, true)
-          || in_array($rowRoleId, $dmcRoleIds, true)
+          || $isThirdPartyDmc
           || ($authRoleId === 10 && $rowRoleId === 11);
   });
   $showBookingTypeColumn = $usersCollection->contains(function ($u) use ($authRoleId) {
@@ -234,8 +236,9 @@
                 $rowRoleId = (int) ($user->role_id ?? 0);
                 $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
                     || ($authRoleId === 10 && $rowRoleId === 11);
-                // Third party access is a DMC-only setting.
-                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true);
+                // Third party access toggle: only for DMCs marked as third-party.
+                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true)
+                    && strtolower((string) ($user->thirdparty ?? 'no')) === 'yes';
                 // Only the DMC's own Master DMC may flip the toggle (mirrors other settings controls).
                 $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
                     && $isMasterDmcViewer
