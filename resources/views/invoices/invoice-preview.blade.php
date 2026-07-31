@@ -145,6 +145,29 @@ use Illuminate\Support\Facades\Crypt;
         </div>
     </div>
 
+    @php
+        $previewMultiGeo = $invoiceMultiGeo ?? \App\Helpers\CommonHelper::detectInvoiceMultiGeo($invoice);
+        $previewIsThirdParty = $isThirdPartyInvoice ?? \App\Helpers\CommonHelper::isInvoiceThirdPartyEnabled($invoice);
+        $showPreviewMultiGeoNotice = !empty($previewMultiGeo['is_multi']) && empty($previewIsThirdParty);
+    @endphp
+    @if($showPreviewMultiGeoNotice)
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-warning mb-0" role="alert" style="border-left: 4px solid #f59e0b;">
+                <strong>Multi-country / multi-city booking</strong>
+                <div class="small mt-1 mb-0">
+                    This itinerary spans multiple countries or cities
+                    @if(!empty($previewMultiGeo['countries']))
+                        ({{ implode(', ', $previewMultiGeo['countries']) }})
+                    @endif.
+                    Country-wise service and negotiation breakdown is hidden because multi-country pricing is not enabled for this DMC.
+                    Please enable multi-country / third-party pricing in the DMC profile settings to show amounts separately by country, city, and currency.
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     @if($selectedCurrency !== $baseCurrency && !empty($currencyConversion ?? []))
     <div class="row mb-3">
         <div class="col-12">
@@ -153,10 +176,11 @@ use Illuminate\Support\Facades\Crypt;
                     <h5 class="mb-0"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion ({{ $baseCurrency }} + {{ $selectedCurrency }})</h5>
                 </div>
                 <div class="card-body">
+                    <p class="small text-muted mb-2">Equivalent of the invoice final / outstanding amount in each currency (aligned with the PDF summary).</p>
                     <div class="row">
                         @foreach($currencyConversion ?? [] as $curr => $amount)
                         <div class="col-md-4">
-                            <strong>{{ $curr }}:</strong> {{ number_format(round($amount)) }}
+                            <strong>{{ $curr }}:</strong> {{ number_format(round((float) $amount, 2), 2) }}
                         </div>
                         @endforeach
                     </div>
