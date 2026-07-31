@@ -7370,6 +7370,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Build currency conversion map keyed by invoice base currency.
+     * Prefers negotiated / final display amount (incl. third-party negotiation_details).
      *
      * @return array<string, float>
      */
@@ -7385,21 +7386,36 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
         $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
-        $gstAmount = $invoice->gst_amount ?? 0;
-        $finalPrice = $baseAmount + $gstAmount;
-        $outstandingBalance = $invoice->outstanding_balance ?? 0;
+        $gstAmount = (float) ($invoice->gst_amount ?? 0);
+        $finalPrice = (float) $baseAmount + $gstAmount;
+        $outstandingBalance = (float) ($invoice->outstanding_balance ?? 0);
 
-        $amountInBase = $shouldShowTax ? (float) $outstandingBalance : (float) $finalPrice;
-        $conversion = [$baseCurrency => $amountInBase];
+        $amountInBase = $shouldShowTax && $outstandingBalance > 0
+            ? (float) $outstandingBalance
+            : (float) $finalPrice;
+        $amountCurrency = $baseCurrency;
 
-        if ($selectedCurrency !== $baseCurrency) {
-            $converted = CurrencyHelper::convertAmount($amountInBase, $baseCurrency, $selectedCurrency);
-            if ($converted !== null) {
-                $conversion[$selectedCurrency] = $converted;
-            }
+        if (self::isInvoiceThirdPartyEnabled($invoice)) {
+            $neg = self::sumNegotiationDetailsInCurrency($invoice, $selectedCurrency, $baseCurrency);
+            $summary = self::buildThirdPartyInvoiceSummary($invoice, $neg, $selectedCurrency, $baseCurrency);
+            $amountInSelected = $shouldShowTax
+                ? max(0, (float) $summary['outstandingBalance'])
+                : (float) $summary['finalPrice'];
+
+            return self::buildInvoiceCurrencyConversionFromAmount(
+                $amountInSelected,
+                $selectedCurrency,
+                $baseCurrency,
+                $selectedCurrency
+            );
         }
 
-        return $conversion;
+        return self::buildInvoiceCurrencyConversionFromAmount(
+            $amountInBase,
+            $amountCurrency,
+            $baseCurrency,
+            $selectedCurrency
+        );
     }
 
     /**
@@ -7499,6 +7515,672 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return number_format(round($value, $decimals), $decimals);
+    }
+
+    /**
+     * Whether the invoice DMC has third-party multi-country currency display enabled.
+     */
+    public static function isInvoiceThirdPartyEnabled(Invoice $invoice): bool
+    {
+        $invoice->loadMissing(['dmc', 'tour']);
+        $dmc = $invoice->dmc;
+        if (!$dmc && $invoice->dmc_id) {
+            $dmc = User::where('userId', $invoice->dmc_id)->first();
+        }
+        if (!$dmc && $invoice->tour) {
+            $dmcId = $invoice->tour->dmcId ?? $invoice->tour->dmc_id ?? null;
+            if ($dmcId) {
+                $dmc = User::where('userId', $dmcId)->first();
+            }
+        }
+
+        $flag = strtolower(trim((string) ($dmc->thirdparty_enabled ?? 'no')));
+
+        return in_array($flag, ['yes', '1', 'true'], true);
+    }
+
+    /**
+     * Detect multi-country / multi-city booking from tour orders (and invoice item geo).
+     *
+     * @return array{is_multi: bool, countries: list<string>, cities: list<string>, currencies: list<string>}
+     */
+    public static function detectInvoiceMultiGeo(Invoice $invoice): array
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        $countries = [];
+        $cities = [];
+        $currencies = [];
+
+        if ($invoice->tour_id) {
+            $orders = Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+            $base = self::resolveInvoiceBaseCurrency($invoice);
+            foreach ($orders as $order) {
+                $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (!is_array($payload)) {
+                    continue;
+                }
+                $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+                foreach ($bookings as $booking) {
+                    if (!is_array($booking)) {
+                        continue;
+                    }
+                    $geo = self::extractInvoiceItemGeo($order, $booking, $base);
+                    if ($geo['country'] !== '') {
+                        $countries[mb_strtolower($geo['country'])] = $geo['country'];
+                    }
+                    if ($geo['city'] !== '') {
+                        $cities[mb_strtolower($geo['city'])] = $geo['city'];
+                    }
+                    if ($geo['currency'] !== '') {
+                        $currencies[strtoupper($geo['currency'])] = strtoupper($geo['currency']);
+                    }
+                }
+            }
+        }
+
+        if ($invoice->items) {
+            foreach ($invoice->items as $item) {
+                $sd = is_string($item->service_details ?? null)
+                    ? (json_decode($item->service_details, true) ?: [])
+                    : ($item->service_details ?? []);
+                if (!is_array($sd)) {
+                    continue;
+                }
+                $c = trim((string) ($sd['country'] ?? ''));
+                $city = trim((string) ($sd['city'] ?? ''));
+                $cur = strtoupper(trim((string) ($sd['currency'] ?? '')));
+                if ($c !== '') {
+                    $countries[mb_strtolower($c)] = $c;
+                }
+                if ($city !== '') {
+                    $cities[mb_strtolower($city)] = $city;
+                }
+                if ($cur !== '') {
+                    $currencies[$cur] = $cur;
+                }
+            }
+        }
+
+        $countryList = array_values($countries);
+        $cityList = array_values($cities);
+        $currencyList = array_values($currencies);
+
+        return [
+            'is_multi' => count($countryList) > 1 || count($cityList) > 1 || count($currencyList) > 1,
+            'countries' => $countryList,
+            'cities' => $cityList,
+            'currencies' => $currencyList,
+        ];
+    }
+
+    /**
+     * Build a currency conversion map from a display amount already expressed in $amountCurrency.
+     * Used so the conversion box matches Final Price / Outstanding shown on the invoice.
+     *
+     * @return array<string, float>
+     */
+    public static function buildInvoiceCurrencyConversionFromAmount(
+        float $amount,
+        string $amountCurrency,
+        string $baseCurrency,
+        string $selectedCurrency
+    ): array {
+        $amountCurrency = strtoupper(trim($amountCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $amountCurrency;
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $baseCurrency;
+
+        $conversion = [];
+
+        $inBase = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $baseCurrency, $baseCurrency);
+        $conversion[$baseCurrency] = $inBase;
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $inSelected = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $selectedCurrency, $baseCurrency);
+            $conversion[$selectedCurrency] = $inSelected;
+        }
+
+        return $conversion;
+    }
+
+    /**
+     * Extract country / city / currency for an invoice line from order + booking JSON.
+     *
+     * @param  \App\Models\Order|object|null  $order
+     * @param  array<string, mixed>  $booking
+     * @return array{country: string, city: string, currency: string}
+     */
+    public static function extractInvoiceItemGeo($order, array $booking = [], ?string $fallbackCurrency = null): array
+    {
+        $fallbackCurrency = strtoupper(trim((string) ($fallbackCurrency ?: 'SGD'))) ?: 'SGD';
+        $country = '';
+        $city = '';
+
+        if (is_object($order)) {
+            $country = trim((string) ($order->country ?? ''));
+        }
+
+        if ($country === '' && !empty($booking['country']) && is_string($booking['country'])) {
+            $country = trim($booking['country']);
+        }
+
+        $cityCandidates = [
+            $booking['city'] ?? null,
+            $booking['hotelDetails']['city'] ?? null,
+            $booking['AttractionCity'] ?? null,
+            $booking['city_name'] ?? null,
+        ];
+        foreach ($cityCandidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                $city = trim(explode(',', $candidate)[0]);
+                break;
+            }
+        }
+
+        if ($city === '') {
+            $location = $booking['hotelDetails']['location'] ?? ($booking['location'] ?? null);
+            if (is_string($location) && trim($location) !== '') {
+                $city = trim(explode(',', $location)[0]);
+            }
+        }
+
+        $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+        if ($currency === $fallbackCurrency && !empty($booking['currency']) && is_string($booking['currency'])) {
+            $currency = strtoupper(trim($booking['currency'])) ?: $currency;
+        }
+
+        return [
+            'country' => $country,
+            'city' => $city,
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * Resolve native currency stored on an invoice item (service_details).
+     */
+    public static function resolveInvoiceItemCurrency($item, string $fallbackCurrency): string
+    {
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        $sd = [];
+        if (is_object($item)) {
+            $sd = is_string($item->service_details ?? null)
+                ? (json_decode($item->service_details, true) ?: [])
+                : ($item->service_details ?? []);
+        } elseif (is_array($item)) {
+            $sd = $item['service_details'] ?? $item;
+        }
+
+        if (!is_array($sd)) {
+            return $fallbackCurrency;
+        }
+
+        $raw = trim((string) ($sd['currency'] ?? ''));
+        if ($raw === '') {
+            return $fallbackCurrency;
+        }
+
+        return strtoupper($raw);
+    }
+
+    /**
+     * Format a line amount that lives in the booking's own currency for third-party invoices.
+     * Same currency as selected → plain number; otherwise "AMT CUR (CONV SELECTED)".
+     */
+    public static function formatInvoiceItemPrice($amount, ?string $itemCurrency, string $selectedCurrency, string $baseCurrency): string
+    {
+        if (!is_numeric($amount)) {
+            return '0.00';
+        }
+
+        $amt = (float) $amount;
+        $itemCurrency = strtoupper(trim((string) ($itemCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $itemCurrency;
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+
+        if ($itemCurrency === $selectedCurrency) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $itemCurrency, $selectedCurrency);
+        if ($converted === null) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency
+            . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
+    }
+
+    /**
+     * Convert an amount from item/native currency into the selected display currency.
+     */
+    public static function convertInvoiceAmountToSelected($amount, ?string $fromCurrency, string $selectedCurrency, string $baseCurrency): float
+    {
+        $amt = is_numeric($amount) ? (float) $amount : 0.0;
+        $from = strtoupper(trim((string) ($fromCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $to = strtoupper(trim($selectedCurrency)) ?: $from;
+
+        if ($from === $to) {
+            return $amt;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $from, $to);
+
+        return $converted !== null ? (float) $converted : $amt;
+    }
+
+    /**
+     * Group invoice items by country + city for third-party multi-country display.
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     * @return list<array{key: string, country: string, city: string, currency: string, items: \Illuminate\Support\Collection}>
+     */
+    public static function groupInvoiceItemsByGeo($items, string $fallbackCurrency = 'SGD'): array
+    {
+        $collection = $items instanceof \Illuminate\Support\Collection
+            ? $items
+            : collect($items);
+
+        $groups = [];
+        foreach ($collection as $item) {
+            $sd = is_object($item)
+                ? (is_string($item->service_details ?? null) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []))
+                : [];
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+
+            $country = trim((string) ($sd['country'] ?? ''));
+            $city = trim((string) ($sd['city'] ?? ''));
+            $currency = strtoupper(trim((string) ($sd['currency'] ?? $fallbackCurrency))) ?: $fallbackCurrency;
+            $key = mb_strtolower($country . '|' . $city . '|' . $currency);
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'city' => $city,
+                    'currency' => $currency,
+                    'items' => collect(),
+                ];
+            }
+            $groups[$key]['items']->push($item);
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * Section title: "Hotel Service(India, Kolkata)" when third-party geo is present.
+     */
+    public static function invoiceServiceSectionTitle(string $singular, string $plural, array $geoGroup, bool $isThirdParty): string
+    {
+        if (!$isThirdParty) {
+            return $plural;
+        }
+
+        $parts = array_values(array_filter([
+            trim((string) ($geoGroup['country'] ?? '')),
+            trim((string) ($geoGroup['city'] ?? '')),
+        ], static fn ($v) => $v !== ''));
+
+        if ($parts === []) {
+            return $plural;
+        }
+
+        return $singular . '(' . implode(', ', $parts) . ')';
+    }
+
+    /**
+     * Latest enquiry_comments negotiation_details rows for a tour.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function getInvoiceNegotiationDetails(Invoice $invoice): array
+    {
+        $enquiry = \App\Models\Enquiry::where('tour_id', $invoice->tour_id)
+            ->whereNotNull('negotiation_details')
+            ->orderByDesc('enquiry_id')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$enquiry) {
+            return [];
+        }
+
+        $raw = $enquiry->negotiation_details;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            if ($currency === '') {
+                continue;
+            }
+            $rows[] = [
+                'country' => trim((string) ($row['country'] ?? '')),
+                'currency' => $currency,
+                'amount' => (float) ($row['amount'] ?? 0),
+                'actual_amount' => (float) ($row['actual_amount'] ?? ($row['gross'] ?? ($row['amount'] ?? 0))),
+                'gross' => (float) ($row['gross'] ?? ($row['actual_amount'] ?? ($row['amount'] ?? 0))),
+                'target_currency' => strtoupper(trim((string) ($row['target_currency'] ?? ''))),
+                'conversion_rate' => (float) ($row['conversion_rate'] ?? 0),
+                'converted_amount' => isset($row['converted_amount']) ? (float) $row['converted_amount'] : null,
+                'converted_actual_amount' => isset($row['converted_actual_amount']) ? (float) $row['converted_actual_amount'] : null,
+                'converted_gross' => isset($row['converted_gross']) ? (float) $row['converted_gross'] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Convert one negotiation_details row field into selected currency.
+     * Prefer stored converted_* / conversion_rate (same as Add Payment modal).
+     */
+    public static function convertNegotiationRowAmountToSelected(
+        array $row,
+        float $nativeAmount,
+        ?float $storedConverted,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): float {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? $baseCurrency)));
+        $targetCurrency = strtoupper(trim((string) ($row['target_currency'] ?? '')));
+        $rate = (float) ($row['conversion_rate'] ?? 0);
+
+        // Already stored in selected / target currency at confirm time.
+        if ($storedConverted !== null) {
+            if ($targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+                return (float) $storedConverted;
+            }
+            if ($targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency === $baseCurrency) {
+                return (float) $storedConverted;
+            }
+            // Stored converted is in target; convert target → selected if needed.
+            if ($targetCurrency !== '' && $targetCurrency !== $selectedCurrency) {
+                return self::convertInvoiceAmountToSelected($storedConverted, $targetCurrency, $selectedCurrency, $baseCurrency);
+            }
+        }
+
+        if ($fromCurrency === $selectedCurrency) {
+            return (float) $nativeAmount;
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+            return round(max(0, $nativeAmount) * $rate, 2);
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency !== $baseCurrency) {
+            $inBase = round(max(0, $nativeAmount) * $rate, 2);
+
+            return self::convertInvoiceAmountToSelected($inBase, $baseCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return self::convertInvoiceAmountToSelected($nativeAmount, $fromCurrency, $selectedCurrency, $baseCurrency);
+    }
+
+    /**
+     * Sum negotiation_details into selected currency (payment-modal aligned).
+     *
+     * @return array{actual: float, negotiated: float, discount: float, rows: list<array<string, mixed>>}
+     */
+    public static function sumNegotiationDetailsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): array
+    {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $details = self::getInvoiceNegotiationDetails($invoice);
+        $rows = [];
+        $actual = 0.0;
+        $negotiated = 0.0;
+
+        if ($details !== []) {
+            foreach ($details as $row) {
+                $actualSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['actual_amount'],
+                    $row['converted_actual_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $negSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['amount'],
+                    $row['converted_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $discountSel = $actualSel - $negSel;
+                $actual += $actualSel;
+                $negotiated += $negSel;
+                $rows[] = array_merge($row, [
+                    'actual_selected' => $actualSel,
+                    'negotiated_selected' => $negSel,
+                    'discount' => (float) $row['actual_amount'] - (float) $row['amount'],
+                    'discount_selected' => $discountSel,
+                ]);
+            }
+
+            // Match Add Payment modal: ceil country totals into tour/display currency.
+            $actual = (float) ceil($actual);
+            $negotiated = (float) ceil($negotiated);
+
+            return [
+                'actual' => $actual,
+                'negotiated' => $negotiated,
+                'discount' => $actual - $negotiated,
+                'rows' => $rows,
+            ];
+        }
+
+        $fallbackActual = self::sumInvoiceItemsInSelectedCurrency($invoice->items ?? [], $selectedCurrency, $baseCurrency);
+        $fallbackNeg = (float) ($invoice->getNegotiatedAmount() ?? 0);
+        $fallbackNegSelected = $fallbackNeg > 0
+            ? self::convertInvoiceAmountToSelected($fallbackNeg, $baseCurrency, $selectedCurrency, $baseCurrency)
+            : $fallbackActual;
+        $fallbackActual = (float) ceil($fallbackActual);
+        $fallbackNegSelected = (float) ceil($fallbackNegSelected);
+
+        return [
+            'actual' => $fallbackActual,
+            'negotiated' => $fallbackNegSelected,
+            'discount' => $fallbackActual - $fallbackNegSelected,
+            'rows' => [],
+        ];
+    }
+
+    /**
+     * Recalculate VAT/GST on Last Negotiated Amount (same TaxHelper path as Add Payment).
+     *
+     * @return array{total_tax: float, breakdown: array<string, float>}
+     */
+    public static function calculateInvoiceTaxOnNegotiatedAmount(Invoice $invoice, float $negotiatedAmount): array
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        if (!$tour) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        if (!in_array($tourStatus, $statusesWithTax, true)) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $base = (float) ceil(max(0, $negotiatedAmount));
+        $persons = (int) (($tour->adult ?? 0) + ($tour->child ?? 0));
+        $days = TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        $taxResult = TaxHelper::calculateTourTaxes($base, $tour->taxes, $persons, $days);
+
+        return [
+            'total_tax' => (float) ($taxResult['total_tax'] ?? 0),
+            'breakdown' => $taxResult['breakdown'] ?? [],
+        ];
+    }
+
+    /**
+     * Build third-party invoice summary totals aligned with Add Payment modal.
+     *
+     * @return array{
+     *   actualAmount: float,
+     *   negotiatedAmount: float,
+     *   baseAmount: float,
+     *   discount: float,
+     *   gstAmount: float,
+     *   taxBreakdown: array<string, float>,
+     *   finalPrice: float,
+     *   paymentReceived: float,
+     *   outstandingBalance: float
+     * }
+     */
+    public static function buildThirdPartyInvoiceSummary(
+        Invoice $invoice,
+        array $thirdPartyNegotiation,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): array {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+
+        $actualAmount = (float) ($thirdPartyNegotiation['actual'] ?? 0);
+        $negotiatedAmount = (float) ($thirdPartyNegotiation['negotiated'] ?? 0);
+        $discount = $actualAmount - $negotiatedAmount;
+
+        $tax = self::calculateInvoiceTaxOnNegotiatedAmount($invoice, $negotiatedAmount);
+        $gstAmount = (float) ($tax['total_tax'] ?? 0);
+        $taxBreakdown = $tax['breakdown'] ?? [];
+
+        $paymentReceived = self::convertInvoiceAmountToSelected(
+            (float) ($invoice->payment_received ?? 0),
+            $baseCurrency,
+            $selectedCurrency,
+            $baseCurrency
+        );
+
+        $finalPrice = $negotiatedAmount + $gstAmount;
+        $outstandingBalance = $finalPrice - $paymentReceived;
+
+        return [
+            'actualAmount' => $actualAmount,
+            'negotiatedAmount' => $negotiatedAmount,
+            'baseAmount' => $negotiatedAmount,
+            'discount' => $discount,
+            'gstAmount' => $gstAmount,
+            'taxBreakdown' => $taxBreakdown,
+            'finalPrice' => $finalPrice,
+            'paymentReceived' => $paymentReceived,
+            'outstandingBalance' => $outstandingBalance,
+        ];
+    }
+
+    /**
+     * Sum invoice item totals converted into selected currency (third-party mode).
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     */
+    public static function sumInvoiceItemsInSelectedCurrency($items, string $selectedCurrency, string $baseCurrency): float
+    {
+        $total = 0.0;
+        $collection = $items instanceof \Illuminate\Support\Collection ? $items : collect($items);
+        foreach ($collection as $item) {
+            $itemCurrency = self::resolveInvoiceItemCurrency($item, $baseCurrency);
+            $amount = is_object($item) ? (float) ($item->total_price ?? 0) : (float) ($item['total_price'] ?? 0);
+            $total += self::convertInvoiceAmountToSelected($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Backfill country/city/currency onto invoice items from live tour orders (existing invoices).
+     */
+    public static function enrichInvoiceItemsWithOrderGeo(Invoice $invoice): void
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        if (!$invoice->tour_id || !$invoice->items || $invoice->items->isEmpty()) {
+            return;
+        }
+
+        $orders = \App\Models\Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        $baseCurrency = self::resolveInvoiceBaseCurrency($invoice);
+        $pool = [];
+        foreach ($orders as $order) {
+            $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($payload)) {
+                continue;
+            }
+            $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+            foreach ($bookings as $booking) {
+                if (!is_array($booking)) {
+                    continue;
+                }
+                $geo = self::extractInvoiceItemGeo($order, $booking, $baseCurrency);
+                $nameHints = array_filter([
+                    $booking['hotelDetails']['hotel_name'] ?? null,
+                    $booking['AttractionName'] ?? null,
+                    $booking['restaurantName'] ?? null,
+                    $booking['guide_name'] ?? null,
+                    $booking['itemName'] ?? ($booking['item_name'] ?? null),
+                    $booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null),
+                ]);
+                $pool[] = [
+                    'type' => (string) ($order->type ?? ''),
+                    'geo' => $geo,
+                    'hints' => array_map(static fn ($h) => mb_strtolower(trim((string) $h)), $nameHints),
+                ];
+            }
+        }
+
+        foreach ($invoice->items as $item) {
+            $sd = is_string($item->service_details) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []);
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+            if (!empty($sd['currency']) && (!empty($sd['country']) || !empty($sd['city']))) {
+                continue;
+            }
+
+            $type = (string) ($item->item_type ?? '');
+            $desc = mb_strtolower(trim((string) ($item->description ?? '')));
+            $matched = null;
+            foreach ($pool as $entry) {
+                if ($entry['type'] !== $type && !($type === 'local_transport' && $entry['type'] === 'local_transfer')) {
+                    continue;
+                }
+                foreach ($entry['hints'] as $hint) {
+                    if ($hint !== '' && ($desc === $hint || str_contains($desc, $hint) || str_contains($hint, $desc))) {
+                        $matched = $entry['geo'];
+                        break 2;
+                    }
+                }
+                if ($matched === null && $entry['type'] === $type) {
+                    $matched = $entry['geo'];
+                }
+            }
+
+            if ($matched === null) {
+                continue;
+            }
+
+            $sd['country'] = $sd['country'] ?? $matched['country'];
+            $sd['city'] = $sd['city'] ?? $matched['city'];
+            $sd['currency'] = $sd['currency'] ?? $matched['currency'];
+            $item->service_details = $sd;
+        }
     }
 
     /**

@@ -550,45 +550,56 @@ class InvoiceService
                 // For attractions and restaurants, the create methods will calculate the grand total
                 // So we pass the base price, but the method will add transfer/guide costs
                 
+                $item = null;
                 switch ($order->type) {
                     case 'hotel':
-                        $items[] = $this->createHotelItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createHotelItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'attraction':
-                        $items[] = $this->createAttractionItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createAttractionItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'restaurant':
-                        $items[] = $this->createRestaurantItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createRestaurantItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'guide':
-                        $items[] = $this->createGuideItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createGuideItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'entry_port':
-                        $items[] = $this->createEntryPortItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createEntryPortItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'exit_port':
-                        $items[] = $this->createExitPortItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createExitPortItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'travel_point':
-                        $items[] = $this->createTravelPointItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createTravelPointItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'travel_hourly':
-                        $items[] = $this->createTravelHourlyItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createTravelHourlyItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'local_transport':
                     case 'local_transfer':
-                        $items[] = $this->createLocalTransportItem($booking, $totalPrice, $displayOrder++);
+                        $item = $this->createLocalTransportItem($booking, $totalPrice, $displayOrder++);
                         break;
                     case 'miscellaneous':
                         // Miscellaneous items only for Pro tours (is_pro = 1)
                         if ((int)($tour->is_pro ?? 0) === 1) {
-                            $items[] = $this->createMiscellaneousItem($booking, $totalPrice, $displayOrder++);
+                            $item = $this->createMiscellaneousItem($booking, $totalPrice, $displayOrder++);
                         }
                         break;
                     // Other types will be handled later when JSON format is provided
                     default:
                         // Skip for now - will be implemented later
                         break;
+                }
+
+                if (is_array($item)) {
+                    $geo = CommonHelper::extractInvoiceItemGeo(
+                        $order,
+                        $booking,
+                        CommonHelper::resolveDmcCurrencyForInvoice(null, $tour)
+                    );
+                    $item['service_details'] = array_merge($item['service_details'] ?? [], $geo);
+                    $items[] = $item;
                 }
             }
         }
@@ -1259,6 +1270,17 @@ class InvoiceService
             $baseAmount = (float) $ordersTotal;
         }
 
+        // Third-party multi-country: use negotiation_details totals (same as Add Payment modal).
+        $baseCurrencyForTax = CommonHelper::resolveInvoiceBaseCurrency($invoice);
+        if (CommonHelper::isInvoiceThirdPartyEnabled($invoice)) {
+            $tpNeg = CommonHelper::sumNegotiationDetailsInCurrency($invoice, $baseCurrencyForTax, $baseCurrencyForTax);
+            if (!empty($tpNeg['rows']) || (float) ($tpNeg['negotiated'] ?? 0) > 0) {
+                $ordersTotal = (float) ($tpNeg['actual'] ?? $ordersTotal);
+                $baseAmount = (float) ($tpNeg['negotiated'] ?? $baseAmount);
+                $discountFixed = $ordersTotal - $baseAmount;
+            }
+        }
+
         // Sync invoice items from orders if services changed, so service tables show newly added services
         $this->syncInvoiceItemsFromOrdersIfNeeded($invoice, $tourId, $ordersTotal);
         // Refresh items after sync for accurate subtotal storage
@@ -1275,13 +1297,15 @@ class InvoiceService
         $shouldCalculateTax = in_array($tourStatus, $statusesWithTax);
 
         if ($shouldCalculateTax && $tour) {
-            // Use TaxHelper to calculate taxes properly
+            // VAT/GST on Last Negotiated Amount (ceil base) — same TaxHelper path as Add Payment
+            $taxBase = (float) ceil(max(0, $baseAmount));
             $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
             $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
             
-            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($taxBase, $tour->taxes, $persons, $days);
             $gstAmount = $taxResult['total_tax'] ?? 0;
             $taxBreakdown = $taxResult['breakdown'] ?? [];
+            $baseAmount = $taxBase;
         }
 
         // Final Price = Last Negotiated Amount + Taxes
