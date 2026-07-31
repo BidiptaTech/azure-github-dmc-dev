@@ -492,6 +492,24 @@
     $outstandingBalance = (float) ($invoice->outstanding_balance ?? $grandTotal);
 
     $actualFromItems = (float) $invoice->items->sum('total_price');
+    if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+        $tpSummary = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+            $invoice,
+            $thirdPartyNegotiation,
+            $selectedCurrency,
+            $baseCurrency
+        );
+        $actualFromItems = $tpSummary['actualAmount'];
+        $baseAmount = $tpSummary['baseAmount'];
+        $gstAmount = $tpSummary['gstAmount'];
+        $paymentReceived = $tpSummary['paymentReceived'];
+        $serviceCharge = \App\Helpers\CommonHelper::convertInvoiceAmountToSelected($serviceCharge, $baseCurrency, $selectedCurrency, $baseCurrency);
+        $touristTax = \App\Helpers\CommonHelper::convertInvoiceAmountToSelected($touristTax, $baseCurrency, $selectedCurrency, $baseCurrency);
+        $finalPrice = $tpSummary['finalPrice'];
+        $grandTotal = $finalPrice + $serviceCharge + $touristTax;
+        $outstandingBalance = $tpSummary['outstandingBalance'] + $serviceCharge + $touristTax;
+        $tourDiscountAmount = \App\Helpers\CommonHelper::convertInvoiceAmountToSelected($tourDiscountAmount, $baseCurrency, $selectedCurrency, $baseCurrency);
+    }
     $discount = $actualFromItems - (float) $baseAmount;
     // Tour special discount shown as its own line; remainder keeps invoice math unchanged (special + other = $discount).
     $specialDiscountForLines = ($tourDiscountAmount > 0.0001) ? (float) $tourDiscountAmount : 0.0;
@@ -500,8 +518,19 @@
     $grandTotalAlternatePdf = (float) $grandTotal - $specialDiscountForLines;
     $outstandingBalanceAlternatePdf = $grandTotalAlternatePdf - $paymentReceived;
 
-    $fmtMoney = function ($n) use ($baseCc) {
+    $fmtMoney = function ($n) use ($baseCc, $isThirdPartyInvoice, $selectedCurrency, $formatPrice) {
+        if (!empty($isThirdPartyInvoice)) {
+            return $formatPrice($n);
+        }
+
         return number_format(round((float) $n, 2), 2);
+    };
+    $fmtItemMoney = function ($n, $item) use ($isThirdPartyInvoice, $formatPrice, $fmtMoney) {
+        if (!empty($isThirdPartyInvoice)) {
+            return $formatPrice($n, $item);
+        }
+
+        return $fmtMoney($n);
     };
 
     $arrival = $invoice->travel_from_date ? \Carbon\Carbon::parse($invoice->travel_from_date)->format('d M Y') : '';
@@ -521,6 +550,8 @@
 @endphp
 
 @include('invoices.pdf.partials.header', ['invoice' => $invoice, 'logoType' => ($logoType ?? 'dmc'), 'showBlueTitle' => false])
+
+@include('invoices.pdf.partials.multi-geo-thirdparty-notice')
 
 {{-- M/s + booking summary (left); invoice meta (right) --}}
 <table class="meta-header-wrap">
@@ -559,22 +590,48 @@
         <tr>
             <th class="inv-col-service">Service</th>
             <th class="inv-col-details">Details</th>
-            <th class="inv-col-amount">Amount ({{ $baseCc }})</th>
+            <th class="inv-col-amount">Amount{{ !empty($isThirdPartyInvoice) ? '' : ' (' . $baseCc . ')' }}</th>
         </tr>
     </thead>
     <tbody>
         @foreach($invoice->items->sortBy('id') as $item)
         @php
             $typeLabel = ucwords(str_replace('_', ' ', (string) ($item->item_type ?? 'Item')));
+            $sdLite = is_string($item->service_details ?? null) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []);
+            if (!is_array($sdLite)) { $sdLite = []; }
+            if (!empty($isThirdPartyInvoice)) {
+                $geoParts = array_values(array_filter([trim((string)($sdLite['country'] ?? '')), trim((string)($sdLite['city'] ?? ''))]));
+                if ($geoParts !== []) {
+                    $typeLabel = $typeLabel . ' (' . implode(', ', $geoParts) . ')';
+                }
+            }
             $desc = trim((string) ($item->description ?? ''));
             $detailText = $desc !== '' ? \Illuminate\Support\Str::limit($desc, 220) : $typeLabel;
         @endphp
         <tr class="inv-line-data">
             <td class="inv-col-service"><span class="inv-svc-cat">{{ strtoupper($typeLabel) }}</span></td>
             <td class="inv-col-details"><span class="inv-svc-detail">{{ $detailText }}</span></td>
-            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($item->total_price ?? 0) }}</span></td>
+            <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtItemMoney($item->total_price ?? 0, $item) }}</span></td>
         </tr>
         @endforeach
+
+        @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
+            @foreach($thirdPartyNegotiation['rows'] as $negRow)
+            @php
+                $negCountry = trim((string) ($negRow['country'] ?? ''));
+                $negCurrency = strtoupper(trim((string) ($negRow['currency'] ?? $selectedCurrency)));
+                $negLabel = $negCountry !== '' ? $negCountry : $negCurrency;
+                $rowDisc = (float) ($negRow['discount_selected'] ?? 0);
+            @endphp
+            @if(abs($rowDisc) > 0.009)
+            <tr class="inv-line-data">
+                <td class="inv-col-service"><span class="inv-svc-cat">Negotiation</span></td>
+                <td class="inv-col-details"><span class="inv-svc-detail">{{ $negLabel }} ({{ $negCurrency }}) — {{ $rowDisc > 0 ? 'Discount' : 'Additional Charges' }}</span></td>
+                <td class="inv-col-amount"><span class="inv-svc-amt">{{ $rowDisc > 0 ? '-' : '' }}{{ $fmtMoney(abs($rowDisc)) }}</span></td>
+            </tr>
+            @endif
+            @endforeach
+        @endif
 
         @if($serviceCharge > 0)
         <tr class="inv-line-data">
@@ -623,7 +680,7 @@
 
         <tr class="inv-total-row inv-total-sep inv-grand-row">
             <td class="inv-col-service">&nbsp;</td>
-            <td class="inv-total-label-cell">TOTAL {{ $baseCc }}</td>
+            <td class="inv-total-label-cell">TOTAL {{ !empty($isThirdPartyInvoice) ? $selectedCurrency : $baseCc }}</td>
             <td class="inv-col-amount"><span class="inv-svc-amt">{{ $fmtMoney($grandTotalAlternatePdf) }}</span></td>
         </tr>
 
@@ -652,6 +709,14 @@
                 @foreach($invoice->items->sortBy('id') as $item)
                 @php
                     $typeLabelPo = ucwords(str_replace('_', ' ', (string) ($item->item_type ?? 'Item')));
+                    $sdPo = is_string($item->service_details ?? null) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []);
+                    if (!is_array($sdPo)) { $sdPo = []; }
+                    if (!empty($isThirdPartyInvoice)) {
+                        $geoPartsPo = array_values(array_filter([trim((string)($sdPo['country'] ?? '')), trim((string)($sdPo['city'] ?? ''))]));
+                        if ($geoPartsPo !== []) {
+                            $typeLabelPo = $typeLabelPo . ' (' . implode(', ', $geoPartsPo) . ')';
+                        }
+                    }
                     $descPo = trim((string) ($item->description ?? ''));
                     $detailTextPo = $descPo !== '' ? \Illuminate\Support\Str::limit($descPo, 220) : $typeLabelPo;
                 @endphp
@@ -667,6 +732,24 @@
 <table class="inv-lines-table">
     <tbody>
         <tr class="inv-total-row inv-total-sep"><td colspan="3" style="padding-top:6px;"></td></tr>
+
+        @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
+            @foreach($thirdPartyNegotiation['rows'] as $negRow)
+            @php
+                $negCountry = trim((string) ($negRow['country'] ?? ''));
+                $negCurrency = strtoupper(trim((string) ($negRow['currency'] ?? $selectedCurrency)));
+                $negLabel = $negCountry !== '' ? $negCountry : $negCurrency;
+                $rowDisc = (float) ($negRow['discount_selected'] ?? 0);
+            @endphp
+            @if(abs($rowDisc) > 0.009)
+            <tr class="inv-total-row">
+                <td class="inv-col-service">&nbsp;</td>
+                <td class="inv-total-label-cell">{{ $negLabel }} — {{ $rowDisc > 0 ? 'Discount' : 'Additional' }}</td>
+                <td class="inv-col-amount"><span class="inv-svc-amt">{{ $rowDisc > 0 ? '-' : '' }}{{ $litePdfFormatPrice(abs($rowDisc)) }}</span></td>
+            </tr>
+            @endif
+            @endforeach
+        @endif
 
         <tr class="inv-total-row inv-grand-row">
             <td class="inv-col-service">&nbsp;</td>
@@ -743,16 +826,37 @@
 
 @if($showCurrencyConversion)
 @php
+    $convSourceAlternate = null;
+    if (($mode ?? 'full') === 'price-only') {
+        $convSourceAlternate = !empty($liteShouldShowTax)
+            ? ($liteOutstandingBalanceAlternatePdf ?? $liteOutstandingBalance ?? null)
+            : ($liteFinalPriceAlternatePdf ?? $liteFinalPrice ?? null);
+    } else {
+        $convSourceAlternate = !empty($shouldShowTax)
+            ? ($outstandingBalanceAlternatePdf ?? $outstandingBalance ?? null)
+            : ($grandTotalAlternatePdf ?? $finalPrice ?? null);
+    }
+    if (isset($syncInvoiceCurrencyConversion) && is_callable($syncInvoiceCurrencyConversion) && $convSourceAlternate !== null) {
+        $syncInvoiceCurrencyConversion($convSourceAlternate);
+    }
     $convAmt = $currencyConversion[$selectedCurrency] ?? null;
+    $convBaseAmt = $currencyConversion[$baseCurrency] ?? ($currencyConversion[$baseCc] ?? null);
 @endphp
 @if($convAmt !== null)
 <table class="inv-currency-bar">
     <tr class="conv-row">
         <td style="width:78%; vertical-align:middle;">
-            <strong>Total booking amount {{ strtolower($selectedCurrency) }}</strong>
+            <strong>Currency conversion (equivalent of {{ !empty($shouldShowTax) || !empty($liteShouldShowTax) ? 'outstanding' : 'final' }} amount)</strong>
+            @if($convBaseAmt !== null && $selectedCurrency !== $baseCc)
+                <span style="display:block; font-size:9px; color:#64748b; margin-top:2px;">
+                    {{ $baseCc }} {{ number_format(round((float) $convBaseAmt, 2), 2) }}
+                    &nbsp;=&nbsp;
+                    {{ $selectedCurrency }} {{ number_format(round((float) $convAmt, 2), 2) }}
+                </span>
+            @endif
         </td>
         <td style="width:22%; text-align:right; vertical-align:middle; font-family: DejaVu Sans Mono, Courier New, Courier, monospace;">
-            {{ $selectedCurrencyPrefix }}{{ number_format(round((float) $convAmt)) }}
+            {{ $selectedCurrencyPrefix }}{{ number_format(round((float) $convAmt, 2), 2) }}
         </td>
     </tr>
 </table>

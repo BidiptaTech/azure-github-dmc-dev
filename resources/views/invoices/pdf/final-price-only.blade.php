@@ -376,6 +376,9 @@
     </div>
 
     <!-- Service Description (Without Prices) -->
+    
+    @include('invoices.pdf.partials.multi-geo-thirdparty-notice')
+
     <div class="section-title">Description</div>
     
     @php
@@ -582,8 +585,9 @@
     @endphp
 
     @if($hotelItems->count() > 0)
+    @foreach($groupItemsByGeo($hotelItems) as $geoGroup)
     <!-- Hotel Services Table (No Prices - Description Only) -->
-    <div class="section-title">Hotel Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Hotel Service', 'Hotel Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -596,7 +600,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($hotelItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $hotelName = $serviceDetails['hotel_name'] ?? ($item->description ?? '');
@@ -674,11 +678,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($entryPortItems->count() > 0)
+    @foreach($groupItemsByGeo($entryPortItems) as $geoGroup)
     <!-- Arrival Services Table (No Prices) -->
-    <div class="section-title">{{ $isPro ? 'Arrival with guide' : 'Arrival Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Arrival with guide' : 'Arrival Service', $isPro ? 'Arrival with guide' : 'Arrival Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -693,7 +699,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($entryPortItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -746,11 +752,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($attractionItems->count() > 0)
+    @foreach($groupItemsByGeo($attractionItems) as $geoGroup)
     <!-- Attraction Services Table -->
-    <div class="section-title">Attraction Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Attraction Service', 'Attraction Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -770,7 +778,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($attractionItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -816,11 +824,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($restaurantItems->count() > 0)
+    @foreach($groupItemsByGeo($restaurantItems) as $geoGroup)
     <!-- Restaurant Services Table -->
-    <div class="section-title">{{ $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Restaurant with guide and transfer' : 'Restaurant Service', $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -839,7 +849,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($restaurantItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -879,11 +889,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($guideItems->count() > 0)
+    @foreach($groupItemsByGeo($guideItems) as $geoGroup)
     <!-- Guide Services Table (No Prices) -->
-    <div class="section-title">Guide Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Guide Service', 'Guide Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -897,7 +909,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($guideItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -922,11 +934,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($travelPointItems->count() > 0)
+    @foreach($groupItemsByGeo($travelPointItems) as $geoGroup)
     <!-- Travel Point Services Table (No Prices) -->
-    <div class="section-title">Point to Point Transfer Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Point to Point Transfer', 'Point to Point Transfer Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -939,7 +953,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($travelPointItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -984,11 +998,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($travelHourlyItems->count() > 0)
+    @foreach($groupItemsByGeo($travelHourlyItems) as $geoGroup)
     <!-- Travel Hourly Services Table (No Prices) -->
-    <div class="section-title">Hourly Tour Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Hourly Tour Service', 'Hourly Tour Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1000,7 +1016,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($travelHourlyItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1044,11 +1060,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($localTransportItems->count() > 0)
+    @foreach($groupItemsByGeo($localTransportItems) as $geoGroup)
     <!-- Local Transport Services Table (No Prices) -->
-    <div class="section-title">Local Transport Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Local Transport', 'Local Transport Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1061,7 +1079,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($localTransportItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1106,11 +1124,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($exitPortItems->count() > 0)
+    @foreach($groupItemsByGeo($exitPortItems) as $geoGroup)
     <!-- Departure Services Table (No Prices) -->
-    <div class="section-title">{{ $isPro ? 'Departure with guide' : 'Departure Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Departure with guide' : 'Departure Service', $isPro ? 'Departure with guide' : 'Departure Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1125,7 +1145,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($exitPortItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $exitPickupDate = $serviceDetails['exitpickupdate'] ?? '';
@@ -1178,11 +1198,13 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($isPro && $miscellaneousItems->count() > 0)
+    @foreach($groupItemsByGeo($miscellaneousItems) as $geoGroup)
     <!-- Miscellaneous Section (Pro tours only) -->
-    <div class="section-title">Miscellaneous</div>
+    <div class="section-title">{{ $serviceSectionTitle('Miscellaneous', 'Miscellaneous', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1194,7 +1216,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($miscellaneousItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $miscDetails = $item->service_details ?? [];
                 $miscBookingDate = $miscDetails['booking_date'] ?? '';
@@ -1218,6 +1240,7 @@
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($otherItems->count() > 0)
@@ -1255,7 +1278,7 @@
     <!-- Summary Table (Prices Only) -->
     @php
 @endphp
-    <div class="section-title">Price Summary ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</div>
+    <div class="section-title">Price Summary{{ $priceColumnSuffix() }}</div>
     <table>
         <tfoot>
             @php
@@ -1317,89 +1340,33 @@
                 // Get payment information
                 $paymentReceived = $invoice->payment_received ?? 0;
                 $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
+
+                if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+                    $tpSummary = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+                        $invoice,
+                        $thirdPartyNegotiation,
+                        $selectedCurrency,
+                        $baseCurrency
+                    );
+                    $actualAmount = $tpSummary['actualAmount'];
+                    $negotiatedAmount = $tpSummary['negotiatedAmount'];
+                    $baseAmount = $tpSummary['baseAmount'];
+                    $discount = $tpSummary['discount'];
+                    $gstAmount = $tpSummary['gstAmount'];
+                    $taxBreakdown = $tpSummary['taxBreakdown'];
+                    $finalPrice = $tpSummary['finalPrice'];
+                    $paymentReceived = $tpSummary['paymentReceived'];
+                    $outstandingBalance = $tpSummary['outstandingBalance'];
+                }
+
                 
             @endphp
-            <tr>
-                <td colspan="7" class="text-right"><strong>Total (Actual Amount):</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($actualAmount) }}</strong></td>
-            </tr>
-            @if($negotiatedAmount !== null)
-            <tr style="background-color: #e7f3ff;">
-                <td colspan="7" class="text-right"><strong>Last Negotiated Amount:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($negotiatedAmount) }}</strong></td>
-            </tr>
-            @if($discount > 0)
-            <tr style="background-color: #d4edda;">
-                <td colspan="7" class="text-right"><strong>Discount:</strong></td>
-                <td class="text-right"><strong>-{{ $formatPrice($discount) }}</strong></td>
-            </tr>
-            @elseif($discount < 0)
-            <tr style="background-color: #fff3cd;">
-                <td colspan="7" class="text-right"><strong>Additional Charges:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice(abs($discount)) }}</strong></td>
-            </tr>
-            @endif
-            @endif
-            
-            @if($shouldShowTax && $gstAmount > 0)
-            <!-- Tax Breakdown -->
-            @if(!empty($taxBreakdown))
-                @foreach($taxBreakdown as $taxName => $taxValue)
-                <tr style="background-color: #fff3cd;">
-                    <td colspan="7" class="text-right"><strong>{{ $taxName }}:</strong></td>
-                    <td class="text-right"><strong>{{ $formatPrice($taxValue) }}</strong></td>
-                </tr>
-                @endforeach
-            @else
-            <tr style="background-color: #fff3cd;">
-                <td colspan="7" class="text-right"><strong>Total Vat / GST Tax:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($gstAmount) }}</strong></td>
-            </tr>
-            @endif
-            @endif
-            
-            <tr style="background-color: #d4edda;">
-                <td colspan="7" class="text-right"><strong>Final Price:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($finalPrice) }}</strong></td>
-            </tr>
-            
-            @if($shouldShowTax)
-            <!-- Payment Information -->
-            <tr style="background-color: #d1ecf1;">
-                <td colspan="7" class="text-right"><strong>Payment Received:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($paymentReceived) }}</strong></td>
-            </tr>
-            <tr style="background-color: #f8d7da;">
-                <td colspan="7" class="text-right"><strong>Outstanding Balance:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($outstandingBalance) }}</strong></td>
-            </tr>
-            @endif
+                        @include('invoices.pdf.partials.negotiation-summary-rows', ['summaryColspan' => 7])
+
         </tfoot>
     </table>
-@if($showCurrencyConversion)
-    <!-- Currency Conversion (shown when a non-base currency is selected) -->
-    <div class="currency-section">
-        <table class="currency-table">
-            <thead>
-                <tr>
-                    <th colspan="{{ count($currencyConversion) }}" class="text-center">Currency Conversion</th>
-                </tr>
-                <tr>
-                    @foreach(array_keys($currencyConversion) as $curr)
-                    <th>{{ $curr }}</th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    @foreach($currencyConversion as $curr => $amount)
-                    <td>{{ number_format(round($amount)) }}</td>
-                    @endforeach
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    @endif
+@include('invoices.pdf.partials.currency-conversion-box')
+
 
     <div style="clear: both;"></div>
 
