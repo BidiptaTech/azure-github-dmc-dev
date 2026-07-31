@@ -1,5 +1,6 @@
-{{-- Shared hotel booking display: Pro (enabled/price/quantity) vs Lite (price_per_night/extra_persons/rooms/nights) extra_bed + rooms[] details --}}
+{{-- Shared hotel booking display: Pro vs Lite extra_bed + rooms[] details --}}
 @php
+    $professional = !empty($professional);
     $hotelNightsModal = 0;
     if (isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1) {
         $checkInModal = \Carbon\Carbon::parse($booking['bookingDate'][0]);
@@ -25,6 +26,67 @@
 @endphp
 
 @if(isset($booking['rooms']) && is_array($booking['rooms']) && count($booking['rooms']) > 0)
+    @if($professional)
+        <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
+            <p class="svc-section-title">Room &amp; Accommodation</p>
+            <div class="svc-dl">
+                @foreach($booking['rooms'] as $roomIndex => $room)
+                    @php
+                        $numberOfRooms = max(1, (int)($room['number_of_rooms'] ?? 1));
+                        $roomOccupancy = $room['occupancy'] ?? null;
+                        $roomSelectedPersons = isset($room['selected_persons']) ? (int)$room['selected_persons'] : null;
+                        $totalRoomPrice = 0;
+                        if (isset($room['beds']) && is_array($room['beds'])) {
+                            $totalRoomPrice = collect($room['beds'])->sum(fn ($b) => (float)($b['price'] ?? 0));
+                        }
+                        $roomMeta = $numberOfRooms . ' Room' . ($numberOfRooms > 1 ? 's' : '');
+                        if ($roomOccupancy) {
+                            $roomMeta .= ' • ' . ucfirst($roomOccupancy);
+                        }
+                        if ($roomSelectedPersons !== null) {
+                            $roomMeta .= ' • ' . $roomSelectedPersons . ' guest' . ($roomSelectedPersons > 1 ? 's' : '');
+                        }
+                    @endphp
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Room {{ $roomIndex + 1 }}</span>
+                        <span class="svc-dl-value">{{ $room['room_type'] ?? 'Standard Room' }}</span>
+                    </div>
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Details</span>
+                        <span class="svc-dl-value">{{ $roomMeta }}@if($totalRoomPrice > 0) · {{ $currency }} {{ number_format($totalRoomPrice, 2) }}@endif</span>
+                    </div>
+                    @if(isset($room['beds']) && is_array($room['beds']))
+                        @foreach($room['beds'] as $bed)
+                            @php
+                                $mealPaxLabel = $roomSelectedPersons !== null ? $roomSelectedPersons : ($bed['head_count'] ?? 0);
+                                $mealLabels = [];
+                                if (isset($bed['selectedMeals']) && is_array($bed['selectedMeals'])) {
+                                    foreach ($bed['selectedMeals'] as $meal) {
+                                        $mealLabels[] = ($meal['type'] ?? 'Meal') . ' (' . $currency . ' ' . number_format((float)($meal['price'] ?? 0), 2) . ')';
+                                    }
+                                }
+                            @endphp
+                            <div class="svc-dl-row">
+                                <span class="svc-dl-label">Bed</span>
+                                <span class="svc-dl-value">{{ $bed['bed_type'] ?? 'Bed' }} · Pax {{ $mealPaxLabel }} · {{ $currency }} {{ number_format((float)($bed['price'] ?? 0), 2) }}</span>
+                            </div>
+                            @if(count($mealLabels))
+                            <div class="svc-dl-row full">
+                                <span class="svc-dl-label">Meals</span>
+                                <span class="svc-dl-value svc-meal-plan">{{ implode(', ', $mealLabels) }}</span>
+                            </div>
+                            @endif
+                        @endforeach
+                    @endif
+                @endforeach
+                @php $totalRooms = collect($booking['rooms'])->sum(fn ($r) => (int)($r['number_of_rooms'] ?? 1)); @endphp
+                <div class="svc-dl-row full">
+                    <span class="svc-dl-label">Summary</span>
+                    <span class="svc-dl-value">{{ $totalRooms }} room(s) • {{ ucfirst($booking['bookingType'] ?? 'Standard') }} · <span class="svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? $booking['price'] ?? 0), 2) }}</span></span>
+                </div>
+            </div>
+        </div>
+    @else
     <div class="bg-light rounded p-1 mb-2">
         <div class="d-flex align-items-center mb-1">
             <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
@@ -114,9 +176,86 @@
             </div>
         </div>
     </div>
+    @endif
 @endif
 
 @if($showAddonsSection)
+    @if($professional)
+        <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
+            <p class="svc-section-title">Additional Accommodation</p>
+            <div class="svc-dl">
+                @if($hasCwbModal)
+                    @php
+                        $cwb = $booking['child_with_bed'];
+                        $cwbPrice = (float)($cwb['price'] ?? 0);
+                        $cwbChildren = (int)($cwb['children'] ?? 0);
+                        $cwbTotal = isset($cwb['total_cost']) ? (float)$cwb['total_cost'] : ($cwbPrice * $cwbChildren * $hotelNightsModal);
+                    @endphp
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Child with Bed</span>
+                        <span class="svc-dl-value">{{ $cwbChildren }} child(ren) · {{ $currency }} {{ number_format($cwbPrice, 2) }}/night</span>
+                    </div>
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Total</span>
+                        <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($cwbTotal, 2) }}</span>
+                    </div>
+                @endif
+                @if($hasCnbModal)
+                    @php
+                        $cwob = $booking['child_without_bed'];
+                        $cwobPrice = (float)($cwob['price'] ?? 0);
+                        $cwobChildren = (int)($cwob['children'] ?? 0);
+                        $cwobTotal = isset($cwob['total_cost']) ? (float)$cwob['total_cost'] : ($cwobPrice * $cwobChildren * $hotelNightsModal);
+                    @endphp
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Child without Bed</span>
+                        <span class="svc-dl-value">{{ $cwobChildren }} child(ren) · {{ $currency }} {{ number_format($cwobPrice, 2) }}/night</span>
+                    </div>
+                    <div class="svc-dl-row">
+                        <span class="svc-dl-label">Total</span>
+                        <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($cwobTotal, 2) }}</span>
+                    </div>
+                @endif
+                @if($extraBedShowModal)
+                    @if($extraBedIsLite)
+                        @php
+                            $ebPriceNight = (float)($extraBedModal['price_per_night'] ?? 0);
+                            $ebExtraPersons = (int)($extraBedModal['extra_persons'] ?? 0);
+                            $ebRooms = (int)($extraBedModal['rooms'] ?? 0);
+                            $ebNights = (int)($extraBedModal['nights'] ?? $hotelNightsModal);
+                            $ebTotal = isset($extraBedModal['total_cost'])
+                                ? (float)$extraBedModal['total_cost']
+                                : ($ebPriceNight * max(1, $ebExtraPersons) * max(1, $ebRooms) * max(1, $ebNights));
+                        @endphp
+                        <div class="svc-dl-row">
+                            <span class="svc-dl-label">Extra Bed</span>
+                            <span class="svc-dl-value">{{ $ebExtraPersons }} persons · {{ $ebRooms }} rooms · {{ $ebNights }} nights</span>
+                        </div>
+                        <div class="svc-dl-row">
+                            <span class="svc-dl-label">Total</span>
+                            <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($ebTotal, 2) }}</span>
+                        </div>
+                    @elseif($extraBedIsPro)
+                        @php
+                            $extraBedPrice = (float)($extraBedModal['price'] ?? 0);
+                            $extraBedQty = (int)($extraBedModal['quantity'] ?? 0);
+                            $extraBedTotal = isset($extraBedModal['total_cost'])
+                                ? (float)$extraBedModal['total_cost']
+                                : ($extraBedPrice * $extraBedQty * max(1, $hotelNightsModal));
+                        @endphp
+                        <div class="svc-dl-row">
+                            <span class="svc-dl-label">Extra Bed</span>
+                            <span class="svc-dl-value">Qty {{ $extraBedQty }} · {{ $currency }} {{ number_format($extraBedPrice, 2) }}/night</span>
+                        </div>
+                        <div class="svc-dl-row">
+                            <span class="svc-dl-label">Total</span>
+                            <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($extraBedTotal, 2) }}</span>
+                        </div>
+                    @endif
+                @endif
+            </div>
+        </div>
+    @else
     <div class="bg-light rounded p-2 mb-2">
         <div class="d-flex align-items-center mb-1">
             <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -214,4 +353,5 @@
             @endif
         </div>
     </div>
+    @endif
 @endif
