@@ -1845,6 +1845,44 @@ class BookingListController extends Controller
             }
         }
         
+        $tourCountries = CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+        $isMultiCountry = count($tourCountries) > 1;
+
+        // Country → Days layout only when the operating DMC is allowed multi-country scope.
+        // Restricted third-party (thirdparty=yes AND thirdparty_enabled=no) keeps classic Day Plan.
+        // thirdparty_enabled=yes (or non-third-party DMC) → country-grouped itinerary when multi-country.
+        if ($isMultiCountry) {
+            $operatingDmcUser = null;
+            if (!empty($currentUser)) {
+                $operatingDmcId = $this->getDmcIdByUserRole($currentUser);
+                if ($operatingDmcId) {
+                    $operatingDmcUser = User::where('userId', $operatingDmcId)
+                        ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
+                }
+            }
+            // Fall back to the tour's DMC when viewer hierarchy has no DMC.
+            if (!$operatingDmcUser && !empty($tour->dmc_id)) {
+                $operatingDmcUser = User::where('userId', $tour->dmc_id)
+                    ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
+            }
+
+            $isThirdParty = strtolower((string) ($operatingDmcUser->thirdparty ?? 'no')) === 'yes';
+            $thirdPartyEnabled = strtolower((string) ($operatingDmcUser->thirdparty_enabled ?? 'no')) === 'yes';
+            if ($isThirdParty && !$thirdPartyEnabled) {
+                $isMultiCountry = false;
+            }
+        }
+
+        $cityCountryMap = City::whereNull('deleted_at')
+            ->get(['name', 'country'])
+            ->mapWithKeys(function ($city) {
+                $name = mb_strtolower(trim((string) $city->name));
+                $country = trim((string) ($city->country ?? ''));
+
+                return $name !== '' ? [$name => $country] : [];
+            })
+            ->all();
+
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
             'itineraryByDate' => $itineraryByDate,
@@ -1853,6 +1891,9 @@ class BookingListController extends Controller
             'user_dmc' => $user_dmc,
             'agent_info' => $agent_info,
             'allPassengers' => $allPassengers,
+            'tourCountries' => $tourCountries,
+            'isMultiCountry' => $isMultiCountry,
+            'cityCountryMap' => $cityCountryMap,
         ]);
     }
 
