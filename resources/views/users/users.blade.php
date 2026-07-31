@@ -7,13 +7,17 @@
   $settingsRoleIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   $dmcRoleIds = [11, 20];
   $authRoleId = (int) (auth()->user()->role_id ?? 0);
+  $authUserId = (int) (auth()->user()->userId ?? 0);
   $authUserIsPro = (int) (auth()->user()->is_pro ?? 0);
-  $canManageThirdParty = hasPermission('edit users');
+  // Same rule as Zone On / Price Hide / etc.: only Master DMC (role 10) may change settings.
+  $isMasterDmcViewer = $authRoleId === 10;
   $usersCollection = $users instanceof \Illuminate\Pagination\AbstractPaginator ? $users->getCollection() : collect($users);
   $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $dmcRoleIds, $authRoleId) {
       $rowRoleId = (int) ($u->role_id ?? 0);
+      $isThirdPartyDmc = in_array($rowRoleId, $dmcRoleIds, true)
+          && strtolower((string) ($u->thirdparty ?? 'no')) === 'yes';
       return in_array($rowRoleId, $settingsRoleIds, true)
-          || in_array($rowRoleId, $dmcRoleIds, true)
+          || $isThirdPartyDmc
           || ($authRoleId === 10 && $rowRoleId === 11);
   });
   $showBookingTypeColumn = $usersCollection->contains(function ($u) use ($authRoleId) {
@@ -232,8 +236,13 @@
                 $rowRoleId = (int) ($user->role_id ?? 0);
                 $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
                     || ($authRoleId === 10 && $rowRoleId === 11);
-                // Third party access is a DMC-only setting.
-                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true);
+                // Third party access toggle: only for DMCs marked as third-party.
+                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true)
+                    && strtolower((string) ($user->thirdparty ?? 'no')) === 'yes';
+                // Only the DMC's own Master DMC may flip the toggle (mirrors other settings controls).
+                $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
+                    && $isMasterDmcViewer
+                    && (int) ($user->master_dmc_id ?? 0) === $authUserId;
                 $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
                 $thirdPartyEnabled = strtolower((string) ($user->thirdparty_enabled ?? 'no')) === 'yes';
                 $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
@@ -478,14 +487,16 @@
                         <div class="settings-col third-party-col">
                             <div class="form-check form-switch mb-0">
                                 <input {{ $thirdPartyEnabled ? 'checked' : '' }}
-                                    class="form-check-input third-party-toggle"
+                                    class="form-check-input {{ $canToggleThirdPartyForThisRow ? 'third-party-toggle' : '' }}"
                                     data-user-id="{{ $user->userId }}"
                                     type="checkbox"
                                     id="thirdparty_enabled_{{ $user->userId }}"
                                     value="1"
-                                    title="{{ $thirdPartyEnabled ? 'Third party access on' : 'Third party access off' }}"
+                                    title="{{ $canToggleThirdPartyForThisRow
+                                        ? ($thirdPartyEnabled ? 'Third party access on' : 'Third party access off')
+                                        : 'Only the Master DMC can change third party access' }}"
                                     style="width: 25px; height: 15px;"
-                                    {{ $canManageThirdParty ? '' : 'disabled' }}>
+                                    {{ $canToggleThirdPartyForThisRow ? '' : 'disabled' }}>
                             </div>
                         </div>
                       @endif
