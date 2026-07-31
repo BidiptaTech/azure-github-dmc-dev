@@ -1935,6 +1935,157 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Parse tour destination CSV into ordered unique country names.
+     */
+    public static function parseTourDestinationCountries(?string $destination): array
+    {
+        $destination = trim((string) $destination);
+        if ($destination === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $countries = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $name) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $name;
+            }
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Resolve which country a booking/service belongs to (multi-country itinerary).
+     * Prefer order.country, then JSON country, then city→country map, then single tour country.
+     *
+     * @param  object|array  $booking
+     * @param  array<int, string>  $tourCountries
+     * @param  array<string, string>  $cityCountryMap  lowercase city name => country
+     */
+    public static function resolveBookingServiceCountry($booking, array $tourCountries = [], array $cityCountryMap = []): string
+    {
+        $booking = is_array($booking) ? (object) $booking : $booking;
+
+        $candidates = [];
+
+        $orderCountry = trim((string) ($booking->country ?? ''));
+        if ($orderCountry !== '') {
+            $candidates[] = $orderCountry;
+        }
+
+        $data = $booking->data_decoded ?? null;
+        if ($data === null && isset($booking->data)) {
+            $raw = $booking->data;
+            $data = is_string($raw) ? json_decode($raw, true) : $raw;
+        }
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+        if (is_array($data) && isset($data[0])) {
+            $row = $data[0];
+            if (is_object($row)) {
+                $row = (array) $row;
+            }
+            if (is_array($row)) {
+                $jsonCountry = trim((string) ($row['country'] ?? ''));
+                if ($jsonCountry !== '') {
+                    $candidates[] = $jsonCountry;
+                }
+                $hotelCountry = trim((string) (data_get($row, 'hotelDetails.country') ?? ''));
+                if ($hotelCountry !== '') {
+                    $candidates[] = $hotelCountry;
+                }
+
+                $cityCandidates = [
+                    $row['city'] ?? null,
+                    data_get($row, 'hotelDetails.city'),
+                    data_get($row, 'hotelDetails.location'),
+                    $booking->hotel_location ?? null,
+                    $booking->hotel_name ?? null,
+                ];
+                foreach ($cityCandidates as $cityRaw) {
+                    $city = trim((string) $cityRaw);
+                    if ($city === '') {
+                        continue;
+                    }
+                    // Strip stay-range suffix: "Singapore [2026-08-01→2026-08-03]"
+                    if (preg_match('/^(.+?)\s*\[/', $city, $m)) {
+                        $city = trim($m[1]);
+                    }
+                    $key = mb_strtolower($city);
+                    if (isset($cityCountryMap[$key]) && $cityCountryMap[$key] !== '') {
+                        $candidates[] = $cityCountryMap[$key];
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $matched = self::matchTourCountryName($candidate, $tourCountries);
+            if ($matched !== null) {
+                return $matched;
+            }
+        }
+
+        if (count($tourCountries) === 1) {
+            return $tourCountries[0];
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return 'Other';
+    }
+
+    /**
+     * Match a free-text country against tour destination country list (case-insensitive).
+     *
+     * @param  array<int, string>  $tourCountries
+     */
+    public static function matchTourCountryName(string $candidate, array $tourCountries): ?string
+    {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            return null;
+        }
+
+        foreach ($tourCountries as $country) {
+            if (strcasecmp($country, $candidate) === 0) {
+                return $country;
+            }
+        }
+
+        // CSV mistakenly stored on order (e.g. whole destination)
+        if (str_contains($candidate, ',')) {
+            $parts = preg_split('/\s*,\s*/', $candidate) ?: [];
+            foreach ($parts as $part) {
+                $matched = self::matchTourCountryName(trim((string) $part), $tourCountries);
+                if ($matched !== null) {
+                    return $matched;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Resolve the display currency for a DMC (users.currency of the DMC user).
      * Pass the packages.dmc_id (or any DMC userId). Returns null when not found.
      */
