@@ -1126,6 +1126,8 @@
 
 
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}"
+              data-restricted-third-party="{{ !empty($isRestrictedThirdParty) ? '1' : '0' }}"
+              data-restricted-countries="{{ json_encode(array_values($ownDmcCountryNames ?? [])) }}"
               data-update-info-url="{{ isset($tour) ? route('single-tour-package.update-info', $tour->tour_id) : '' }}"
               data-update-city-url="{{ isset($tour) ? route('single-tour-package.update-city-plans', $tour->tour_id) : '' }}"
               data-remove-city-url="{{ isset($tour) ? route('single-tour-package.remove-city-plan', $tour->tour_id) : '' }}"
@@ -1236,7 +1238,8 @@
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
-                                        placeholder="Select dates" style="height: 40px;" readonly>
+                                        placeholder="Select dates" style="height: 40px;" readonly
+                                        @if(!empty($isRestrictedThirdParty)) disabled title="Third party access is disabled: tour dates cannot be changed." @endif>
 
                                     {{-- Keep original fields for submission + JS dependencies --}}
                                     <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
@@ -11689,6 +11692,25 @@
         const endDateInput = document.getElementById('end_date');
 
         if (!rangeInput || !startDateInput || !endDateInput) return;
+
+        // Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no): dates are read-only.
+        const tpForm = document.getElementById('singleTourPackageForm');
+        const isRestrictedThirdParty = !!(tpForm && tpForm.dataset && tpForm.dataset.restrictedThirdParty === '1');
+        if (isRestrictedThirdParty) {
+            rangeInput.disabled = true;
+            const fmt = (v) => {
+                if (typeof moment !== 'undefined') {
+                    const m = moment((v || '').toString().trim(), 'YYYY-MM-DD', true);
+                    if (m.isValid()) return m.format('MMM DD, YYYY');
+                }
+                return (v || '').toString().trim();
+            };
+            const s = fmt(startDateInput.value);
+            const e = fmt(endDateInput.value);
+            rangeInput.value = (s && e) ? `${s} - ${e}` : '';
+            rangeInput.title = 'Third party access is disabled: tour dates cannot be changed.';
+            return;
+        }
 
         // If the date-range picker library isn't present, fall back to showing the two native date inputs.
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
@@ -27468,6 +27490,63 @@
     // =========================
     (function () {
         const DB_CITY_RAW = @json(old('city', $tour->city ?? ''));
+
+        // Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no): city plans that
+        // belong to another country are shown but fully locked (no edit / no remove / no services).
+        const TP_FORM = document.getElementById('singleTourPackageForm');
+        const IS_RESTRICTED_THIRD_PARTY = !!(TP_FORM && TP_FORM.dataset && TP_FORM.dataset.restrictedThirdParty === '1');
+        let RESTRICTED_OWN_COUNTRIES = [];
+        try {
+            RESTRICTED_OWN_COUNTRIES = JSON.parse((TP_FORM && TP_FORM.dataset ? TP_FORM.dataset.restrictedCountries : '') || '[]')
+                .map(c => (c || '').toString().trim().toLowerCase())
+                .filter(Boolean);
+        } catch (e) { RESTRICTED_OWN_COUNTRIES = []; }
+
+        function countryFromCityDisplay(display) {
+            const m = /\(([^()]+)\)\s*$/.exec((display || '').toString().trim());
+            return m ? m[1].trim() : '';
+        }
+
+        // A plan is "foreign" when its country is outside the restricted DMC's own countries.
+        function isForeignPlanForRestricted(cityDisplay, citySel) {
+            if (!IS_RESTRICTED_THIRD_PARTY || !RESTRICTED_OWN_COUNTRIES.length) return false;
+            const display = (cityDisplay || '').toString().trim();
+            if (!display) return false;
+            const country = countryFromCityDisplay(display).toLowerCase();
+            if (country) return !RESTRICTED_OWN_COUNTRIES.includes(country);
+            // No "(Country)" suffix: the city list served to a restricted user only contains
+            // own-country cities, so an unmatched city means it belongs to another country.
+            if (citySel) {
+                const wanted = normalizeCityValue(display);
+                const opt = Array.from(citySel.options).find(o =>
+                    normalizeCityValue((o.value || o.textContent || '').trim()) === wanted);
+                return !opt;
+            }
+            return false;
+        }
+
+        function lockSegmentAsForeign(seg) {
+            if (!seg) return;
+            seg.dataset.foreign = '1';
+            seg.querySelectorAll('.addSegmentToDb, .editSavedSegment, .updateSavedSegment, .cancelSavedSegment, .removeSegment')
+                .forEach(btn => btn.classList.add('d-none'));
+            seg.querySelectorAll('.city-select, .city-input, .start-date, .end-date')
+                .forEach(el => { el.disabled = true; });
+            const actions = seg.querySelector('.segment-actions');
+            if (actions && !actions.querySelector('.foreign-plan-note')) {
+                actions.insertAdjacentHTML('beforeend',
+                    '<span class="foreign-plan-note text-muted d-inline-flex align-items-center gap-1" style="font-size:0.74rem;" ' +
+                    'title="This city plan belongs to another country. Third party access is disabled, so you cannot edit or remove it.">' +
+                    '<i class="ri-lock-line"></i>Locked</span>');
+            }
+        }
+
+        function rejectForeignPlanAction() {
+            if (typeof showToastr === 'function') {
+                showToastr('error', "Third party access is disabled: you cannot modify another country's city plan or its services.");
+            }
+        }
+
         const SERVICES_HOME_ID = 'servicesAccordionHome';
         const SERVICES_BUNDLE_ID = 'segmentServicesBundle';
         const SERVICES_HINT_ID = 'multiCityServicesHint';
@@ -27829,7 +27908,10 @@
 
         function addSegmentRow(prefill) {
             const master = getMasterCities();
-            if (!master.length) return;
+            // Restricted users may have DB plans whose city is not in their (own-country-only)
+            // master list; those must still render (locked) instead of silently disappearing.
+            const hasPrefillCity = !!(prefill && (prefill.city || prefill.cityDisplay));
+            if (!master.length && !(IS_RESTRICTED_THIRD_PARTY && hasPrefillCity)) return;
             segmentIndex++;
             const wrap = document.getElementById('segmentsWrapper');
             if (!wrap) return;
@@ -27933,6 +28015,19 @@
                                     Array.from(citySel.options).find(o => normalizeCityValue((o.text || '').trim()) === normalizeCityValue(wanted));
                         if (opt) citySel.value = opt.value;
                     }
+                    // Restricted third-party: a foreign city is not in the served options.
+                    // Inject it so the plan is displayed and survives updateCityHiddenField()
+                    // round-trips instead of being dropped from tours.city.
+                    if (IS_RESTRICTED_THIRD_PARTY && !citySel.value) {
+                        const display = (prefill.cityDisplay || prefill.city || '').toString().trim();
+                        if (display) {
+                            const injected = document.createElement('option');
+                            injected.value = display;
+                            injected.textContent = display;
+                            citySel.appendChild(injected);
+                            citySel.value = display;
+                        }
+                    }
                 }
             }
             if (prefill && prefill.start) {
@@ -27983,6 +28078,10 @@
                 } else {
                     seg.dataset.saved = seg.dataset.saved || '0';
                 }
+
+                if (isForeignPlanForRestricted(cityText, citySel)) {
+                    lockSegmentAsForeign(seg);
+                }
             } catch (e) { /* ignore */ }
         }
 
@@ -28012,6 +28111,7 @@
             if (!seg || seg.dataset.saved !== '1') return;
             e.preventDefault();
             e.stopPropagation();
+            if (seg.dataset.foreign === '1') { rejectForeignPlanAction(); return; }
             setSavedSegmentEditMode(seg, true);
         });
 
@@ -28056,6 +28156,7 @@
                 try {
                     // Only allow update while in edit mode
                     if (String(seg.dataset.editing || '0') !== '1') return;
+                    if (seg.dataset.foreign === '1') { rejectForeignPlanAction(); return; }
 
                     const form = document.getElementById('singleTourPackageForm');
                     const clearServicesUrl = form && form.dataset ? (form.dataset.clearServicesUrl || '') : '';
@@ -28295,6 +28396,9 @@
         function activateSegmentForServices(seg) {
             const mode = getCityTypeMode();
             if (mode !== 'multi') return;
+            // Foreign (other-country) plans of a restricted third-party DMC: never expose
+            // their services grid, so their services cannot be edited or removed.
+            if (seg && seg.dataset && seg.dataset.foreign === '1') return;
             const bundle = getServicesBundleEl();
             if (!bundle) return;
             const wasActive = (_activeSegmentEl === seg);
@@ -28474,6 +28578,7 @@
             if (!rm) return;
             const seg = rm.closest('.segment');
             if (!seg) return;
+            if (seg.dataset.foreign === '1') { rejectForeignPlanAction(); return; }
 
             (async () => {
                 try {
@@ -28560,6 +28665,7 @@
 
             const seg = addBtn.closest ? addBtn.closest('.segment') : null;
             if (!seg) return;
+            if (seg.dataset.foreign === '1') { rejectForeignPlanAction(); return; }
 
             (async () => {
                 try {

@@ -45,6 +45,16 @@ class EditTourController extends Controller
             'city' => 'nullable|string',
         ]);
 
+        // Restricted third-party DMC: never let other-country city plans be dropped or rewritten.
+        $tpScope = $this->resolveRestrictedThirdPartyScope();
+        if (!empty($tpScope['is_restricted']) && array_key_exists('city', $validated)) {
+            $validated['city'] = $this->preserveForeignCityPlans(
+                (string) ($tour->city ?? ''),
+                (string) ($validated['city'] ?? ''),
+                $tpScope['own_country_names']
+            );
+        }
+
         try {
             DB::beginTransaction();
 
@@ -101,6 +111,18 @@ class EditTourController extends Controller
             'start' => 'required|date_format:Y-m-d',
             'end' => 'required|date_format:Y-m-d|after_or_equal:start',
         ]);
+
+        // Restricted third-party DMC: may only remove city plans in its own countries.
+        $tpScope = $this->resolveRestrictedThirdPartyScope();
+        if (!empty($tpScope['is_restricted'])) {
+            $planCountry = $this->cityPlanCountry((string) ($validated['city_display'] ?? ''));
+            if (!$this->isCountryAllowedForRestricted($planCountry, $tpScope['own_country_names'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Third party access is disabled: you cannot remove another country's city plan.",
+                ], 403);
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -195,6 +217,130 @@ class EditTourController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Restricted third-party DMC scope: thirdparty=yes AND thirdparty_enabled=no.
+     * Mirrors SingleTourPackageController::resolveThirdPartyDmcScope() for the edit endpoints.
+     *
+     * @return array{is_restricted: bool, own_country_names: array<int, string>}
+     */
+    private function resolveRestrictedThirdPartyScope(): array
+    {
+        $dmcId = CommonHelper::getDmcId(Auth::user());
+        $dmc = $dmcId
+            ? User::select('userId', 'thirdparty', 'thirdparty_enabled', 'country')
+                ->where('userId', (int) $dmcId)
+                ->first()
+            : null;
+
+        if (!$dmc) {
+            return ['is_restricted' => false, 'own_country_names' => []];
+        }
+
+        $isRestricted = strtolower((string) ($dmc->thirdparty ?? 'no')) === 'yes'
+            && strtolower((string) ($dmc->thirdparty_enabled ?? 'no')) !== 'yes';
+
+        $ownCountryNames = [];
+        if (!empty($dmc->country)) {
+            $ownCountryNames = array_values(array_filter(array_map('trim', explode(',', (string) $dmc->country))));
+        }
+
+        return ['is_restricted' => $isRestricted, 'own_country_names' => $ownCountryNames];
+    }
+
+    /**
+     * Country of a city-plan display token ("Batam (Indonesia)" → "Indonesia").
+     * Falls back to a cities-table lookup; null when it cannot be determined.
+     */
+    private function cityPlanCountry(string $cityDisplay): ?string
+    {
+        $display = trim($cityDisplay);
+        if ($display === '') {
+            return null;
+        }
+        if (preg_match('/\(([^()]+)\)\s*$/', $display, $m)) {
+            return trim($m[1]);
+        }
+        $city = \App\Models\City::where('name', $display)->first();
+
+        return ($city && !empty($city->country)) ? (string) $city->country : null;
+    }
+
+    private function isCountryAllowedForRestricted(?string $country, array $ownCountryNames): bool
+    {
+        // Unknown country cannot be judged; do not block existing behaviour for it.
+        if ($country === null || $country === '' || empty($ownCountryNames)) {
+            return true;
+        }
+        foreach ($ownCountryNames as $allowed) {
+            if (strcasecmp((string) $allowed, $country) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Parse "City (Country) [Y-m-d→Y-m-d]" tokens out of a tours.city string.
+     *
+     * @return array<int, array{display: string, start: string, end: string}>
+     */
+    private function parseCityPlanTokens(string $raw): array
+    {
+        $tokens = [];
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+        $parts = array_values(array_filter(array_map('trim', explode(',', $raw))));
+        foreach ($parts as $part) {
+            if (preg_match($re, $part, $m)) {
+                $tokens[] = [
+                    'display' => trim((string) ($m[1] ?? '')),
+                    'start' => trim((string) ($m[2] ?? '')),
+                    'end' => trim((string) ($m[3] ?? '')),
+                ];
+            }
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * A restricted third-party DMC may only rewrite its own-country city plans.
+     * Any other-country plan present in the original tours.city string that is missing
+     * from the incoming value is re-appended so it can never be dropped or altered.
+     */
+    private function preserveForeignCityPlans(string $original, string $incoming, array $ownCountryNames): string
+    {
+        $originalTokens = $this->parseCityPlanTokens($original);
+        if (empty($originalTokens)) {
+            return $incoming;
+        }
+
+        $incomingKeys = [];
+        foreach ($this->parseCityPlanTokens($incoming) as $t) {
+            $incomingKeys[mb_strtolower($t['display'] . '|' . $t['start'] . '|' . $t['end'])] = true;
+        }
+
+        $toAppend = [];
+        foreach ($originalTokens as $t) {
+            $country = $this->cityPlanCountry($t['display']);
+            if ($this->isCountryAllowedForRestricted($country, $ownCountryNames)) {
+                continue; // own-country plan: the user is allowed to change or remove it here
+            }
+            $key = mb_strtolower($t['display'] . '|' . $t['start'] . '|' . $t['end']);
+            if (!isset($incomingKeys[$key])) {
+                $toAppend[] = "{$t['display']} [{$t['start']}→{$t['end']}]";
+            }
+        }
+
+        if (empty($toAppend)) {
+            return $incoming;
+        }
+
+        $incoming = trim($incoming);
+
+        return $incoming === '' ? implode(', ', $toAppend) : $incoming . ', ' . implode(', ', $toAppend);
     }
 
     private function removeCityPlanFromCityString(string $raw, string $cityDisplay, string $start, string $end): string
@@ -375,6 +521,21 @@ class EditTourController extends Controller
         ]);
 
         $focSizeReq = max(0, (int) $request->input('foc_size', $validated['foc_size'] ?? 0));
+
+        // Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no): tour dates are read-only.
+        $tpScope = $this->resolveRestrictedThirdPartyScope();
+        if (!empty($tpScope['is_restricted'])) {
+            $currentIn = $tour->check_in_time ? Carbon::parse($tour->check_in_time)->format('Y-m-d') : null;
+            $currentOut = $tour->check_out_time ? Carbon::parse($tour->check_out_time)->format('Y-m-d') : null;
+            $requestedIn = Carbon::parse($validated['start_date'])->format('Y-m-d');
+            $requestedOut = Carbon::parse($validated['end_date'])->format('Y-m-d');
+            if ($requestedIn !== $currentIn || $requestedOut !== $currentOut) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Third party access is disabled: tour dates cannot be changed.',
+                ], 403);
+            }
+        }
 
         try {
             DB::beginTransaction();
