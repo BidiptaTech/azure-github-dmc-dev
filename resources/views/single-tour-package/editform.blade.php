@@ -28356,6 +28356,39 @@
             } catch (e) { /* ignore */ }
         }
 
+        /** Remove service cards whose dates fall in / overlap [segStart, segEnd] (after city-plan soft delete). */
+        function removeDomServicesInDateRange(segStart, segEnd) {
+            const segS = normalizeDateToISO(segStart);
+            const segE = normalizeDateToISO(segEnd);
+            if (!segS || !segE) return;
+
+            const removeEl = function (el) {
+                if (!el) return;
+                // Prefer removing the outer column wrapper when present
+                const wrap = el.closest ? (el.closest('.col-12.mb-4') || el.closest('.col-12') || el) : el;
+                try { wrap.remove(); } catch (e) { try { el.remove(); } catch (e2) { /* ignore */ } }
+            };
+
+            document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date]').forEach(function (el) {
+                const d = (el.getAttribute('data-service-date') || '').trim();
+                if (!d) return;
+                const di = normalizeDateToISO(d);
+                if (!di) return;
+                if (di >= segS && di <= segE) removeEl(el);
+            });
+
+            document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-start][data-service-end]').forEach(function (el) {
+                const s = (el.getAttribute('data-service-start') || '').trim();
+                const e = (el.getAttribute('data-service-end') || '').trim();
+                if (!s || !e) return;
+                const si = normalizeDateToISO(s);
+                const ei = normalizeDateToISO(e);
+                if (!si || !ei) return;
+                // Overlap with removed stay range
+                if (si <= segE && ei >= segS) removeEl(el);
+            });
+        }
+
         function applyServiceDateFilter(segStart, segEnd, segCity) {
             if (!segStart || !segEnd) return;
             try {
@@ -28632,10 +28665,28 @@
                                 __dbCityPlanKeys.delete(toPlanKey(cityDisplay, st, en));
                             }
                         } catch (e) { /* ignore */ }
+
+                        // Sync hidden city field from API response (tours.city after removal)
+                        try {
+                            const cityHidden = document.getElementById('city');
+                            if (cityHidden && data.data && typeof data.data.city !== 'undefined') {
+                                cityHidden.value = data.data.city || '';
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        // Drop matching service cards from the DOM immediately
+                        try { removeDomServicesInDateRange(st, en); } catch (e) { /* ignore */ }
+
                         if (typeof showToastr === 'function') {
                             const dc = (data.data && typeof data.data.deleted_services_count !== 'undefined') ? data.data.deleted_services_count : null;
                             showToastr('success', dc !== null ? `City plan removed. ${dc} service(s) removed.` : 'City plan removed.');
                         }
+
+                        // Reload so soft-deleted services / totals stay consistent with DB
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 900);
+                        return;
                     } else {
                         // Not saved yet: just remove from UI
                         if (typeof showToastr === 'function') showToastr('success', 'City plan removed.');

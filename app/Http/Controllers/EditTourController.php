@@ -290,7 +290,7 @@ class EditTourController extends Controller
     private function parseCityPlanTokens(string $raw): array
     {
         $tokens = [];
-        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]/u';
         $parts = array_values(array_filter(array_map('trim', explode(',', $raw))));
         foreach ($parts as $part) {
             if (preg_match($re, $part, $m)) {
@@ -347,7 +347,8 @@ class EditTourController extends Controller
     {
         $s = (string) $raw;
         $out = [];
-        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/';
+        // Support both unicode arrow (→) and ASCII (->)
+        $re = '/([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]/u';
 
         // Split by commas at top-level (simple format in DB)
         $parts = array_values(array_filter(array_map('trim', explode(',', $s))));
@@ -356,12 +357,12 @@ class EditTourController extends Controller
                 $cDisp = trim((string) ($m[1] ?? ''));
                 $st = trim((string) ($m[2] ?? ''));
                 $en = trim((string) ($m[3] ?? ''));
-                $isTarget = ($st === $start && $en === $end);
-                if ($cityDisplay !== '') {
-                    $isTarget = $isTarget && ($cDisp === $cityDisplay);
-                }
-                if ($isTarget) {
-                    continue; // drop it
+
+                // City plans do not overlap — date range uniquely identifies the segment.
+                // Drop on date match so a display-text mismatch cannot leave the city in
+                // tours.city after its services were already soft-deleted.
+                if ($st === $start && $en === $end) {
+                    continue;
                 }
                 $out[] = "{$cDisp} [{$st}→{$en}]";
             } else {
@@ -373,8 +374,12 @@ class EditTourController extends Controller
     }
 
     /**
-     * Collect services whose booking dates fall within the given inclusive range.
+     * Collect services whose booking dates fall within (or overlap) the given inclusive range.
      * We rely on non-overlapping city plans; date range uniquely identifies the segment.
+     *
+     * Hotels use a [check_in, check_out] range — match by overlap so stays that span
+     * the city plan are included even when neither endpoint sits inside the stay window.
+     * Single-date services match when their date is inside the stay window.
      */
     private function getServicesWithinDateRange($tourId, Carbon $startDate, Carbon $endDate): array
     {
@@ -393,18 +398,31 @@ class EditTourController extends Controller
                 $dates = $this->extractServiceDates($service, $order->type);
                 if (empty($dates)) continue;
 
-                $inRange = false;
+                $parsed = [];
                 foreach ($dates as $d) {
                     try {
-                        $dt = Carbon::parse($d)->startOfDay();
-                        if ($dt->betweenIncluded($start, $end)) {
-                            $inRange = true;
-                            break;
-                        }
+                        $parsed[] = Carbon::parse($d)->startOfDay();
                     } catch (\Throwable $e) {
                         continue;
                     }
                 }
+                if (empty($parsed)) continue;
+
+                $inRange = false;
+                if ($order->type === 'hotel' && count($parsed) >= 2) {
+                    // Range overlap: serviceStart <= planEnd && serviceEnd >= planStart
+                    $svcStart = $parsed[0]->lte($parsed[1]) ? $parsed[0] : $parsed[1];
+                    $svcEnd = $parsed[0]->gte($parsed[1]) ? $parsed[0] : $parsed[1];
+                    $inRange = $svcStart->lte($end) && $svcEnd->gte($start);
+                } else {
+                    foreach ($parsed as $dt) {
+                        if ($dt->betweenIncluded($start, $end)) {
+                            $inRange = true;
+                            break;
+                        }
+                    }
+                }
+
                 if ($inRange) {
                     $affected[] = [
                         'order_id' => $order->booking_id,
