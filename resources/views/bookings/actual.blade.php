@@ -650,9 +650,37 @@
     ])
     <!-- Compact Header + Stats Bar -->
     @php
+        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
+        $filterMinDate = now()->subYear()->toDateString();
+        $filterMaxDate = now()->addYear()->toDateString();
+        $filterStartDate = now()->toDateString();
+        $filterEndDate = now()->addDays(30)->toDateString();
+        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
+
+        $toDateOnly = function ($value) {
+            if (empty($value)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::parse($value)->toDateString();
+            } catch (\Throwable $e) {
+                return null;
+            }
+        };
+
+        // Rows whose stay overlaps the default window, used for the initial stat counts.
+        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
+            $stayStart = $toDateOnly($tour->check_in_time ?? null);
+            $stayEnd = $toDateOnly($tour->check_out_time ?? null);
+            if (!$stayStart && !$stayEnd) {
+                return false;
+            }
+
+            return ($stayStart ?: $stayEnd) <= $filterEndDate && ($stayEnd ?: $stayStart) >= $filterStartDate;
+        });
+
         $totalRevenue = 0;
-        $currentMonthTours = $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth());
-        foreach($currentMonthTours as $tour) {
+        foreach($defaultRangeTours as $tour) {
             if (!empty($tour->parsed_payment_details)) {
                 foreach($tour->parsed_payment_details as $payment) {
                     $totalRevenue += floatval($payment['amount'] ?? 0);
@@ -668,32 +696,32 @@
                 </h4>
                 <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage actual bookings with payment details and execution status</span>
                 <span class="badge bg-light text-success border border-success border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
-                    <i class="ri-check-circle-line me-1"></i><span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span> <span id="rangeLabel">{{ date('F') }}</span>
+                    <i class="ri-check-circle-line me-1"></i><span id="rangeCount">{{ $defaultRangeTours->count() }}</span> <span id="rangeLabel">{{ $filterRangeLabel }}</span>
                 </span>
             </div>
             <div class="row g-2 new-enq-stats-grid flex-grow-1">
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-bar-chart-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statActualCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span><span class="stat-label text-muted" id="statActualLabel">{{ date('F') }} Actual</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statActualCount">{{ $defaultRangeTours->count() }}</span><span class="stat-label text-muted" id="statActualLabel">Actual - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-primary rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-money-dollar-circle-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statRevenueCount">${{ number_format($totalRevenue) }}</span><span class="stat-label text-muted" id="statRevenueLabel">{{ date('F') }} Revenue</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statRevenueCount">${{ number_format($totalRevenue) }}</span><span class="stat-label text-muted" id="statRevenueLabel">Revenue - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-warning rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-play-circle-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statActiveCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('check_in_time', '<', now())->where('check_out_time', '>', now())->count() }}</span><span class="stat-label text-muted" id="statActiveLabel">{{ date('F') }} Active</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statActiveCount">{{ $defaultRangeTours->where('check_in_time', '<', now())->where('check_out_time', '>', now())->count() }}</span><span class="stat-label text-muted" id="statActiveLabel">Active - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
                 <div class="col-6 col-md-4 col-xl">
                     <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-checkbox-circle-line text-white"></i></div>
-                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statCompletedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('check_out_time', '<', now())->count() }}</span><span class="stat-label text-muted" id="statCompletedLabel">{{ date('F') }} Completed</span></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statCompletedCount">{{ $defaultRangeTours->where('check_out_time', '<', now())->count() }}</span><span class="stat-label text-muted" id="statCompletedLabel">Complete - {{ $filterRangeLabel }}</span></div>
                     </div>
                 </div>
             </div>
@@ -762,11 +790,15 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter"
+                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
+                        value="{{ $filterStartDate }}" data-default-value="{{ $filterStartDate }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter"
+                        min="{{ $filterMinDate }}" max="{{ $filterMaxDate }}"
+                        value="{{ $filterEndDate }}" data-default-value="{{ $filterEndDate }}">
                 </div>
             </div>
         </div>
@@ -1017,6 +1049,8 @@
                             data-is-pro="{{ $tour->is_pro ?? 0 }}"
                             data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
+                            data-stay-start="{{ $toDateOnly($tour->check_in_time ?? null) }}"
+                            data-stay-end="{{ $toDateOnly($tour->check_out_time ?? null) }}"
                             data-revenue="{{ $totalAmount }}"
                             data-status="{{ $isActive ? 'Active' : ($isCompleted ? 'Complete' : 'Upcoming') }}"
                             data-execution-status="{{ $tour->tour_status ?? '' }}"
@@ -21206,6 +21240,30 @@ function showUpcomingTours() {
     filterTable();
 }
 
+// Every data row in display order, including the ones DataTables keeps off the current page
+window.getFilterableRows = function() {
+    if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
+        try {
+            return Array.from(table.rows({ order: 'applied' }).nodes());
+        } catch (e) {
+            // DataTables not ready yet, fall back to whatever is in the DOM
+        }
+    }
+    return Array.from(document.querySelectorAll('#toursTable tbody tr'));
+};
+
+// Renumber the '#' column so it counts the filtered rows, continuing across pages
+window.renumberVisibleRows = function(visibleRows) {
+    const rows = visibleRows || window.getFilterableRows()
+        .filter(r => r.style.display !== 'none' && r.cells.length > 1);
+
+    rows.forEach((row, index) => {
+        if (row.classList.contains('child')) return; // DataTables responsive detail row
+        const cell = row.cells[0];
+        if (cell) cell.textContent = index + 1;
+    });
+};
+
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
@@ -21214,8 +21272,8 @@ window.filterTable = function() {
     const startDateValue = document.getElementById('startDateFilter')?.value || '';
     const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
-    const rows = document.querySelectorAll('#toursTable tbody tr');
-    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
+    const rows = window.getFilterableRows();
+    const totalRows = rows.filter(r => r.cells.length > 1).length;
     
     if (typeof table !== 'undefined' && table && table.rows) {
         table.rows('.dt-hasChild').every(function() {
@@ -21234,8 +21292,8 @@ window.filterTable = function() {
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         const createdBy = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
         const executionStatus = row.getAttribute('data-execution-status') || '';
-        const updatedAt = row.getAttribute('data-updated-at');
-        const createdAtAttr = row.getAttribute('data-created-at');
+        const stayStartAttr = (row.getAttribute('data-stay-start') || '').trim();
+        const stayEndAttr = (row.getAttribute('data-stay-end') || '').trim();
         
         let show = true;
         
@@ -21266,30 +21324,20 @@ window.filterTable = function() {
             show = false;
         }
         
-        if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
-            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
-            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
-            let dateInRange = false;
-            
-            if (updatedAt) {
-                const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange && createdAtAttr) {
-                const createdDate = new Date(createdAtAttr + 'T00:00:00');
-                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange) {
+        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
+        if (startDateValue || endDateValue) {
+            if (!stayStartAttr && !stayEndAttr) {
+                // No travel dates recorded, so the tour cannot match a travel window
                 show = false;
+            } else {
+                const stayStart = stayStartAttr || stayEndAttr;
+                const stayEnd = stayEndAttr || stayStartAttr;
+                const startsAfterRange = endDateValue && stayStart > endDateValue;
+                const endsBeforeRange = startDateValue && stayEnd < startDateValue;
+                if (startsAfterRange || endsBeforeRange) {
+                    show = false;
+                }
             }
-        } else if (startDateValue || endDateValue) {
-            show = false;
         }
         
         row.style.display = show ? '' : 'none';
@@ -21298,32 +21346,29 @@ window.filterTable = function() {
     
     updateFilterResults(visibleCount, totalRows);
 
-    const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    const visibleRows = rows.filter(r => r.style.display !== 'none' && r.cells.length > 1);
+    renumberVisibleRows(visibleRows);
     const rangeCount = visibleCount;
-    const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
-    const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
-    
-    const today = new Date().toISOString().split('T')[0];
-    const todayCount = visibleRows.filter(r => {
-        const createdAt = r.getAttribute('data-created-at');
-        return createdAt === today;
-    }).length;
+    const totalRevenue = visibleRows.reduce((sum, r) => sum + parseFloat(r.getAttribute('data-revenue') || '0'), 0);
+    const activeCount = visibleRows.filter(r => r.getAttribute('data-status') === 'Active').length;
+    const completedCount = visibleRows.filter(r => r.getAttribute('data-status') === 'Complete').length;
 
     const countEl = document.getElementById('rangeCount');
     const labelEl = document.getElementById('rangeLabel');
-    const statConfirmed = document.getElementById('statConfirmedCount');
-    const statConfirmedLabel = document.getElementById('statConfirmedLabel');
-    const statAdults = document.getElementById('statAdultsCount');
-    const statAdultsLabel = document.getElementById('statAdultsLabel');
-    const statChildren = document.getElementById('statChildrenCount');
-    const statChildrenLabel = document.getElementById('statChildrenLabel');
-    const statToday = document.getElementById('statTodayCount');
+    const statActual = document.getElementById('statActualCount');
+    const statActualLabel = document.getElementById('statActualLabel');
+    const statRevenue = document.getElementById('statRevenueCount');
+    const statRevenueLabel = document.getElementById('statRevenueLabel');
+    const statActive = document.getElementById('statActiveCount');
+    const statActiveLabel = document.getElementById('statActiveLabel');
+    const statCompleted = document.getElementById('statCompletedCount');
+    const statCompletedLabel = document.getElementById('statCompletedLabel');
 
     if (countEl) countEl.textContent = rangeCount;
-    if (statConfirmed) statConfirmed.textContent = rangeCount;
-    if (statAdults) statAdults.textContent = adults;
-    if (statChildren) statChildren.textContent = children;
-    if (statToday) statToday.textContent = todayCount;
+    if (statActual) statActual.textContent = rangeCount;
+    if (statRevenue) statRevenue.textContent = '$' + Math.round(totalRevenue).toLocaleString();
+    if (statActive) statActive.textContent = activeCount;
+    if (statCompleted) statCompleted.textContent = completedCount;
 
     if (startDateValue || endDateValue) {
         const start = startDateValue ? new Date(startDateValue) : null;
@@ -21349,15 +21394,16 @@ window.filterTable = function() {
         }
 
         if (label && labelEl) labelEl.textContent = label;
-        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
-        if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
-        if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
+        if (label && statActualLabel) statActualLabel.textContent = `Actual - ${label}`;
+        if (label && statRevenueLabel) statRevenueLabel.textContent = `Revenue - ${label}`;
+        if (label && statActiveLabel) statActiveLabel.textContent = `Active - ${label}`;
+        if (label && statCompletedLabel) statCompletedLabel.textContent = `Complete - ${label}`;
     } else {
-        const month = new Date().toLocaleString('default', { month: 'long' });
-        if (labelEl) labelEl.textContent = month;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Definite`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+        if (labelEl) labelEl.textContent = 'All Dates';
+        if (statActualLabel) statActualLabel.textContent = 'Actual - All Dates';
+        if (statRevenueLabel) statRevenueLabel.textContent = 'Revenue - All Dates';
+        if (statActiveLabel) statActiveLabel.textContent = 'Active - All Dates';
+        if (statCompletedLabel) statCompletedLabel.textContent = 'Complete - All Dates';
     }
 };
 
@@ -21385,10 +21431,12 @@ function resetFilters() {
         agentSelect.value = '';
     }
     
-    if (startDateInput) startDateInput.value = '';
+    if (startDateInput) startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     if (endDateInput) {
-        endDateInput.value = '';
+        endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
         endDateInput.removeAttribute('min');
+        const rangeMin = document.getElementById('startDateFilter')?.getAttribute('min');
+        if (rangeMin) endDateInput.setAttribute('min', rangeMin);
     }
     filterTable();
     
@@ -21400,7 +21448,7 @@ function updateFilterResults(visibleCount, totalCount) {
     // Update the table header to show filter results
     const tableHeader = document.querySelector('#toursTable').closest('.card').querySelector('.card-header h5');
     if (tableHeader) {
-        tableHeader.textContent = 'Definite Bookings List';
+        tableHeader.textContent = 'Actual Bookings List';
     }
 }
 
@@ -21441,8 +21489,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
     // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
     // They will trigger filterTable when changed via Select2's change event
+    // The min/max window (one year back, one year ahead) comes from the input attributes rendered by Blade
+    const rangeMinDate = startDateFilter?.getAttribute('min') || '';
     if (startDateFilter) {
-        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
             if (endDateFilter) {
                 if (startDateFilter.value) {
@@ -21450,6 +21499,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
                         endDateFilter.value = startDateFilter.value;
                     }
+                } else if (rangeMinDate) {
+                    endDateFilter.setAttribute('min', rangeMinDate);
                 } else {
                     endDateFilter.removeAttribute('min');
                 }
@@ -21458,7 +21509,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     if (endDateFilter) {
-        endDateFilter.setAttribute('max', today);
         if (startDateFilter && startDateFilter.value) {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
@@ -24632,14 +24682,13 @@ function resetFilters() {
     if (timeFilter) timeFilter.value = '';
     
     if (startDateInput) {
-        startDateInput.value = '';
-        startDateInput.setAttribute('max', today);
-        startDateInput.removeAttribute('min');
+        startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     }
     if (endDateInput) {
-        endDateInput.value = '';
-        endDateInput.setAttribute('max', today);
+        endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
         endDateInput.removeAttribute('min');
+        const rangeMin = startDateInput?.getAttribute('min');
+        if (rangeMin) endDateInput.setAttribute('min', rangeMin);
     }
     filterTable();
 }
@@ -24663,8 +24712,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Note: destinationFilter and agentFilter event listeners are handled by Select2 initialization
     // They will trigger filterTable when changed via Select2's change event
     if (timeFilter) timeFilter.addEventListener('change', filterTable);
+    // The one-year min/max window comes from the input attributes rendered by Blade
+    const rangeMaxDate = endDateFilter?.getAttribute('max') || '';
     if (startDateFilter) {
-        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
             if (this.value) {
                 if (endDateFilter) {
@@ -24680,7 +24730,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     if (endDateFilter) {
-        endDateFilter.setAttribute('max', today);
         endDateFilter.addEventListener('change', function() {
             if (this.value) {
                 if (startDateFilter) {
@@ -24689,8 +24738,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     startDateFilter.setAttribute('max', this.value);
                 }
-            } else if (startDateFilter) {
-                startDateFilter.setAttribute('max', today);
+            } else if (startDateFilter && rangeMaxDate) {
+                startDateFilter.setAttribute('max', rangeMaxDate);
             }
             filterTable();
         });
@@ -25488,6 +25537,21 @@ document.addEventListener('change', function(e) {
             ],
             initComplete: function() {
                 console.log('DataTable initialized successfully');
+            }
+        });
+
+        // Re-apply the custom filters and renumber rows whenever DataTables redraws
+        // (pagination, sorting, page-length changes), so filtering spans every page.
+        var isReapplyingFilters = false;
+        table.on('draw.dt', function() {
+            if (isReapplyingFilters) return;
+            isReapplyingFilters = true;
+            try {
+                if (typeof filterTable === 'function') {
+                    filterTable();
+                }
+            } finally {
+                isReapplyingFilters = false;
             }
         });
 
