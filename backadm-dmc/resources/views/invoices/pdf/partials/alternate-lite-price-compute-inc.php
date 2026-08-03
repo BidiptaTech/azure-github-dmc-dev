@@ -272,7 +272,7 @@ $taxBreakdownLite = $notesLite['tax_breakdown'] ?? [];
 $liteGstAmount = (float) ($invoice->gst_amount ?? 0);
 $liteFinalPrice = (float) $baseAmountLite + $liteGstAmount;
 
-$litePaymentReceived = (float) ($invoice->payment_received ?? 0);
+$litePaymentReceived = (float) ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
 $liteOutstandingBalance = (float) ($invoice->outstanding_balance ?? $liteFinalPrice);
 
 $baseCurrencyLite = strtoupper($baseCurrency ?? $selectedCurrencyLite);

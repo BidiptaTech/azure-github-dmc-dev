@@ -1490,7 +1490,7 @@
                 $finalPrice = $baseAmount + $gstAmount;
                 
                 // Get payment information
-                $paymentReceived = $invoice->payment_received ?? 0;
+                $paymentReceived = $invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0);
                 $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
 
                 if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
@@ -1509,6 +1509,8 @@
                     $finalPrice = $tpSummary['finalPrice'];
                     $paymentReceived = $tpSummary['paymentReceived'];
                     $outstandingBalance = $tpSummary['outstandingBalance'];
+                } else {
+                    $outstandingBalance = (float) $finalPrice - (float) $paymentReceived;
                 }
 
             @endphp
@@ -1728,9 +1730,9 @@
     @endphp
     <div class="footer-note">
         @if($shouldShowTax)
-        <strong>*Note:</strong> This is a Proforma Invoice. GST/Taxes are calculated based on the negotiated amount. This invoice is for price sharing and advance collection purposes only. No accounting entries will be made until converted to Final Invoice.
+        <strong>*Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
         @else
-        <strong>*Note:</strong> This is a Proforma Invoice. No GST is applicable. This invoice is for price sharing and advance collection purposes only. No accounting entries will be made until converted to Final Invoice.
+        <strong>*Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
         @endif
     </div>
 

@@ -1312,18 +1312,13 @@ class InvoiceService
         $finalPrice = $baseAmount + $gstAmount + $serviceCharge + $touristTax;
         $totalAmount = $finalPrice; // For backward compatibility
         
-        // Calculate payment received from tour payment_details
-        $totalPaid = 0;
-        if ($tour && $tour->payment_details) {
-            $paymentDetails = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
-            if (is_array($paymentDetails)) {
-                foreach ($paymentDetails as $payment) {
-                    if (isset($payment['amount']) && isset($payment['status']) && $payment['status'] == 1) {
-                        $totalPaid += (float) $payment['amount'];
-                    }
-                }
-            }
-        }
+        // Payment received from tours.payment_details (respect each payment's currency)
+        // Store in the same currency as invoice totals / tax base (tour or negotiation currency).
+        $totalPaid = CommonHelper::sumTourPaymentsInCurrency(
+            $invoice,
+            $baseCurrencyForTax,
+            $baseCurrencyForTax
+        );
         
         // Outstanding Balance = Final Price - Payment Received
         $outstandingBalance = $finalPrice - $totalPaid;
