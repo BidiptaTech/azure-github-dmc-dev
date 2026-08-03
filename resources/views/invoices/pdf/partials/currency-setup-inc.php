@@ -91,6 +91,23 @@ $thirdPartyNegotiation = $isThirdPartyInvoice
     ? CommonHelper::sumNegotiationDetailsInCurrency($invoice, $selectedCurrency, $baseCurrency)
     : null;
 
+// Payments from tours.payment_details:
+// - Selected: for third-party summary (amounts already in selected currency)
+// - Base: for standard dual-price formatPrice() which converts base → selected
+$invoicePaymentReceivedSelected = CommonHelper::sumTourPaymentsInCurrency(
+    $invoice,
+    $selectedCurrency,
+    $baseCurrency
+);
+$invoicePaymentReceivedBase = CommonHelper::sumTourPaymentsInCurrency(
+    $invoice,
+    $baseCurrency,
+    $baseCurrency
+);
+$invoicePaymentReceivedForDisplay = !empty($isThirdPartyInvoice)
+    ? $invoicePaymentReceivedSelected
+    : $invoicePaymentReceivedBase;
+
 /**
  * Keep Currency Conversion box in sync with the Final / Outstanding amount shown above it.
  */

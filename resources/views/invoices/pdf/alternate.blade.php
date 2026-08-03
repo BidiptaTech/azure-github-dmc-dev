@@ -488,7 +488,7 @@
     $tourStatus = $tour ? ($tour->tour_status ?? '') : '';
     $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
     $shouldShowTax = in_array($tourStatus, $statusesWithTax, true);
-    $paymentReceived = (float) ($invoice->payment_received ?? 0);
+    $paymentReceived = (float) ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
     $outstandingBalance = (float) ($invoice->outstanding_balance ?? $grandTotal);
 
     $actualFromItems = (float) $invoice->items->sum('total_price');
