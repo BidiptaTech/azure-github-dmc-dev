@@ -3181,48 +3181,76 @@
                             $itineraryByCountry[$countryName] = [];
                         }
 
+                        // Put each service under its own country (no empty days on the wrong country)
                         foreach ($allDates as $dateStr => $dayBookings) {
-                            $bookingsByCountry = [];
                             foreach ($dayBookings as $bookingItem) {
                                 $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry(
                                     $bookingItem,
                                     $tourCountries,
                                     $cityCountryMap
                                 );
-                                if (!isset($bookingsByCountry[$resolvedCountry])) {
-                                    $bookingsByCountry[$resolvedCountry] = [];
-                                }
-                                $bookingsByCountry[$resolvedCountry][] = $bookingItem;
-                            }
-
-                            foreach ($bookingsByCountry as $resolvedCountry => $countryBookings) {
                                 if (!isset($itineraryByCountry[$resolvedCountry])) {
                                     $itineraryByCountry[$resolvedCountry] = [];
                                 }
-                                $itineraryByCountry[$resolvedCountry][$dateStr] = $countryBookings;
+                                if (!isset($itineraryByCountry[$resolvedCountry][$dateStr])) {
+                                    $itineraryByCountry[$resolvedCountry][$dateStr] = [];
+                                }
+                                $itineraryByCountry[$resolvedCountry][$dateStr][] = $bookingItem;
                             }
                         }
 
-                        // Drop empty country buckets; keep destination order, append unknown last
-                        $orderedCountries = [];
-                        foreach ($tourCountries as $countryName) {
-                            if (!empty($itineraryByCountry[$countryName])) {
-                                $orderedCountries[] = $countryName;
-                            }
-                        }
+                        // Drop countries with no services
+                        $countriesWithServices = [];
                         foreach ($itineraryByCountry as $countryName => $dates) {
-                            if (empty($dates)) {
-                                continue;
-                            }
-                            if (!in_array($countryName, $orderedCountries, true)) {
-                                $orderedCountries[] = $countryName;
+                            if (!empty($dates)) {
+                                $countriesWithServices[$countryName] = $dates;
                             }
                         }
+
+                        // Order countries by earliest service date so Aug 01's country comes first
+                        // (not destination CSV order). Tie-break with destination order.
+                        $destinationOrder = [];
+                        foreach ($tourCountries as $idx => $countryName) {
+                            $destinationOrder[$countryName] = $idx;
+                        }
+                        $orderedCountries = array_keys($countriesWithServices);
+                        usort($orderedCountries, function ($a, $b) use ($countriesWithServices, $destinationOrder) {
+                            $aDates = array_keys($countriesWithServices[$a]);
+                            $bDates = array_keys($countriesWithServices[$b]);
+                            sort($aDates);
+                            sort($bDates);
+                            $aFirst = $aDates[0] ?? '9999-12-31';
+                            $bFirst = $bDates[0] ?? '9999-12-31';
+                            if ($aFirst !== $bFirst) {
+                                return strcmp($aFirst, $bFirst);
+                            }
+                            $aOrder = $destinationOrder[$a] ?? 999;
+                            $bOrder = $destinationOrder[$b] ?? 999;
+                            return $aOrder <=> $bOrder;
+                        });
 
                         $navIndex = 1;
                         foreach ($orderedCountries as $countryName) {
-                            $countryDates = $itineraryByCountry[$countryName];
+                            $countryDates = $countriesWithServices[$countryName];
                             ksort($countryDates);
+
+                            // Fill gaps only between this country's first and last booked dates
+                            $countryDateKeys = array_keys($countryDates);
+                            if (count($countryDateKeys) > 0) {
+                                $rangeStart = \Carbon\Carbon::parse($countryDateKeys[0]);
+                                $rangeEnd = \Carbon\Carbon::parse($countryDateKeys[count($countryDateKeys) - 1]);
+                                $cursor = $rangeStart->copy();
+                                $filledCountryDates = [];
+                                while ($cursor->lte($rangeEnd)) {
+                                    $ds = $cursor->format('Y-m-d');
+                                    if (array_key_exists($ds, $allDates)) {
+                                        $filledCountryDates[$ds] = $countryDates[$ds] ?? [];
+                                    }
+                                    $cursor->addDay();
+                                }
+                                $countryDates = $filledCountryDates;
+                            }
+
                             $isFirstInCountry = true;
                             $countryDayCount = count($countryDates);
                             $countryDayPos = 0;
