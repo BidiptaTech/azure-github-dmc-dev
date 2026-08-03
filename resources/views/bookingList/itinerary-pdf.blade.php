@@ -14,6 +14,7 @@
         .day-table th { font-size: 11px; color: #666; text-align: left; padding: 4px 0; border-bottom: 1px dashed #999; }
         .day-table th.col-type { text-align: right; }
         .day-heading { font-size: 14px; font-weight: bold; color: #2563eb; margin: 14px 0 6px; padding-bottom: 2px; }
+        .country-heading { font-size: 15px; font-weight: bold; color: #0f172a; background-color: #e2e8f0; padding: 8px 10px; margin: 16px 0 4px; }
         .day-row { vertical-align: top; }
         .day-row .col-time { width: 50px; padding: 4px 8px 4px 0; vertical-align: top; }
         .day-row .col-desc { padding: 4px 0; line-height: 1.35; }
@@ -98,26 +99,60 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($pdfDays as $dateStr => $day)
-                <tr>
-                    <td colspan="3" class="day-heading">{{ $day['date_label'] }}</td>
-                </tr>
-                @foreach($day['rows'] as $row)
-                    <tr class="day-row">
-                        <td class="col-time">{{ $row['time'] ?? '—' }}</td>
-                        <td class="col-desc">
-                            {!! $row['description'] ?? '—' !!}
-                            @if(!empty($row['activity']))
-                                <div class="activity">Activity: {{ $row['activity'] }}</div>
-                            @endif
-                            @if(!empty($row['note']))
-                                <div class="note {{ !empty($row['note_green']) ? 'note-green' : '' }}">Note: {{ $row['note'] }}</div>
-                            @endif
-                        </td>
-                        <td class="col-type">{{ $row['type'] ?? 'Private' }}</td>
+            @if(!empty($isMultiCountry) && !empty($pdfCountryGroups))
+                @foreach($pdfCountryGroups as $countryGroup)
+                    <tr>
+                        <td colspan="3" class="country-heading">{{ $countryGroup['name'] ?? 'Country' }}</td>
                     </tr>
+                    @foreach(($countryGroup['days'] ?? []) as $dateStr => $day)
+                        <tr>
+                            <td colspan="3" class="day-heading">{{ $day['date_label'] }}</td>
+                        </tr>
+                        @forelse(($day['rows'] ?? []) as $row)
+                            <tr class="day-row">
+                                <td class="col-time">{{ $row['time'] ?? '—' }}</td>
+                                <td class="col-desc">
+                                    {!! $row['description'] ?? '—' !!}
+                                    @if(!empty($row['activity']))
+                                        <div class="activity">Activity: {{ $row['activity'] }}</div>
+                                    @endif
+                                    @if(!empty($row['note']))
+                                        <div class="note {{ !empty($row['note_green']) ? 'note-green' : '' }}">Note: {{ $row['note'] }}</div>
+                                    @endif
+                                </td>
+                                <td class="col-type">{{ $row['type'] ?? 'Private' }}</td>
+                            </tr>
+                        @empty
+                            <tr class="day-row">
+                                <td class="col-time">—</td>
+                                <td class="col-desc">No services booked for this day</td>
+                                <td class="col-type">—</td>
+                            </tr>
+                        @endforelse
+                    @endforeach
                 @endforeach
-            @endforeach
+            @else
+                @foreach($pdfDays as $dateStr => $day)
+                    <tr>
+                        <td colspan="3" class="day-heading">{{ $day['date_label'] }}</td>
+                    </tr>
+                    @foreach($day['rows'] as $row)
+                        <tr class="day-row">
+                            <td class="col-time">{{ $row['time'] ?? '—' }}</td>
+                            <td class="col-desc">
+                                {!! $row['description'] ?? '—' !!}
+                                @if(!empty($row['activity']))
+                                    <div class="activity">Activity: {{ $row['activity'] }}</div>
+                                @endif
+                                @if(!empty($row['note']))
+                                    <div class="note {{ !empty($row['note_green']) ? 'note-green' : '' }}">Note: {{ $row['note'] }}</div>
+                                @endif
+                            </td>
+                            <td class="col-type">{{ $row['type'] ?? 'Private' }}</td>
+                        </tr>
+                    @endforeach
+                @endforeach
+            @endif
         </tbody>
     </table>
 

@@ -1845,43 +1845,10 @@ class BookingListController extends Controller
             }
         }
         
-        $tourCountries = CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
-        $isMultiCountry = count($tourCountries) > 1;
-
-        // Country → Days layout only when the operating DMC is allowed multi-country scope.
-        // Restricted third-party (thirdparty=yes AND thirdparty_enabled=no) keeps classic Day Plan.
-        // thirdparty_enabled=yes (or non-third-party DMC) → country-grouped itinerary when multi-country.
-        if ($isMultiCountry) {
-            $operatingDmcUser = null;
-            if (!empty($currentUser)) {
-                $operatingDmcId = $this->getDmcIdByUserRole($currentUser);
-                if ($operatingDmcId) {
-                    $operatingDmcUser = User::where('userId', $operatingDmcId)
-                        ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
-                }
-            }
-            // Fall back to the tour's DMC when viewer hierarchy has no DMC.
-            if (!$operatingDmcUser && !empty($tour->dmc_id)) {
-                $operatingDmcUser = User::where('userId', $tour->dmc_id)
-                    ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
-            }
-
-            $isThirdParty = strtolower((string) ($operatingDmcUser->thirdparty ?? 'no')) === 'yes';
-            $thirdPartyEnabled = strtolower((string) ($operatingDmcUser->thirdparty_enabled ?? 'no')) === 'yes';
-            if ($isThirdParty && !$thirdPartyEnabled) {
-                $isMultiCountry = false;
-            }
-        }
-
-        $cityCountryMap = City::whereNull('deleted_at')
-            ->get(['name', 'country'])
-            ->mapWithKeys(function ($city) {
-                $name = mb_strtolower(trim((string) $city->name));
-                $country = trim((string) ($city->country ?? ''));
-
-                return $name !== '' ? [$name => $country] : [];
-            })
-            ->all();
+        $multiMeta = $this->resolveMultiCountryItineraryMeta($tourDetails, $currentUser);
+        $tourCountries = $multiMeta['tourCountries'];
+        $isMultiCountry = $multiMeta['isMultiCountry'];
+        $cityCountryMap = $this->buildCityCountryMap();
 
         return view('bookingList.itinerary', [
             'tourId' => $tourId,
@@ -2663,6 +2630,8 @@ class BookingListController extends Controller
         if ($bookings->isEmpty()) {
             $pdfHotels = [];
             $pdfDays = [];
+            $pdfCountryGroups = [];
+            $isMultiCountry = false;
         } else {
             $bookings = $this->formatBookings($bookings);
             $itineraryByDate = [];
@@ -2702,7 +2671,36 @@ class BookingListController extends Controller
             ksort($itineraryByDate);
 
             $pdfHotels = $this->buildPdfHotels($bookings);
-            $pdfDays = $this->buildPdfDays($itineraryByDate, $tourDetails);
+
+            $multiMeta = $this->resolveMultiCountryItineraryMeta($tourDetails, auth()->user());
+            $isMultiCountry = $multiMeta['isMultiCountry'];
+            $tourCountries = $multiMeta['tourCountries'];
+            $cityCountryMap = $this->buildCityCountryMap();
+
+            $tourDateKeys = array_keys($itineraryByDate);
+            $tourFirstDate = $tourDateKeys[0] ?? null;
+            $tourLastDate = $tourDateKeys[count($tourDateKeys) - 1] ?? null;
+
+            $pdfCountryGroups = [];
+            if ($isMultiCountry) {
+                $grouped = $this->groupItineraryBookingsByCountry($itineraryByDate, $tourCountries, $cityCountryMap);
+                foreach ($grouped as $countryName => $countryDates) {
+                    $pdfCountryGroups[] = [
+                        'name' => $countryName,
+                        'days' => $this->buildPdfDays($countryDates, $tourDetails, $tourFirstDate, $tourLastDate),
+                    ];
+                }
+                // Keep a flat merge for start/end date helpers
+                $pdfDays = [];
+                foreach ($pdfCountryGroups as $group) {
+                    foreach ($group['days'] as $dateStr => $day) {
+                        $pdfDays[$dateStr] = $day;
+                    }
+                }
+                ksort($pdfDays);
+            } else {
+                $pdfDays = $this->buildPdfDays($itineraryByDate, $tourDetails, $tourFirstDate, $tourLastDate);
+            }
         }
 
         $startDate = $tourDetails && $tourDetails->check_in_time ? \Carbon\Carbon::parse($tourDetails->check_in_time) : null;
@@ -2738,6 +2736,8 @@ class BookingListController extends Controller
             'adults' => $tourDetails->adult ?? 0,
             'pdfHotels' => $pdfHotels ?? [],
             'pdfDays' => $pdfDays ?? [],
+            'pdfCountryGroups' => $pdfCountryGroups ?? [],
+            'isMultiCountry' => $isMultiCountry ?? false,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'terms_and_conditions' => $terms_and_conditions,
@@ -2886,9 +2886,13 @@ class BookingListController extends Controller
         return $hotels;
     }
 
-    private function buildPdfDays($itineraryByDate, $tourDetails)
+    private function buildPdfDays($itineraryByDate, $tourDetails, ?string $tourFirstDate = null, ?string $tourLastDate = null)
     {
         $days = [];
+        $dateKeys = array_keys($itineraryByDate);
+        $tourFirstDate = $tourFirstDate ?? ($dateKeys[0] ?? null);
+        $tourLastDate = $tourLastDate ?? ($dateKeys[count($dateKeys) - 1] ?? null);
+
         foreach ($itineraryByDate as $dateStr => $dayBookings) {
             $rows = [];
             $entryPorts = [];
@@ -2948,8 +2952,8 @@ class BookingListController extends Controller
             usort($hotels, $cmp);
             usort($regular, $cmp);
 
-            $isFirst = empty($days);
-            $isLast = ($dateStr === array_key_last($itineraryByDate));
+            $isFirst = ($tourFirstDate !== null && $dateStr === $tourFirstDate);
+            $isLast = ($tourLastDate !== null && $dateStr === $tourLastDate);
             $all = [];
             if ($isFirst) {
                 $all = array_merge($all, $entryPorts);
@@ -2971,6 +2975,132 @@ class BookingListController extends Controller
             ];
         }
         return $days;
+    }
+
+    /**
+     * Whether Country → Days itinerary layout should be used (multi-destination + third-party gate).
+     *
+     * @return array{tourCountries: array<int, string>, isMultiCountry: bool}
+     */
+    private function resolveMultiCountryItineraryMeta($tourDetails, $currentUser = null): array
+    {
+        $tourCountries = CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+        $isMultiCountry = count($tourCountries) > 1;
+
+        if ($isMultiCountry) {
+            $operatingDmcUser = null;
+            $currentUser = $currentUser ?: auth()->user();
+            if (!empty($currentUser)) {
+                $operatingDmcId = $this->getDmcIdByUserRole($currentUser);
+                if ($operatingDmcId) {
+                    $operatingDmcUser = User::where('userId', $operatingDmcId)
+                        ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
+                }
+            }
+            if (!$operatingDmcUser && !empty($tourDetails->dmc_id)) {
+                $operatingDmcUser = User::where('userId', $tourDetails->dmc_id)
+                    ->first(['userId', 'thirdparty', 'thirdparty_enabled', 'role_id']);
+            }
+
+            $isThirdParty = strtolower((string) ($operatingDmcUser->thirdparty ?? 'no')) === 'yes';
+            $thirdPartyEnabled = strtolower((string) ($operatingDmcUser->thirdparty_enabled ?? 'no')) === 'yes';
+            if ($isThirdParty && !$thirdPartyEnabled) {
+                $isMultiCountry = false;
+            }
+        }
+
+        return [
+            'tourCountries' => $tourCountries,
+            'isMultiCountry' => $isMultiCountry,
+        ];
+    }
+
+    /**
+     * @return array<string, string> lowercase city name => country
+     */
+    private function buildCityCountryMap(): array
+    {
+        return City::whereNull('deleted_at')
+            ->get(['name', 'country'])
+            ->mapWithKeys(function ($city) {
+                $name = mb_strtolower(trim((string) $city->name));
+                $country = trim((string) ($city->country ?? ''));
+
+                return $name !== '' ? [$name => $country] : [];
+            })
+            ->all();
+    }
+
+    /**
+     * Group date→bookings by country; order countries by earliest service date.
+     * Fills gaps only between each country's first and last booked dates.
+     *
+     * @param  array<string, array>  $itineraryByDate
+     * @param  array<int, string>  $tourCountries
+     * @param  array<string, string>  $cityCountryMap
+     * @return array<string, array<string, array>> country => date => bookings
+     */
+    private function groupItineraryBookingsByCountry(array $itineraryByDate, array $tourCountries, array $cityCountryMap): array
+    {
+        $byCountry = [];
+        foreach ($itineraryByDate as $dateStr => $dayBookings) {
+            foreach ($dayBookings as $booking) {
+                $resolvedCountry = CommonHelper::resolveBookingServiceCountry(
+                    $booking,
+                    $tourCountries,
+                    $cityCountryMap
+                );
+                if (!isset($byCountry[$resolvedCountry][$dateStr])) {
+                    $byCountry[$resolvedCountry][$dateStr] = [];
+                }
+                $byCountry[$resolvedCountry][$dateStr][] = $booking;
+            }
+        }
+
+        $destinationOrder = [];
+        foreach ($tourCountries as $idx => $countryName) {
+            $destinationOrder[$countryName] = $idx;
+        }
+
+        $orderedNames = array_keys($byCountry);
+        usort($orderedNames, function ($a, $b) use ($byCountry, $destinationOrder) {
+            $aDates = array_keys($byCountry[$a]);
+            $bDates = array_keys($byCountry[$b]);
+            sort($aDates);
+            sort($bDates);
+            $aFirst = $aDates[0] ?? '9999-12-31';
+            $bFirst = $bDates[0] ?? '9999-12-31';
+            if ($aFirst !== $bFirst) {
+                return strcmp($aFirst, $bFirst);
+            }
+
+            return ($destinationOrder[$a] ?? 999) <=> ($destinationOrder[$b] ?? 999);
+        });
+
+        $ordered = [];
+        foreach ($orderedNames as $countryName) {
+            $countryDates = $byCountry[$countryName];
+            ksort($countryDates);
+            $keys = array_keys($countryDates);
+            if (count($keys) === 0) {
+                continue;
+            }
+
+            $rangeStart = \Carbon\Carbon::parse($keys[0]);
+            $rangeEnd = \Carbon\Carbon::parse($keys[count($keys) - 1]);
+            $cursor = $rangeStart->copy();
+            $filled = [];
+            while ($cursor->lte($rangeEnd)) {
+                $ds = $cursor->format('Y-m-d');
+                if (array_key_exists($ds, $itineraryByDate)) {
+                    $filled[$ds] = $countryDates[$ds] ?? [];
+                }
+                $cursor->addDay();
+            }
+            $ordered[$countryName] = $filled;
+        }
+
+        return $ordered;
     }
 
     private function bookingToPdfRow($booking, $data, $type, $dateStr)
