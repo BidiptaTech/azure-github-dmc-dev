@@ -72,7 +72,7 @@
                     @foreach($ordersList as $index => $transportOrder)
                         @php
                             $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($transportOrder, $pageCurrency);
-                            $orderCountry = trim((string) ($transportOrder->country ?? ''));
+                            $orderCountry = trim((string) ($transportOrder->resolved_service_country ?? $transportOrder->country ?? ''));
                             $payload = is_string($transportOrder->data) ? json_decode($transportOrder->data, true) : $transportOrder->data;
                         @endphp
 
@@ -189,7 +189,7 @@
                                     }
                                 @endphp
 
-                                <div class="svc-panel">
+                                <div class="svc-panel svc-country-item" data-service-country="{{ $orderCountry !== '' ? $orderCountry : 'Other' }}">
                                     <div class="svc-panel-head">
                                         <div class="svc-panel-head-main">
                                             @if(!empty($vehicleImage))
