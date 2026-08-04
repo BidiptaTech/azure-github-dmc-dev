@@ -27,6 +27,7 @@ use App\Models\Restaurant;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Tour;
@@ -281,125 +282,157 @@ class HotelController extends Controller
     * Store new hotel.
     * Date 05-11-2024
     */
+    /**
+     * True when Summernote/HTML description has real text content.
+     */
+    private function hotelDescriptionHasContent(?string $html): bool
+    {
+        $text = trim(html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $text = preg_replace('/\x{00A0}|\s+/u', '', $text ?? '');
+
+        return $text !== '';
+    }
+
     public function store(Request $request)
     {
+        // Validate first — never catch ValidationException as a generic error.
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:50',
+            'email' => 'required|email|max:255',
+            'address' => 'required|string|max:500',
+            'auto_cancel_date' => 'required',
+            'country' => 'required|string',
+            'location' => 'required|string',
+            'pincode' => 'required',
+            'latitude' => 'required',
+            'longitude' => 'required',
+            'infant_age_limit' => 'required',
+            'child_age_limit' => 'required',
+            'extra_bed_age_limit' => 'required',
+            'hotel_category' => 'required',
+            'hotel_ownership' => 'required',
+            'hotel_segment' => 'required',
+            'hotel_star_rating' => 'required',
+            'weekend_days' => 'required|array|min:1',
+            'description' => 'required',
+            'master_image' => 'required|image|mimes:jpeg,jpg,png,webp,gif|max:5120', // 5MB
+            'all_images.*' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
+            'country_code' => 'required',
+        ], [
+            'description.required' => 'Hotel description is mandatory.',
+            'location.required' => 'City is mandatory.',
+            'master_image.required' => 'Please upload master image.',
+            'master_image.image' => 'Master image must be a valid image file (JPEG, PNG, WEBP or GIF).',
+            'master_image.max' => 'Master image must not exceed 5 MB. Please compress the image and try again.',
+            'all_images.*.image' => 'Each additional image must be a valid image file.',
+            'all_images.*.max' => 'Each additional image must not exceed 5 MB. Please compress oversized images and try again.',
+            'weekend_days.required' => 'Please select at least one weekend day.',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            if (!$this->hotelDescriptionHasContent($request->input('description'))) {
+                $validator->errors()->add('description', 'Hotel description is mandatory.');
+            }
+            if ($request->input('hotel_ownership') == '1' && trim((string) $request->input('chain_name')) === '') {
+                $validator->errors()->add('chain_name', 'Chain hotel name is mandatory for chain hotels.');
+            }
+            // Reject when PHP dropped oversized uploads (upload_max_filesize / post_max_size)
+            if ($request->hasFile('master_image') === false && $request->file('master_image') === null) {
+                // already covered by required when missing; when too large PHP may leave empty
+            }
+            foreach ((array) ($request->file('all_images') ?? []) as $idx => $file) {
+                if ($file && !$file->isValid() && $file->getError() === UPLOAD_ERR_INI_SIZE) {
+                    $validator->errors()->add("all_images.$idx", 'An additional image exceeds the server upload limit. Please use a smaller file (max 5 MB).');
+                }
+            }
+            if ($request->file('master_image') && !$request->file('master_image')->isValid()
+                && $request->file('master_image')->getError() === UPLOAD_ERR_INI_SIZE) {
+                $validator->errors()->add('master_image', 'Master image exceeds the server upload limit. Please use a file under 5 MB.');
+            }
+        });
+
+        if ($validator->fails()) {
+            $redirect = redirect()->back()->withErrors($validator)->withInput();
+            if ($validator->errors()->has('description')) {
+                $redirect->with('focus_field', 'description');
+            } elseif ($validator->errors()->has('master_image')) {
+                $redirect->with('focus_field', 'master_image');
+            }
+
+            return $redirect;
+        }
+
         try {
             $dialCode = $request->country_code;
-            $country_code = User::dialCodeToCountryCode($dialCode);
-            $countryCode = strtoupper(substr($country_code, 0, 2)); 
-            $hotelName = strtoupper(substr($request->input('name'), 0, 3)); 
-            $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT); 
+            $country_code = User::dialCodeToCountryCode($dialCode) ?: 'XX';
+            $countryCode = strtoupper(substr((string) $country_code, 0, 2));
+            $hotelName = strtoupper(substr((string) $request->input('name'), 0, 3));
+            $randomDigits = str_pad((string) rand(0, 99999), 5, '0', STR_PAD_LEFT);
             $display_id = $countryCode . $hotelName . $randomDigits;
             $uniqueId = uniqid('', true);
             $unique_id = substr($uniqueId, -16);
-            // 🔒 Validation with Try-Catch
-            $validatedData = $request->validate([
-                'name' => 'required|string',
-                'phone' => 'required|string',
-                'email' => 'required|email',
-                'address' => 'required|string',
-                // 'state' => 'required|string',
-                'auto_cancel_date' => 'required',
-                'country' => 'required|string',
-                'pincode' => 'required',
-                'latitude' => 'required',
-                'longitude' => 'required',
-                'infant_age_limit' => 'required',
-                'child_age_limit' => 'required',
-                'extra_bed_age_limit' => 'required',
-                'description' => 'required',
-                'master_image' => 'nullable|image',
-                'images.*' => 'nullable|image',
-            ]);
-    
-            // ✅ Master Image
+
+            // Master Image
             $mainImagePath = ['master_value' => null];
             if ($request->hasFile('master_image')) {
-                $image = $request->file('master_image');
-                $mainImagePath = CommonHelper::image_path('file_storage', $image);
+                $mainImagePath = CommonHelper::image_path('file_storage', $request->file('master_image'));
+                if (empty($mainImagePath['master_value'])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['master_image' => 'Unable to upload master image. Please try a smaller JPEG/PNG file and try again.'])
+                        ->with('focus_field', 'master_image');
+                }
             }
-    
-            // ✅ Gallery Images
+
+            // Gallery Images (all_images[] from create form; fallback to images[] if present)
             $imagePaths = [];
+            $galleryFiles = [];
             if ($request->hasFile('all_images')) {
-                foreach ($request->file('all_images') as $image) {
+                $galleryFiles = array_values(array_filter((array) $request->file('all_images')));
+            } elseif ($request->hasFile('images')) {
+                $galleryFiles = array_values(array_filter((array) $request->file('images')));
+            }
+
+            $galleryFailures = [];
+            foreach ($galleryFiles as $image) {
+                if (!$image) {
+                    continue;
+                }
+                if (!$image->isValid()) {
+                    $galleryFailures[] = $image->getClientOriginalName() ?: 'image';
+                    continue;
+                }
+                if ($image->getSize() > 5 * 1024 * 1024) {
+                    $galleryFailures[] = ($image->getClientOriginalName() ?: 'image') . ' (over 5 MB)';
+                    continue;
+                }
+                try {
                     $pathData = CommonHelper::image_path('file_storage', $image);
                     if (!empty($pathData['master_value'])) {
                         $imagePaths[] = $pathData['master_value'];
+                    } else {
+                        $galleryFailures[] = $image->getClientOriginalName() ?: 'image';
                     }
+                } catch (\Throwable $uploadEx) {
+                    Log::error('Hotel gallery upload failed: ' . $uploadEx->getMessage());
+                    $galleryFailures[] = $image->getClientOriginalName() ?: 'image';
                 }
             }
+
+            if (!empty($galleryFiles) && empty($imagePaths)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'all_images' => 'Additional images could not be uploaded'
+                            . (!empty($galleryFailures) ? ' (' . implode(', ', $galleryFailures) . ')' : '')
+                            . '. Please use JPEG/PNG files under 5 MB and try again.',
+                    ])
+                    ->with('focus_field', 'all_images');
+            }
+
             $auth_user = Auth::user();
-            // if ($auth_user->role_id == 1 || $auth_user->role_id == 2 || $auth_user->role_id == 23) {
-            //     $dmc_id = $request->dmc;
-            //     $status = 1;
-            // } elseif ($auth_user->role_id == 11) {
-            //     $dmc_id = $auth_user->userId;
-            //     $status = 1;
-            // } elseif(auth()->user()->role_id ==35){
-            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
-            //     $dmc_id = $userdmc->userId;
-            //     $status = 1;
-            // }
-            // elseif(auth()->user()->role_id == 77){
-            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            //     $status = 1;
-            //     $dmc_id = $user_product_head_dmc->userId;
-            // }
-            // elseif(auth()->user()->role_id == 84){
-            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            //     $dmc_id = $user_product_head_dmc->userId;
-            //     $status = 1;
-            // }
-            // else{
-            //     $dmc_id = $request->dmc;
-            //     $status = 1;
-            // }
-            // $dmc_id = User::where('role_id', 20)->value('userId') ?? 0;
-            
-            // 🔍 Check for existing hotel at same lat/lng for this DMC
-            // $existingHotel = Hotel::where([
-            //     ['latitude', $request->latitude],
-            //     ['longitude', $request->longitude],
-            //     ['dmc_id', $dmc_id]
-            // ])->first();
-    
-            // if ($existingHotel) {
-            //     return redirect()->back()
-            //         ->withInput()
-            //         ->with('error', 'A hotel already exists at this location for the selected DMC.');
-            // }
 
-            // if(auth()->user()->role_id ==35){
-            //     $userdmc = User::where('userId', auth()->user()->created_by)->first();
-            //     $dmc_id = $userdmc->userId;
-            // }
-            // elseif(auth()->user()->role_id == 77){
-            //     $user_product_head = User::where('userId', auth()->user()->created_by)->first();
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-
-            //     $dmc_id = $user_product_head_dmc->userId;
-            // }
-            // elseif(auth()->user()->role_id == 84){
-            //     $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
-
-            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-
-            //     $dmc_id = $user_product_head_dmc->userId;
-            // }
-            // elseif($auth_user->role_id == 11) {
-            //     $dmc_id = $auth_user->userId;
-            // }
-            // else{
-            //     $dmc_id = $request->dmc;
-            // }
-    
-            // ✅ Create Hotel
             $hotel = Hotel::create([
                 'user_type' => $auth_user->user_type,
                 'userId' => $auth_user->userId,
@@ -439,19 +472,23 @@ class HotelController extends Controller
                 'chain_hotel_name' => $request->input('chain_name'),
                 'is_complete' => 0,
             ]);
-    
-            // if (in_array($auth_user->role_id, [11, 35, 77 , 84])) {
-            //     return view('hotel.thankyou');
-            // }
-    
+
             return redirect()->route('hotels.contact', ['hotel' => $hotel->hotel_unique_id])
                 ->with('success', 'Hotel created successfully');
-    
-        } catch (\Exception $e) {
-            Log::error('Hotel Creation Failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Hotel Creation Failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+            ]);
+
+            $message = 'Unable to save the hotel. Please verify all mandatory fields and image sizes (max 5 MB each), then try again.';
+            if (str_contains(strtolower($e->getMessage()), 'upload') || str_contains(strtolower($e->getMessage()), 'image')) {
+                $message = 'Image upload failed. Please use JPEG/PNG files under 5 MB and try again.';
+            }
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'An unexpected error occurred. Please try again later.');
+                ->with('error', $message);
         }
     }
     
@@ -593,53 +630,55 @@ class HotelController extends Controller
     */
     public function update(Request $request, $id)
     {
-        try {
-            // Check total request size before processing
-            $contentLength = $request->header('Content-Length');
-            if ($contentLength && $contentLength > 100 * 1024 * 1024) { // 100MB limit
-                return redirect()->back()->withInput()->with('error', 'Upload size too large. Please reduce image sizes or upload fewer images.');
-            }
-            
-            $request->validate([
-                'name' => 'required|string',
-                'phone' => 'required|string',
-                'email' => 'required|email',
-                'address' => 'required|string',
-                'city' => 'required|string',
-                'auto_cancel_date' => 'required',
-                // 'state' => 'required|string',
-                'country' => 'required|string',
-                'pincode' => 'required',
-                'latitude' => 'required',
-                'time_range' => 'required',
-                'longitude' => 'required',
-                // 'is_active' => 'required|integer',
-                'master_image' => 'nullable|image|max:20480', // 20MB limit
-                'all_images.*' => 'nullable|image|max:20480', // 20MB limit per image
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Return user-friendly validation errors
-            return redirect()->back()->withInput()->withErrors($e->errors())->with('error', 'Please check the form errors and try again.');
+        // Check total request size before processing
+        $contentLength = $request->header('Content-Length');
+        if ($contentLength && $contentLength > 100 * 1024 * 1024) { // 100MB limit
+            return redirect()->back()->withInput()->with('error', 'Upload size too large. Please reduce image sizes or upload fewer images (max 5 MB each).');
         }
-        // $validatedData = $request->validate([
-        //     'name' => 'required|string',
-        //     'category_type' => 'required|integer',
-        //     'phone' => 'required|string',
-        //     'email' => 'required|email',
-        //     'address' => 'required|string',
-        //     'city' => 'required|string',
-        //     'state' => 'required|string',
-        //     'country' => 'required|string',
-        //     'pincode' => 'required|integer',
-        //     'latitude' => 'required',
-        //     'time_range' => 'required',
-        //     'longitude' => 'required',
-        //     'status' => 'required|integer',
-        //     'master_image' => 'nullable|image',
-        //     'images.*' => 'nullable|image',
-        // ]);
 
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:50',
+            'email' => 'required|email|max:255',
+            'address' => 'required|string|max:500',
+            'city' => 'required|string',
+            'auto_cancel_date' => 'required',
+            'country' => 'required|string',
+            'pincode' => 'required',
+            'latitude' => 'required',
+            'time_range' => 'required',
+            'longitude' => 'required',
+            'description' => 'required',
+            'master_image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
+            'all_images.*' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:5120',
+        ], [
+            'description.required' => 'Hotel description is mandatory.',
+            'master_image.image' => 'Master image must be a valid image file (JPEG, PNG, WEBP or GIF).',
+            'master_image.max' => 'Master image must not exceed 5 MB. Please compress the image and try again.',
+            'all_images.*.image' => 'Each additional image must be a valid image file.',
+            'all_images.*.max' => 'Each additional image must not exceed 5 MB. Please compress oversized images and try again.',
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            if (!$this->hotelDescriptionHasContent($request->input('description'))) {
+                $validator->errors()->add('description', 'Hotel description is mandatory.');
+            }
+        });
+
+        if ($validator->fails()) {
+            $redirect = redirect()->back()->withErrors($validator)->withInput();
+            if ($validator->errors()->has('description')) {
+                $redirect->with('focus_field', 'description');
+            }
+
+            return $redirect;
+        }
+
+        try {
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
+        if (!$hotel) {
+            return redirect()->route('hotels.index')->with('error', 'Hotel not found.');
+        }
         
         // Handle master image
         $storage_file = $hotel->main_image;
@@ -663,6 +702,12 @@ class HotelController extends Controller
             
             $image = $request->file('master_image');
             $storage_file = CommonHelper::image_path('file_storage', $image);
+            if (empty($storage_file['master_value'] ?? null) && empty($storage_file)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['master_image' => 'Unable to upload master image. Please try a smaller JPEG/PNG file under 5 MB.'])
+                    ->with('focus_field', 'master_image');
+            }
         }
 
         // Handle additional images with better error handling
@@ -679,7 +724,7 @@ class HotelController extends Controller
                 
                 try {
                     // Validate image size
-                    if ($image->getSize() > 20 * 1024 * 1024) { // 20MB limit per image
+                    if ($image->getSize() > 5 * 1024 * 1024) { // 5MB limit per image
                         Log::warning("Image too large, skipping: " . $image->getClientOriginalName());
                         continue;
                     }
@@ -740,7 +785,7 @@ class HotelController extends Controller
             'zipcode' => $request->input('pincode'),
             'latitude' => $request->input('latitude'),
             'longitude' => $request->input('longitude'),
-            'main_image' => $storage_file['master_value'] ?? $storage_file,
+            'main_image' => is_array($storage_file) ? ($storage_file['master_value'] ?? $hotel->main_image) : $storage_file,
             'check_in_time' => $request->input('check_in_time'),
             'check_out_time' => $request->input('check_out_time'),
             'phone' => $request->input('phone'),
@@ -759,10 +804,16 @@ class HotelController extends Controller
             'hotel_star_rating' => $request->input('hotel_star_rating'),
         ]);
 
-        if ($hotel) {
-            return redirect()->route('hotels.contact', ['hotel' => $hotel->hotel_unique_id])->with('success', 'Hotel updated successfully');
-        } else {
-            return redirect()->back()->withInput()->with('error', 'Something went wrong, please try again');
+        return redirect()->route('hotels.contact', ['hotel' => $hotel->hotel_unique_id])->with('success', 'Hotel updated successfully');
+        } catch (\Throwable $e) {
+            Log::error('Hotel Update Failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'hotel_id' => $id,
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Unable to update the hotel. Please verify all mandatory fields and image sizes (max 5 MB each), then try again.');
         }
     }
 
