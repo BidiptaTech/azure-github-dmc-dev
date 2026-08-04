@@ -70,7 +70,7 @@
                     @foreach($ordersList as $index => $serviceOrder)
                         @php
                             $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($serviceOrder, $pageCurrency);
-                            $orderCountry = trim((string) ($serviceOrder->country ?? ''));
+                            $orderCountry = trim((string) ($serviceOrder->resolved_service_country ?? $serviceOrder->country ?? ''));
                             $payload = is_string($serviceOrder->data) ? json_decode($serviceOrder->data, true) : $serviceOrder->data;
                         @endphp
 
@@ -80,6 +80,7 @@
                                     @continue
                                 @endif
 
+                                <div class="svc-country-item" data-service-country="{{ $orderCountry !== '' ? $orderCountry : 'Other' }}">
                                 @if($serviceKey === 'hotel')
                                     @include('bookings.partials.enquiry-service-cards.hotel', [
                                         'tour' => $tour,
@@ -113,6 +114,7 @@
                                         'index' => $index,
                                     ])
                                 @endif
+                                </div>
                             @endforeach
                         @endif
                     @endforeach

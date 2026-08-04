@@ -10,9 +10,9 @@
                 <h4 class="fw-bold mb-1"><i class="ri-suitcase-line me-2 text-primary"></i>Package Booking</h4>
                 <p class="text-muted mb-0">Choose booking criteria, load a package, then modify services.</p>
             </div>
-            <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">
+            {{-- <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">
                 <i class="ri-arrow-left-line me-1"></i>Back
-            </a>
+            </a> --}}
         </div>
 
         <form action="{{ route('packages.booking.store') }}" method="POST" id="package-booking-form">

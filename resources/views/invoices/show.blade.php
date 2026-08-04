@@ -454,7 +454,7 @@ use Illuminate\Support\Facades\Crypt;
                                 $baseAmountTop = $negotiatedAmountTop ?? $actualAmountTop;
                                 $gstAmountTop = $invoice->gst_amount ?? 0;
                                 $finalPriceTop = $shouldShowTax ? ($baseAmountTop + $gstAmountTop) : $baseAmountTop;
-                                $paymentReceivedTop = $invoice->payment_received ?? 0;
+                                $paymentReceivedTop = $invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0);
                                 $outstandingBalanceTop = $finalPriceTop - $paymentReceivedTop;
                                 if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
                                     $tpSummaryTop = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
@@ -1332,7 +1332,7 @@ use Illuminate\Support\Facades\Crypt;
                             $taxBreakdown = $notes['tax_breakdown'] ?? [];
                             $gstAmount = $invoice->gst_amount ?? 0;
                             $finalPrice = $baseAmount + $gstAmount;
-                            $paymentReceived = $invoice->payment_received ?? 0;
+                            $paymentReceived = $invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0);
                             $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
 
                             if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
@@ -1351,6 +1351,8 @@ use Illuminate\Support\Facades\Crypt;
                                 $finalPrice = $tpSummary['finalPrice'];
                                 $paymentReceived = $tpSummary['paymentReceived'];
                                 $outstandingBalance = $tpSummary['outstandingBalance'];
+                            } else {
+                                $outstandingBalance = (float) $finalPrice - (float) $paymentReceived;
                             }
                         @endphp
                         @if(!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation['rows']))
