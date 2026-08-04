@@ -725,7 +725,7 @@
                                     <div class="mt-3 mb-3 col-md-4">
                                         <div>
                                             <label for="master_image" class="form-label"><strong>Master
-                                                    Image</strong></label>
+                                                    Image</strong> <span class="text-muted small">(Optional on update)</span></label>
                                             <div id="master-drop-area" class="form-control"
                                                 style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px; 
                                                 @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
@@ -734,14 +734,19 @@
                                                 @else
                                                     Image upload is restricted for your role.
                                                 @endif
-                                                <input type="file" id="master_image" name="master_image" multiple
+                                                <input type="file" id="master_image" name="master_image"
+                                                    accept="image/jpeg,image/png,image/webp,image/gif"
                                                     style="display: none;"
                                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                             </div>
-                                            <small class="text-muted mt-1">
-                                                <i class="fas fa-info-circle"></i> 
-                                                Images will be automatically compressed for faster upload.
+                                            <small class="text-muted mt-1 d-block">
+                                                <i class="fas fa-info-circle"></i>
+                                                Maximum size: <strong>5 MB</strong>. Images are compressed for faster upload.
                                             </small>
+                                            <div id="master-image-error" class="text-danger mt-1" style="display:none;"></div>
+                                            @error('master_image')
+                                                <div class="text-danger mt-1">{{ $message }}</div>
+                                            @enderror
                                         </div>
                                         <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                             style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
@@ -767,9 +772,9 @@
 
                                     <!-- Additional Image drop -->
                                     <div class="mt-3 mb-3 col-md-8">
-                                                                            <div>
+                                        <div>
                                         <label for="images" class="form-label"><strong>Additional
-                                                Images</strong></label>
+                                                Images</strong> <span class="text-muted small">(Optional)</span></label>
                                         <div id="drop-area" class="form-control"
                                             style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) background-color: #f8f9fa; opacity: 0.6; pointer-events: none; @endif">
@@ -778,7 +783,7 @@
                                             @else
                                                 Image upload is restricted for your role.
                                             @endif
-                                            <input type="file" id="images" name="images[]" multiple
+                                            <input type="file" id="images" accept="image/jpeg,image/png,image/webp,image/gif" multiple
                                                 style="display: none;"
                                                 @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         </div>
@@ -816,7 +821,7 @@
                                             @endforeach
                                             @endif
                                         </div>
-                                        <input type="file" name="all_images[]" id="all-images" style="display: none;">
+                                        <input type="file" name="all_images[]" id="all-images" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display: none;">
 
                                         @error('images')
                                         <div class="text-danger mt-1">{{ $message }}</div>
@@ -827,13 +832,14 @@
                                 </div>
 
                                 <!-- Description -->
-                                <div class="col-md-12 mb-3">
+                                <div class="col-md-12 mb-3" id="description-field-wrap">
                                     <label for="description" class="form-label"><strong>Hotel Description</strong><span
                                             style="color: red;">*</span></label>
-                                    <textarea id="summernote" name="description" class="form-control" rows="10"
-                                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('description', $hotel->description) }}</textarea required>
+                                    <textarea id="summernote" name="description" class="form-control @error('description') is-invalid @enderror" rows="10"
+                                              @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>{{ old('description', $hotel->description) }}</textarea>
+                                    <div id="description-client-error" class="text-danger mt-1" style="display:none;">Hotel description is mandatory.</div>
                                     @error('description')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        <div class="text-danger mt-1 description-server-error">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
@@ -843,8 +849,8 @@
                                 <label for="hotel_status" class="form-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
                                 <input type="hidden" name="hotel_status" value="0">
                                 <input class="form-check-input" name="hotel_status" 
-                                    @if($hotel->is_active == 1) checked @endif 
-                                    type="checkbox" id="hotel_status" value="1" required
+                                    @if(old('hotel_status', $hotel->is_active) == 1) checked @endif 
+                                    type="checkbox" id="hotel_status" value="1"
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <label class="form-check-label"></label>
                                 @error('hotel_status')
@@ -1186,12 +1192,18 @@
                         finalFile = await compressImage(file, 0.7, 1600, 1200); // More aggressive compression for multiple files
                     }
                     
-                    // Check total size limit (keep under 80MB total)
+                    // Reject oversized source images before/after compression
+                    if (fileSizeMB > 5) {
+                        alert(`${file.name} is ${fileSizeMB.toFixed(1)} MB. Maximum allowed size is 5 MB. Please compress the image and try again.`);
+                        continue;
+                    }
+
+                    // Check total size limit
                     const currentTotalSize = files.reduce((total, f) => total + f.size, 0);
                     const totalSizeMB = (currentTotalSize + finalFile.size) / 1024 / 1024;
                     
-                    if (totalSizeMB > 80) {
-                        alert(`Total upload size would exceed 80MB limit. Please remove some images or upload in smaller batches.`);
+                    if (totalSizeMB > 50) {
+                        alert(`Total upload size would exceed the allowed limit. Please remove some images or upload in smaller batches.`);
                         break;
                     }
                     
@@ -1358,8 +1370,70 @@
     // Form submission handler with upload progress and error handling
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('hotelForm');
+        const focusField = @json(session('focus_field'));
+        const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+        function stripHtml(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html || '';
+            return (tmp.textContent || tmp.innerText || '').replace(/\u00a0/g, ' ').trim();
+        }
+
+        function focusDescription() {
+            const wrap = document.getElementById('description-field-wrap');
+            if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try {
+                if (window.jQuery && $('#summernote').length) {
+                    $('#summernote').summernote('focus');
+                }
+            } catch (err) {}
+            const err = document.getElementById('description-client-error');
+            if (err) err.style.display = 'block';
+            const note = document.querySelector('#description-field-wrap .note-editor');
+            if (note) note.style.borderColor = '#dc3545';
+        }
+
+        // Only after Save validation redirect — never on first page load
+        if (focusField === 'description' || document.querySelector('#description-field-wrap .description-server-error')) {
+            setTimeout(focusDescription, 400);
+        }
+
         if (form) {
             form.addEventListener('submit', function(e) {
+                try {
+                    if (window.jQuery && $('#summernote').length) {
+                        $('#summernote').val($('#summernote').summernote('code'));
+                    }
+                } catch (err) {}
+
+                const descVal = document.getElementById('summernote') ? document.getElementById('summernote').value : '';
+                if (!stripHtml(descVal)) {
+                    e.preventDefault();
+                    focusDescription();
+                    return false;
+                }
+                const descErr = document.getElementById('description-client-error');
+                if (descErr) descErr.style.display = 'none';
+
+                const masterInput = document.getElementById('master_image');
+                if (masterInput && masterInput.files && masterInput.files[0] && masterInput.files[0].size > MAX_IMAGE_BYTES) {
+                    e.preventDefault();
+                    const masterErr = document.getElementById('master-image-error');
+                    if (masterErr) {
+                        masterErr.style.display = 'block';
+                        masterErr.textContent = `Master image is ${(masterInput.files[0].size / (1024 * 1024)).toFixed(1)} MB. Maximum allowed size is 5 MB. Please compress the image and try again.`;
+                    }
+                    document.getElementById('master-drop-area')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+
+                // Sync gallery files into all_images[] before submit (requires multiple attribute)
+                if (typeof allImagesInput !== 'undefined' && allImagesInput) {
+                    const dt = new DataTransfer();
+                    files.forEach((f) => dt.items.add(f));
+                    allImagesInput.files = dt.files;
+                }
+
                 // Check if we have files to upload
                 const totalFiles = files.length;
                 if (totalFiles > 10) {
@@ -1368,13 +1442,20 @@
                     return false;
                 }
 
+                const oversized = files.filter(f => f.size > MAX_IMAGE_BYTES);
+                if (oversized.length) {
+                    e.preventDefault();
+                    alert(oversized.map(f => `${f.name} exceeds 5 MB.`).join(' ') + ' Please compress oversized images and try again.');
+                    return false;
+                }
+
                 // Check total upload size
                 const totalSize = files.reduce((total, f) => total + f.size, 0);
                 const totalSizeMB = totalSize / 1024 / 1024;
                 
-                if (totalSizeMB > 90) {
+                if (totalSizeMB > 50) {
                     e.preventDefault();
-                    alert('Total upload size is too large. Please reduce image sizes or upload fewer images.');
+                    alert('Total upload size is too large. Please reduce image sizes or upload fewer images (max 5 MB each).');
                     return false;
                 }
 
@@ -1483,12 +1564,32 @@
 
     // Process and display files
     async function masterHandleFiles(files) {
+        const maxBytes = 5 * 1024 * 1024;
+        const errEl = document.getElementById('master-image-error');
         // Show compression progress
         showCompressionProgress('master');
         
         for (const file of Array.from(files)) {
-            if (file.type.startsWith('image/')) {
-                try {
+            if (!file.type.startsWith('image/')) {
+                if (errEl) {
+                    errEl.style.display = 'block';
+                    errEl.textContent = `${file.name} is not a valid image file. Please upload JPEG, PNG, WEBP or GIF.`;
+                }
+                continue;
+            }
+            if (file.size > maxBytes) {
+                if (errEl) {
+                    errEl.style.display = 'block';
+                    errEl.textContent = `Master image is ${(file.size / (1024 * 1024)).toFixed(1)} MB. Maximum allowed size is 5 MB. Please compress the image and try again.`;
+                }
+                masterFileInput.value = '';
+                continue;
+            }
+            if (errEl) {
+                errEl.style.display = 'none';
+                errEl.textContent = '';
+            }
+            try {
                     // Compress the image
                     const compressedFile = await compressImage(file);
                     
@@ -1512,9 +1613,6 @@
                     console.error('Error compressing image:', error);
                     alert(`Error processing ${file.name}. Please try again.`);
                 }
-            } else {
-                alert(`${file.name} is not a valid image file.`);
-            }
         }
         
         // Hide compression progress
