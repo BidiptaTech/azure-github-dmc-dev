@@ -41,35 +41,78 @@ class ZoneController extends Controller
     }
 
     /**
-     * Resolve the DMC ID for the given user based on role hierarchy
-     * This mirrors the conditions used in index() for filtering zones.
+     * Resolve the owning DMC userId for the given user.
+     * Product / multi-role / team users under a DMC all resolve to that DMC.
      */
     private function resolveDmcIdForUser(User $user)
     {
+        if ((int) ($user->userId ?? 0) === 1 || (int) ($user->role_id ?? 0) === 1) {
+            return null;
+        }
+
+        // Shared hierarchy helper (covers most sales/ops/product/multi-role trees).
+        $fromHelper = CommonHelper::getDmcId($user);
+        if (!empty($fromHelper)) {
+            return (int) $fromHelper;
+        }
+
+        $roleId = (int) ($user->role_id ?? 0);
+
         // Direct DMC roles
-        if ($user->role_id == 11 || $user->role_id == 20) {
-            return $user->userId;
+        if ($roleId === 11 || $roleId === 20) {
+            return (int) $user->userId;
         }
 
-        // Team roles directly under a DMC
-        if ($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])) {
-            return $user->created_by;
-        }
-
-        // Roles under Product Head
-        if ($user->role_id == 76 || $user->role_id == 139) {
-            $productHead = User::where('userId', $user->created_by)->first();
-            return $productHead ? $productHead->created_by : null;
-        }
-
-        // Roles under Product Manager → Product Head
-        if ($user->role_id == 111 || $user->role_id == 140) {
-            $productManager = User::where('userId', $user->created_by)->first();
-            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
-            return $productHead ? $productHead->created_by : null;
+        // Walk created_by until we find a DMC (role 11/20).
+        // Covers Product Head/Manager, Multi Role (172–182), and other DMC team roles
+        // that may not be listed in CommonHelper::getDmcId.
+        $visited = [];
+        $candidateId = $user->created_by ?? null;
+        $safety = 0;
+        while (!empty($candidateId) && $safety < 10 && !in_array($candidateId, $visited, true)) {
+            $visited[] = $candidateId;
+            $candidate = User::where('userId', $candidateId)->first();
+            if (!$candidate) {
+                break;
+            }
+            $candidateRole = (int) ($candidate->role_id ?? 0);
+            if ($candidateRole === 11 || $candidateRole === 20) {
+                return (int) $candidate->userId;
+            }
+            $candidateId = $candidate->created_by ?? null;
+            $safety++;
         }
 
         return null;
+    }
+
+    /**
+     * Normalize zone.dmc_id (int|string|array|null) to a comparable int or null.
+     */
+    private function normalizeZoneDmcId($dmcId): ?int
+    {
+        if (is_array($dmcId)) {
+            $dmcId = $dmcId[0] ?? null;
+        }
+        if ($dmcId === null || $dmcId === '' || $dmcId === false) {
+            return null;
+        }
+        $n = (int) $dmcId;
+        return $n > 0 ? $n : null;
+    }
+
+    /**
+     * Whether the current user may edit/delete this zone (own DMC zones only).
+     */
+    private function canManageZone(User $user, Zone $zone): bool
+    {
+        if ((int) ($user->userId ?? 0) === 1 || (int) ($user->role_id ?? 0) === 1) {
+            // Admin manages master zones only (handled separately in callers when needed).
+            return $this->normalizeZoneDmcId($zone->dmc_id) === null;
+        }
+        $dmcId = $this->resolveDmcIdForUser($user);
+        $zoneDmcId = $this->normalizeZoneDmcId($zone->dmc_id);
+        return $dmcId && $zoneDmcId && (int) $dmcId === (int) $zoneDmcId;
     }
 
     /**
@@ -174,65 +217,57 @@ class ZoneController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $isAdmin = (int) ($user->userId ?? 0) === 1;
+        $dmcId = $this->resolveDmcIdForUser($user);
+        $roleId = (int) ($user->role_id ?? 0);
+
         // Build the base query first (so we can apply filters/sorting consistently).
         $zonesQuery = Zone::query();
 
         // Admin (userId == 1) sees ONLY admin-created master zones.
-        // Everyone else keeps legacy role-based zone filtering.
-        if ((int) ($user->userId ?? 0) === 1) {
+        // Everyone else: master zones + their DMC's zones (product / multi-role included).
+        if ($isAdmin) {
             $zonesQuery->whereNull('dmc_id');
             if (Schema::hasColumn('zones', 'created_by')) {
                 $zonesQuery->where('created_by', 1);
             }
         } else {
-            // For all non-admin users:
-            // show Master Zones (admin-created global zones) + the user's legacy DMC zones.
-            $zonesQuery->where(function ($q) use ($user) {
+            $zonesQuery->where(function ($q) use ($user, $dmcId, $roleId) {
                 // Master zones always visible
                 $q->whereNull('dmc_id')->orWhere('dmc_id', 0)->orWhere('dmc_id', '0');
-                
-                // Legacy DMC zones (keep existing behavior)
-                if ($user->role_id == 4) {
+
+                if ($roleId === 4) {
                     $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif ($user->role_id == 10) {
+                } elseif ($roleId === 10) {
                     $dmc_ids = User::where('master_dmc_id', $user->userId)->pluck('userId')->toArray();
                     $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif ($user->role_id == 11 || $user->role_id == 20) {
-                   
-                    $q->orWhere('dmc_id', $user->userId);
-                } elseif (in_array($user->role_id, ["25", "62", "110"], true)) {
-                    if($user->role_id == 25){
-
+                } elseif (in_array($roleId, [25, 62, 110], true)) {
+                    // Product team under Master DMC — see all child DMC zones
+                    if ($roleId === 25) {
                         $master_dmc_id = $user->created_by;
-                    }
-                    elseif($user->role_id == 62){
+                    } elseif ($roleId === 62) {
                         $product_head = User::where('userId', $user->created_by)->first();
-                        $master_dmc_id = $product_head->created_by;
-                    }
-                    else { // 110
+                        $master_dmc_id = $product_head ? $product_head->created_by : null;
+                    } else {
                         $product_manager = User::where('userId', $user->created_by)->first();
-                        $product_head = User::where('userId', $product_manager->created_by)->first();
-                        $master_dmc_id = $product_head->created_by;
+                        $product_head = $product_manager
+                            ? User::where('userId', $product_manager->created_by)->first()
+                            : null;
+                        $master_dmc_id = $product_head ? $product_head->created_by : null;
                     }
 
-                    $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
-                    $q->orWhereIn('dmc_id', $dmc_ids);
-                } elseif (in_array($user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
-                    $q->orWhere('dmc_id', $user->created_by);
-                } elseif ($user->role_id == 76 || $user->role_id == 139) {
-                    $product_head = User::where('userId', $user->created_by)->first();
-                    $q->orWhere('dmc_id', $product_head->created_by);
-                } elseif ($user->role_id == 111 || $user->role_id == 140) {
-                    $product_manager = User::where('userId', $user->created_by)->first();
-                    $product_head = User::where('userId', $product_manager->created_by)->first();
-                    $q->orWhere('dmc_id', $product_head->created_by);
+                    if ($master_dmc_id) {
+                        $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->pluck('userId')->toArray();
+                        $q->orWhereIn('dmc_id', $dmc_ids);
+                    }
+                } elseif (!empty($dmcId)) {
+                    // DMC, Product, Multi Role, and other team under that DMC
+                    $q->orWhere('dmc_id', $dmcId);
                 }
             });
         }
 
-        $isAdmin = (int) ($user->userId ?? 0) === 1;
-        $dmcId = $this->resolveDmcIdForUser($user);
         $masterDmcCountryNames = (!$isAdmin && $dmcId)
             ? $this->getMasterDmcCountryNamesForDmc((int) $dmcId)
             : [];
@@ -377,15 +412,19 @@ class ZoneController extends Controller
 
 
 
-        if ((int) (Auth::user()->userId ?? 0) === 1) {
+        $authUser = Auth::user();
+        if ((int) ($authUser->userId ?? 0) === 1) {
+            // Admin-created master zone
             $dmcIdForZone = null;
         } else {
-            $dmcIdForZone = $this->resolveDmcIdForUser(Auth::user());
+            // Always store parent DMC userId (never the product/multi-role userId)
+            $dmcIdForZone = $this->resolveDmcIdForUser($authUser);
             if (!$dmcIdForZone) {
                 return redirect()->back()
                     ->withErrors(['dmc_id' => 'DMC ID not found'])
                     ->withInput();
             }
+            $dmcIdForZone = (int) $dmcIdForZone;
         }
 
         $zoneTypes = $validated['zone_type'];
@@ -393,7 +432,7 @@ class ZoneController extends Controller
         $lastZone = null;
 
         foreach ($zoneTypes as $zoneType) {
-            $zone = Zone::create([
+            $payload = [
                 'zone_name' => trim($validated['zone_name']),
                 'zone_type' => $zoneType,
                 'vehicle_type' => $validated['vehicle_type'],
@@ -401,10 +440,11 @@ class ZoneController extends Controller
                 'city' => (string) $validated['city'],
                 'status' => (int) $validated['status'],
                 'dmc_id' => $dmcIdForZone,
-                ...(Schema::hasColumn('zones', 'created_by') && (int) (Auth::user()->userId ?? 0) === 1
-                    ? ['created_by' => Auth::user()->userId]
-                    : []),
-            ]);
+            ];
+            if (Schema::hasColumn('zones', 'created_by')) {
+                $payload['created_by'] = $authUser->userId;
+            }
+            $zone = Zone::create($payload);
 
             $createdCount++;
             $lastZone = $zone;
@@ -443,7 +483,7 @@ class ZoneController extends Controller
             || (int) ($user->userId ?? 0) === 1;
 
         $dmcId = $this->resolveDmcIdForUser($user);
-        if (!$isAdmin && (int) ($zone->dmc_id ?? 0) !== (int) ($dmcId ?? 0)) {
+        if (!$isAdmin && !$this->canManageZone($user, $zone)) {
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to edit this zone');
         }
@@ -479,10 +519,9 @@ class ZoneController extends Controller
             'city' => 'required',
             'status' => 'required|integer',
         ]);
-        $dmcId = $this->resolveDmcIdForUser(Auth::user());
         $isAdmin = (int) (Auth::user()->role_id ?? 0) === 1
             || (int) (Auth::user()->userId ?? 0) === 1;
-        if (!$isAdmin && (int) ($zone->dmc_id ?? 0) !== (int) ($dmcId ?? 0)) {
+        if (!$isAdmin && !$this->canManageZone(Auth::user(), $zone)) {
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to edit this zone');
         }
@@ -510,14 +549,13 @@ class ZoneController extends Controller
     {
         $zoneId = Crypt::decrypt($id);
         $zone = Zone::where('zone_id', $zoneId)->first();
-        $dmcId = $this->resolveDmcIdForUser(Auth::user());
-        if ($zone->dmc_id != $dmcId) {
-            return redirect()->route('zones.index')
-                ->with('error', 'You are not authorized to delete this zone');
-        }
         if (!$zone) {
             return redirect()->route('zones.index')
-                ->with('success', 'Zone deleted successfully');
+                ->with('error', 'Zone not found');
+        }
+        if (!$this->canManageZone(Auth::user(), $zone)) {
+            return redirect()->route('zones.index')
+                ->with('error', 'You are not authorized to delete this zone');
         }
 
         // Remove assignments for the DMC performing the delete (this is what user expects).
