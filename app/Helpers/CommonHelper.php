@@ -2086,6 +2086,315 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Country visibility for Services column / service modals on booking lists.
+     *
+     * Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no):
+     * only that DMC's own country/countries are visible.
+     * Master DMC, normal DMC, and enabled third-party: all tour countries.
+     *
+     * @return array{restricted: bool, countries: array<int, string>}
+     */
+    public static function resolveServiceCountryViewScope($user = null): array
+    {
+        $user = $user ?: Auth::user();
+        $empty = ['restricted' => false, 'countries' => []];
+        if (!$user) {
+            return $empty;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = (int) $user->userId;
+        }
+        if (!$dmcId) {
+            return $empty;
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return $empty;
+        }
+
+        $isThirdParty = strtolower(trim((string) ($dmcUser->thirdparty ?? 'no'))) === 'yes';
+        $isEnabled = strtolower(trim((string) ($dmcUser->thirdparty_enabled ?? 'no'))) === 'yes';
+        if (!$isThirdParty || $isEnabled) {
+            return $empty;
+        }
+
+        $countries = [];
+        foreach (preg_split('/\s*,\s*/', (string) ($dmcUser->country ?? '')) ?: [] as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $countries[] = $name;
+            }
+        }
+
+        $operating = self::resolveUserOperatingCountry($user);
+        if ($operating) {
+            $already = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $operating) === 0) {
+                    $already = true;
+                    break;
+                }
+            }
+            if (!$already) {
+                array_unshift($countries, $operating);
+            }
+        }
+
+        if (empty($countries)) {
+            return $empty;
+        }
+
+        return [
+            'restricted' => true,
+            'countries' => array_values(array_unique($countries)),
+        ];
+    }
+
+    /**
+     * Countries available as Services tabs for a tour, honouring third-party scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array<int, string>
+     */
+    public static function resolveTourServiceTabCountries(?string $destination, $orders = null, array $scope = []): array
+    {
+        $fromDestination = self::parseTourDestinationCountries($destination);
+        $fromOrders = [];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            $name = trim((string) ($order->country ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $matched = self::matchTourCountryName($name, $fromDestination) ?? $name;
+            $exists = false;
+            foreach ($fromOrders as $existing) {
+                if (strcasecmp($existing, $matched) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $fromOrders[] = $matched;
+            }
+        }
+
+        // Prefer destination order; append any order-only countries at the end
+        $countries = $fromDestination;
+        foreach ($fromOrders as $orderCountry) {
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $orderCountry) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $orderCountry;
+            }
+        }
+
+        if (!empty($scope['restricted']) && !empty($scope['countries'])) {
+            $allowed = $scope['countries'];
+            $countries = array_values(array_filter($countries, function ($country) use ($allowed) {
+                foreach ($allowed as $allowedCountry) {
+                    if (strcasecmp((string) $country, (string) $allowedCountry) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Whether a resolved booking country is visible under the viewer's scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     */
+    public static function isServiceCountryAllowed(string $country, array $scope = []): bool
+    {
+        if (empty($scope['restricted']) || empty($scope['countries'])) {
+            return true;
+        }
+
+        foreach ($scope['countries'] as $allowed) {
+            if (strcasecmp(trim($country), trim((string) $allowed)) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build Services-column data for booking list pages (country tabs + counts).
+     *
+     * @param  object  $tour
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array{
+     *   orders: \Illuminate\Support\Collection,
+     *   svc: array<string, int>,
+     *   serviceData: array<string, array<int, object>>,
+     *   tabCountries: array<int, string>,
+     *   svcByCountry: array<string, array<string, int>>,
+     *   orderCountryMap: array<string, string>
+     * }
+     */
+    public static function buildTourServiceCellData($tour, array $scope = [], string $bookingType = 'enquiry'): array
+    {
+        $serviceTypes = [
+            'hotel', 'attraction', 'restaurant', 'guide',
+            'entry_port', 'exit_port', 'travel_hourly', 'travel_point',
+            'local_transport', 'miscellaneous',
+        ];
+
+        $orders = collect($tour->booking ?? []);
+        $bookingType = strtolower(trim($bookingType));
+
+        if ($orders->isEmpty()) {
+            $query = Order::where('tour_id', $tour->tour_id);
+            if ($bookingType !== '') {
+                $query->where('bookingType', $bookingType);
+            }
+            if ($bookingType === 'booking') {
+                $query->whereNull('deleted_at');
+            }
+            $orders = $query->get();
+        } else {
+            $orders = $orders->filter(function ($order) use ($bookingType) {
+                if ($bookingType === 'booking' && !empty($order->deleted_at)) {
+                    return false;
+                }
+                $type = strtolower(trim((string) ($order->bookingType ?? '')));
+                if ($bookingType === '') {
+                    return true;
+                }
+                return $type === '' || $type === $bookingType;
+            })->values();
+        }
+
+        $tourCountries = self::parseTourDestinationCountries($tour->destination ?? null);
+        $isPro = (int) ($tour->is_pro ?? 0) === 1;
+
+        $svc = array_fill_keys($serviceTypes, 0);
+        $serviceData = [];
+        $orderCountryMap = [];
+
+        foreach ($orders as $order) {
+            $type = (string) ($order->type ?? '');
+            if (!in_array($type, $serviceTypes, true)) {
+                continue;
+            }
+            if ($type === 'miscellaneous' && !$isPro) {
+                continue;
+            }
+
+            $resolved = self::resolveBookingServiceCountry($order, $tourCountries, []);
+            if ($resolved === '' || $resolved === 'Other') {
+                $resolved = $tourCountries[0] ?? 'Other';
+            }
+            $canonical = self::matchTourCountryName($resolved, $tourCountries) ?? $resolved;
+            if (!self::isServiceCountryAllowed($canonical, $scope)) {
+                continue;
+            }
+
+            $svc[$type]++;
+            if (!isset($serviceData[$type])) {
+                $serviceData[$type] = [];
+            }
+            $serviceData[$type][] = $order;
+
+            $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+            $orderCountryMap[$mapKey] = $canonical;
+            $order->resolved_service_country = $canonical;
+        }
+
+        $tabCountries = self::resolveTourServiceTabCountries(
+            $tour->destination ?? null,
+            collect($orders)->filter(function ($order) use ($orderCountryMap) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                return isset($orderCountryMap[$mapKey]);
+            }),
+            $scope
+        );
+
+        // Ensure every scoped order country appears as a tab
+        foreach ($orderCountryMap as $country) {
+            $exists = false;
+            foreach ($tabCountries as $existing) {
+                if (strcasecmp((string) $existing, (string) $country) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists && self::isServiceCountryAllowed($country, $scope)) {
+                $tabCountries[] = $country;
+            }
+        }
+
+        if (empty($tabCountries) && !empty($scope['restricted']) && !empty($scope['countries'])) {
+            $tabCountries = array_values($scope['countries']);
+        }
+
+        $svcByCountry = [];
+        foreach ($tabCountries as $country) {
+            $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+        }
+
+        foreach ($serviceData as $type => $typeOrders) {
+            foreach ($typeOrders as $order) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                $country = $orderCountryMap[$mapKey]
+                    ?? ($order->resolved_service_country ?? ($tabCountries[0] ?? 'Other'));
+                if (!isset($svcByCountry[$country])) {
+                    $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+                    $tabCountries[] = $country;
+                }
+                $svcByCountry[$country][$type]++;
+            }
+        }
+
+        return [
+            'orders' => $orders,
+            'svc' => $svc,
+            'serviceData' => $serviceData,
+            'tabCountries' => array_values($tabCountries),
+            'svcByCountry' => $svcByCountry,
+            'orderCountryMap' => $orderCountryMap,
+        ];
+    }
+
+    /**
+     * Resolve which Services-tab country an order belongs to.
+     *
+     * @param  array<string, string>  $orderCountryMap
+     */
+    public static function resolveOrderServiceTabCountry($order, array $orderCountryMap = [], array $tabCountries = []): string
+    {
+        $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+        if (isset($orderCountryMap[$mapKey]) && $orderCountryMap[$mapKey] !== '') {
+            return $orderCountryMap[$mapKey];
+        }
+
+        $fromAttr = trim((string) ($order->resolved_service_country ?? $order->country ?? ''));
+        if ($fromAttr !== '') {
+            return self::matchTourCountryName($fromAttr, $tabCountries) ?? $fromAttr;
+        }
+
+        return $tabCountries[0] ?? 'Other';
+    }
+
+    /**
      * Resolve the display currency for a DMC (users.currency of the DMC user).
      * Pass the packages.dmc_id (or any DMC userId). Returns null when not found.
      */

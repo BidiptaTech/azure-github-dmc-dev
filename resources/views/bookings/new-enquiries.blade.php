@@ -98,12 +98,59 @@
     }
     
     /* Services column: professional soft-badge style (light bg, colored icon) */
-    #toursTable td:nth-child(5) {
+    #toursTable td.services-column-cell {
         padding-top: 0.75rem;
         padding-bottom: 0.75rem;
         overflow: visible !important;
     }
-    #toursTable td:nth-child(5) .services-icons-wrap {
+    #toursTable td.services-column-cell .services-country-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #toursTable td.services-column-cell .services-country-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem;
+        align-items: center;
+    }
+    #toursTable td.services-column-cell .services-country-tab {
+        appearance: none;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.62rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: 0.01em;
+        padding: 0.12rem 0.35rem;
+        border-radius: 3px;
+        cursor: pointer;
+        max-width: 7.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    #toursTable td.services-column-cell .services-country-tab:hover {
+        border-color: #94a3b8;
+        background: #f1f5f9;
+        color: #334155;
+    }
+    #toursTable td.services-column-cell .services-country-tab.is-active {
+        border-color: #0f766e;
+        background: #0f766e;
+        color: #fff;
+    }
+    #toursTable td.services-column-cell .services-country-panel {
+        display: none;
+    }
+    #toursTable td.services-column-cell .services-country-panel.is-active {
+        display: grid;
+    }
+    #toursTable td.services-column-cell .services-icons-wrap {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         row-gap: 0.35rem;
@@ -111,7 +158,7 @@
         align-items: stretch;
         max-width: 100%;
     }
-    #toursTable td:nth-child(5) .service-icon-wrapper {
+    #toursTable td.services-column-cell .service-icon-wrapper {
         min-width: 0;
         display: flex;
         justify-content: center;
@@ -890,11 +937,11 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" value="{{ now()->toDateString() }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" value="{{ now()->addDays(30)->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -1052,125 +1099,11 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="align-top">
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        // Fetch orders for this tour to get actual service data
-                                        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'enquiry')->get();
-                                        $svc = [
-                                            'hotel' => 0,
-                                            'attraction' => 0,
-                                            'restaurant' => 0,
-                                            'guide' => 0,
-                                            'entry_port' => 0,
-                                            'exit_port' => 0,
-                                            'travel_hourly' => 0,
-                                            'travel_point' => 0,
-                                            'local_transport' => 0,
-                                            'miscellaneous' => 0,
-                                        ];
-                                        $serviceData = [];
-                                        $ordersTotalAmount = 0;
-                                        
-                                        foreach($orders as $order) {
-                                            if(isset($svc[$order->type])) {
-                                                $svc[$order->type]++;
-                                                if(!isset($serviceData[$order->type])) {
-                                                    $serviceData[$order->type] = [];
-                                                }
-                                                $serviceData[$order->type][] = $order;
-                                            }
-                                            $orderPayload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-                                            $ordersTotalAmount += extractOrderTotals($orderPayload);
-                                        }
-                                        $ordersTotalAmount = round($ordersTotalAmount, 2);
-                                        
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-bed-line',
-                                            'attraction' => 'ri-camera-line',
-                                            'restaurant' => 'ri-restaurant-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'entry_port' => 'ri-flight-land-line',
-                                            'exit_port' => 'ri-flight-takeoff-line',
-                                            'travel_hourly' => 'ri-time-line',
-                                            'travel_point' => 'ri-route-line',
-                                            'local_transport' => 'ri-car-line',
-                                            'miscellaneous' => 'ri-file-list-3-line',
-                                        ];
-                                        $serviceLabels = [
-                                            'hotel' => 'Hotel',
-                                            'attraction' => 'Attraction',
-                                            'restaurant' => 'Restaurant',
-                                            'guide' => 'Guide',
-                                            'entry_port' => 'Arrival',
-                                            'exit_port' => 'Departure',
-                                            'travel_hourly' => 'Local-Tour Hourly',
-                                            'travel_point' => 'Local-Tour Point to Point',
-                                            'local_transport' => 'Local Transport',
-                                            'miscellaneous' => 'Miscellaneous',
-                                        ];
-                                        /* Professional palette: cohesive, good contrast for white icons */
-                                        $serviceColors = [
-                                            'hotel' => '#4338ca',
-                                            'attraction' => '#0f766e',
-                                            'restaurant' => '#c2410c',
-                                            'guide' => '#475569',
-                                            'entry_port' => '#047857',
-                                            'exit_port' => '#0369a1',
-                                            'travel_hourly' => '#b45309',
-                                            'travel_point' => '#5b21b6',
-                                            'local_transport' => '#334155',
-                                            'miscellaneous' => '#7c3aed',
-                                        ];
-                                        
-                                        // For debugging
-                                        $debugInfo = [
-                                            'tour_id' => $tour->tour_id,
-                                            'orders_count' => $orders->count(),
-                                            'svc' => $svc,
-                                            'serviceData_keys' => array_keys($serviceData)
-                                        ];
-                                    @endphp
-                                    <div class="services-icons-wrap">
-                                    @foreach($svc as $svcKey=>$count)
-                                        @if(intval($count) > 0)
-                                            @php
-                                                $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
-                                                $tooltipText = $label . ': ' . $count;
-                                                $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
-                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport', 'miscellaneous']);
-                                            @endphp
-                                            @if($clickable)
-                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="true"
-                                                          onclick="openServiceModal('{{ $svcKey }}', {{ $tour->tour_id }}, event)"
-                                                          data-debug-info="{{ json_encode($debugInfo) }}"
-                                                          role="button"
-                                                          tabindex="0">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
-                                                    </span>
-                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
-                                                </span>
-                                            @else
-                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="false"
-                                                          role="img">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
-                                                    </span>
-                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
-                                                </span>
-                                            @endif
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted small">No services</span>
-                                    @endif
-                                    </div>
-                                </div>
+                            <td class="align-top services-column-cell">
+                                @include('bookings.partials.enquiry-services-cell', [
+                                    'tour' => $tour,
+                                    'serviceCountryScope' => $serviceCountryScope ?? ['restricted' => false, 'countries' => []],
+                                ])
                             </td>
                             @php
                                 $tourEnquiries = $enquary_comments->where('tour_id', $tour->tour_id)->sortByDesc('created_at')->values();
@@ -1610,8 +1543,10 @@
     @php
     // Orders are preloaded in BookingsController::hydrateTourNegotiationCurrencyData()
     // (includes orders.country + orders.currency per booking_id for all service types)
-    $orders = $tour->booking ?? collect();
+    $scope = $serviceCountryScope ?? ['restricted' => false, 'countries' => []];
+    $orders = collect($tour->booking ?? []);
     $pageCurrency = $currency ?? 'SGD';
+    $tourCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? null);
     $svc = [
         'hotel' => 0,
         'attraction' => 0,
@@ -1625,15 +1560,30 @@
         'miscellaneous' => 0,
     ];
     $serviceData = [];
+    $orderServiceCountry = [];
     
     foreach($orders as $order) {
-        if(isset($svc[$order->type])) {
-            $svc[$order->type]++;
-            if(!isset($serviceData[$order->type])) {
-                $serviceData[$order->type] = [];
-            }
-            $serviceData[$order->type][] = $order;
+        if(!isset($svc[$order->type])) {
+            continue;
         }
+
+        $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry($order, $tourCountries, []);
+        if ($resolvedCountry === '' || $resolvedCountry === 'Other') {
+            $resolvedCountry = $tourCountries[0] ?? 'Other';
+        }
+        $canonicalCountry = \App\Helpers\CommonHelper::matchTourCountryName($resolvedCountry, $tourCountries) ?? $resolvedCountry;
+        if (!\App\Helpers\CommonHelper::isServiceCountryAllowed($canonicalCountry, $scope)) {
+            continue;
+        }
+
+        $svc[$order->type]++;
+        if(!isset($serviceData[$order->type])) {
+            $serviceData[$order->type] = [];
+        }
+        $serviceData[$order->type][] = $order;
+        $orderServiceCountry[$order->booking_id ?? spl_object_id($order)] = $canonicalCountry;
+        // Also stash on the model for blade cards
+        $order->resolved_service_country = $canonicalCountry;
     }
 @endphp
 
@@ -1720,6 +1670,7 @@
                         @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
                             @php
                         $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hourlyOrder, $pageCurrency ?? ($currency ?? 'SGD'));
+                                $hourlyCountry = trim((string) ($hourlyOrder->resolved_service_country ?? $hourlyOrder->country ?? 'Other'));
                                 $hourlyData = is_string($hourlyOrder->data) ? json_decode($hourlyOrder->data, true) : $hourlyOrder->data;
                             @endphp
                             
@@ -1730,7 +1681,7 @@
                                         <hr class="my-2">
                                     @endif
                             
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                                    <div class="card mb-2 shadow-sm border-0 svc-country-item" data-service-country="{{ $hourlyCountry !== '' ? $hourlyCountry : 'Other' }}" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
                                         <!-- Compact Card Header -->
                                         <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
                                             <div class="row align-items-center g-1">
@@ -1954,6 +1905,7 @@
                         @foreach($serviceData['travel_point'] as $index => $pointOrder)
                             @php
                         $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($pointOrder, $pageCurrency ?? ($currency ?? 'SGD'));
+                                $pointCountry = trim((string) ($pointOrder->resolved_service_country ?? $pointOrder->country ?? 'Other'));
                                 $pointData = is_string($pointOrder->data) ? json_decode($pointOrder->data, true) : $pointOrder->data;
                             @endphp
                             
@@ -1979,7 +1931,7 @@
                                         <hr class="my-2">
                                     @endif
                             
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                                    <div class="card mb-2 shadow-sm border-0 svc-country-item" data-service-country="{{ $pointCountry !== '' ? $pointCountry : 'Other' }}" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
                                         <!-- Compact Card Header -->
                                         <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
                                             <div class="row align-items-center g-1">
@@ -2211,14 +2163,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
     const endDateFilter = document.getElementById('endDateFilter');
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const endPlus30 = new Date(today);
+    endPlus30.setDate(endPlus30.getDate() + 30);
+    const endPlus30Str = endPlus30.toISOString().split('T')[0];
+
+    // Default range: today → today + 30 days
+    if (startDateFilter && !startDateFilter.value) {
+        startDateFilter.value = todayStr;
+    }
+    if (endDateFilter && !endDateFilter.value) {
+        endDateFilter.value = endPlus30Str;
+    }
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (startDateFilter) {
-        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
             if (endDateFilter) {
                 if (startDateFilter.value) {
@@ -2234,7 +2197,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     if (endDateFilter) {
-        endDateFilter.setAttribute('max', today);
         if (startDateFilter && startDateFilter.value) {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
@@ -2259,7 +2221,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show today's data
+    // Apply initial filter on page load (today → today + 30 days)
     filterTable();
 });
 
@@ -2429,6 +2391,12 @@ function resetFilters() {
     const startDateInput = document.getElementById('startDateFilter');
     const endDateInput = document.getElementById('endDateFilter');
 
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const endPlus30 = new Date(today);
+    endPlus30.setDate(endPlus30.getDate() + 30);
+    const endPlus30Str = endPlus30.toISOString().split('T')[0];
+
     if (searchInput) searchInput.value = '';
     // Reset Select2 dropdowns properly
     if (countrySelect && $('#countryFilter').hasClass('select2-hidden-accessible')) {
@@ -2442,11 +2410,11 @@ function resetFilters() {
         agentSelect.value = '';
     }
     if (startDateInput) {
-        startDateInput.value = '';
+        startDateInput.value = todayStr;
     }
     if (endDateInput) {
-        endDateInput.value = '';
-        endDateInput.removeAttribute('min');
+        endDateInput.value = endPlus30Str;
+        endDateInput.setAttribute('min', todayStr);
     }
     filterTable();
     
@@ -2559,6 +2527,70 @@ function exportData() {
     console.log('Exporting data...');
 }
 
+// Service country tabs (Services column)
+function selectServiceCountryTab(button) {
+    if (!button) return;
+    const cell = button.closest('.services-country-cell');
+    if (!cell) return;
+
+    const country = button.getAttribute('data-country') || '';
+    cell.setAttribute('data-selected-country', country);
+
+    cell.querySelectorAll('.services-country-tab').forEach(tab => {
+        const isActive = tab === button;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    cell.querySelectorAll('.services-country-panel').forEach(panel => {
+        const match = (panel.getAttribute('data-country') || '') === country;
+        panel.classList.toggle('is-active', match);
+        if (match) {
+            panel.removeAttribute('hidden');
+        } else {
+            panel.setAttribute('hidden', 'hidden');
+        }
+    });
+}
+
+function getSelectedServiceCountryForTour(tourId) {
+    const cell = document.querySelector(`.services-country-cell[data-tour-id="${tourId}"]`);
+    return (cell?.getAttribute('data-selected-country') || '').trim();
+}
+
+function applyServiceModalCountryFilter(modalElement, country) {
+    if (!modalElement) return;
+
+    const items = modalElement.querySelectorAll('.svc-country-item');
+    if (!items.length) return;
+
+    const selected = (country || '').trim().toLowerCase();
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const itemCountry = (item.getAttribute('data-service-country') || '').trim().toLowerCase();
+        const show = !selected || itemCountry === selected;
+        item.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+
+    let emptyEl = modalElement.querySelector('.svc-country-empty-filter');
+    if (visibleCount === 0) {
+        if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.className = 'text-center py-4 svc-country-empty-filter';
+            emptyEl.innerHTML = '<i class="ri-map-pin-line text-muted" style="font-size:1.5rem;"></i>'
+                + '<h6 class="text-dark mt-2 mb-1">No bookings for this country</h6>'
+                + '<p class="text-muted mb-0" style="font-size:0.85rem;">Switch the country tab in the Services column to view other bookings.</p>';
+            const body = modalElement.querySelector('.modal-body');
+            if (body) body.appendChild(emptyEl);
+        }
+        emptyEl.style.display = '';
+    } else if (emptyEl) {
+        emptyEl.style.display = 'none';
+    }
+}
+
 // Service Modal Functions
 function openServiceModal(serviceType, tourId, event) {
     console.log('Opening service modal:', serviceType, 'for tour:', tourId);
@@ -2592,6 +2624,10 @@ function openServiceModal(serviceType, tourId, event) {
         });
         return;
     }
+
+    // Filter modal cards to the country currently selected in the Services column
+    const selectedCountry = getSelectedServiceCountryForTour(tourId);
+    applyServiceModalCountryFilter(modalElement, selectedCountry);
     
     try {
         // Method 1: Try Bootstrap 5 method
@@ -3932,7 +3968,5 @@ function testServices() {
     padding: 0.375rem 0.75rem;
 }
 </style>
-
 @endsection
-
 @extends('layouts.datatablejs')
