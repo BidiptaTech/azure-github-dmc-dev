@@ -776,18 +776,20 @@ class TourController extends Controller
         $tour->payment_details = json_encode($paymentDetails);
         $tour->save();
         
-        // Create success message with currency information
-        $successMessage = 'Payment of ' . number_format($baseAmount, 2) . ' ' . $baseCurrency;
-        if ($selectedCurrency !== $baseCurrency) {
-            $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
-        }
-        $successMessage .= ' has been successfully added to Tour #' . $tourId;
+        // Create success message from the amount the user actually paid (selected currency).
+        // Do not show base-currency conversion in the success toast — that confuses operators.
+        $paidCurrency = strtoupper(trim((string) $selectedCurrency));
+        $paidAmountFormatted = number_format($originalAmount, 2);
+        $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.';
         
         // Check if request is AJAX and return JSON response
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
+                'payment_currency' => $paidCurrency,
+                'payment_amount' => $originalAmount,
+                'payment_amount_formatted' => $paidAmountFormatted,
                 'payment_index' => $paymentIndex,
                 'verified' => (bool) ($request->boolean('auto_verify')),
             ]);
