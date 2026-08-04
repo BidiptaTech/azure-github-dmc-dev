@@ -8802,6 +8802,115 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Resolve tour currency used when payment_details.amount was stored.
+     */
+    public static function resolveTourPaymentCurrency(Invoice $invoice, string $fallbackCurrency): string
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        if (!$tour) {
+            return $fallbackCurrency;
+        }
+
+        foreach ([
+            $tour->enquiry_currency ?? null,
+            $tour->user_currency ?? null,
+            $tour->currency ?? null,
+        ] as $candidate) {
+            $code = strtoupper(trim((string) $candidate));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallbackCurrency;
+    }
+
+    /**
+     * Sum active tour payments into a target currency.
+     * Always respects payment_details.currency (e.g. USD paid → convert to selected IDR).
+     *
+     * - original_amount + currency = what the client paid
+     * - amount = tour-currency equivalent only when it differs from original (converted at payment time)
+     */
+    public static function sumTourPaymentsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): float
+    {
+        $invoice->loadMissing(['tour']);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+        $tour = $invoice->tour;
+        $tourCurrency = self::resolveTourPaymentCurrency($invoice, $baseCurrency);
+
+        $raw = $tour->payment_details ?? null;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+
+        if (!is_array($raw) || $raw === []) {
+            return self::convertInvoiceAmountToSelected(
+                (float) ($invoice->payment_received ?? 0),
+                $tourCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        $total = 0.0;
+        foreach ($raw as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+            if (!isset($payment['status']) || (int) $payment['status'] !== 1) {
+                continue;
+            }
+
+            $payCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+            $amountField = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
+            $hasOriginal = array_key_exists('original_amount', $payment)
+                && $payment['original_amount'] !== null
+                && $payment['original_amount'] !== '';
+            $originalAmount = $hasOriginal ? (float) $payment['original_amount'] : null;
+            $exchangeRate = (float) ($payment['exchange_rate'] ?? 0);
+
+            // amount was converted into tour currency at payment time
+            $amountIsTourConverted = $payCurrency !== ''
+                && $payCurrency !== $tourCurrency
+                && $originalAmount !== null
+                && abs($amountField - $originalAmount) > 0.009
+                && ($exchangeRate > 0 && abs($exchangeRate - 1.0) > 0.0000001);
+
+            // Selected = tour currency and we have a real tour-currency amount → use it
+            if ($selectedCurrency === $tourCurrency && $amountField > 0 && (
+                $amountIsTourConverted
+                || $payCurrency === ''
+                || $payCurrency === $tourCurrency
+            )) {
+                $total += $amountField;
+                continue;
+            }
+
+            // Otherwise always convert from the currency the client paid in
+            $fromCurrency = $payCurrency !== '' ? $payCurrency : $tourCurrency;
+            $fromAmount = $originalAmount !== null ? $originalAmount : $amountField;
+
+            if ($fromCurrency === $selectedCurrency) {
+                $total += $fromAmount;
+                continue;
+            }
+
+            $total += self::convertInvoiceAmountToSelected(
+                $fromAmount,
+                $fromCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        return $total;
+    }
+
+    /**
      * Build third-party invoice summary totals aligned with Add Payment modal.
      *
      * @return array{
@@ -8833,12 +8942,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $gstAmount = (float) ($tax['total_tax'] ?? 0);
         $taxBreakdown = $tax['breakdown'] ?? [];
 
-        $paymentReceived = self::convertInvoiceAmountToSelected(
-            (float) ($invoice->payment_received ?? 0),
-            $baseCurrency,
-            $selectedCurrency,
-            $baseCurrency
-        );
+        // Never treat payment_received as DMC base currency — use payment_details currencies.
+        $paymentReceived = self::sumTourPaymentsInCurrency($invoice, $selectedCurrency, $baseCurrency);
 
         $finalPrice = $negotiatedAmount + $gstAmount;
         $outstandingBalance = $finalPrice - $paymentReceived;

@@ -1538,7 +1538,7 @@
                 $finalPrice = $baseAmount + $gstAmount;
                 
                 // Get payment information
-                $paymentReceived = $invoice->payment_received ?? 0;
+                $paymentReceived = $invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0);
                 $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
 
                 if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
@@ -1557,6 +1557,8 @@
                     $finalPrice = $tpSummary['finalPrice'];
                     $paymentReceived = $tpSummary['paymentReceived'];
                     $outstandingBalance = $tpSummary['outstandingBalance'];
+                } else {
+                    $outstandingBalance = (float) $finalPrice - (float) $paymentReceived;
                 }
 
             @endphp
@@ -1578,14 +1580,13 @@
         
         $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
         $taxBreakdown = $notes['tax_breakdown'] ?? [];
-        $gstAmount = $invoice->gst_amount ?? 0;
+        $gstAmount = $gstAmount ?? ($invoice->gst_amount ?? 0);
         $serviceCharge = $invoice->service_charge ?? 0;
         $touristTax = $invoice->tourist_tax ?? 0;
-        $paymentReceived = $invoice->payment_received ?? 0;
-        $outstandingBalance = $invoice->outstanding_balance ?? 0;
-        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
-        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
-        $finalPrice = $baseAmount + $gstAmount;
+        $paymentReceived = $paymentReceived ?? ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
+        $baseAmount = $baseAmount ?? ($notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0)));
+        $finalPrice = $finalPrice ?? ($baseAmount + $gstAmount);
+        $outstandingBalance = $outstandingBalance ?? ((float) $finalPrice - (float) $paymentReceived);
     @endphp
     @if($shouldShowTax)
     <div class="payment-summary">
@@ -1825,7 +1826,7 @@
 
     <!-- Footer Note -->
     <div class="footer-note">
-        <strong>*The base currency applied is the destination's local currency. Any alternate currency displayed is for reference purposes only and is subject to exchange rate fluctuations at the time of payment.</strong>
+        <strong>*Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
     </div>
 
 </body>

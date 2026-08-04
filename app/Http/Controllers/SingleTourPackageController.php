@@ -4959,11 +4959,14 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
-        // Update tour destination with hotel location if location is provided
-        if (!empty($bookingData['hotelDetails']['location'])) {
+        // Only auto-fill destination when the tour doesn't have one yet.
+        // Never overwrite an existing (possibly multi-country) destination with a single
+        // hotel's location — that used to wipe out other countries on multi-city tours
+        // (e.g. "Singapore, India" collapsing down to just "India" after adding a hotel).
+        if (empty($tour->destination) && !empty($bookingData['hotelDetails']['location'])) {
             $tour->destination = $bookingData['hotelDetails']['location'];
             $tour->save();
-            \Log::info('Tour destination updated with hotel location', [
+            \Log::info('Tour destination auto-filled with hotel location (was empty)', [
                 'tour_id' => $tourId,
                 'destination' => $bookingData['hotelDetails']['location']
             ]);
