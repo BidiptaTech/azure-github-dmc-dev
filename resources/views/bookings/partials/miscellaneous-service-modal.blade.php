@@ -27,7 +27,7 @@
                     @foreach($ordersList as $index => $miscOrder)
                         @php
                             $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($miscOrder, $pageCurrency);
-                            $orderCountry = trim((string) ($miscOrder->country ?? ''));
+                            $orderCountry = trim((string) ($miscOrder->resolved_service_country ?? $miscOrder->country ?? ''));
                             $payload = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data;
                             if (!is_array($payload)) {
                                 $payload = [];
@@ -65,7 +65,7 @@
                                 $hasLocation = $cityLabel !== '' || $countryLabel !== '';
                             @endphp
 
-                            <div class="svc-panel">
+                            <div class="svc-panel svc-country-item" data-service-country="{{ $orderCountry !== '' ? $orderCountry : 'Other' }}">
                                 <div class="svc-panel-head">
                                     <div class="svc-panel-head-main">
                                         <div class="svc-thumb svc-thumb-fallback"><i class="ri-file-list-3-line"></i></div>

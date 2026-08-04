@@ -217,7 +217,7 @@ class BookingsController extends Controller
         $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
         $ordersByTour = Order::query()
             ->whereIn('tour_id', $tourIds)
-            ->get(['booking_id', 'tour_id', 'type', 'status', 'data', 'cost_price', 'country', 'currency'])
+            ->get(['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'])
             ->groupBy('tour_id');
 
         $destinationNames = [];
@@ -662,7 +662,6 @@ class BookingsController extends Controller
                     ]);
                 }
         }
-
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
@@ -751,7 +750,8 @@ class BookingsController extends Controller
         $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency', 'serviceCountryScope'));
     }
 
     public function agentNegotiation(Request $request)
@@ -1380,7 +1380,8 @@ class BookingsController extends Controller
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency', 'serviceCountryScope'));
     }
 
     /**
@@ -1676,7 +1677,8 @@ class BookingsController extends Controller
         }
 
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -1995,7 +1997,8 @@ class BookingsController extends Controller
             }
         }
 
-        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -2242,7 +2245,8 @@ class BookingsController extends Controller
         }
 
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
