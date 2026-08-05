@@ -372,19 +372,11 @@ class JobSheetController extends Controller
                                 $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
                                 $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
                                 
-                                // Get vehicle from order data
+                                // Get vehicle from order data (driver only from jobsheet when assigned)
                                 $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
-                                $vehicleFromOrder = null;
-                                $driverFromVehicle = null;
-                                
-                                if ($vehicleIdFromOrder) {
-                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                                    
-                                    // If vehicle has a driver assigned, get that driver
-                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                                    }
-                                }
+                                $vehicleFromOrder = $vehicleIdFromOrder
+                                    ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                                    : null;
                                 
                                 // Check if there's an assignment in the jobsheets table (same as getOrdersByDate)
                                 $jobsheet = Jobsheet::where('date', $tomorrow)
@@ -394,18 +386,17 @@ class JobSheetController extends Controller
                                     ->where('order_id', $order->booking_id)
                                     ->first();
                                 
-                                // Priority: Jobsheet assignment > Vehicle from order data
+                                // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                                 if ($jobsheet) {
                                     $order->assigned_driver_id = $jobsheet->driver_id;
                                     $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                                     $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                                     $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                                 } else {
-                                    // Use vehicle and driver from order data as default
                                     $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->assigned_driver_id = null;
                                     $order->vehicle = $vehicleFromOrder;
-                                    $order->driver = $driverFromVehicle;
+                                    $order->driver = null;
                                 }
                             }
                             // Handle attraction orders with transfer
@@ -420,19 +411,11 @@ class JobSheetController extends Controller
                                 $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
                                 $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
                                 
-                                // Get vehicle from transfer_options
+                                // Get vehicle from transfer_options (driver only from jobsheet when assigned)
                                 $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
-                                $vehicleFromOrder = null;
-                                $driverFromVehicle = null;
-                                
-                                if ($vehicleIdFromOrder) {
-                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                                    
-                                    // If vehicle has a driver assigned, get that driver
-                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                                    }
-                                }
+                                $vehicleFromOrder = $vehicleIdFromOrder
+                                    ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                                    : null;
                                 
                                 // Extract pickup time from visitTime or guide_options (and normalize to 12‑hour with AM/PM for display)
                                 $pickupTime = null;
@@ -495,18 +478,17 @@ class JobSheetController extends Controller
                                     ->where('date', $tomorrow)
                                     ->first();
                                 
-                                // Priority: Jobsheet assignment > Vehicle from order data
+                                // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                                 if ($jobsheet) {
                                     $order->assigned_driver_id = $jobsheet->driver_id;
                                     $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                                     $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                                     $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                                 } else {
-                                    // Use vehicle and driver from order data as default
                                     $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->assigned_driver_id = null;
                                     $order->vehicle = $vehicleFromOrder;
-                                    $order->driver = $driverFromVehicle;
+                                    $order->driver = null;
                                 }
                                 
                                 // Update orderData with normalized structure
@@ -524,19 +506,11 @@ class JobSheetController extends Controller
                                 $order->pickup_zone = $this->getZoneForLocation($pickupLocation, $dmcId);
                                 $order->dropoff_zone = $this->getZoneForLocation($dropoffLocation, $dmcId);
                                 
-                                // Get vehicle from transfer_options
+                                // Get vehicle from transfer_options (driver only from jobsheet when assigned)
                                 $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
-                                $vehicleFromOrder = null;
-                                $driverFromVehicle = null;
-                                
-                                if ($vehicleIdFromOrder) {
-                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                                    
-                                    // If vehicle has a driver assigned, get that driver
-                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                                    }
-                                }
+                                $vehicleFromOrder = $vehicleIdFromOrder
+                                    ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                                    : null;
                                 
                                 // Extract pickup time from visitTime (normalize to 12‑hour with AM/PM for display)
                                 $pickupTime = null;
@@ -597,18 +571,17 @@ class JobSheetController extends Controller
                                     ->where('date', $tomorrow)
                                     ->first();
                                 
-                                // Priority: Jobsheet assignment > Vehicle from order data
+                                // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                                 if ($jobsheet) {
                                     $order->assigned_driver_id = $jobsheet->driver_id;
                                     $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                                     $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                                     $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                                 } else {
-                                    // Use vehicle and driver from order data as default
                                     $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->assigned_driver_id = null;
                                     $order->vehicle = $vehicleFromOrder;
-                                    $order->driver = $driverFromVehicle;
+                                    $order->driver = null;
                                 }
                                 
                                 // Update orderData with normalized structure
@@ -2835,19 +2808,11 @@ class JobSheetController extends Controller
                     
                     // Handle transportation orders
                     if (in_array($order->type, ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])) {
-                        // Get vehicle from order data
+                        // Get vehicle from order data (driver only from jobsheet when assigned)
                         $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
-                        $vehicleFromOrder = null;
-                        $driverFromVehicle = null;
-                        
-                        if ($vehicleIdFromOrder) {
-                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                            
-                            // If vehicle has a driver assigned, get that driver
-                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                            }
-                        }
+                        $vehicleFromOrder = $vehicleIdFromOrder
+                            ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                            : null;
                         
                         // Check if there's an assignment in the jobsheets table
                         $jobsheet = Jobsheet::where('date', $date)
@@ -2857,7 +2822,7 @@ class JobSheetController extends Controller
                             ->where('order_id', $order->booking_id)
                             ->first();
                             
-                        // Priority: Jobsheet assignment > Vehicle from order data
+                        // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                         if ($jobsheet) {
                             
                             $order->assigned_driver_id = $jobsheet->driver_id;
@@ -2865,11 +2830,10 @@ class JobSheetController extends Controller
                             $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                             $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                         } else {
-                            // Use vehicle and driver from order data as default
                             $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->assigned_driver_id = null;
                             $order->vehicle = $vehicleFromOrder;
-                            $order->driver = $driverFromVehicle;
+                            $order->driver = null;
                         }
                         
                         // Add zone information and location properties for pickup and dropoff
@@ -2908,20 +2872,11 @@ class JobSheetController extends Controller
                         $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                         $dropoffLocation = $dataItem['AttractionName'] ?? '';
                         
-                        // Get vehicle from transfer_options
+                        // Get vehicle from transfer_options (driver only from jobsheet when assigned)
                         $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
-                        $vehicleFromOrder = null;
-                        $driverFromVehicle = null;
-                        
-                        if ($vehicleIdFromOrder) {
-                            
-                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                            
-                            // If vehicle has a driver assigned, get that driver
-                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                            }
-                        }
+                        $vehicleFromOrder = $vehicleIdFromOrder
+                            ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                            : null;
                         
                         // Extract pickup time from visitTime or guide_options (and normalize to 12‑hour with AM/PM for display)
                         $pickupTime = null;
@@ -3024,18 +2979,17 @@ class JobSheetController extends Controller
                             ->where('date', $date)
                             ->first();
                         
-                        // Priority: Jobsheet assignment > Vehicle from order data
+                        // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                         if ($jobsheet) {
                             $order->assigned_driver_id = $jobsheet->driver_id;
                             $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                             $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                             $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                         } else {
-                            // Use vehicle and driver from order data as default
                             $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->assigned_driver_id = null;
                             $order->vehicle = $vehicleFromOrder;
-                            $order->driver = $driverFromVehicle;
+                            $order->driver = null;
                         }
                         
                         // Add zone information for pickup and dropoff
@@ -3054,19 +3008,11 @@ class JobSheetController extends Controller
                         $pickupLocation = $transferOptions['pickup_location_name'] ?? '';
                         $dropoffLocation = $dataItem['restaurantName'] ?? '';
                         
-                        // Get vehicle from transfer_options
+                        // Get vehicle from transfer_options (driver only from jobsheet when assigned)
                         $vehicleIdFromOrder = $transferOptions['vehicle_id'] ?? null;
-                        $vehicleFromOrder = null;
-                        $driverFromVehicle = null;
-                        
-                        if ($vehicleIdFromOrder) {
-                            $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
-                            
-                            // If vehicle has a driver assigned, get that driver
-                            if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
-                                $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
-                            }
-                        }
+                        $vehicleFromOrder = $vehicleIdFromOrder
+                            ? Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first()
+                            : null;
                         
                         // Extract pickup time from visitTime (and normalize to 12‑hour with AM/PM for display)
                         $pickupTime = null;
@@ -3111,7 +3057,7 @@ class JobSheetController extends Controller
                             ->where('date', $date)
                             ->first();
                                
-                        // Priority: Jobsheet assignment > Vehicle from order data
+                        // Jobsheet present: show assigned driver/vehicle. Otherwise: vehicle from order, driver empty for manual select.
                         if ($jobsheet) {
                             
                             $order->assigned_driver_id = $jobsheet->driver_id;
@@ -3119,12 +3065,10 @@ class JobSheetController extends Controller
                             $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                             $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                         } else {
-                            
-                            // Use vehicle and driver from order data as default
                             $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
-                            $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                            $order->assigned_driver_id = null;
                             $order->vehicle = $vehicleFromOrder;
-                            $order->driver = $driverFromVehicle;
+                            $order->driver = null;
                         }
                         
                         // Add zone information for pickup and dropoff
