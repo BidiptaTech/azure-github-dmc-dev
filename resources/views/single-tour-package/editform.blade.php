@@ -3829,14 +3829,23 @@
                                                     <select class="form-select border-2 attraction-name-select" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}'); handleAttractionBundleSelection(this, {{ $order->booking_id }})" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
-                                                                // Check if attraction has country field directly
-                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
+                                                            // tour->destination can be a single country ("Singapore") or, for multi-city
+                                                            // tours, a comma-separated list ("Singapore, India"). Comparing the whole
+                                                            // string against one attraction's country never matched on multi-city tours,
+                                                            // which emptied this list and (further down) broke ticket price lookups —
+                                                            // parse it into individual country names instead.
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all attractions
-                                                                return empty($tourCountry);
+                                                                $attractionCountry = $attraction->country ?? '';
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if ($attractionCountry !== '' && strcasecmp($attractionCountry, $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
                                                             });
                                                             $packagedAttractionList = collect($packagedAttractions ?? []);
                                                             $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
@@ -28260,7 +28269,10 @@
             const bs = normalizeDateToISO(bStart);
             const be = normalizeDateToISO(bEnd);
             if (!as || !ae || !bs || !be) return false;
-            return as <= be && ae >= bs;
+            // Touching at a single day (e.g. Singapore 3→4 then Malaysia 4→6) is allowed —
+            // that shared day is just checkout from one city and checkin to the next. Only an
+            // actual overlap of more than that boundary day should be blocked.
+            return as < be && ae > bs;
         }
 
         function segmentHasOverlap(seg) {
@@ -28425,6 +28437,26 @@
                 return;
             }
 
+            // Switching away from a different segment: close its panel so it doesn't stay
+            // stuck in a stale "open" state. Without this, that segment's header still
+            // looks/behaves as open, so the click handler below would think there's nothing
+            // to do and Bootstrap's native toggle would just close it again on the next
+            // click — without ever moving the shared services bundle back into it. That's
+            // what made "Add Service" appear to stop working when switching cities back and forth.
+            if (!wasActive && _activeSegmentEl) {
+                try {
+                    const prevCollapse = _activeSegmentEl.querySelector('.segment-body-collapse');
+                    if (prevCollapse && prevCollapse.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                            const inst = bootstrap.Collapse.getInstance(prevCollapse) || new bootstrap.Collapse(prevCollapse, { toggle: false });
+                            inst.hide();
+                        } else {
+                            prevCollapse.classList.remove('show');
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
             // Update segment header UI
             const header = seg.querySelector('.segment-header');
             const title = seg.querySelector('.segment-title');
@@ -28520,18 +28552,29 @@
 
         // When clicking the date-range accordion bar, also activate services for that stay.
         // This makes the behavior match "All services for this stay".
+        //
+        // IMPORTANT: this must run in the capture phase and take full control (preventDefault +
+        // stopPropagation) whenever it decides to switch to a *different* segment. The header
+        // also carries Bootstrap's native data-bs-toggle="collapse" attribute; if we let that
+        // fire too, it independently opens/closes the panel based on whatever "show" state it
+        // was left in — which could be stale (e.g. still "show" from when this segment was last
+        // active). That race is what made clicking back to a previously-used city (e.g. Singapore,
+        // after switching to Malaysia) sometimes just close the row without ever bringing the
+        // service forms/buttons back, making "Add Service" look blocked.
         document.addEventListener('click', function (e) {
             const headerBtn = e.target && (e.target.closest ? e.target.closest('#segmentsWrapper .segment-header [data-bs-target]') : null);
             if (!headerBtn) return;
             const seg = headerBtn.closest('.segment');
             if (!seg) return;
-            // Don't fight the user's intent if they are closing an already-active segment.
-            const collapse = seg.querySelector('.segment-body-collapse');
-            const isOpen = !!(collapse && collapse.classList.contains('show'));
-            if (_activeSegmentEl !== seg && !isOpen) {
-                activateSegmentForServices(seg);
-            }
-        });
+            // Already the active segment: don't fight the user's intent — let Bootstrap's
+            // native toggle simply open/close this row's panel as normal.
+            if (_activeSegmentEl === seg) return;
+            // Switching to a different segment: fully own this click so it always (re)activates,
+            // regardless of whatever stale open/closed state the panel happens to be in.
+            e.preventDefault();
+            e.stopPropagation();
+            activateSegmentForServices(seg);
+        }, true);
 
         // Make sure the mini arrow button doesn't double-toggle (it sits inside a clickable collapse header).
         document.addEventListener('click', function (e) {
@@ -28540,7 +28583,16 @@
             e.preventDefault();
             e.stopPropagation();
             const seg = btn.closest('.segment');
-            const collapse = seg ? seg.querySelector('.segment-body-collapse') : null;
+            if (!seg) return;
+            // If this segment isn't the active one, activate it (moves the shared services
+            // bundle into it) instead of blindly toggling — otherwise the panel would just
+            // open empty, since the actual service forms/buttons live in the one shared
+            // bundle that only ever lives inside whichever segment is currently active.
+            if (_activeSegmentEl !== seg) {
+                activateSegmentForServices(seg);
+                return;
+            }
+            const collapse = seg.querySelector('.segment-body-collapse');
             if (!collapse) return;
             try {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
