@@ -495,141 +495,31 @@ class DashboardController extends Controller
     }
     
     /**
-     * Get tour counts
+     * Apply the same DMC / role tour visibility used across booking lists.
      */
-    private function getTourCounts($dateRanges, $user)
+    private function applyTourDashboardFilter($query, $user): void
     {
-        $query = Tour::where('status', 1);
-        // Apply role-based filtering for tours
-        if (in_array($user->role_id, [11, 20, 33, 12, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
-            $agentIds = $this->getAgentIdsByUserRole($user);
-            if ($agentIds->isNotEmpty()) {
-                $query->whereIn('agent_id', $agentIds);
-            }
-        }
-        
-        // Get total counts based on period
-        $total = $dateRanges ? (clone $query)
-            ->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])
-            ->count() : $query->count();
-
-        // Active now shows records created this month
-        $thisMonthStart = Carbon::now()->startOfMonth();
-        $thisMonthEnd = Carbon::now()->endOfMonth();
-        
-        // Get today's tours
-        $today = (clone $query)
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-        
-        // Get this month's tours
-        $thisMonth = (clone $query)
-            ->whereMonth('created_at', Carbon::now()->month)
-            ->whereYear('created_at', Carbon::now()->year)
-            ->count();
-        
-        // Get active and completed counts for this month
-        $active = (clone $query)
-            ->whereNotIn('tour_status', ['Cancelled', 'Closed'])
-            ->where('tour_status', 'not like', 'cancel%')
-            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
-            ->count();
-        
-        $completed = (clone $query)
-            ->where('tour_status', 'Confirmed')
-            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
-            ->count();
-
-        return [
-            'total' => $total,
-            'today' => $today,
-            'this_month' => $thisMonth,
-            'active' => $active,
-            'completed' => $completed
-        ];
-    }
-    
-    /**
-     * Get booking counts (Orders with booking type)
-     */
-    private function getBookingCounts($dateRanges, $user)
-    {
-        $query = Order::where('bookingType', 'booking')->where('status', '!=', 4);
-        
-        // Get total counts based on period
-        $total = $dateRanges ? (clone $query)
-            ->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])
-            ->count() : $query->count();
-
-        // Active now shows records created this month
-        $thisMonthStart = Carbon::now()->startOfMonth();
-        $thisMonthEnd = Carbon::now()->endOfMonth();
-        
-        // Get today's bookings
-        $today = (clone $query)
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-        
-        // Get this month's bookings
-        $thisMonth = (clone $query)
-            ->whereMonth('created_at', Carbon::now()->month)
-            ->whereYear('created_at', Carbon::now()->year)
-            ->count();
-        
-        // Get confirmed and pending counts
-        $confirmed = (clone $query)
-            ->where('status', 1)
-            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
-            ->count();
-        $pending = (clone $query)
-            ->where('status', 2)
-            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
-            ->count();
-
-        return [
-            'total' => $total,
-            'today' => $today,
-            'this_month' => $thisMonth,
-            'confirmed' => $confirmed,
-            'pending' => $pending
-        ];
-    }
-    
-    /**
-     * Get booking status counts (New Enquiries, Prospect, Tentative, Confirmed)
-     * Uses the same DMC filtering logic as BookingsController
-     */
-    private function getBookingStatusCounts($dateRanges, $user)
-    {
-        $query = Tour::query();
         $dmc_id  = null;
-        $dmc_ids = null; // used for Master DMC (multiple child DMCs)
+        $dmc_ids = null;
 
-        // Apply DMC filtering based on user role (mirrors BookingsController::newEnquiries)
-        if (in_array($user->role_id, [1, 2, 3, 4])) {
-            // Admin / Super Admin — see everything, no filter
-        } elseif ($user->role_id == 10) {
-            // Master DMC — restrict to all child DMCs
+        if (in_array((int) $user->role_id, [1, 2, 3, 4], true)) {
+            // Admin / Super Admin — no filter
+        } elseif ((int) $user->role_id === 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)
                 ->where('role_id', 11)
                 ->pluck('userId')->toArray();
-        } elseif ($user->role_id == 19) {
-            // Virtual Master DMC — include both regular and virtual child DMCs
+        } elseif ((int) $user->role_id === 19) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)
                 ->whereIn('role_id', [11, 20])
                 ->pluck('userId')->toArray();
-        } elseif (in_array($user->role_id, [11, 20])) {
-            // DMC / Virtual DMC
+        } elseif (in_array((int) $user->role_id, [11, 20], true)) {
             $dmc_id = $user->userId;
-        } elseif (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) {
-            // Sales Head and similar roles — created_by points to their DMC
+        } elseif (in_array((int) $user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138], true)) {
             $dmc_id = $user->created_by;
-        } elseif (in_array($user->role_id, [12, 37])) {
-            // Sales Manager — go up: Sales Manager → Sales Head → DMC
+        } elseif (in_array((int) $user->role_id, [12, 37, 76, 139], true)) {
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head ? $sales_head->created_by : null;
-        } elseif ($user->role_id == 38) {
-            // Assistant Sales Manager — go up: Asst → Sales Manager → Sales Head → DMC
+        } elseif (in_array((int) $user->role_id, [38, 111, 140], true)) {
             $sales_manager = User::where('userId', $user->created_by)->first();
             if ($sales_manager) {
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
@@ -637,12 +527,79 @@ class DashboardController extends Controller
             }
         }
 
-        // Apply DMC filter (Master multi-country: sibling DMC tours if destination includes my country)
         if ($dmc_ids !== null) {
             $query->whereIn('dmc_id', $dmc_ids);
         } elseif ($dmc_id) {
             \App\Helpers\CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
         }
+    }
+
+    /**
+     * Get tour counts — Actual Tours (tour_status Actual/Complete) for selected period
+     */
+    private function getTourCounts($dateRanges, $user)
+    {
+        $query = Tour::query()->whereIn('tour_status', ['Actual', 'Complete']);
+        $this->applyTourDashboardFilter($query, $user);
+
+        $total = $dateRanges
+            ? (clone $query)->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])->count()
+            : (clone $query)->count();
+
+        $thisMonthStart = Carbon::now()->startOfMonth();
+        $thisMonthEnd = Carbon::now()->endOfMonth();
+
+        $today = (clone $query)->whereDate('created_at', Carbon::today())->count();
+        $thisMonth = (clone $query)
+            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
+            ->count();
+
+        return [
+            'total' => $total,
+            'today' => $today,
+            'this_month' => $thisMonth,
+            'active' => $total, // alias used by chart — Actual tours in period
+            'completed' => $thisMonth,
+        ];
+    }
+    
+    /**
+     * Get booking counts — Confirmed bookings (tour_status Confirmed) for selected period
+     */
+    private function getBookingCounts($dateRanges, $user)
+    {
+        $query = Tour::query()->where('tour_status', 'Confirmed');
+        $this->applyTourDashboardFilter($query, $user);
+
+        $total = $dateRanges
+            ? (clone $query)->whereBetween('created_at', [$dateRanges['start'], $dateRanges['end']])->count()
+            : (clone $query)->count();
+
+        $thisMonthStart = Carbon::now()->startOfMonth();
+        $thisMonthEnd = Carbon::now()->endOfMonth();
+
+        $today = (clone $query)->whereDate('created_at', Carbon::today())->count();
+        $thisMonth = (clone $query)
+            ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])
+            ->count();
+
+        return [
+            'total' => $total,
+            'today' => $today,
+            'this_month' => $thisMonth,
+            'confirmed' => $total,
+            'pending' => 0,
+        ];
+    }
+    
+    /**
+     * Get booking status counts (New Enquiries, Prospect, Tentative, Confirmed, Actual)
+     * Uses the same DMC filtering logic as BookingsController
+     */
+    private function getBookingStatusCounts($dateRanges, $user)
+    {
+        $query = Tour::query();
+        $this->applyTourDashboardFilter($query, $user);
         
         // Get counts based on period
         if ($dateRanges) {
@@ -668,12 +625,18 @@ class DashboardController extends Controller
         $confirmed = (clone $query)
             ->where('tour_status', 'Confirmed')
             ->count();
+
+        // Actual Tours (matches Actual bookings list)
+        $actual = (clone $query)
+            ->whereIn('tour_status', ['Actual', 'Complete'])
+            ->count();
         
         return [
             'new_enquiries' => $newEnquiries,
             'prospect' => $prospect,
             'tentative' => $tentative,
-            'confirmed' => $confirmed
+            'confirmed' => $confirmed,
+            'actual' => $actual,
         ];
     }
     
