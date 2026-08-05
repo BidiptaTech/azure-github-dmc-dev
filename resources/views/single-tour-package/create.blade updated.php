@@ -14328,7 +14328,8 @@
                 travelDatesField.daterangepicker({
                     opens: 'left',
                     autoUpdateInput: false,
-                    minDate: moment(),
+                    // Disable today too — only future dates (from tomorrow onward) are bookable.
+                    minDate: moment().add(1, 'days'),
                     locale: {
                         format: 'MMM DD, YYYY',
                         cancelLabel: 'Clear'
