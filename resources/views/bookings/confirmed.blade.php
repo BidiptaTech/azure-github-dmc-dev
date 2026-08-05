@@ -21914,11 +21914,40 @@ function submitPaymentForm(tourId) {
                 overlay.classList.remove('active');
                 
                 if (response.success) {
+                    const paidCurrency = response.payment_currency || '';
+                    const paidAmount = response.payment_amount_formatted
+                        || (response.payment_amount != null ? Number(response.payment_amount).toFixed(2) : '');
+                    const headline = (paidCurrency && paidAmount)
+                        ? `${paidCurrency} ${paidAmount}`
+                        : '';
+                    const bodyText = headline
+                        ? `${headline} payment is successfully recorded.`
+                        : (response.message || 'Payment successfully recorded.');
+
                     Swal.fire({
-                        title: 'Success!',
-                        text: response.message || 'Payment has been recorded and is pending verification.',
                         icon: 'success',
-                        confirmButtonText: 'OK'
+                        title: 'Payment Successful',
+                        html: `
+                            <div style="text-align:center;padding:4px 8px 2px;">
+                                ${headline ? `
+                                <div style="display:inline-block;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);
+                                    border:1px solid #a7f3d0;border-radius:12px;padding:14px 22px;margin-bottom:12px;min-width:200px;">
+                                    <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#047857;font-weight:600;margin-bottom:4px;">Amount Received</div>
+                                    <div style="font-size:1.65rem;font-weight:700;color:#065f46;line-height:1.2;font-variant-numeric:tabular-nums;">${headline}</div>
+                                </div>` : ''}
+                                <p style="margin:0;color:#334155;font-size:0.98rem;line-height:1.45;">${bodyText}</p>
+                            </div>
+                        `,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0f766e',
+                        buttonsStyling: true,
+                        focusConfirm: true,
+                        customClass: {
+                            popup: 'payment-success-swal',
+                            title: 'payment-success-swal-title',
+                            confirmButton: 'payment-success-swal-btn'
+                        },
+                        width: 420
                     }).then(() => {
                         // Close the modal and reload the page
                         $(`#addPaymentModal${tourId}`).modal('hide');
