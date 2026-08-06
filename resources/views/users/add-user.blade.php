@@ -267,15 +267,16 @@
                                         name="licence_no" placeholder="Enter TA License No">
                                 </div>
                             </div>
-                            <!-- Third Party (DMC only) -->
+                            <!-- Third Party (DMC only) — values must be string enum: yes|no -->
                             <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
                                 <div class="mb-3">
                                     <label for="thirdparty" class="form-label">
                                         <strong>Third Party DMC</strong>
                                     </label>
+                                    @php $oldThirdParty = strtolower((string) old('thirdparty', 'no')) === 'yes' ? 'yes' : 'no'; @endphp
                                     <select class="form-select" id="thirdparty" name="thirdparty">
-                                        <option value="no" @if(old('thirdparty') !== 'yes') selected @endif>No</option>
-                                        <option value="yes" @if(old('thirdparty') === 'yes') selected @endif>Yes</option>
+                                        <option value="no" @selected($oldThirdParty === 'no')>No</option>
+                                        <option value="yes" @selected($oldThirdParty === 'yes')>Yes</option>
                                     </select>
                                     @error('thirdparty')
                                     <div class="text-danger mt-1">{{ $message }}</div>
@@ -600,7 +601,13 @@
         if (mastercountryContainer) mastercountryContainer.style.display = 'none';
         if (currency_container) currency_container.style.display = 'none';
         if (thirdparty_container) thirdparty_container.style.display = 'none';
-        if (thirdparty) thirdparty.value = 'no'; // Only meaningful for DMC roles
+        // Preserve string enum (yes|no) across role toggles; do not coerce to boolean/number
+        const preservedThirdParty = thirdparty
+            ? (String(thirdparty.value || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+            : 'no';
+        if (thirdparty) {
+            thirdparty.disabled = true; // avoid submitting when not a DMC role
+        }
 
         resetHiddenFieldValues(); // Reset input fields
         if (user_code_container) user_code_container.style.display = 'block';
@@ -623,6 +630,10 @@
             if (licence_no_container) licence_no_container.style.display = 'block';
             if (currency_container) currency_container.style.display = 'flex';
             if (thirdparty_container) thirdparty_container.style.display = 'block';
+            if (thirdparty) {
+                thirdparty.disabled = false;
+                thirdparty.value = preservedThirdParty;
+            }
         } else if (userRole === 4) {
             if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {

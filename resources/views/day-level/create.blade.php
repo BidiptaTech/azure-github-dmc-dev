@@ -1157,7 +1157,7 @@
                                     </div>
                                     
                                     </div>
-                                </div>
+                                        </div>
 
                                 <div class="hotels-form-panel pricing-panel" id="hotel_pricing_panel">
                                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -1170,8 +1170,8 @@
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_room_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
-                                            </div>
                                         </div>
+                                    </div>
                                         <div class="col-lg-3 col-md-6">
                                             <label class="form-label" for="hotel_breakfast_price">Breakfast</label>
                                             <div class="input-group price-input-group">
@@ -1192,7 +1192,7 @@
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="hotel_dinner_price" min="0" step="0.01" placeholder="0.00" oninput="updateHotelPriceTotal()">
                                             </div>
-                                        </div>
+                                    </div>
                                     </div>
                                 </div>
 
@@ -2221,7 +2221,7 @@
             });
             initSearchableSelects(select);
             if (!silent) {
-                $(select).trigger('change.select2');
+            $(select).trigger('change.select2');
             }
         }
 
@@ -2918,11 +2918,11 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-2 align-items-end mb-2">
-                                <div class="col-md-4">
-                                    <label class="form-label" for="activity_city_select_${d}">City</label>
-                                    <select id="activity_city_select_${d}" class="form-select searchable-select">
-                                        <option value="">Select city</option>
-                                    </select>
+                            <div class="col-md-4">
+                                <label class="form-label" for="activity_city_select_${d}">City</label>
+                                <select id="activity_city_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select city</option>
+                                </select>
                                 </div>
                             </div>
 
@@ -2933,18 +2933,18 @@
                                     <span class="day-service-group__hint">Attraction &amp; its transfer share this section</span>
                                 </div>
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-4">
-                                        <label class="form-label" for="attraction_select_${d}">Attraction</label>
-                                        <select id="attraction_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select attraction</option>
-                                        </select>
-                                    </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="attraction_select_${d}">Attraction</label>
+                                <select id="attraction_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select attraction</option>
+                                </select>
+                            </div>
                                     <div class="col-md-3">
-                                        <label class="form-label" for="attraction_ticket_select_${d}">Select Ticket</label>
-                                        <select id="attraction_ticket_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select ticket</option>
-                                        </select>
-                                    </div>
+                                <label class="form-label" for="attraction_ticket_select_${d}">Select Ticket</label>
+                                <select id="attraction_ticket_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select ticket</option>
+                                </select>
+                            </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="attraction_price_${d}">Ticket Price</label>
                                         <div class="input-group price-input-group">
@@ -2999,33 +2999,33 @@
                                     <span class="day-service-group__hint">Restaurant &amp; its transfer share this section</span>
                                 </div>
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-3">
-                                        <label class="form-label" for="restaurant_select_${d}">Restaurant</label>
-                                        <select id="restaurant_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select restaurant</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
-                                        <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
-                                            <option value="">All periods</option>
-                                            <option value="1">Breakfast</option>
-                                            <option value="2">Lunch</option>
-                                            <option value="3">Dinner</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
-                                        <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
-                                            <option value="">Select restaurant first</option>
-                                        </select>
-                                    </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="restaurant_select_${d}">Restaurant</label>
+                                <select id="restaurant_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select restaurant</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="restaurant_meal_period_${d}">Meal period</label>
+                                <select id="restaurant_meal_period_${d}" class="form-select searchable-select">
+                                    <option value="">All periods</option>
+                                    <option value="1">Breakfast</option>
+                                    <option value="2">Lunch</option>
+                                    <option value="3">Dinner</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="restaurant_meal_select_${d}">Meal</label>
+                                <select id="restaurant_meal_select_${d}" class="form-select searchable-select">
+                                    <option value="">Select restaurant first</option>
+                                </select>
+                            </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="restaurant_price_${d}">Meal Price</label>
                                         <div class="input-group price-input-group">
                                             <span class="input-group-text">{{ $dmcCurrency }}</span>
                                             <input type="number" class="form-control" id="restaurant_price_${d}" min="0" step="0.01" placeholder="0.00">
-                                        </div>
+                            </div>
                                     </div>
                                     <div class="col-md-1 d-flex">
                                         <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_add_btn_${d}" onclick="addRestaurantItemForDay(${d})">Add Restaurant</button>
@@ -3040,24 +3040,24 @@
                                         </div>
                                     </div>
                                     <div class="row g-2 align-items-end">
-                                        <div class="col-md-4">
+                                    <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_pickup_select_${d}">Pickup Location</label>
                                             <select id="restaurant_transfer_pickup_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select pickup</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
+                                            <option value="">Select pickup</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
                                             <label class="form-label" for="restaurant_transfer_drop_select_${d}">Drop Location</label>
                                             <select id="restaurant_transfer_drop_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select drop</option>
-                                            </select>
-                                        </div>
+                                            <option value="">Select drop</option>
+                                        </select>
+                                    </div>
                                         <div class="col-md-2">
                                             <label class="form-label" for="restaurant_transfer_price_${d}">Transfer Price</label>
                                             <div class="input-group price-input-group">
                                                 <span class="input-group-text">{{ $dmcCurrency }}</span>
                                                 <input type="number" class="form-control" id="restaurant_transfer_price_${d}" min="0" step="0.01" placeholder="0.00">
-                                            </div>
+                                    </div>
                                         </div>
                                         <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="restaurant_transfer_add_btn_${d}" onclick="addRestaurantTransferItemForDay(${d})">Add Transfer</button>
@@ -3065,7 +3065,7 @@
                                     </div>
                                 </div>
                                 <div class="day-group-msg" id="restaurant_group_msg_${d}" role="alert"></div>
-                            </div>
+                                </div>
 
                             <select id="transfer_city_select_${d}" class="d-none" aria-hidden="true" tabindex="-1">
                                 <option value="">Select city</option>
@@ -3080,17 +3080,17 @@
                                     </div>
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
-                                            <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
-                                            <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select pickup</option>
-                                            </select>
-                                        </div>
+                                        <label class="form-label" for="arrival_pickup_select_${d}">Pickup Location</label>
+                                        <select id="arrival_pickup_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select pickup</option>
+                                        </select>
+                                    </div>
                                         <div class="col-md-4">
-                                            <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
-                                            <select id="arrival_drop_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select drop</option>
-                                            </select>
-                                        </div>
+                                        <label class="form-label" for="arrival_drop_select_${d}">Drop Location</label>
+                                        <select id="arrival_drop_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select drop</option>
+                                        </select>
+                                    </div>
                                         <div class="col-md-2">
                                             <label class="form-label" for="arrival_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
@@ -3098,9 +3098,9 @@
                                                 <input type="number" class="form-control transfer-leg-price-input" id="arrival_price_${d}" data-transfer-prefix="arrival" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        <div class="col-md-2 d-flex">
+                                    <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="arrival_add_btn_${d}" onclick="addArrivalItemForDay(${d})">Add Arrival</button>
-                                        </div>
+                                    </div>
                                     </div>
                                     <div class="day-group-msg" id="arrival_group_msg_${d}" role="alert"></div>
                                 </div>
@@ -3113,17 +3113,17 @@
                                     </div>
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-4">
-                                            <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
-                                            <select id="departure_pickup_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select pickup</option>
-                                            </select>
-                                        </div>
+                                        <label class="form-label" for="departure_pickup_select_${d}">Pickup Location</label>
+                                        <select id="departure_pickup_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select pickup</option>
+                                        </select>
+                                    </div>
                                         <div class="col-md-4">
-                                            <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
-                                            <select id="departure_drop_select_${d}" class="form-select searchable-select">
-                                                <option value="">Select drop</option>
-                                            </select>
-                                        </div>
+                                        <label class="form-label" for="departure_drop_select_${d}">Drop Location</label>
+                                        <select id="departure_drop_select_${d}" class="form-select searchable-select">
+                                            <option value="">Select drop</option>
+                                        </select>
+                                    </div>
                                         <div class="col-md-2">
                                             <label class="form-label" for="departure_price_${d}">Transfer Price <span class="small text-muted fw-normal">(zone auto / manual)</span></label>
                                             <div class="input-group price-input-group">
@@ -3131,9 +3131,9 @@
                                                 <input type="number" class="form-control transfer-leg-price-input" id="departure_price_${d}" data-transfer-prefix="departure" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
-                                        <div class="col-md-2 d-flex">
+                                    <div class="col-md-2 d-flex">
                                             <button type="button" class="btn btn-outline-primary w-100 mt-4" id="departure_add_btn_${d}" onclick="addDepartureItemForDay(${d})">Add Departure</button>
-                                        </div>
+                                    </div>
                                     </div>
                                     <div class="day-group-msg" id="departure_group_msg_${d}" role="alert"></div>
                                 </div>
@@ -3168,18 +3168,18 @@
                 do {
                     hydrateDayServicesQueued = false;
                     isHydratingDayServices = true;
-                    const selectedCountry = document.getElementById('country').value || '';
+            const selectedCountry = document.getElementById('country').value || '';
                     const filteredCities = allCities.filter(c => cityMatchesCountry(c, selectedCountry));
-                    const multiCityFiltered = getDayCityOptionsFromMultiCity();
-                    const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
-                    const cityOptions = source.map(c => ({
-                        value: c.value,
-                        label: c.country ? `${c.name}, ${c.country}` : c.name,
-                        data_name: c.name,
-                        data_country: c.country,
-                    }));
+            const multiCityFiltered = getDayCityOptionsFromMultiCity();
+            const source = (multiCityFiltered && multiCityFiltered.length) ? multiCityFiltered : filteredCities;
+            const cityOptions = source.map(c => ({
+                value: c.value,
+                label: c.country ? `${c.name}, ${c.country}` : c.name,
+                data_name: c.name,
+                data_country: c.country,
+            }));
                     const forceCitySync = isHydratingEditPayload || multiCityPlans.length > 0;
-                    for (let d = 1; d <= daysCount; d++) {
+            for (let d = 1; d <= daysCount; d++) {
                         setSelectOptions(`activity_city_select_${d}`, cityOptions, true);
                         setSelectOptions(`attraction_select_${d}`, [{ value: '', label: 'Select city first' }], true);
                         setSelectOptions(`restaurant_select_${d}`, [{ value: '', label: 'Select city first' }], true);
@@ -3206,7 +3206,7 @@
                             return populateDayServiceOptionsByCity(d, cityName, { loadTransfers: false });
                         })
                     );
-                    hydrateAllDayTransferCityOptions();
+            hydrateAllDayTransferCityOptions();
                     isHydratingDayServices = false;
                     scheduleTransferOptionsReload(false);
                 } while (hydrateDayServicesQueued);
@@ -4078,7 +4078,7 @@
             const option = document.createElement('option');
             option.value = requested;
             option.textContent = formattedLabel;
-            select.appendChild(option);
+                select.appendChild(option);
             return requested;
         }
 
@@ -4096,29 +4096,29 @@
         }
 
         function applyTransferOptionsPayload(data) {
-            transferLocationOptions = Array.isArray(data?.locations) ? data.locations : [];
+                transferLocationOptions = Array.isArray(data?.locations) ? data.locations : [];
             serviceTransferOptions = Array.isArray(data?.service_transfer_locations)
                 ? data.service_transfer_locations
                 : (Array.isArray(data?.arrival_drop_locations)
                     ? data.arrival_drop_locations.filter((x) => String(x?.type || '').toLowerCase() !== 'port')
                     : []);
-            transferArrivalPickupOptions = Array.isArray(data?.arrival_pickup_ports)
-                ? data.arrival_pickup_ports
-                : transferLocationOptions.filter(x => String(x?.type || '').toLowerCase() === 'port'
-                    || String(x?.value || '').startsWith('port:'));
-            transferArrivalDropOptions = Array.isArray(data?.arrival_drop_locations)
-                ? data.arrival_drop_locations
-                : transferLocationOptions;
-            zoneTransferOptions = Array.isArray(data?.zones) ? data.zones : [];
-            mergeTransferLocationLabels(transferLocationOptions);
+                transferArrivalPickupOptions = Array.isArray(data?.arrival_pickup_ports)
+                    ? data.arrival_pickup_ports
+                    : transferLocationOptions.filter(x => String(x?.type || '').toLowerCase() === 'port'
+                        || String(x?.value || '').startsWith('port:'));
+                transferArrivalDropOptions = Array.isArray(data?.arrival_drop_locations)
+                    ? data.arrival_drop_locations
+                    : transferLocationOptions;
+                zoneTransferOptions = Array.isArray(data?.zones) ? data.zones : [];
+                mergeTransferLocationLabels(transferLocationOptions);
             mergeTransferLocationLabels(serviceTransferOptions);
-            mergeTransferLocationLabels(transferArrivalPickupOptions);
-            mergeTransferLocationLabels(transferArrivalDropOptions);
-            mergeTransferLocationLabels(zoneTransferOptions);
-            const portCanon = String(
-                data?.default_port_value ?? data?.default_pickup ?? ''
-            ).trim();
-            transferDefaults = { defaultPort: portCanon };
+                mergeTransferLocationLabels(transferArrivalPickupOptions);
+                mergeTransferLocationLabels(transferArrivalDropOptions);
+                mergeTransferLocationLabels(zoneTransferOptions);
+                const portCanon = String(
+                    data?.default_port_value ?? data?.default_pickup ?? ''
+                ).trim();
+                transferDefaults = { defaultPort: portCanon };
         }
 
         function applyTransferOptionsToDayUI(dayVal, silent = true) {
@@ -4246,10 +4246,10 @@
                     const depHotelVal = departureHotel.value;
                     enforceDepartureDropPort(d, true);
                     const depPickupEl = document.getElementById(`departure_pickup_select_${d}`);
-                    if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
+                if (depPickupEl && depHotelVal && !String(depPickupEl.value || '').trim()) {
                         const depPickupVal = ensureTransferLocationOption(
                             `departure_pickup_select_${d}`,
-                            depHotelVal,
+                        depHotelVal,
                             departureHotel.label || labelForStoredTransferLocation(depHotelVal)
                         );
                         safeSetSelectValue(`departure_pickup_select_${d}`, depPickupVal);
@@ -4851,7 +4851,7 @@
                 setSelectOptions(`attraction_ticket_select_${dayVal}`, tickets.map(t => {
                     const adult = parseFloat(t.adult_price) || 0;
                     return {
-                        value: t.ticket_id,
+                    value: t.ticket_id,
                         label: `${t.name || `Ticket ${t.ticket_id}`}${adult > 0 ? ` — ${getDayCurrency()} ${adult.toFixed(2)}` : ''}`,
                         adult_price: adult,
                         child_price: parseFloat(t.child_price) || 0,
@@ -4897,7 +4897,7 @@
                 setSelectOptions(`attraction_select_${dayVal}`, (data.attractions || []).map(x => {
                     const adult = parseFloat(x.adult_price) || 0;
                     return {
-                        value: x.attraction_id,
+                    value: x.attraction_id,
                         label: `${x.name}${x.location ? ` - ${x.location}` : ''}${adult > 0 ? ` — from ${getDayCurrency()} ${adult.toFixed(2)}` : ''}`,
                         price: adult,
                         adult_price: adult,
@@ -5019,7 +5019,7 @@
                 setSelectOptions('hotel_room_select', rooms.map(room => {
                     const roomPrice = parseFloat(room.double_weekday_price) || parseFloat(room.weekday_price) || 0;
                     return {
-                        value: String(room.room_id ?? ''),
+                    value: String(room.room_id ?? ''),
                         label: `${room.room_type || `Room ${room.room_id}`} — ${getDayCurrency()} ${roomPrice.toFixed(2)}`,
                         double_weekday_price: room.double_weekday_price,
                         breakfast_price: room.breakfast_price,
@@ -5486,7 +5486,7 @@
             const resolvedCategory = (x.hotel_star_rating && String(x.hotel_star_rating).trim() !== '')
                 ? String(x.hotel_star_rating)
                 : ((x.cat && String(x.cat).trim() !== '')
-                    ? String(x.cat)
+                ? String(x.cat)
                     : await resolveHotelCategoryForEdit(x.hotel_id, x.city_name || getCityNameFromSelect('hotel_city_select')));
             safeSetSelectValue('hotel_category', resolvedCategory);
             await filterHotelOptions();
@@ -5955,7 +5955,7 @@
             activeDay = Math.max(1, Math.min(daysCount, rowDay));
 
             if (!document.getElementById(`activity_city_select_${rowDay}`)) {
-                initDays();
+            initDays();
             } else {
                 updateAllDayTransferVisibility();
             }
@@ -5976,13 +5976,13 @@
                 || '';
 
             if (resolvedCityName) {
-                const citySelect = document.getElementById(citySelectId);
+            const citySelect = document.getElementById(citySelectId);
                 if (citySelect) {
-                    const cityMatch = Array.from(citySelect.options).find(opt => {
-                        const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
+                const cityMatch = Array.from(citySelect.options).find(opt => {
+                    const nm = String(opt.dataset.name || opt.textContent || '').split(',')[0].trim().toLowerCase();
                         return nm === resolvedCityName.trim().toLowerCase();
-                    });
-                    if (cityMatch) {
+                });
+                if (cityMatch) {
                         isSyncingCitySelectors = true;
                         safeSetSelectValueSilent(citySelectId, cityMatch.value);
                         activityCityByDay[rowDay] = resolvedCityName;
@@ -6929,7 +6929,7 @@
                         </thead>
                         <tbody>${rows}</tbody>
                     </table>
-                </div>
+                    </div>
             `;
         }
 
@@ -6966,7 +6966,7 @@
                 const hotelLabel = String(h.hotel_name || '-').replace(/\s*-\s*[^-]+$/i, '').trim() || h.hotel_name || '-';
                 const stayLabel = formatHotelStayDayLabel(h);
 
-                inner += `
+                    inner += `
                     <div class="preview-line mb-2">
                         <strong>Hotel</strong>
                         ${!isCheckinDay ? `<span class="preview-hotel-continuation">(continued stay · booked ${escapeHtml(stayLabel)})</span>` : ''}

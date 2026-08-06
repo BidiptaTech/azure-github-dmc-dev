@@ -1388,22 +1388,12 @@
                                 </div>
                                 
                                 
-                                <div id="nightSelectionSummary">
-                            <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                                    </div>
-                                </div>
+                                <div id="nightSelectionSummary"></div>
                             </div>
                             </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
-                            <div id="selectedHotels">
-                                <div class="alert alert-info d-flex align-items-center">
-                                    <i class="ri-information-line me-2"></i>
-                                    <span>No hotels selected yet. Choose your hotels above.</span>
-                                </div>
-                            </div>
+                            <div id="selectedHotels"></div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -15128,12 +15118,7 @@
                 summaryHTML += '</div>';
                 document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
             } else {
-                document.getElementById('nightSelectionSummary').innerHTML = `
-                    <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                    </div>
-                `;
+                document.getElementById('nightSelectionSummary').innerHTML = '';
             }
         }
 
@@ -17883,12 +17868,7 @@
             const container = document.getElementById('selectedHotels');
             
             if (selectedHotels.length === 0) {
-                container.innerHTML = `
-                    <div class="alert d-flex align-items-center" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <span style="color: #495057; font-size: 0.85rem;">No hotels selected yet. Choose your hotels above.</span>
-                    </div>
-                `;
+                container.innerHTML = '';
             } else {
                 let hotelsHtml = '';
                 const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
