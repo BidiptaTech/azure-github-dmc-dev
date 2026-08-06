@@ -360,12 +360,20 @@
                               data-bs-title="Note: Vice-versa prices will be the same (Zone A → Zone B = Zone B → Zone A).">
                             <i class="fas fa-info-circle"></i>
                         </span>
-                        <x-currency-price-note />
+                        <x-currency-price-note
+                            :country="old('country', $selectedCountry ?? $vehicle->country ?? null)"
+                            :watch-country="true"
+                            country-select-id="country"
+                        />
                     </span>
                 @else
                     <span class="d-flex align-items-center flex-wrap gap-2">
                         Edit Vehicle Details
-                        <x-currency-price-note />
+                        <x-currency-price-note
+                            :country="old('country', $selectedCountry ?? $vehicle->country ?? null)"
+                            :watch-country="true"
+                            country-select-id="country"
+                        />
                     </span>
                 @endif
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
@@ -6331,4 +6339,5 @@ $(document).ready(function() {
 </script>
 @endif
 
+@include('components.currency-price-note-dmc-script')
 @endsection

@@ -231,7 +231,8 @@ class EnquiryController extends Controller
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
@@ -249,7 +250,8 @@ class EnquiryController extends Controller
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
@@ -264,11 +266,12 @@ class EnquiryController extends Controller
                 $tourStatus,
                 $tourStatus,
                 null,
-                $amount,    
+                $amount,
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }

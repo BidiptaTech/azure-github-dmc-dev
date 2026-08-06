@@ -1,10 +1,10 @@
 <script>
 (function () {
-    function getUserCurrencyText(note) {
-        const currency = note.dataset.userCurrency || '';
+    function getProductCurrencyText(note) {
+        const currency = note.dataset.productCurrency || '';
         return currency
-            ? '* You have set your currency in ' + currency
-            : '* Currency has not been set for the current user';
+            ? '* Product currency is ' + currency
+            : '* Product currency is not set';
     }
 
     function getDmcCurrencyText(currency) {
@@ -13,65 +13,188 @@
             : '* For The Selected DMC Currency is not set';
     }
 
-    window.updateCurrencyPriceNoteFromDmc = function (selectEl) {
-        console.log('[currency-price-note] updateCurrencyPriceNoteFromDmc called', selectEl);
-
-        const note = document.querySelector('.currency-price-note');
-        console.log('[currency-price-note] note element:', note);
-        console.log('[currency-price-note] adminDmcMode:', note ? note.dataset.adminDmcMode : 'no note');
-
-        if (!note) {
-            console.warn('[currency-price-note] Aborted: .currency-price-note not found');
-            return;
+    function getCountryCurrencyMap(note) {
+        try {
+            const mapId = note.dataset.countryMapId || '';
+            const mapEl = mapId ? document.getElementById(mapId) : null;
+            if (mapEl && mapEl.textContent) {
+                return JSON.parse(mapEl.textContent) || {};
+            }
+            // Legacy fallback
+            return JSON.parse(note.dataset.countryCurrencyMap || '{}') || {};
+        } catch (e) {
+            return {};
         }
+    }
 
-        if (note.dataset.adminDmcMode !== '1') {
-            console.warn('[currency-price-note] Aborted: admin DMC mode is not enabled');
-            return;
+    function resolveCurrencyFromCountry(note, countryName) {
+        if (!countryName) {
+            return '';
         }
+        const map = getCountryCurrencyMap(note);
+        const direct = map[countryName] || '';
+        if (direct) {
+            return String(direct).toUpperCase();
+        }
+        const target = String(countryName).trim().toLowerCase();
+        for (const key in map) {
+            if (Object.prototype.hasOwnProperty.call(map, key) && String(key).trim().toLowerCase() === target) {
+                return String(map[key]).toUpperCase();
+            }
+        }
+        return '';
+    }
 
+    function setNoteText(note, text) {
         const textEl = note.querySelector('.currency-price-note-text');
-        if (!textEl) {
-            console.warn('[currency-price-note] Aborted: .currency-price-note-text not found');
+        if (textEl) {
+            textEl.textContent = text;
+        }
+    }
+
+    function applyProductCurrency(note, countryName, currency) {
+        if (countryName) {
+            note.dataset.productCountry = countryName;
+        }
+        if (currency) {
+            note.dataset.productCurrency = currency;
+        }
+        setNoteText(note, currency ? ('* Product currency is ' + currency) : '* Product currency is not set');
+    }
+
+    window.updateCurrencyPriceNoteFromCountry = function (selectEl, noteEl) {
+        const note = noteEl || document.querySelector('.currency-price-note');
+        if (!note) {
+            return;
+        }
+
+        if (note.dataset.adminDmcMode === '1') {
+            const dmcSelect = document.getElementById('dmc_selection')
+                || document.getElementById('dmc_select')
+                || document.getElementById('dmcSelect');
+            if (dmcSelect && dmcSelect.value) {
+                window.updateCurrencyPriceNoteFromDmc(dmcSelect);
+                return;
+            }
+        }
+
+        const selected = selectEl && selectEl.options ? selectEl.options[selectEl.selectedIndex] : null;
+        const countryFromData = selected ? (selected.getAttribute('data-country') || selected.dataset.country || '') : '';
+        const currencyFromData = selected ? (selected.getAttribute('data-currency') || selected.dataset.currency || '') : '';
+        let countryName = String(countryFromData || (selectEl && selectEl.value ? selectEl.value : '')).trim();
+
+        const existingCountry = String(note.dataset.productCountry || '').trim();
+        const existingCurrency = String(note.dataset.productCurrency || '').trim();
+
+        if (!countryName) {
+            if (existingCurrency) {
+                setNoteText(note, '* Product currency is ' + existingCurrency);
+                return;
+            }
+            if (existingCountry) {
+                const resolved = resolveCurrencyFromCountry(note, existingCountry);
+                if (resolved) {
+                    applyProductCurrency(note, existingCountry, resolved);
+                    return;
+                }
+            }
+            setNoteText(note, '* Product currency is not set');
+            return;
+        }
+
+        let currency = currencyFromData
+            ? String(currencyFromData).toUpperCase()
+            : resolveCurrencyFromCountry(note, countryName);
+
+        // Never wipe a valid server-rendered currency if lookup fails for same/related country.
+        if (!currency && existingCurrency) {
+            currency = existingCurrency;
+        }
+
+        applyProductCurrency(note, countryName, currency);
+    };
+
+    window.updateCurrencyPriceNoteFromDmc = function (selectEl) {
+        const note = document.querySelector('.currency-price-note');
+        if (!note || note.dataset.adminDmcMode !== '1') {
             return;
         }
 
         if (!selectEl || !selectEl.value) {
-            console.log('[currency-price-note] No DMC selected, resetting to user currency');
-            textEl.textContent = getUserCurrencyText(note);
+            setNoteText(note, getProductCurrencyText(note));
             return;
         }
 
         const selected = selectEl.options[selectEl.selectedIndex];
-        const userId = selectEl.value;
-        const currency = selected ? (selected.getAttribute('data-currency') || selected.dataset.currency || '') : '';
+        let currency = selected
+            ? (selected.getAttribute('data-currency') || selected.dataset.currency || '')
+            : '';
 
-        console.log('[currency-price-note] Selected DMC userId:', userId, 'currency:', currency);
-        console.log('[currency-price-note] Selected option:', selected ? selected.outerHTML : null);
+        if (!currency && selected) {
+            const countryName = selected.getAttribute('data-country') || selected.dataset.country || '';
+            currency = resolveCurrencyFromCountry(note, countryName);
+        }
 
-        textEl.textContent = getDmcCurrencyText(currency);
-        console.log('[currency-price-note] Updated text:', textEl.textContent);
+        setNoteText(note, getDmcCurrencyText(currency));
     };
 
     window.bindCurrencyPriceNoteToDmcSelect = function (selectId) {
         const dmcSelect = document.getElementById(selectId || 'dmc_selection');
-        console.log('[currency-price-note] bindCurrencyPriceNoteToDmcSelect', selectId || 'dmc_selection', dmcSelect);
-
         if (!dmcSelect) {
-            console.warn('[currency-price-note] DMC select not found:', selectId || 'dmc_selection');
             return;
         }
-
-        Array.from(dmcSelect.options).forEach(function (opt) {
-            if (opt.value) {
-                console.log('[currency-price-note] DMC option loaded — userId:', opt.value, 'currency:', opt.getAttribute('data-currency'));
-            }
-        });
-
         dmcSelect.addEventListener('change', function () {
-            console.log('[currency-price-note] DMC select change event, value:', this.value);
             window.updateCurrencyPriceNoteFromDmc(this);
         });
     };
+
+    window.bindCurrencyPriceNoteToCountrySelect = function (selectId) {
+        const note = document.querySelector('.currency-price-note');
+        if (!note || note.dataset.watchCountry !== '1') {
+            return;
+        }
+
+        const countrySelect = document.getElementById(selectId || note.dataset.countrySelectId || 'country');
+        if (!countrySelect) {
+            return;
+        }
+
+        const sync = function () {
+            window.updateCurrencyPriceNoteFromCountry(countrySelect, note);
+        };
+
+        countrySelect.addEventListener('change', sync);
+        if (window.jQuery) {
+            window.jQuery(countrySelect).on('change.select2', sync);
+        }
+        sync();
+    };
+
+    function initCurrencyPriceNoteBindings() {
+        const note = document.querySelector('.currency-price-note');
+        if (!note) {
+            return;
+        }
+
+        if (note.dataset.watchCountry === '1') {
+            window.bindCurrencyPriceNoteToCountrySelect(note.dataset.countrySelectId || 'country');
+        }
+
+        if (note.dataset.adminDmcMode === '1') {
+            if (document.getElementById('dmc_selection')) {
+                window.bindCurrencyPriceNoteToDmcSelect('dmc_selection');
+            } else if (document.getElementById('dmc_select')) {
+                window.bindCurrencyPriceNoteToDmcSelect('dmc_select');
+            } else if (document.getElementById('dmcSelect')) {
+                window.bindCurrencyPriceNoteToDmcSelect('dmcSelect');
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCurrencyPriceNoteBindings);
+    } else {
+        initCurrencyPriceNoteBindings();
+    }
 })();
 </script>
