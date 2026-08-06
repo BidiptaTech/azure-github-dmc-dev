@@ -170,7 +170,18 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Edit Guide Details
-                    <x-currency-price-note />
+                    @php
+                        $guideNoteCountry = trim((string) ($guide->country ?? $selectedCountry ?? ''));
+                        $guideNoteCurrency = $guideNoteCountry !== ''
+                            ? \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($guideNoteCountry)])->value('currency')
+                            : null;
+                    @endphp
+                    <x-currency-price-note
+                        :country="$guideNoteCountry !== '' ? $guideNoteCountry : null"
+                        :currency="$guideNoteCurrency"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
                 </span>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -303,16 +314,25 @@
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 @php
-                                    $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                    $scopedCountries = collect($masterDmcCountries ?? $country ?? []);
                                     $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
+                                    // Ensure the guide's saved country is always available in the select.
+                                    if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
+                                        return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
+                                    })) {
+                                        $missingCountry = \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $editSelectedCountry))])->first();
+                                        if ($missingCountry) {
+                                            $scopedCountries = $scopedCountries->prepend($missingCountry)->unique('id')->values();
+                                        }
+                                    }
                                 @endphp
                                 <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
                                     @foreach($scopedCountries as $countryOption)
-                                        <option value="{{ $countryOption->name }}" 
-                                            {{ $editSelectedCountry == $countryOption->name ? 'selected' : '' }}>
+                                        <option value="{{ $countryOption->name }}"
+                                            {{ strcasecmp(trim((string) $editSelectedCountry), trim((string) $countryOption->name)) === 0 ? 'selected' : '' }}>
                                             {{ $countryOption->name }}
                                         </option>
                                     @endforeach
@@ -809,6 +829,7 @@
 @endsection
 
 @section('scripts')
+@include('components.currency-price-note-dmc-script')
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>
@@ -827,6 +848,9 @@
             allowClear: true,
             width: '100%'
         });
+        if (typeof window.updateCurrencyPriceNoteFromCountry === 'function') {
+            window.updateCurrencyPriceNoteFromCountry(document.getElementById('country'));
+        }
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
@@ -1855,5 +1879,4 @@
     });
     </script>
     
-
 @endsection

@@ -274,18 +274,37 @@
         const key = serviceCityKey(cityName);
         const rows = Array.isArray(list) ? list : [];
         let fallback = null;
+        let best = null;
         for (let i = 0; i < rows.length; i++) {
             const e = rows[i];
-            if (!e || e.sourceType !== 'hotel') continue;
-            if (e.travel_type !== travelType) continue;
+            if (!e) continue;
+            const tt = e.travel_type;
+            const ty = (e.type || '').toString();
+            const matchesType = (tt === travelType)
+                || ((!tt || tt === '') && (
+                    (travelType === 'entry_port' && ty === 'Arrival')
+                    || (travelType === 'exit_port' && ty === 'Departure')
+                ));
+            if (!matchesType) continue;
+            // Prefer hotel-linked rows; still accept port rows missing sourceType (loaded edit data)
+            if (e.sourceType && e.sourceType !== 'hotel' && e.sourceType !== 'standalone') {
+                // allow through — some loaders omit sourceType
+            }
+            if (e.sourceType === 'standalone') continue;
             const eKey = serviceCityKey(e.city || e.destination || '');
             if (!key) {
                 return e;
             }
-            if (eKey && eKey === key) return e;
+            if (eKey && eKey === key) {
+                // Prefer row with port/vehicle over blank placeholders
+                if (!best || ((e.portId || e.portName) && !(best.portId || best.portName))) {
+                    best = e;
+                }
+                continue;
+            }
             if (!eKey && !fallback) fallback = e;
         }
-        return key ? null : fallback;
+        return best || (key ? null : fallback);
     }
     window.findHotelSyncedArrDep = findHotelSyncedArrDep;
 

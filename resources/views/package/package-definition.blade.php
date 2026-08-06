@@ -15,7 +15,11 @@
                     <h4 class="fw-bold mb-0">
                         <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
                     </h4>
-                    <x-currency-price-note :currency="$currency ?? null" />
+                    <x-currency-price-note
+                        :country="old('destination', $isEdit ? ($package->destination ?? null) : null)"
+                        :watch-country="true"
+                        country-select-id="country-select"
+                    />
                 </div>
                 <p class="text-muted mb-0">
                     {{ $isEdit ? 'Update package definition services and pricing' : 'Define package services without day-wise itinerary' }}
@@ -4326,6 +4330,7 @@ $(document).ready(function() {
     updateDefinitionSubmitButton();
 });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection
 
 @section('css')

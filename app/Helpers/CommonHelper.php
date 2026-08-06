@@ -7694,7 +7694,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -7745,6 +7745,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             if ($paymentType !== null && $paymentType !== '') {
                 $entryExtra['payment_type'] = (string) $paymentType;
+            }
+            if (!empty($offers)) {
+                if (is_array($offers)) {
+                    // Store full negotiation offers list (one or more country/currency rows)
+                    $entryExtra['offers'] = array_values($offers);
+                } elseif (is_string($offers)) {
+                    $decodedOffers = json_decode($offers, true);
+                    $entryExtra['offers'] = is_array($decodedOffers) ? array_values($decodedOffers) : $offers;
+                } else {
+                    $entryExtra['offers'] = $offers;
+                }
+            }
+            if ($confirmCurrency !== null && $confirmCurrency !== '') {
+                $entryExtra['confirm_currency'] = strtoupper(trim((string) $confirmCurrency));
             }
 
             if ($fromIsNull) {
@@ -7819,9 +7833,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param string|null           $selectedCurrency
      * @param \Carbon\Carbon|string|null $paymentDate
      * @param string|null           $paymentType
+     * @param array|string|null     $offers  full negotiation offers list (country/currency/amount/etc.)
+     * @param string|null           $confirmCurrency  currency selected when confirming tour
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -7834,7 +7850,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType, $offers, $confirmCurrency);
     }
 
     /**

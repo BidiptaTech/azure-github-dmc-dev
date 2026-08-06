@@ -21,7 +21,7 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Update Meal Information
-                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                    <x-currency-price-note :country="optional($meals->restaurant)->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <a href="{{ route('meals.restaurant_create', Crypt::encrypt($meals->restaurant_id)) }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -828,4 +828,5 @@
         });
     });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection
