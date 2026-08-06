@@ -38,7 +38,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="d-flex align-items-center flex-wrap gap-2">
                                     <h4 class="card-title mb-0">Edit Ticket</h4>
-                                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                                    <x-currency-price-note :country="optional($ticket->attraction)->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                                 </div>
                                 <a href="{{ route('tickets.add_ticket', Crypt::encrypt($ticket->attraction_id)) }}" class="btn btn-sm btn-outline-danger">
                                     <i class="mdi mdi-arrow-left"></i> Back
@@ -349,4 +349,5 @@
         @enderror
     });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection

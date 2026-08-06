@@ -165,7 +165,7 @@
          <h5 class="card-header d-flex justify-content-between align-items-center">
                <span class="d-flex align-items-center flex-wrap gap-2">
                    Add Events
-                   <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                   <x-currency-price-note :country="$hotel->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                </span>
                <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                   <i class="mdi mdi-arrow-left"></i> Back

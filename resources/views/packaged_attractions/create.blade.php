@@ -200,7 +200,11 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Create Packaged Attraction
-                    <x-currency-price-note />
+                    <x-currency-price-note
+                        :country="old('country', $dmcCountry ?? null)"
+                        :watch-country="true"
+                        country-select-id="attractionCountryFilter"
+                    />
                 </span>
                 <a href="{{ route('packaged-attractions.index') }}" class="btn btn-sm btn-outline-light">
                     <i class="mdi mdi-arrow-left me-1"></i> Back
@@ -760,4 +764,5 @@
         });
     }
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection
