@@ -1,170 +1,45 @@
 import React, { useState } from "react";
-import "./login.css";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setName, setEmail1, setAuthenticated, setAgentId } from "./loginSlice";
-
-
 import { loginUser } from "../../slice/common/authSlices";
-import { setUserRole } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
-import { setSelectedDmcId, setDmcFromAuth } from "../../slice/dmc/dmcSlice";
+import { setDmcFromAuth } from "../../slice/dmc/dmcSlice";
 import {
   Box,
-  Card,
-  CardContent,
   TextField,
   Button,
   Typography,
   IconButton,
   InputAdornment,
-  Container,
-  Grid,
   Paper,
-  Fade,
-  Slide,
-  Zoom,
   CircularProgress,
-  Avatar,
-  Divider,
-  useTheme,
-  alpha,
-  Tooltip,
+  Alert,
 } from "@mui/material";
 import {
   Email,
   Lock,
   Visibility,
   VisibilityOff,
-  Login as LoginIcon,
-  TravelExplore,
+  ArrowBack,
   Hotel,
-  Attractions,
-  Restaurant,
   DirectionsCar,
-  Person,
-  LocationOn,
-  Star,
-  Security,
-  Speed,
-  Support,
-  PersonAdd,
-  ArrowForward,
+  SupportAgent,
+  VerifiedUser,
 } from "@mui/icons-material";
-import { keyframes } from "@mui/system";
 import { ClearLists } from "@/slice/common/TourlistSlice";
 import { resetAgentList } from "@/slice/common/agentListSlice";
 
-// Custom animations
-const float = keyframes`
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-`;
-
-const pulse = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(77, 115, 252, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(77, 115, 252, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(77, 115, 252, 0); }
-`;
-
-const slideInLeft = keyframes`
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-`;
-
-const slideInRight = keyframes`
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-`;
-
-const rotate = keyframes`
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-`;
-
-const doorOpenLeft = keyframes`
-  0% { 
-    transform: rotateY(0deg);
-  }
-  100% { 
-    transform: rotateY(-120deg);
-  }
-`;
-
-const doorOpenRight = keyframes`
-  0% { 
-    transform: rotateY(0deg);
-  }
-  100% { 
-    transform: rotateY(120deg);
-  }
-`;
-
-const fade = keyframes`
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
-`;
-
-const welcomeGlow = keyframes`
-  0%, 100% { 
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(102, 126, 234, 0.6);
-  }
-  50% { 
-    text-shadow: 0 0 40px rgba(255, 255, 255, 1), 0 0 80px rgba(102, 126, 234, 0.9);
-  }
-`;
-
-const sparkle = keyframes`
-  0%, 100% { 
-    opacity: 0; 
-    transform: scale(0) rotate(0deg);
-  }
-  50% { 
-    opacity: 1; 
-    transform: scale(1) rotate(180deg);
-  }
-`;
-
-const slideInUp = keyframes`
-  0% { 
-    opacity: 0; 
-    transform: translateY(30px);
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateY(0);
-  }
-`;
-
-const bounceIn = keyframes`
-  0% { 
-    opacity: 0; 
-    transform: scale(0.3);
-  }
-  50% { 
-    opacity: 1; 
-    transform: scale(1.05);
-  }
-  70% { 
-    transform: scale(0.9);
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1);
-  }
-`;
+const NAVY = "#13357b";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showDoorAnimation, setShowDoorAnimation] = useState(false);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const theme = useTheme();
 
   const { loginStatus, loginError } = useSelector((state) => state.auth);
 
@@ -173,7 +48,6 @@ function Login() {
     setIsLoading(true);
     dispatch(resetPackages());
     dispatch(resetAgentList());
-   
     dispatch(ClearLists());
     const result = await dispatch(loginUser({ email, password }));
 
@@ -191,800 +65,576 @@ function Login() {
       dispatch(setEmail1(email));
       dispatch(setAuthenticated(true));
 
-      // For non-Agent users, set DMC data in DMC slice
       if (dmcId && userRole !== "Agent") {
-        console.log('🎯 Login Component: Setting DMC data in DMC slice for non-Agent user');
-        console.log('🎯 Login Component: dmcId:', dmcId);
-        console.log('🎯 Login Component: dmcLogo:', dmcLogo);
-        console.log('🎯 Login Component: dmcCompanyName:', dmcCompanyName);
-        
-        // Dispatch the new action to set DMC data from auth
-        dispatch(setDmcFromAuth({
-          dmcId: dmcId,
-          dmcLogo: dmcLogo,
-          dmcCompanyName: dmcCompanyName
-        }));
-        
-        // Also dispatch the existing action for backward compatibility
-        // dispatch(setSelectedDmcId({
-        //   dmcId: dmcId,
-        //   dmcData: {
-        //     id: `dmc-auth-${dmcId}`,
-        //     dmcId: dmcId,
-        //     name: dmcCompanyName || `DMC ${dmcId}`,
-        //     location: 'Auth-selected',
-        //     logo: dmcLogo || '',
-        //     rating: 4.5,
-        //     description: 'DMC from authentication',
-        //     originalData: { 
-        //       dmcId: dmcId,
-        //       logo: dmcLogo,
-        //       company_name: dmcCompanyName
-        //     }
-        //   }
-        // }));
+        dispatch(
+          setDmcFromAuth({
+            dmcId: dmcId,
+            dmcLogo: dmcLogo,
+            dmcCompanyName: dmcCompanyName,
+          })
+        );
       }
 
-      // Trigger door animation
-      setShowDoorAnimation(true);
-      setTimeout(() => navigate("/dashboard/db-dashboard"), 1200);
+      navigate("/dashboard/db-dashboard");
     } else {
-      // Handle login error silently or show error in UI
       setIsLoading(false);
     }
   };
 
-  const ServiceIcons = () => (
-    <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mt: 1 }}>
-      <Tooltip title="Hotel Booking" arrow>
-        <Box sx={{ color: "#667eea", cursor: "pointer" }}>
-          <Hotel sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-      <Tooltip title="Attractions" arrow>
-        <Box sx={{ color: "#667eea", cursor: "pointer" }}>
-          <Attractions sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-      <Tooltip title="Restaurants" arrow>
-        <Box sx={{ color: "#667eea", cursor: "pointer" }}>
-          <Restaurant sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-      <Tooltip title="Tour Guide" arrow>
-        <Box sx={{ color: "#667eea", cursor: "pointer" }}>
-          <Person sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-      <Tooltip title="Transport" arrow>
-        <Box sx={{ color: "#667eea", cursor: "pointer" }}>
-          <DirectionsCar sx={{ fontSize: 20 }} />
-        </Box>
-      </Tooltip>
-    </Box>
-  );
-
-  const FeatureCard = ({ icon, title, description, delay }) => (
-    <Fade in timeout={1000} style={{ transitionDelay: `${delay}ms` }}>
-      <Card
-        sx={{
-          p: 3,
-          textAlign: "center",
-          background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
-          border: "1px solid rgba(102, 126, 234, 0.1)",
-          color: "#333",
-          borderRadius: 3,
-          transform: "translateY(0)",
-          transition: "all 0.3s ease",
-          boxShadow: "0 8px 32px rgba(102, 126, 234, 0.1)",
-          "&:hover": {
-            transform: "translateY(-10px)",
-            boxShadow: "0 20px 40px rgba(102, 126, 234, 0.2)",
-            border: "1px solid rgba(102, 126, 234, 0.3)",
-          },
-        }}
-      >
-        <Box
-          sx={{
-            animation: `${float} 3s ease-in-out infinite`,
-            mb: 2,
-            color: "#667eea",
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography 
-          variant="h6" 
-          gutterBottom
-          sx={{
-            background: "linear-gradient(45deg, #667eea, #764ba2)",
-            backgroundClip: "text",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            fontWeight: "600",
-          }}
-        >
-          {title}
-        </Typography>
-        {title === "Travel Services" ? (
-          <ServiceIcons />
-        ) : (
-          <Typography variant="body2" sx={{ color: "#666", opacity: 0.9 }}>
-            {description}
-          </Typography>
-        )}
-      </Card>
-    </Fade>
-  );
+  const busy = isLoading || loginStatus === "loading";
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)",
+        display: "flex",
+        bgcolor: "#f4f7fb",
         position: "relative",
         overflow: "hidden",
       }}
     >
-             {/* Background Animation Elements */}
-       <Box
-         sx={{
-           position: "absolute",
-           top: "10%",
-           left: "10%",
-           width: "100px",
-           height: "100px",
-           borderRadius: "50%",
-           background: "linear-gradient(45deg, #667eea20, #764ba220)",
-           animation: `${float} 6s ease-in-out infinite`,
-         }}
-       />
-       <Box
-         sx={{
-           position: "absolute",
-           top: "70%",
-           right: "15%",
-           width: "150px",
-           height: "150px",
-           borderRadius: "50%",
-           background: "linear-gradient(45deg, #FE6B8B20, #FF8E5320)",
-           animation: `${float} 4s ease-in-out infinite`,
-         }}
-       />
-       <Box
-         sx={{
-           position: "absolute",
-           top: "30%",
-           right: "5%",
-           width: "80px",
-           height: "80px",
-           borderRadius: "50%",
-           background: "linear-gradient(45deg, #667eea15, #764ba215)",
-           animation: `${float} 5s ease-in-out infinite`,
-         }}
-       />
+      {/* Soft grid pattern across the page */}
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `
+            linear-gradient(rgba(19, 53, 123, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(19, 53, 123, 0.04) 1px, transparent 1px)
+          `,
+          backgroundSize: "48px 48px",
+          pointerEvents: "none",
+        }}
+      />
 
-             <Container maxWidth="lg" sx={{ py: 4 }}>
-         <Grid 
-           container 
-           spacing={4} 
-           alignItems="center" 
-           minHeight="100vh"
-           sx={{ 
-             opacity: showDoorAnimation ? 0 : 1,
-             transition: "opacity 0.3s ease-out"
-           }}
-         >
-           {/* Left side - Features */}
-           <Grid item xs={12} md={6}>
-            <Slide direction="right" in timeout={800}>
-              <Box sx={{ animation: `${slideInLeft} 1s ease-out` }}>
-                <Box sx={{ mb: 6, textAlign: "center" }}>
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      mx: "auto",
-                      mb: 3,
-                      background: "linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)",
-                      animation: `${pulse} 2s infinite`,
-                    }}
-                  >
-                    <TravelExplore sx={{ fontSize: 40 }} />
-                  </Avatar>
-                                     <Typography
-                     variant="h3"
-                     component="h1"
-                     gutterBottom
-                     sx={{
-                       background: "linear-gradient(45deg, #667eea, #764ba2)",
-                       backgroundClip: "text",
-                       WebkitBackgroundClip: "text",
-                       WebkitTextFillColor: "transparent",
-                       fontWeight: "bold",
-                       textShadow: "none",
-                     }}
-                   >
-                     Welcome Back!
-                   </Typography>
-                   <Typography
-                     variant="h6"
-                     sx={{
-                       color: "#666",
-                       mb: 4,
-                     }}
-                   >
-                     Sign in to access your travel dashboard
-                   </Typography>
-                </Box>
+      {/* Mobile brand strip */}
+      <Box
+        sx={{
+          display: { xs: "block", md: "none" },
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          bgcolor: NAVY,
+          backgroundImage:
+            "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          zIndex: 0,
+        }}
+      />
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <FeatureCard
-                      icon={<TravelExplore sx={{ fontSize: 40 }} />}
-                      title="Travel Services"
-                      description="Hotel, Attractions, Restaurants, Guide & Transport"
-                      delay={200}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FeatureCard
-                      icon={<LocationOn sx={{ fontSize: 40 }} />}
-                      title="Tour Packages"
-                      description="Discover amazing destinations"
-                      delay={400}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FeatureCard
-                      icon={<Security sx={{ fontSize: 40 }} />}
-                      title="Secure Payment"
-                      description="Your transactions are protected"
-                      delay={600}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FeatureCard
-                      icon={<Support sx={{ fontSize: 40 }} />}
-                      title="24/7 Support"
-                      description="We're here to help anytime"
-                      delay={800}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-            </Slide>
-          </Grid>
-
-          {/* Right side - Login Form */}
-          <Grid item xs={12} md={6}>
-            <Slide direction="left" in timeout={800}>
-              <Box sx={{ animation: `${slideInRight} 1s ease-out` }}>
-                                 <Paper
-                   elevation={24}
-                   sx={{
-                     p: 4,
-                     borderRadius: 4,
-                     background: "rgba(255,255,255,0.98)",
-                     backdropFilter: "blur(10px)",
-                     border: "1px solid rgba(102, 126, 234, 0.1)",
-                     boxShadow: "0 24px 48px rgba(102, 126, 234, 0.1)",
-                     maxWidth: 500,
-                     mx: "auto",
-                   }}
-                 >
-                  <Zoom in timeout={1000}>
-                    <Box sx={{ textAlign: "center", mb: 4 }}>
-                      <img
-                        src="/Images/travclicklogo.jpeg"
-                        alt="Logo"
-                        style={{
-                          width: "200px",
-                          height: "auto",
-                          borderRadius: "12px",
-                          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-                        }}
-                      />
-                    </Box>
-                  </Zoom>
-
-                  <Typography
-                    variant="h4"
-                    component="h2"
-                    gutterBottom
-                    sx={{
-                      textAlign: "center",
-                      fontWeight: "bold",
-                      background: "linear-gradient(45deg, #667eea, #764ba2)",
-                      backgroundClip: "text",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      mb: 3,
-                    }}
-                  >
-                    Sign In
-                  </Typography>
-
-                  <Box component="form" onSubmit={handleLogin} sx={{ mt: 2 }}>
-                    <Fade in timeout={1200}>
-                      <TextField
-                        fullWidth
-                        label="Email Address"
-                              type="email"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              required
-                        margin="normal"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Email sx={{ color: "#667eea" }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: 2,
-                            "&:hover fieldset": {
-                              borderColor: "#667eea",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "#667eea",
-                            },
-                          },
-                        }}
-                      />
-                    </Fade>
-
-                    <Fade in timeout={1400}>
-                      <TextField
-                        fullWidth
-                        label="Password"
-                              type={showPassword ? "text" : "password"}
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              required
-                        margin="normal"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Lock sx={{ color: "#667eea" }} />
-                            </InputAdornment>
-                          ),
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton
-                                onClick={() => setShowPassword(!showPassword)}
-                                edge="end"
-                                sx={{
-                                  color: "#667eea",
-                                  "&:hover": {
-                                    background: "rgba(102, 126, 234, 0.1)",
-                                    transform: "scale(1.1)",
-                                  },
-                                }}
-                            >
-                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: 2,
-                            "&:hover fieldset": {
-                              borderColor: "#667eea",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "#667eea",
-                            },
-                          },
-                        }}
-                      />
-                    </Fade>
-
-                    <Fade in timeout={1600}>
-                      <Button
-                            type="submit"
-                        fullWidth
-                        variant="contained"
-                        disabled={isLoading || loginStatus === "loading"}
-                        sx={{
-                          mt: 3,
-                          mb: 2,
-                          py: 1.5,
-                          borderRadius: 3,
-                          background: "linear-gradient(45deg, #667eea 30%, #764ba2 90%)",
-                          fontSize: "1.1rem",
-                          fontWeight: "bold",
-                          textTransform: "none",
-                          boxShadow: "0 8px 32px rgba(102, 126, 234, 0.3)",
-                          position: "relative",
-                          overflow: "hidden",
-                          "&:hover": {
-                            background: "linear-gradient(45deg, #5a6fd8 30%, #6a4190 90%)",
-                            transform: "translateY(-2px)",
-                            boxShadow: "0 12px 40px rgba(102, 126, 234, 0.4)",
-                          },
-                          "&:active": {
-                            transform: "translateY(0)",
-                          },
-                          "&::before": {
-                            content: '""',
-                            position: "absolute",
-                            top: 0,
-                            left: "-100%",
-                            width: "100%",
-                            height: "100%",
-                            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                            transition: "left 0.5s",
-                          },
-                          "&:hover::before": {
-                            left: "100%",
-                          },
-                        }}
-                        startIcon={
-                          isLoading || loginStatus === "loading" ? (
-                            <CircularProgress size={20} color="inherit" />
-                          ) : (
-                            <LoginIcon />
-                          )
-                        }
-                          >
-                        {isLoading || loginStatus === "loading" ? "Signing In..." : "Sign In"}
-                      </Button>
-                    </Fade>
-
-                    {/* Sign Up Section */}
-                    {/* <Fade in timeout={1800}>
-                      <Box sx={{ textAlign: "center", mt: 2 }}>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: "#666",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 1,
-                            mb: 1
-                          }}
-                        >
-                          <PersonAdd sx={{ fontSize: 16, color: "#667eea" }} />
-                          Don't have an account?
-                        </Typography>
-                        <Button
-                          variant="text"
-                          size="small"
-                          onClick={() => navigate("/register")}
-                          sx={{
-                            color: "#667eea",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            fontSize: "0.9rem",
-                            p: 1,
-                            borderRadius: 2,
-                            transition: "all 0.3s ease",
-                            "&:hover": {
-                              background: "rgba(102, 126, 234, 0.1)",
-                              transform: "translateY(-1px)",
-                              color: "#5a6fd8",
-                            },
-                            "&:active": {
-                              transform: "translateY(0)",
-                            },
-                          }}
-                          endIcon={
-                            <ArrowForward sx={{ 
-                              fontSize: 16,
-                              transition: "transform 0.3s ease",
-                              "&:hover": {
-                                transform: "translateX(2px)",
-                              }
-                            }} />
-                          }
-                        >
-                          Sign Up
-                        </Button>
-                      </Box>
-                    </Fade> */}
-
-                    {loginError && (
-                      <Fade in timeout={300}>
-                        <Box
-                          sx={{
-                            mt: 2,
-                            p: 2,
-                            borderRadius: 2,
-                            background: "rgba(244, 67, 54, 0.1)",
-                            border: "1px solid rgba(244, 67, 54, 0.3)",
-                            color: "#d32f2f",
-                            textAlign: "center",
-                          }}
-                        >
-                          <Typography variant="body2">{loginError}</Typography>
-                        </Box>
-                      </Fade>
-                    )}
-                  </Box>
-
-                  <Divider sx={{ my: 3 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Secure Login
-                    </Typography>
-                  </Divider>
-
-                  <Box sx={{ textAlign: "center" }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Protected by enterprise-grade security
-                    </Typography>
-                    <Box sx={{ mt: 2, display: "flex", justifyContent: "center", gap: 1 }}>
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          sx={{
-                            color: "#FFD700",
-                            fontSize: 20,
-                            animation: `${pulse} 2s infinite ${i * 0.2}s`,
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                </Paper>
-              </Box>
-            </Slide>
-          </Grid>
-        </Grid>
-      </Container>
-
-      {/* Door Opening Animation */}
-      {showDoorAnimation && (
+      {/* Left brand panel */}
+      <Box
+        sx={{
+          display: { xs: "none", md: "flex" },
+          width: { md: "42%", lg: "45%" },
+          minHeight: "100vh",
+          bgcolor: NAVY,
+          position: "relative",
+          flexDirection: "column",
+          justifyContent: "center",
+          px: { md: 5, lg: 7 },
+          overflow: "hidden",
+        }}
+      >
+        {/* Subtle diagonal shape */}
         <Box
           sx={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            zIndex: 9999,
-            pointerEvents: "none",
+            position: "absolute",
+            top: "-10%",
+            right: "-20%",
+            width: "70%",
+            height: "50%",
+            bgcolor: "rgba(255,255,255,0.04)",
+            transform: "rotate(18deg)",
+            borderRadius: "24px",
           }}
-        >
-          {/* Left Door */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "50%",
-              height: "100%",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              transformOrigin: "left center",
-              animation: `${doorOpenLeft} 1.2s ease-in-out forwards`,
-              boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-            }}
-          />
-          
-          {/* Right Door */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: "50%",
-              height: "100%",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              transformOrigin: "right center",
-              animation: `${doorOpenRight} 1.2s ease-in-out forwards`,
-              boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-            }}
-          />
-          
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: "-15%",
+            left: "-10%",
+            width: "55%",
+            height: "45%",
+            bgcolor: "rgba(255,255,255,0.03)",
+            transform: "rotate(-12deg)",
+            borderRadius: "24px",
+          }}
+        />
+        {/* Dot texture */}
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.12,
+            backgroundImage:
+              "radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1px)",
+            backgroundSize: "22px 22px",
+          }}
+        />
 
-          
-          {/* Enhanced Welcome Message */}
-          <Box
+        <Box sx={{ position: "relative", zIndex: 1 }}>
+          <Typography
             sx={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              textAlign: "center",
-              color: "white",
-              zIndex: 10000,
-              width: "100%",
-              maxWidth: "600px",
+              color: "rgba(255,255,255,0.7)",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              mb: 1.5,
             }}
           >
-            {/* Sparkle Effects */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: "-50px",
-                left: "20%",
-                width: "20px",
-                height: "20px",
-                background: "radial-gradient(circle, #FFD700, #FFA500)",
-                borderRadius: "50%",
-                animation: `${sparkle} 2s ease-in-out infinite`,
-                animationDelay: "0s",
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                top: "-30px",
-                right: "25%",
-                width: "15px",
-                height: "15px",
-                background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
-                borderRadius: "50%",
-                animation: `${sparkle} 2s ease-in-out infinite`,
-                animationDelay: "0.5s",
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: "-40px",
-                left: "30%",
-                width: "18px",
-                height: "18px",
-                background: "radial-gradient(circle, #4ECDC4, #45B7B8)",
-                borderRadius: "50%",
-                animation: `${sparkle} 2s ease-in-out infinite`,
-                animationDelay: "1s",
-              }}
-            />
+            TravClicks
+          </Typography>
+          <Typography
+            sx={{
+              color: "white",
+              fontWeight: 700,
+              fontSize: { md: "1.75rem", lg: "2rem" },
+              lineHeight: 1.25,
+              mb: 1.5,
+              maxWidth: 360,
+            }}
+          >
+            Destination management for travel trade partners
+          </Typography>
+          <Typography
+            sx={{
+              color: "rgba(255,255,255,0.75)",
+              fontSize: "0.9rem",
+              lineHeight: 1.6,
+              maxWidth: 340,
+              mb: 3,
+            }}
+          >
+            Hotels, transfers, guides, and packages — managed in one professional
+            workflow across our operating markets.
+          </Typography>
 
-            {/* Main Welcome Icon */}
-            <Box
-              sx={{
-                animation: `${bounceIn} 1s ease-out`,
-                mb: 3,
-              }}
-            >
-              <Avatar
-                sx={{
-                  width: 80,
-                  height: 80,
-                  mx: "auto",
-                  mb: 2,
-                  background: "linear-gradient(45deg, #FFD700, #FFA500)",
-                  animation: `${pulse} 2s infinite`,
-                  boxShadow: "0 0 40px rgba(255, 215, 0, 0.6)",
-                }}
-              >
-                <TravelExplore sx={{ fontSize: 40, color: "white" }} />
-              </Avatar>
-            </Box>
-
-            {/* Welcome Text */}
-            <Box
-              sx={{
-                animation: `${slideInUp} 0.8s ease-out 0.2s both`,
-                mb: 3,
-              }}
-            >
-              <Typography
-                variant="h2"
-                sx={{
-                  fontWeight: "bold",
-                  background: "linear-gradient(45deg, #FFD700, #FFA500, #FF6B6B)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  animation: `${welcomeGlow} 2s ease-in-out infinite`,
-                  mb: 1,
-                  fontFamily: "'Poppins', sans-serif",
-                }}
-              >
-                Welcome Back!
-              </Typography>
-              
-              <Typography
-                variant="h5"
-                sx={{
-                  color: "rgba(255, 255, 255, 0.95)",
-                  fontWeight: "500",
-                  textShadow: "0 2px 4px rgba(0,0,0,0.3)",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                Preparing your travel dashboard
-              </Typography>
-            </Box>
-
-            {/* Loading Animation */}
-            <Box
-              sx={{
-                animation: `${slideInUp} 0.6s ease-out 0.4s both`,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 2,
-                mb: 2,
-              }}
-            >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {["Singapore", "Indonesia", "Australia"].map((market) => (
               <Box
+                key={market}
                 sx={{
-                  display: "flex",
-                  gap: 1,
+                  display: "inline-flex",
                   alignItems: "center",
+                  gap: 1,
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: "0.85rem",
+                  fontWeight: 500,
                 }}
               >
-                <CircularProgress
-                  size={24}
+                <Box
                   sx={{
-                    color: "#FFD700",
-                    animation: `${pulse} 1.5s ease-in-out infinite`,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: "rgba(255,255,255,0.85)",
                   }}
                 />
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: "rgba(255, 255, 255, 0.9)",
-                    fontWeight: "500",
-                  }}
-                >
-                  Loading
-                </Typography>
-                <Box sx={{ display: "flex", gap: 0.5 }}>
-                  {[0, 1, 2].map((i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        width: 4,
-                        height: 4,
-                        borderRadius: "50%",
-                        backgroundColor: "#FFD700",
-                        animation: `${pulse} 1s ease-in-out infinite`,
-                        animationDelay: `${i * 0.3}s`,
-                      }}
-                    />
-                  ))}
-                </Box>
+                {market}
               </Box>
-            </Box>
-
-            {/* Features Preview */}
-            <Box
-              sx={{
-                animation: `${slideInUp} 0.6s ease-out 0.6s both`,
-                display: "flex",
-                justifyContent: "center",
-                gap: 3,
-                opacity: 0.8,
-              }}
-            >
-              <Box sx={{ textAlign: "center" }}>
-                <Hotel sx={{ fontSize: 28, color: "#FFD700", mb: 0.5 }} />
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                  Hotels
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: "center" }}>
-                <Attractions sx={{ fontSize: 28, color: "#FF6B6B", mb: 0.5 }} />
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                  Attractions
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: "center" }}>
-                <Restaurant sx={{ fontSize: 28, color: "#4ECDC4", mb: 0.5 }} />
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                  Dining
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: "center" }}>
-                <DirectionsCar sx={{ fontSize: 28, color: "#45B7B8", mb: 0.5 }} />
-                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                  Transport
-                </Typography>
-              </Box>
-            </Box>
+            ))}
           </Box>
         </Box>
-      )}
+      </Box>
+
+      {/* Right form area */}
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          px: { xs: 2, md: 4 },
+          py: 3,
+          position: "relative",
+          zIndex: 1,
+          bgcolor: { xs: "transparent", md: "#eef3f9" },
+          overflow: "hidden",
+        }}
+      >
+        {/* Right-side decorative layers */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: -80,
+            right: -80,
+            width: 280,
+            height: 280,
+            borderRadius: "50%",
+            border: "40px solid rgba(19, 53, 123, 0.05)",
+            pointerEvents: "none",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: -60,
+            left: -40,
+            width: 220,
+            height: 220,
+            borderRadius: "50%",
+            bgcolor: "rgba(19, 53, 123, 0.04)",
+            pointerEvents: "none",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: "18%",
+            left: "8%",
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            bgcolor: "rgba(19, 53, 123, 0.15)",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: "28%",
+            right: "12%",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            bgcolor: "rgba(19, 53, 123, 0.12)",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: "22%",
+            right: "18%",
+            width: 10,
+            height: 10,
+            borderRadius: "2px",
+            bgcolor: "rgba(19, 53, 123, 0.1)",
+            transform: "rotate(45deg)",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `
+              linear-gradient(rgba(19, 53, 123, 0.035) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(19, 53, 123, 0.035) 1px, transparent 1px)
+            `,
+            backgroundSize: "36px 36px",
+            pointerEvents: "none",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+
+        {/* Soft accent glow behind card */}
+        <Box
+          sx={{
+            position: "absolute",
+            width: 480,
+            height: 480,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(19,53,123,0.1) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: 440,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <Typography
+            sx={{
+              display: { xs: "none", md: "block" },
+              textAlign: "center",
+              color: NAVY,
+              fontWeight: 600,
+              fontSize: "0.75rem",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              mb: 2,
+            }}
+          >
+            Partner Portal
+          </Typography>
+
+        <Paper
+          elevation={0}
+          sx={{
+            width: "100%",
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: "10px",
+            border: "1px solid #dce4f0",
+            boxShadow: "0 8px 32px rgba(19, 53, 123, 0.1)",
+            position: "relative",
+            bgcolor: "#fff",
+          }}
+        >
+        <IconButton
+          onClick={() => navigate("/")}
+          size="small"
+          aria-label="Back to home"
+          sx={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            color: NAVY,
+            border: "1px solid #dce4f0",
+            borderRadius: "6px",
+            width: 32,
+            height: 32,
+            "&:hover": { bgcolor: "#e8eef6" },
+          }}
+        >
+          <ArrowBack sx={{ fontSize: 16 }} />
+        </IconButton>
+
+        <Box sx={{ textAlign: "center", mb: 3, pt: 1 }}>
+          <Box
+            component="img"
+            src="/Images/logo.png"
+            alt="TravClicks"
+            sx={{
+              height: { xs: 44, sm: 52 },
+              width: "auto",
+              objectFit: "contain",
+              mb: 1.5,
+            }}
+          />
+          <Typography
+            sx={{
+              fontWeight: 700,
+              color: NAVY,
+              fontSize: "1.25rem",
+              lineHeight: 1.3,
+            }}
+          >
+            Sign In
+          </Typography>
+          <Typography
+            sx={{
+              color: "#64748b",
+              fontSize: "0.85rem",
+              mt: 0.5,
+            }}
+          >
+            Access your TravClicks partner dashboard
+          </Typography>
+        </Box>
+
+        <Box component="form" onSubmit={handleLogin}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Email Address"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            sx={{
+              mb: 1.75,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                "& fieldset": { borderColor: "#dce4f0" },
+                "&:hover fieldset": { borderColor: "#a8bcd6" },
+                "&.Mui-focused fieldset": { borderColor: NAVY },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: "0.875rem",
+                color: "#64748b",
+                "&.Mui-focused": { color: NAVY },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Email sx={{ color: NAVY, fontSize: 18 }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            sx={{
+              mb: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "6px",
+                fontSize: "0.875rem",
+                "& fieldset": { borderColor: "#dce4f0" },
+                "&:hover fieldset": { borderColor: "#a8bcd6" },
+                "&.Mui-focused fieldset": { borderColor: NAVY },
+              },
+              "& .MuiInputLabel-root": {
+                fontSize: "0.875rem",
+                color: "#64748b",
+                "&.Mui-focused": { color: NAVY },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Lock sx={{ color: NAVY, fontSize: 18 }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                    size="small"
+                    sx={{ color: NAVY }}
+                  >
+                    {showPassword ? (
+                      <VisibilityOff fontSize="small" />
+                    ) : (
+                      <Visibility fontSize="small" />
+                    )}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {loginError && (
+            <Alert
+              severity="error"
+              sx={{
+                mt: 1.5,
+                mb: 0.5,
+                py: 0,
+                borderRadius: "6px",
+                "& .MuiAlert-message": { py: 0.75, fontSize: "0.8rem" },
+              }}
+            >
+              {loginError}
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            disabled={busy}
+            sx={{
+              mt: 2.5,
+              py: 1.1,
+              borderRadius: "6px",
+              bgcolor: NAVY,
+              fontSize: "0.9rem",
+              fontWeight: 600,
+              textTransform: "none",
+              boxShadow: "none",
+              "&:hover": {
+                bgcolor: "#0f2d6b",
+                boxShadow: "none",
+              },
+              "&.Mui-disabled": {
+                bgcolor: "#94a3b8",
+                color: "#fff",
+              },
+            }}
+          >
+            {busy ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={18} sx={{ color: "white" }} />
+                Signing in...
+              </Box>
+            ) : (
+              "Sign In"
+            )}
+          </Button>
+        </Box>
+
+        <Typography
+          sx={{
+            mt: 2.5,
+            textAlign: "center",
+            color: "#94a3b8",
+            fontSize: "0.75rem",
+          }}
+        >
+          Secure access for registered travel partners
+        </Typography>
+        </Paper>
+
+          {/* Feature strip under form */}
+          <Box
+            sx={{
+              mt: 2.5,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 1.25,
+            }}
+          >
+            {[
+              { icon: <Hotel sx={{ fontSize: 18 }} />, label: "Hotels" },
+              { icon: <DirectionsCar sx={{ fontSize: 18 }} />, label: "Transfers" },
+              { icon: <VerifiedUser sx={{ fontSize: 18 }} />, label: "Secure Access" },
+              { icon: <SupportAgent sx={{ fontSize: 18 }} />, label: "Partner Support" },
+            ].map((item) => (
+              <Box
+                key={item.label}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  px: 1.25,
+                  py: 1,
+                  borderRadius: "8px",
+                  bgcolor: "rgba(255,255,255,0.85)",
+                  border: "1px solid #dce4f0",
+                  color: NAVY,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "6px",
+                    bgcolor: "rgba(19, 53, 123, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.icon}
+                </Box>
+                <Typography
+                  sx={{
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  {item.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

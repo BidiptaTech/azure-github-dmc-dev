@@ -46,7 +46,7 @@ const LandingNavbar = () => {
     { text: 'Destination', icon: <Explore />, path: '/#destinations' },
     { text: 'Tours List', icon: <List />, path: '/#tours' },
     { text: 'Login', icon: <Send />, path: '/login', isButton: true, variant: 'outlined' },
-    { text: 'Register as Agent', icon: <Send />, path: '/register', isButton: true, variant: 'contained' }
+    // { text: 'Register as Agent', icon: <Send />, path: '/register', isButton: true, variant: 'contained' }
   ];
 
   const drawer = (
@@ -61,26 +61,26 @@ const LandingNavbar = () => {
     }}>
       {/* Header */}
       <Box sx={{ 
-        bgcolor: '#13357b', 
+        bgcolor: '#f4f7fb', 
          p: 2.8,
-        
+        borderBottom: '1px solid #dce4f0',
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between' 
       }}>
         <Box
           component="img"
-          src="Images/travclicklogo.jpeg"
+          src="/Images/logo.png"
           alt="TravClicks Logo"
           sx={{
-            width: 120,
-            height: 30,
-            objectFit: 'contain'
+            width: 170,
+            height: 44,
+            objectFit: 'contain',
           }}
         />
         <IconButton 
           onClick={handleDrawerToggle}
-          sx={{ color: 'white' }}
+          sx={{ color: '#13357b' }}
         >
           <Close />
         </IconButton>
@@ -170,43 +170,42 @@ const LandingNavbar = () => {
       
       <AppBar 
         position="static" 
+        elevation={0}
         sx={{ 
-          bgcolor: '#13357b', 
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          bgcolor: '#f4f7fb', 
+          borderBottom: '1px solid #dce4f0',
+          boxShadow: 'none',
           py: 1
         }}
       >
         <Container maxWidth="xl" >
-          <Toolbar sx={{ justifyContent: 'space-between', minHeight: '70px !important',color: 'white' }}>
+          <Toolbar sx={{ justifyContent: 'space-between', minHeight: '78px !important', color: '#13357b' }}>
             {/* Logo */}
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: { xs: 1, md: 2 } }}>
-                <Box
-                  component="img"
-                  src="Images/travclicklogo.jpeg"
-                  alt="TravClicks Logo"
-                  sx={{
-                    width: { xs: 200, sm: 250, md: 300 },
-                    height: { xs: 35, sm: 40, md: 50 },
-                    objectFit: 'contain'
-                  }}
-                />
-              </Box>
-             
+              <Box
+                component="img"
+                src="/Images/logo.png"
+                alt="TravClicks Logo"
+                sx={{
+                  width: { xs: 200, sm: 240, md: 280 },
+                  height: { xs: 52, sm: 58, md: 66 },
+                  objectFit: 'contain',
+                }}
+              />
             </Box>
 
             {/* Navigation Menu */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', }}>
-              <Stack direction="row" spacing={4} sx={{ alignItems: 'center',color: 'white' }}>
+              <Stack direction="row" spacing={4} sx={{ alignItems: 'center' }}>
                 <Link 
                   component={RouterLink} 
                   to="/" 
                   sx={{ 
-                   color: 'white',
+                   color: '#13357b',
                     textDecoration: 'none',
                     fontWeight: 500,
                     fontSize: '16px',
-                    '&:hover': { color: '#86cefa' }
+                    '&:hover': { color: '#0f2d6b' }
                   }}
                 >
                   Home
@@ -215,37 +214,37 @@ const LandingNavbar = () => {
                   component={RouterLink} 
                   to="/#" 
                   sx={{ 
-                    color: 'white',
+                    color: '#13357b',
                     textDecoration: 'none',
                     fontWeight: 500,
                     fontSize: '16px',
-                    '&:hover': { color: '#86cefa' }
+                    '&:hover': { color: '#0f2d6b' }
                   }}
                 >
                   About Us
                 </Link>
                 <Link 
                   component={RouterLink} 
-                  to="/#" 
+                  to="/#destinations" 
                   sx={{ 
-                    color: 'white',
+                    color: '#13357b',
                     textDecoration: 'none',
                     fontWeight: 500,
                     fontSize: '16px',
-                    '&:hover': { color: '#86cefa' }
+                    '&:hover': { color: '#0f2d6b' }
                   }}
                 >
                   Destination
                 </Link>
                 <Link 
                   component={RouterLink} 
-                  to="/#" 
+                  to="/#tours" 
                   sx={{ 
-                    color: 'white',
+                    color: '#13357b',
                     textDecoration: 'none',
                     fontWeight: 500,
                     fontSize: '16px',
-                    '&:hover': { color: '#86cefa' }
+                    '&:hover': { color: '#0f2d6b' }
                   }}
                 >
                   Tours List
@@ -253,20 +252,19 @@ const LandingNavbar = () => {
                 <Button
                   component={RouterLink}
                   to="/login"
-                  variant="outlined"
+                  variant="contained"
                   sx={{
-                    bgcolor: 'white',
-                    color: '#13357b',
-                    borderColor: 'white',
-                    borderRadius: '8px',
+                    bgcolor: '#13357b',
+                    color: 'white',
+                    borderRadius: '6px',
                     fontWeight: 600,
                     fontSize: '16px',
                     textTransform: 'none',
                     px: 2.5,
+                    boxShadow: 'none',
                     '&:hover': {
-                      backgroundColor: '#86cefa',
-                      color: 'white',
-                      borderColor: '#86cefa'
+                      backgroundColor: '#0f2d6b',
+                      boxShadow: 'none',
                     }
                   }}
                 >
@@ -284,12 +282,10 @@ const LandingNavbar = () => {
               onClick={handleDrawerToggle}
               sx={{ 
                 display: { xs: 'block', md: 'none' },
-                color: '#333',
-                bgcolor: '#f8f9fa',
-                //p: 0.2,
-              
+                color: '#13357b',
+                bgcolor: 'transparent',
                 '&:hover': {
-                  bgcolor: '#e9ecef'
+                  bgcolor: '#e8eef6'
                 }
               }}
             >

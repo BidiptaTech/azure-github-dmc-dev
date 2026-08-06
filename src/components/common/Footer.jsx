@@ -57,19 +57,17 @@ const Footer = () => {
   ];
 
   const destinations = [
-    'South America',
-    'Middle East',
-    'San Franc Rica',
-    'New York',
-    'Tokyo'
+    'Singapore',
+    'Indonesia',
+    'Australia',
   ];
 
   const usefulLinks = [
     'About Us',
     'Destination',
-    'News & blog',
-    'Meet the Guide',
-    'Contacts'
+    'Tours',
+    'Login',
+    'Register',
   ];
 
   const socialLinks = [
@@ -88,27 +86,24 @@ const Footer = () => {
   ];
 
   return (
-    <Box sx={{ bgcolor: '#2C3E50', color: 'white' }}>
+    <Box sx={{ bgcolor: '#f4f7fb', color: '#13357b', borderTop: '1px solid #dce4f0' }}>
       {/* Top Contact Bar */}
-      <Box sx={{ bgcolor: '#34495E', py: 3 }}>
+      <Box sx={{ bgcolor: '#e8eef6', py: 3, borderBottom: '1px solid #dce4f0' }}>
         <Container maxWidth="xl">
           <Grid container spacing={4} alignItems="center">
             {/* Logo */}
             <Grid item xs={12} md={3}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
                 <Box
                   component="img"
-                  src="public/Images/travclicklogo.jpeg"
+                  src="/Images/logo.png"
                   alt="TravClicks Logo"
                   sx={{
-                    width: { xs: 200, sm: 250, md: 300 },
-                    height: { xs: 35, sm: 40, md: 50 },
-                    objectFit: 'contain'
+                    width: { xs: 220, sm: 250, md: 280 },
+                    height: { xs: 54, sm: 58, md: 66 },
+                    objectFit: 'contain',
                   }}
                 />
-              </Box>
-             
             </Box>
             </Grid>
 
@@ -122,8 +117,9 @@ const Footer = () => {
                         sx={{
                           width: 40,
                           height: 40,
-                          bgcolor: '#4CAF50',
-                          borderRadius: '50%',
+                          bgcolor: '#13357b',
+                          color: 'white',
+                          borderRadius: '8px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
@@ -132,24 +128,24 @@ const Footer = () => {
                         {item.icon}
                       </Box>
                       <Box>
-                        <Typography variant="body2" sx={{ color: '#BDC3C7', fontSize: '14px' }}>
+                        <Typography variant="body2" sx={{ color: '#64748b', fontSize: '14px' }}>
                           {item.title}
                         </Typography>
                         {item.href ? (
                           <Link 
                             href={item.href} 
                             sx={{ 
-                              color: 'white', 
+                              color: '#13357b', 
                               textDecoration: 'none',
                               fontSize: '16px',
                               fontWeight: '500',
-                              '&:hover': { color: '#4CAF50' }
+                              '&:hover': { color: '#0f2d6b' }
                             }}
                           >
                             {item.info}
                           </Link>
                         ) : (
-                          <Typography variant="body1" sx={{ color: 'white', fontSize: '16px', fontWeight: '500' }}>
+                          <Typography variant="body1" sx={{ color: '#13357b', fontSize: '16px', fontWeight: '500' }}>
                             {item.info}
                           </Typography>
                         )}
@@ -169,19 +165,19 @@ const Footer = () => {
           <Grid container spacing={{ xs: 3, sm: 4, md: 4 }}>
             {/* About Gotur */}
             <Grid item xs={12} md={3}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: 'white' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#13357b' }}>
                 About Travclicks
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#BDC3C7', 
+                  color: '#64748b', 
                   mb: 3, 
                   lineHeight: 1.6,
                   fontSize: '14px'
                 }}
               >
-                Available, But The Majority Have Suffered Alteration In Some Form By Injected Humour, Or
+                B2B destination management across Singapore, Indonesia, and Australia — hotels, transfers, guides, and packages for travel trade partners.
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {socialLinks.map((social, index) => (
@@ -189,12 +185,13 @@ const Footer = () => {
                     key={index}
                     href={social.href}
                     sx={{
-                      bgcolor: '#34495E',
-                      color: 'white',
+                      bgcolor: '#e8eef6',
+                      color: '#13357b',
                       width: 35,
                       height: 35,
                       '&:hover': {
-                        bgcolor: '#4CAF50'
+                        bgcolor: '#13357b',
+                        color: 'white',
                       }
                     }}
                   >
@@ -206,20 +203,20 @@ const Footer = () => {
 
             {/* Destinations */}
             <Grid item xs={12} md={2}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: 'white' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#13357b' }}>
                 Destinations
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {destinations.map((destination, index) => (
                   <Link
                     key={index}
-                    href="#"
+                    href="#destinations"
                     sx={{
-                      color: '#BDC3C7',
+                      color: '#64748b',
                       textDecoration: 'none',
                       fontSize: '14px',
                       '&:hover': {
-                        color: '#4CAF50'
+                        color: '#13357b'
                       }
                     }}
                   >
@@ -231,7 +228,7 @@ const Footer = () => {
 
             {/* Useful Links */}
             <Grid item xs={12} md={2}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: 'white' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#13357b' }}>
                 Useful Links
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -240,11 +237,11 @@ const Footer = () => {
                     key={index}
                     href="#"
                     sx={{
-                      color: '#BDC3C7',
+                      color: '#64748b',
                       textDecoration: 'none',
                       fontSize: '14px',
                       '&:hover': {
-                        color: '#4CAF50'
+                        color: '#13357b'
                       }
                     }}
                   >
@@ -256,19 +253,19 @@ const Footer = () => {
 
             {/* Newsletter */}
             <Grid item xs={12} md={5}>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: 'white' }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, color: '#13357b' }}>
                 Newsletter
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#BDC3C7', 
+                  color: '#64748b', 
                   mb: 3, 
                   fontSize: '14px',
                   lineHeight: 1.6
                 }}
               >
-                Sign up to searing weekly newsletter to get the latest updates.
+                Sign up for our weekly newsletter to get the latest updates.
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -283,13 +280,13 @@ const Footer = () => {
                       bgcolor: 'white',
                       height: '45px',
                       '& fieldset': {
-                        borderColor: '#ddd'
+                        borderColor: '#dce4f0'
                       },
                       '&:hover fieldset': {
-                        borderColor: '#4CAF50'
+                        borderColor: '#13357b'
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#4CAF50'
+                        borderColor: '#13357b'
                       }
                     },
                     '& .MuiInputBase-input': {
@@ -300,12 +297,13 @@ const Footer = () => {
                 <Button
                   onClick={handleSubscribe}
                   sx={{
-                    bgcolor: '#FF9800',
+                    bgcolor: '#13357b',
                     color: 'white',
                     minWidth: '45px',
                     height: '45px',
+                    boxShadow: 'none',
                     '&:hover': {
-                      bgcolor: '#F57C00'
+                      bgcolor: '#0f2d6b'
                     }
                   }}
                 >
@@ -319,17 +317,17 @@ const Footer = () => {
                     checked={agreed}
                     onChange={(e) => setAgreed(e.target.checked)}
                     sx={{
-                      color: '#4CAF50',
+                      color: '#13357b',
                       '&.Mui-checked': {
-                        color: '#4CAF50'
+                        color: '#13357b'
                       }
                     }}
                   />
                 }
                 label={
-                  <Typography variant="body2" sx={{ color: '#BDC3C7', fontSize: '14px' }}>
+                  <Typography variant="body2" sx={{ color: '#64748b', fontSize: '14px' }}>
                     I agree to the{' '}
-                    <Link href="#" sx={{ color: 'white', textDecoration: 'underline' }}>
+                    <Link href="#" sx={{ color: '#13357b', textDecoration: 'underline' }}>
                       Privacy Policy
                     </Link>
                     .
