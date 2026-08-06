@@ -212,7 +212,25 @@
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Hotel Restaurant
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Hotel Restaurant
+                    @php
+                        $restaurantNoteCountry = $hotel->country
+                            ?? ($userDMC->country ?? null);
+                        $restaurantNoteDmcCurrency = null;
+                        if (!empty($userDMC?->country)) {
+                            $restaurantNoteDmcCurrency = \App\Models\Country::where('name', $userDMC->country)->value('currency');
+                        } elseif (!empty($userDMC?->currency)) {
+                            $restaurantNoteDmcCurrency = $userDMC->currency;
+                        }
+                    @endphp
+                    <x-currency-price-note
+                        :country="$restaurantNoteCountry"
+                        :watch-dmc="in_array(auth()->user()->role_id, [1, 20])"
+                        :dmc-selected="(bool) ($userDMC ?? false)"
+                        :dmc-currency="$restaurantNoteDmcCurrency"
+                    />
+                </span>
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('hotel-restaurant-store', $hotel->hotel_unique_id) }}"
                 enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
@@ -1849,6 +1867,8 @@ $(document).ready(function() {
     }
 });
 </script>
+
+@include('components.currency-price-note-dmc-script')
 
 <!-- CSS for readonly mode styling -->
 <style>
