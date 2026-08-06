@@ -100,6 +100,7 @@
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Meal
                     <x-currency-price-note
+                        :country="$hotel->country ?? null"
                         :watch-dmc="in_array($auth_user->role_id, [1, 20])"
                         :dmc-selected="(bool) $userDMC"
                         :dmc-currency="$userDMC?->currency"
@@ -1086,4 +1087,5 @@ $(document).ready(function() {
         console.log("hello")
     }
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection

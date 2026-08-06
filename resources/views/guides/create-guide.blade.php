@@ -194,7 +194,11 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Guide
-                    <x-currency-price-note />
+                    <x-currency-price-note
+                        :country="old('country', $userCountry ?? $selectedCountry ?? null)"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
                 </span>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -2123,4 +2127,5 @@ document.head.insertAdjacentHTML('beforeend', `
     });
 </script>
 
+@include('components.currency-price-note-dmc-script')
 @endsection

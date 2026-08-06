@@ -165,7 +165,7 @@
         .api-footnote {
             margin-top: 10px;
             font-size: 9.5px;
-            color: #000;
+            color: #5c3317;
         }
 
         .quotation-information {
@@ -1255,6 +1255,10 @@
                 {!! $quotationInformationHtml !!}
             </div>
         @endif
+
+        <div class="api-footnote">
+            <strong>Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
+        </div>
 
     </div>
 </body>

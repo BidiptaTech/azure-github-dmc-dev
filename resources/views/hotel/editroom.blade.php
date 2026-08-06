@@ -31,7 +31,12 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Edit Room Category
-                    <x-currency-price-note />
+                    @php
+                        $editRoomHotel = is_iterable($hotel ?? null)
+                            ? collect($hotel)->firstWhere('hotel_unique_id', $room->hotel_id)
+                            : ($hotel ?? null);
+                    @endphp
+                    <x-currency-price-note :country="$editRoomHotel->country ?? null" />
                 </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
