@@ -22,6 +22,7 @@
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Update Meal Information
                     <x-currency-price-note
+                        :country="optional($meals->restaurant)->country ?? null"
                         :watch-dmc="in_array($auth_user->role_id, [1, 20])"
                         :dmc-selected="(bool) $userDMC"
                         :dmc-currency="$userDMC?->currency"
@@ -805,4 +806,5 @@
         });
     });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection

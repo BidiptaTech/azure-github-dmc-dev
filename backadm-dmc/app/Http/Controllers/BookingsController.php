@@ -970,7 +970,9 @@ class BookingsController extends Controller
                     $validated['comment'] ?? ($confirmedEnquiry?->comment ?? null),
                     $actualAmount,
                     $changedByName,
-                    $changedByUserId
+                    $changedByUserId,
+                    offers: $offerRows,
+                    confirmCurrency: $confirmCurrency
                 );
 
                 $tour->update(['tour_status' => 'Confirmed']);

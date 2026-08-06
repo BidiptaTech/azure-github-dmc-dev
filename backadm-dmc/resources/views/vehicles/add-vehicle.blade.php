@@ -87,7 +87,11 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Vehicle
-                    <x-currency-price-note />
+                    <x-currency-price-note
+                        :country="old('country', $selectedCountry ?? null)"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
                 </span>
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -1897,4 +1901,5 @@ if (document.readyState === 'loading') {
 </script>
 @endif
 
+@include('components.currency-price-note-dmc-script')
 @endsection
