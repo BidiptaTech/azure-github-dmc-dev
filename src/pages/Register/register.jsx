@@ -19,27 +19,20 @@ import {
   InputAdornment,
   Alert,
   CircularProgress,
-  Divider,
   LinearProgress,
   Card,
   CardContent,
-  Avatar
 } from '@mui/material';
 import {
   CloudUpload as CloudUploadIcon,
   Visibility,
   VisibilityOff,
   CheckCircle,
-  Error as ErrorIcon,
   Business as BusinessIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
   LocationOn as LocationIcon,
   Phone as PhoneIcon,
-  Flag as FlagIcon,
   Upload as UploadIcon,
   Lock as LockIcon,
-  Public as PublicIcon,
   Close as CloseIcon,
   ArrowBack
 } from '@mui/icons-material';
@@ -47,94 +40,82 @@ import { styled } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 import { registerSlice, sendOTPSlice } from '@/slice/common/RegisterSlice';
 
-// Styled components with colorful gradients and modern design
-const GradientPaper = styled(Paper)(({ theme }) => ({
-  background: 'linear-gradient(145deg, #667eea 0%, #764ba2 100%)',
-  padding: theme.spacing(0.5),
-  borderRadius: theme.spacing(3),
-  boxShadow: '0 20px 40px rgba(102, 126, 234, 0.4)',
-}));
+const NAVY = '#13357b';
 
-const InnerPaper = styled(Paper)(({ theme }) => ({
-  background: 'linear-gradient(145deg, #ffffff 0%, #f8faff 100%)',
-  padding: theme.spacing(4),
-  borderRadius: theme.spacing(2.5),
-  position: 'relative',
-  overflow: 'hidden',
+const FormShell = styled(Paper)(({ theme }) => ({
+  background: '#ffffff',
+  padding: theme.spacing(1.5, 2),
+  borderRadius: 8,
+  border: '1px solid #dce4f0',
+  boxShadow: '0 4px 20px rgba(19, 53, 123, 0.06)',
   [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2),
-    borderRadius: theme.spacing(2),
+    padding: theme.spacing(1.25),
+    borderRadius: 8,
   },
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '4px',
-    // background: 'linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #f9ca24, #f0932b, #eb4d4b)',
-  }
 }));
 
-const StyledTextField = styled(TextField)(({ theme }) => ({
+const StyledTextField = styled(TextField)(() => ({
   '& .MuiOutlinedInput-root': {
-    borderRadius: theme.spacing(1.5),
-    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%)',
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.15)',
-    },
-    '&.Mui-focused': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
-    },
+    borderRadius: 6,
+    background: '#fff',
+    fontSize: '0.8125rem',
+    minHeight: 36,
+    '& fieldset': { borderColor: '#dce4f0' },
+    '&:hover fieldset': { borderColor: '#a8bcd6' },
+    '&.Mui-focused fieldset': { borderColor: NAVY },
+    '& input': { paddingTop: 8, paddingBottom: 8 },
   },
   '& .MuiInputLabel-root': {
-    fontWeight: 600,
-    color: '#5a67d8',
+    fontWeight: 500,
+    fontSize: '0.8125rem',
+    color: '#64748b',
+    '&.Mui-focused': { color: NAVY },
+  },
+  '& .MuiFormHelperText-root': {
+    fontSize: '0.7rem',
+    marginLeft: 2,
+    marginTop: 2,
+    lineHeight: 1.2,
   },
 }));
 
-const ColorfulAutocomplete = styled(Autocomplete)(({ theme }) => ({
+const ColorfulAutocomplete = styled(Autocomplete)(() => ({
   '& .MuiOutlinedInput-root': {
-    borderRadius: theme.spacing(1.5),
-    background: 'linear-gradient(145deg,rgb(252, 252, 252) 0%,rgb(255, 255, 255) 100%)',
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.15)',
-    },
-    '&.Mui-focused': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
-    },
+    borderRadius: 6,
+    background: '#fff',
+    fontSize: '0.8125rem',
+    minHeight: 36,
+    paddingTop: '2px !important',
+    paddingBottom: '2px !important',
+    '& fieldset': { borderColor: '#dce4f0' },
+    '&:hover fieldset': { borderColor: '#a8bcd6' },
+    '&.Mui-focused fieldset': { borderColor: NAVY },
   },
   '& .MuiInputLabel-root': {
-    fontWeight: 600,
-    color: '#5a67d8',
+    fontWeight: 500,
+    fontSize: '0.8125rem',
+    color: '#64748b',
   },
 }));
 
-const GradientButton = styled(Button)(({ theme }) => ({
-  background: 'linear-gradient(135deg,rgb(248, 248, 248) 0%,rgb(255, 255, 255) 100%)',
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(1.5, 4),
-  fontSize: '1.1rem',
-  fontWeight: 700,
+const GradientButton = styled(Button)(() => ({
+  background: NAVY,
+  borderRadius: 6,
+  padding: '6px 18px',
+  fontSize: '0.8125rem',
+  fontWeight: 600,
   textTransform: 'none',
-  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.4)',
-  transition: 'all 0.3s ease',
+  color: '#fff',
+  boxShadow: 'none',
+  minHeight: 34,
   '&:hover': {
-    background: 'linear-gradient(135deg,rgb(214, 207, 253) 0%,rgb(205, 214, 255) 100%)',
-    transform: 'translateY(-3px)',
-    boxShadow: '0 12px 35px rgba(102, 126, 234, 0.6)',
+    background: '#0f2d6b',
+    boxShadow: 'none',
   },
   '&:disabled': {
-    background: 'linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%)',
-    transform: 'none',
-    boxShadow: 'none',
-  }
+    background: '#94a3b8',
+    color: '#fff',
+  },
 }));
 
 const VisuallyHiddenInput = styled('input')({
@@ -150,56 +131,56 @@ const VisuallyHiddenInput = styled('input')({
 });
 
 const ColorfulUploadBox = styled(Box)(({ theme, error }) => ({
-  border: `3px dashed ${error ? '#f56565' : 'transparent'}`,
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(3),
+  border: `1.5px dashed ${error ? '#ef4444' : '#c5d0e0'}`,
+  borderRadius: 6,
+  padding: theme.spacing(1, 1.25),
   textAlign: 'center',
-  background: error 
-    ? 'linear-gradient(145deg, #fed7d7 0%, #feb2b2 50%, #fc8181 100%)'
-    : 'linear-gradient(145deg,rgb(255, 255, 255) 0%,rgb(231, 231, 231) 50%,rgb(226, 226, 226) 100%)',
-  transition: 'all 0.3s ease',
+  background: error ? '#fef2f2' : '#f8fafc',
   cursor: 'pointer',
+  transition: 'border-color 0.2s ease',
   '&:hover': {
-    transform: 'translateY(-3px)',
-    boxShadow: error 
-      ? '0 10px 30px rgba(245, 101, 101, 0.3)'
-      : '0 10px 30px rgba(129, 230, 217, 0.3)',
+    borderColor: error ? '#ef4444' : NAVY,
+    background: error ? '#fef2f2' : '#f1f5f9',
   },
 }));
 
 const SectionCard = styled(Card)(({ theme }) => ({
-  background: 'linear-gradient(145deg, #ffffff 0%, #f7fafc 100%)',
-  borderRadius: theme.spacing(2),
-  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
-  marginBottom: theme.spacing(3),
-  border: '1px solid rgba(102, 126, 234, 0.1)',
-  transition: 'all 0.3s ease',
+  background: '#fff',
+  borderRadius: 6,
+  boxShadow: 'none',
+  marginBottom: theme.spacing(1),
+  border: '1px solid #e2e8f0',
   [theme.breakpoints.down('sm')]: {
-    marginBottom: theme.spacing(2),
-    borderRadius: theme.spacing(1.5),
+    marginBottom: theme.spacing(0.875),
   },
-  '&:hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 12px 40px rgba(102, 126, 234, 0.15)',
-  }
+  '& .MuiCardContent-root': {
+    padding: theme.spacing(1, 1.5),
+    '&:last-child': { paddingBottom: theme.spacing(1) },
+  },
 }));
 
-const ColorfulChip = styled(Chip)(({ theme }) => ({
-  background: 'linear-gradient(135deg,rgb(21, 180, 253) 0%,rgb(41, 207, 212) 100%)',
+const ColorfulChip = styled(Chip)(() => ({
+  background: NAVY,
   color: 'white',
-  fontWeight: 600,
+  fontWeight: 500,
+  height: 22,
+  fontSize: '0.7rem',
   '& .MuiChip-deleteIcon': {
-    color: 'white',
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
   },
 }));
 
 const IconContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
-  marginBottom: theme.spacing(1),
+  marginBottom: theme.spacing(0.75),
+  paddingBottom: theme.spacing(0.5),
+  borderBottom: '1px solid #eef2f7',
   '& .MuiSvgIcon-root': {
-    marginRight: theme.spacing(1),
-    color: '#667eea',
+    marginRight: theme.spacing(0.5),
+    color: NAVY,
+    fontSize: 16,
   },
 }));
 
@@ -703,115 +684,90 @@ const RegistrationForm = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(145deg,rgb(208, 217, 255) 0%,rgb(237, 219, 255) 100%)',
-        py: { xs: 2, sm: 3, md: 4 },
-        px: { xs: 1, sm: 2, md: 2 },
-        position: 'relative',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-        }
+        bgcolor: '#f4f7fb',
+        py: { xs: 1, md: 1.5 },
+        px: { xs: 1, sm: 1.5 },
       }}
     >
-      <GradientPaper
+      <FormShell
         sx={{
-          maxWidth: { xs: '100%', sm: 800, md: 900 },
+          maxWidth: { xs: '100%', sm: 720, md: 780 },
           mx: 'auto',
           position: 'relative',
-          zIndex: 1,
         }}
       >
-        <InnerPaper sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
           {/* Back Button */}
-          <Box sx={{ 
-            position: 'absolute', 
-            top: { xs: 10, sm: 15, md: 20 }, 
-            left: { xs: 10, sm: 15, md: 20 },
-            zIndex: 2
-          }}>
-            <IconButton
-              onClick={() => navigate('/')}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                transition: 'all 0.3s ease',
-                width: { xs: 36, sm: 40, md: 44 },
-                height: { xs: 36, sm: 40, md: 44 },
-                '&:hover': {
-                  transform: 'translateX(-3px)',
-                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
-                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-                },
-              }}
-            >
-              <ArrowBack sx={{ fontSize: { xs: 18, sm: 20, md: 24 } }} />
-            </IconButton>
-          </Box>
+          <IconButton
+            onClick={() => navigate('/')}
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: { xs: 10, sm: 12 },
+              left: { xs: 10, sm: 14 },
+              color: NAVY,
+              border: '1px solid #dce4f0',
+              borderRadius: '6px',
+              width: 30,
+              height: 30,
+              zIndex: 1,
+              '&:hover': { bgcolor: '#e8eef6' },
+            }}
+          >
+            <ArrowBack sx={{ fontSize: 16 }} />
+          </IconButton>
 
-          <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 4 }, mt: { xs: 2, sm: 0 } }}>
-            <Avatar
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              mb: 1.5,
+              pt: 0.5,
+            }}
+          >
+            <Box
+              component="img"
+              src="/Images/logo.png"
+              alt="TravClicks"
               sx={{
-                width: { xs: 60, sm: 70, md: 80 },
-                height: { xs: 60, sm: 70, md: 80 },
-                mx: 'auto',
-                mb: 2,
-                background: 'linear-gradient(135deg,rgb(0, 12, 63) 0%,rgb(27, 48, 241) 100%)',
+                height: { xs: 40, sm: 48 },
+                width: 'auto',
+                objectFit: 'contain',
+                mb: 0.75,
               }}
-            >
-              <PersonIcon sx={{ fontSize: { xs: 30, sm: 35, md: 40 } }} />
-            </Avatar>
-            
+            />
             <Typography
-              variant="h4"
-              gutterBottom
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, rgb(2, 22, 116) 100%, rgb(2, 22, 116) 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1,
-                fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2.2rem' }
+                color: NAVY,
+                fontSize: '1rem',
+                lineHeight: 1.2,
               }}
             >
               Agent Registration
             </Typography>
-            
-            <Typography
-              variant="body1"
-              sx={{
-                color: '#4a5568',
-                fontWeight: 500,
-                mb: 3,
-                fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' }
-              }}
-            >
-              Join our global network of travel professionals
+            <Typography sx={{ color: '#64748b', fontSize: '0.75rem', lineHeight: 1.3, mt: 0.25 }}>
+              Join our travel trade partner network
             </Typography>
 
             {loading && (
-              <Box sx={{ mb: 3 }}>
+              <Box sx={{ width: '100%', maxWidth: 220, mt: 1 }}>
                 <LinearProgress 
                   variant="determinate" 
                   value={(currentStep / 4) * 100}
                   sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    background: 'rgba(102, 126, 234, 0.1)',
+                    height: 3,
+                    borderRadius: 2,
+                    bgcolor: '#e2e8f0',
                     '& .MuiLinearProgress-bar': {
-                      background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
-                      borderRadius: 4,
+                      bgcolor: NAVY,
+                      borderRadius: 2,
                     }
                   }}
                 />
-                <Typography variant="body2" color="primary" sx={{ mt: 1, fontWeight: 600 }}>
-                  Step {currentStep} of 4 - Processing your registration...
+                <Typography variant="caption" sx={{ mt: 0.25, display: 'block', color: NAVY, fontWeight: 600, fontSize: '0.7rem' }}>
+                  Step {currentStep} of 4
                 </Typography>
               </Box>
             )}
@@ -820,18 +776,15 @@ const RegistrationForm = () => {
           {success && (
             <Alert
               severity="success"
-              icon={<CheckCircle />}
+              icon={<CheckCircle sx={{ fontSize: 18 }} />}
               sx={{ 
-                mb: 3,
-                borderRadius: 2,
-                background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
-                color: 'white',
-                '& .MuiAlert-icon': {
-                  color: 'white',
-                }
+                mb: 1.25,
+                borderRadius: 1,
+                py: 0,
+                '& .MuiAlert-message': { py: 0.75, fontSize: '0.8rem' },
               }}
             >
-              🎉 Registration completed successfully! Welcome to our platform! Form will reset shortly.
+              Registration completed successfully. Form will reset shortly.
             </Alert>
           )}
 
@@ -840,36 +793,30 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <BusinessIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <BusinessIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     Basic Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                <Grid container spacing={1}>
                   <Grid item xs={12} md={6} lg={4}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Agency Company *"
-                      placeholder="Enter your agency company name"
+                      placeholder="Agency company name"
                       value={formData.agencyCompany}
                       onChange={(e) => handleInputChange('agencyCompany', e.target.value)}
                       onBlur={() => handleBlur('agencyCompany')}
                       error={!!errors.agencyCompany}
                       helperText={errors.agencyCompany}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <BusinessIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                          </InputAdornment>
-                        ),
-                      }}
                     />
                   </Grid>
 
                   <Grid item xs={12} sm={6} md={3} lg={2}>
-                    <FormControl fullWidth error={!!errors.salutation}>
-                      <InputLabel sx={{ fontWeight: 600, color: '#5a67d8', fontSize: { xs: '0.9rem', md: '1rem' } }}>Salutation *</InputLabel>
+                    <FormControl fullWidth size="small" error={!!errors.salutation}>
+                      <InputLabel sx={{ fontWeight: 500, color: '#64748b', fontSize: '0.875rem' }}>Salutation *</InputLabel>
                       <Select
                         value={formData.salutation}
                         onChange={(e) => handleInputChange('salutation', e.target.value)}
@@ -877,12 +824,12 @@ const RegistrationForm = () => {
                         label="Salutation *"
                         sx={{
                           borderRadius: 1.5,
-                          background: 'linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%)',
-                          fontSize: { xs: '0.9rem', md: '1rem' }
+                          fontSize: '0.875rem',
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: '#dce4f0' },
                         }}
                       >
-                        <MenuItem value="Mr." sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>👨 Mr.</MenuItem>
-                        <MenuItem value="Mrs." sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>👩 Mrs.</MenuItem>
+                        <MenuItem value="Mr." sx={{ fontSize: '0.875rem' }}>Mr.</MenuItem>
+                        <MenuItem value="Mrs." sx={{ fontSize: '0.875rem' }}>Mrs.</MenuItem>
                       </Select>
                       {errors.salutation && <FormHelperText>{errors.salutation}</FormHelperText>}
                     </FormControl>
@@ -891,41 +838,29 @@ const RegistrationForm = () => {
                   <Grid item xs={12} sm={6} md={3} lg={3}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Name *"
-                      placeholder="Enter agent's full name"
+                      placeholder="Full name"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       onBlur={() => handleBlur('name')}
                       error={!!errors.name}
                       helperText={errors.name}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PersonIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                          </InputAdornment>
-                        ),
-                      }}
                     />
                   </Grid>
 
                   <Grid item xs={12} md={6} lg={3}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Email Address *"
-                      placeholder="Enter email address (must include @ and .com)"
+                      placeholder="email@example.com"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       onBlur={() => handleBlur('email')}
                       error={!!errors.email}
                       helperText={errors.email}
                       type="email"
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <EmailIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                          </InputAdornment>
-                        ),
-                      }}
                     />
                   </Grid>
                 </Grid>
@@ -936,15 +871,16 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <LocationIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <LocationIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     Location Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                <Grid container spacing={1}>
                   <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
+                      size="small"
                       options={countries}
                       getOptionLabel={(option) => `${option.flag} ${option.name}`}
                       value={formData.agentCountry}
@@ -953,23 +889,16 @@ const RegistrationForm = () => {
                       renderInput={(params) => (
                         <StyledTextField
                           {...params}
+                          size="small"
                           label="Agent Country *"
-                          placeholder="Search and select country"
+                          placeholder="Select country"
                           error={!!errors.agentCountry}
                           helperText={errors.agentCountry}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <FlagIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                              </InputAdornment>
-                            ),
-                          }}
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ '& > span': { mr: 2 }, fontSize: { xs: '0.9rem', md: '1rem' } }}>
-                          <span>{option.flag}</span>
+                        <Box component="li" {...props} sx={{ fontSize: '0.875rem' }}>
+                          <span style={{ marginRight: 8 }}>{option.flag}</span>
                           {option.name}
                         </Box>
                       )}
@@ -978,6 +907,7 @@ const RegistrationForm = () => {
 
                   <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
+                      size="small"
                       options={availableCities}
                       value={formData.agentCity}
                       onChange={(_, value) => handleInputChange('agentCity', value)}
@@ -986,18 +916,11 @@ const RegistrationForm = () => {
                       renderInput={(params) => (
                         <StyledTextField
                           {...params}
+                          size="small"
                           label="Agent City *"
-                          placeholder="Search and select city"
+                          placeholder="Select city"
                           error={!!errors.agentCity}
                           helperText={errors.agentCity || (!formData.agentCountry ? 'Select country first' : '')}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LocationIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                              </InputAdornment>
-                            ),
-                          }}
                         />
                       )}
                     />
@@ -1006,22 +929,17 @@ const RegistrationForm = () => {
                   <Grid item xs={12} lg={4}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Agent Address *"
-                      placeholder="Enter complete address"
+                      placeholder="Complete address"
                       value={formData.agentAddress}
                       onChange={(e) => handleInputChange('agentAddress', e.target.value)}
                       onBlur={() => handleBlur('agentAddress')}
                       error={!!errors.agentAddress}
                       helperText={errors.agentAddress}
                       multiline
-                      rows={{ xs: 2, md: 2 }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
-                            <LocationIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                          </InputAdornment>
-                        ),
-                      }}
+                      minRows={1}
+                      maxRows={2}
                     />
                   </Grid>
                 </Grid>
@@ -1032,15 +950,16 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <PhoneIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <PhoneIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     Contact Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                <Grid container spacing={1}>
                   <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
+                      size="small"
                       options={countries}
                       getOptionLabel={(option) => `${option.flag} ${option.name} (${option.dialCode})`}
                       value={formData.countryCode}
@@ -1049,22 +968,15 @@ const RegistrationForm = () => {
                       renderInput={(params) => (
                         <StyledTextField
                           {...params}
+                          size="small"
                           label="Country Code *"
-                          placeholder="Search country code"
+                          placeholder="Country code"
                           error={!!errors.countryCode}
                           helperText={errors.countryCode}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PhoneIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                              </InputAdornment>
-                            ),
-                          }}
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
+                        <Box component="li" {...props} sx={{ fontSize: '0.875rem' }}>
                           <span style={{ marginRight: 8 }}>{option.flag}</span>
                           {option.name} ({option.dialCode})
                         </Box>
@@ -1075,8 +987,9 @@ const RegistrationForm = () => {
                   <Grid item xs={12} sm={6} lg={4}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Phone Number *"
-                      placeholder="Enter phone number (numbers only)"
+                      placeholder="Phone number"
                       value={formData.phoneNumber}
                       onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                       onBlur={() => handleBlur('phoneNumber')}
@@ -1084,7 +997,7 @@ const RegistrationForm = () => {
                       helperText={errors.phoneNumber}
                       InputProps={{
                         startAdornment: formData.countryCode && (
-                          <InputAdornment position="start" sx={{ color: '#667eea', fontWeight: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
+                          <InputAdornment position="start" sx={{ color: NAVY, fontWeight: 600, fontSize: '0.875rem' }}>
                             {formData.countryCode.dialCode}
                           </InputAdornment>
                         ),
@@ -1095,6 +1008,7 @@ const RegistrationForm = () => {
                   <Grid item xs={12} lg={4}>
                     <ColorfulAutocomplete
                       multiple
+                      size="small"
                       options={countries}
                       getOptionLabel={(option) => `${option.flag} ${option.name}`}
                       value={formData.serviceCountries}
@@ -1104,35 +1018,25 @@ const RegistrationForm = () => {
                         value.map((option, index) => (
                           <ColorfulChip
                             variant="filled"
+                            size="small"
                             label={`${option.flag} ${option.name}`}
                             {...getTagProps({ index })}
                             key={option.code}
-                            sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' } }}
                           />
                         ))
                       }
                       renderInput={(params) => (
                         <StyledTextField
                           {...params}
+                          size="small"
                           label="Service Countries *"
-                          placeholder="Select multiple countries"
+                          placeholder="Select countries"
                           error={!!errors.serviceCountries}
                           helperText={errors.serviceCountries}
-                          InputProps={{
-                            ...params.InputProps,
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start">
-                                  <PublicIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                                </InputAdornment>
-                                {params.InputProps.startAdornment}
-                              </>
-                            ),
-                          }}
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
+                        <Box component="li" {...props} sx={{ fontSize: '0.875rem' }}>
                           <span style={{ marginRight: 8 }}>{option.flag}</span>
                           {option.name}
                         </Box>
@@ -1147,18 +1051,19 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <BusinessIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <BusinessIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     Document Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
-                  <Grid item xs={12} sm={6} lg={6}>
+                <Grid container spacing={1}>
+                  <Grid item xs={12} sm={6}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="ID Card *"
-                      placeholder="Enter ID card information"
+                      placeholder="ID card information"
                       value={formData.idCard}
                       onChange={(e) => handleInputChange('idCard', e.target.value)}
                       onBlur={() => handleBlur('idCard')}
@@ -1167,11 +1072,12 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6} lg={6}>
+                  <Grid item xs={12} sm={6}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Card Number *"
-                      placeholder="Enter card number (letters and numbers)"
+                      placeholder="Card number"
                       value={formData.cardNumber}
                       onChange={(e) => handleInputChange('cardNumber', e.target.value)}
                       onBlur={() => handleBlur('cardNumber')}
@@ -1187,146 +1093,132 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <UploadIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <UploadIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     File Uploads
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                <Grid container spacing={1}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
-                      📄 Agency Logo (Optional)
+                    <Typography variant="caption" fontWeight={600} sx={{ color: '#475569', display: 'block', mb: 0.5 }}>
+                      Agency Logo (Optional)
                     </Typography>
-                    <ColorfulUploadBox error={!!errors.agencyLogo} sx={{ p: { xs: 2, md: 3 } }}>
-                      <CloudUploadIcon sx={{ fontSize: { xs: 36, md: 48 }, color: '#4fd1c7', mb: 1 }} />
-                      <Typography variant="body1" gutterBottom fontWeight={600} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
-                        {formData.agencyLogo ? formData.agencyLogo.name : 'Click to upload agency logo'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                        Max size: 2MB | Image files only
-                      </Typography>
-                      <GradientButton
-                        component="label"
-                        startIcon={<CloudUploadIcon />}
-                        sx={{ 
-                          mt: 2,
-                          fontSize: { xs: '0.8rem', md: '1rem' },
-                          px: { xs: 2, md: 3 },
-                          py: { xs: 1, md: 1.5 }
-                        }}
-                      >
-                        Choose File
-                        <VisuallyHiddenInput
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileUpload('agencyLogo', e.target.files[0])}
-                        />
-                      </GradientButton>
-                      {imagePreviews.agencyLogo && (
-                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-                          <img
-                            src={imagePreviews.agencyLogo}
-                            alt="Agency Logo Preview"
-                            style={{ 
-                              width: { xs: 48, md: 64 }, 
-                              height: { xs: 48, md: 64 }, 
-                              objectFit: 'cover', 
-                              borderRadius: 8, 
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)' 
-                            }}
+                    <ColorfulUploadBox error={!!errors.agencyLogo}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <CloudUploadIcon sx={{ fontSize: 18, color: NAVY }} />
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.75rem', color: '#334155' }}>
+                          {formData.agencyLogo ? formData.agencyLogo.name : 'Upload logo · Max 2MB'}
+                        </Typography>
+                        <GradientButton
+                          component="label"
+                          size="small"
+                          sx={{ py: 0.25, px: 1.25, fontSize: '0.7rem', minHeight: 28 }}
+                        >
+                          Choose
+                          <VisuallyHiddenInput
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload('agencyLogo', e.target.files[0])}
                           />
-                          <IconButton
-                            onClick={() => handleRemoveImage('agencyLogo')}
-                            sx={{
-                              position: 'absolute',
-                              top: -8,
-                              right: -8,
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid #e2e8f0',
-                              width: { xs: 20, md: 24 },
-                              height: { xs: 20, md: 24 },
-                              '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 1)',
-                              }
-                            }}
-                          >
-                            <CloseIcon sx={{ fontSize: { xs: 12, md: 16 }, color: '#e53e3e' }} />
-                          </IconButton>
-                        </Box>
-                      )}
+                        </GradientButton>
+                        {imagePreviews.agencyLogo && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                            <img
+                              src={imagePreviews.agencyLogo}
+                              alt="Agency Logo Preview"
+                              style={{ 
+                                width: 32, 
+                                height: 32, 
+                                objectFit: 'cover', 
+                                borderRadius: 4, 
+                                border: '1px solid #e2e8f0',
+                              }}
+                            />
+                            <IconButton
+                              onClick={() => handleRemoveImage('agencyLogo')}
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                top: -6,
+                                right: -6,
+                                bgcolor: 'white',
+                                border: '1px solid #e2e8f0',
+                                width: 16,
+                                height: 16,
+                                '&:hover': { bgcolor: '#f8fafc' },
+                              }}
+                            >
+                              <CloseIcon sx={{ fontSize: 10, color: '#ef4444' }} />
+                            </IconButton>
+                          </Box>
+                        )}
+                      </Box>
                     </ColorfulUploadBox>
                     {errors.agencyLogo && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
                         {errors.agencyLogo}
                       </Typography>
                     )}
                   </Grid>
 
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
-                      🆔 ID Proof * (Required)
+                    <Typography variant="caption" fontWeight={600} sx={{ color: '#475569', display: 'block', mb: 0.5 }}>
+                      ID Proof * (Required)
                     </Typography>
-                    <ColorfulUploadBox error={!!errors.idProof} sx={{ p: { xs: 2, md: 3 } }}>
-                      <CloudUploadIcon sx={{ fontSize: { xs: 36, md: 48 }, color: '#4fd1c7', mb: 1 }} />
-                      <Typography variant="body1" gutterBottom fontWeight={600} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
-                        {formData.idProof ? formData.idProof.name : 'Click to upload ID proof'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                        Max size: 2MB | Image files only
-                      </Typography>
-                      <GradientButton
-                        component="label"
-                        startIcon={<CloudUploadIcon />}
-                        sx={{ 
-                          mt: 2,
-                          fontSize: { xs: '0.8rem', md: '1rem' },
-                          px: { xs: 2, md: 3 },
-                          py: { xs: 1, md: 1.5 }
-                        }}
-                      >
-                        Choose File
-                        <VisuallyHiddenInput
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileUpload('idProof', e.target.files[0])}
-                        />
-                      </GradientButton>
-                      {imagePreviews.idProof && (
-                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', position: 'relative' }}>
-                          <img
-                            src={imagePreviews.idProof}
-                            alt="ID Proof Preview"
-                            style={{ 
-                              width: { xs: 48, md: 64 }, 
-                              height: { xs: 48, md: 64 }, 
-                              objectFit: 'cover', 
-                              borderRadius: 8, 
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)' 
-                            }}
+                    <ColorfulUploadBox error={!!errors.idProof}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        <CloudUploadIcon sx={{ fontSize: 18, color: NAVY }} />
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.75rem', color: '#334155' }}>
+                          {formData.idProof ? formData.idProof.name : 'Upload ID proof · Max 2MB'}
+                        </Typography>
+                        <GradientButton
+                          component="label"
+                          size="small"
+                          sx={{ py: 0.25, px: 1.25, fontSize: '0.7rem', minHeight: 28 }}
+                        >
+                          Choose
+                          <VisuallyHiddenInput
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload('idProof', e.target.files[0])}
                           />
-                          <IconButton
-                            onClick={() => handleRemoveImage('idProof')}
-                            sx={{
-                              position: 'absolute',
-                              top: -8,
-                              right: -8,
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid #e2e8f0',
-                              width: { xs: 20, md: 24 },
-                              height: { xs: 20, md: 24 },
-                              '&:hover': {
-                                backgroundColor: 'rgba(255, 255, 255, 1)',
-                              }
-                            }}
-                          >
-                            <CloseIcon sx={{ fontSize: { xs: 12, md: 16 }, color: '#e53e3e' }} />
-                          </IconButton>
-                        </Box>
-                      )}
+                        </GradientButton>
+                        {imagePreviews.idProof && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                            <img
+                              src={imagePreviews.idProof}
+                              alt="ID Proof Preview"
+                              style={{ 
+                                width: 32, 
+                                height: 32, 
+                                objectFit: 'cover', 
+                                borderRadius: 4, 
+                                border: '1px solid #e2e8f0',
+                              }}
+                            />
+                            <IconButton
+                              onClick={() => handleRemoveImage('idProof')}
+                              size="small"
+                              sx={{
+                                position: 'absolute',
+                                top: -6,
+                                right: -6,
+                                bgcolor: 'white',
+                                border: '1px solid #e2e8f0',
+                                width: 16,
+                                height: 16,
+                                '&:hover': { bgcolor: '#f8fafc' },
+                              }}
+                            >
+                              <CloseIcon sx={{ fontSize: 10, color: '#ef4444' }} />
+                            </IconButton>
+                          </Box>
+                        )}
+                      </Box>
                     </ColorfulUploadBox>
                     {errors.idProof && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
                         {errors.idProof}
                       </Typography>
                     )}
@@ -1339,38 +1231,35 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <LockIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
-                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
+                  <LockIcon />
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: NAVY, fontSize: '0.8rem' }}>
                     Security
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
-                  <Grid item xs={12}>
+                <Grid container spacing={1}>
+                  <Grid item xs={12} sm={6}>
                     <StyledTextField
                       fullWidth
+                      size="small"
                       label="Password *"
-                      placeholder="Enter password (6-8 characters)"
+                      placeholder="6–8 characters"
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => handleInputChange('password', e.target.value)}
                       onBlur={() => handleBlur('password')}
                       error={!!errors.password}
-                      helperText={errors.password || 'Password can contain text, numbers, and special characters'}
+                      helperText={errors.password || 'Letters, numbers, and special characters allowed'}
                       InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <LockIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
-                          </InputAdornment>
-                        ),
                         endAdornment: (
                           <InputAdornment position="end">
                             <IconButton
                               onClick={() => setShowPassword(!showPassword)}
                               edge="end"
-                              sx={{ color: '#667eea' }}
+                              size="small"
+                              sx={{ color: NAVY }}
                             >
-                              {showPassword ? <VisibilityOff sx={{ fontSize: { xs: 18, md: 20 } }} /> : <Visibility sx={{ fontSize: { xs: 18, md: 20 } }} />}
+                              {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
                             </IconButton>
                           </InputAdornment>
                         ),
@@ -1382,41 +1271,43 @@ const RegistrationForm = () => {
             </SectionCard>
 
             {/* Submit Button */}
-            <Box sx={{ mt: { xs: 3, md: 4 }, display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ mt: 1.25, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+              <Button
+                onClick={() => navigate('/login')}
+                size="small"
+                sx={{
+                  textTransform: 'none',
+                  color: '#64748b',
+                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                }}
+              >
+                Already registered? Sign in
+              </Button>
               <GradientButton
                 type="submit"
-                size="large"
                 disabled={loading || success}
                 sx={{
-                  minWidth: { xs: 200, sm: 250 },
-                  py: { xs: 1.5, md: 2 },
-                  fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
-                  fontWeight: 700,
-                  width: { xs: '100%', sm: 'auto' },
-                  maxWidth: { xs: 300, sm: 'none' }
+                  minWidth: 120,
                 }}
               >
                 {loading ? (
                   <>
-                    <CircularProgress size={{ xs: 20, md: 24 }} sx={{ mr: 2, color: 'white' }} />
+                    <CircularProgress size={18} sx={{ mr: 1, color: 'white' }} />
                     Registering...
                   </>
                 ) : success ? (
                   <>
-                    <CheckCircle sx={{ mr: 1, fontSize: { xs: 18, md: 20 } }} />
-                    Registration Complete! 🎉
+                    <CheckCircle sx={{ mr: 0.75, fontSize: 18 }} />
+                    Complete
                   </>
                 ) : (
-                  <>
-                    <PersonIcon sx={{ mr: 1, fontSize: { xs: 18, md: 20 } }} />
-                    Register Now
-                  </>
+                  'Register'
                 )}
               </GradientButton>
             </Box>
           </form>
-        </InnerPaper>
-      </GradientPaper>
+      </FormShell>
     </Box>
   );
 };
