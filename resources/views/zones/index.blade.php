@@ -473,8 +473,14 @@
                                         <i class="ri-eye-line" style="font-size: 16px;"></i>
                                     </a>
 
+                                    @php
+                                        $zoneOwnerDmcId = is_array($zone->dmc_id)
+                                            ? (int) ($zone->dmc_id[0] ?? 0)
+                                            : (int) ($zone->dmc_id ?? 0);
+                                        $canManageThisZone = !empty($dmcId) && $zoneOwnerDmcId > 0 && (int) $zoneOwnerDmcId === (int) $dmcId;
+                                    @endphp
                                     <!-- Edit -->
-                                    @if($zone->dmc_id == $dmcId)
+                                    @if($canManageThisZone)
                                     <a href="{{ route('zones.edit', Crypt::encrypt($zone->zone_id)) }}" 
                                     class="btn btn-primary btn-sm rounded-circle d-flex justify-content-center align-items-center"
                                     style="width: 28px; height: 28px; padding: 0;" title="Edit">
@@ -482,7 +488,7 @@
                                     </a>
                                     @endif
                                     <!-- Delete -->
-                                    @if($zone->dmc_id == $dmcId)
+                                    @if($canManageThisZone)
                                     <form action="{{ route('zones.destroy', Crypt::encrypt($zone->zone_id)) }}" method="POST" class="d-inline zone-delete-form">
                                         @csrf
                                         @method('DELETE')
