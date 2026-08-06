@@ -1,7 +1,7 @@
 @php
     $attractionName = $booking['AttractionName'] ?? 'Attraction Booking';
     $ticketName = $booking['ticketName'] ?? 'Standard Ticket';
-    $totalPrice = (float) ($booking['totalPrice'] ?? 0);
+    $ticketPrice = (float) ($booking['totalPrice'] ?? 0);
     $adults = (int) ($booking['adultCount'] ?? 0);
     $children = (int) ($booking['childCount'] ?? 0);
     $seniors = (int) ($booking['seniorCount'] ?? 0);
@@ -16,8 +16,18 @@
         $visitDate = (string) ($booking['bookingDate'] ?? 'N/A');
     }
     $td = is_array($booking['ticket_details'] ?? null) ? $booking['ticket_details'] : [];
-    $tf = (isset($booking['transfer_options']) && is_array($booking['transfer_options'])) ? $booking['transfer_options'] : [];
-    $hasTransfer = !empty($tf['transfer_required']) && in_array($tf['transfer_required'], [true, 'true', 'Yes', 1, '1'], true);
+    $tf = (isset($booking['transfer_options']) && is_array($booking['transfer_options']))
+        ? $booking['transfer_options']
+        : ((isset($booking['transferOptions']) && is_array($booking['transferOptions'])) ? $booking['transferOptions'] : []);
+    $go = (isset($booking['guide_options']) && is_array($booking['guide_options']))
+        ? $booking['guide_options']
+        : ((isset($booking['guideOptions']) && is_array($booking['guideOptions'])) ? $booking['guideOptions'] : []);
+    $isPro = (int) ($tour->is_pro ?? 0) === 1;
+    $transferPrice = $isPro
+        ? (float) ($tf['totalPrice'] ?? $tf['cost'] ?? 0)
+        : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? 0);
+    $guidePrice = (float) ($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+    $grandTotal = $ticketPrice + $transferPrice + $guidePrice;
 @endphp
 
 <div class="svc-panel">
@@ -29,7 +39,7 @@
                 <p class="svc-subtitle">{{ $ticketName }} • Enquiry {{ $index + 1 }}</p>
             </div>
         </div>
-        <div class="svc-price">{{ $currency }} {{ number_format($totalPrice, 2) }}</div>
+        <div class="svc-price">{{ $currency }} {{ number_format($grandTotal, 2) }}</div>
     </div>
 
     <div class="svc-section mb-0" style="border:0;border-radius:0;">
@@ -95,8 +105,8 @@
                 <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format((float) ($td['senior_price'] ?? 0), 2) }}</span>
             </div>
             <div class="svc-dl-row">
-                <span class="svc-dl-label">Total</span>
-                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($totalPrice, 2) }}</span>
+                <span class="svc-dl-label">Ticket Total</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($ticketPrice, 2) }}</span>
             </div>
             @if(!empty($td['description']))
             <div class="svc-dl-row full">
@@ -108,30 +118,36 @@
     </div>
     @endif
 
-    @if($hasTransfer)
+    @include('bookings.partials.enquiry-service-cards.transfer-guide-sections', [
+        'booking' => $booking,
+        'currency' => $currency,
+        'tour' => $tour ?? null,
+    ])
+
+    @if($transferPrice > 0 || $guidePrice > 0)
     <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
-        <p class="svc-section-title">Transfer Details</p>
+        <p class="svc-section-title">Price Summary</p>
         <div class="svc-dl">
             <div class="svc-dl-row">
-                <span class="svc-dl-label">Type</span>
-                <span class="svc-dl-value">{{ $tf['type'] ?? 'N/A' }}</span>
+                <span class="svc-dl-label">Tickets</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($ticketPrice, 2) }}</span>
             </div>
+            @if($transferPrice > 0)
             <div class="svc-dl-row">
-                <span class="svc-dl-label">Way</span>
-                <span class="svc-dl-value">{{ $tf['way'] ?? 'N/A' }}</span>
-            </div>
-            @if(!empty($tf['pickup_location_name']))
-            <div class="svc-dl-row full">
-                <span class="svc-dl-label">Pickup</span>
-                <span class="svc-dl-value">{{ $tf['pickup_location_name'] }}</span>
+                <span class="svc-dl-label">Transfer</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($transferPrice, 2) }}</span>
             </div>
             @endif
-            @if(!empty($tf['vehicle_details']['vehicle_name']) || !empty($tf['vehicle_id']))
-            <div class="svc-dl-row full">
-                <span class="svc-dl-label">Vehicle</span>
-                <span class="svc-dl-value">{{ $tf['vehicle_details']['vehicle_name'] ?? $tf['vehicle_id'] }}</span>
+            @if($guidePrice > 0)
+            <div class="svc-dl-row">
+                <span class="svc-dl-label">Guide</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($guidePrice, 2) }}</span>
             </div>
             @endif
+            <div class="svc-dl-row full">
+                <span class="svc-dl-label">Grand Total</span>
+                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($grandTotal, 2) }}</span>
+            </div>
         </div>
     </div>
     @endif
