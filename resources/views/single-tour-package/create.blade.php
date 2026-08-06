@@ -7010,7 +7010,7 @@
             return p;
         };
 
-        // Service city dropdowns (single-city mode: default from main tour city; stays editable)
+        // Service city dropdowns (single-city mode: locked to main tour city; multi-city: editable per segment)
         window.SERVICE_CITY_SELECTORS = [
             '#hotelCitySelect',
             '#modal_local_transfer_city',
@@ -7032,9 +7032,71 @@
                     const $dd = $(this);
                     if (!$dd.length) return;
                     $dd.prop('disabled', ro);
-                    // If Select2 is attached, it will reflect disabled state automatically.
                 });
             });
+        };
+
+        window.refreshServiceCitySelect2 = function ($dd, placeholder, readonly) {
+            if (!$dd || !$dd.length) return;
+            try {
+                if ($dd.hasClass('select2-hidden-accessible')) {
+                    $dd.select2('destroy');
+                }
+            } catch (e) { /* ignore */ }
+            $dd.select2({
+                placeholder: placeholder || 'Select city...',
+                allowClear: !readonly,
+                width: '100%'
+            });
+            $dd.prop('disabled', !!readonly);
+        };
+
+        /** Single-city: service city fields show only the main tour city and cannot be changed. */
+        window.applySingleCityLockToServiceDropdowns = function (cityMeta) {
+            if (typeof window.isSingleCityMode !== 'function' || !window.isSingleCityMode()) {
+                return;
+            }
+            const meta = cityMeta || (typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {});
+            const cityName = (meta.text || window.getSingleCityName() || meta.value || '').trim();
+            if (!cityName) {
+                return;
+            }
+            const cityValue = cityName;
+            const cityId = meta.id ? String(meta.id) : '';
+
+            window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+                $(sel).each(function () {
+                    const $dd = $(this);
+                    if (!$dd.length) return;
+
+                    const prevVal = String($dd.val() || '');
+                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
+                    $dd.html(
+                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
+                        cityName.replace(/</g, '&lt;') + '</option>'
+                    );
+                    $dd.val(cityValue);
+                    $dd.prop('disabled', true);
+                    window.refreshServiceCitySelect2($dd, cityName, true);
+
+                    if (prevVal !== cityValue) {
+                        $dd.trigger('change');
+                    }
+                });
+            });
+            window.setServiceCityReadonly(true);
+        };
+
+        /** Multi-city: restore editable service city lists from country. */
+        window.releaseServiceCityDropdownsForMultiCity = function () {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                return;
+            }
+            window.setServiceCityReadonly(false);
+            const country = $('#user_country').val();
+            if (country && typeof window.populateAllCityDropdowns === 'function') {
+                window.populateAllCityDropdowns(country);
+            }
         };
 
         window.getSingleCityName = function () {
@@ -7081,6 +7143,12 @@
         };
 
         window.syncAllServiceCities = function (cityName) {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                if (typeof window.applySingleCityLockToServiceDropdowns === 'function') {
+                    window.applySingleCityLockToServiceDropdowns();
+                }
+                return;
+            }
             if (!cityName || !String(cityName).trim()) return;
 
             const needle = String(cityName).trim();
@@ -7165,15 +7233,17 @@
             }
         };
 
-        // Single-city mode: default tour city onto service city fields only (editable; never lock/disabled).
+        // Single-city mode: lock all service city fields to the main tour city (top selector only is editable).
         window.syncSingleCityToAllServices = function () {
             if (!window.isSingleCityMode()) {
                 return;
             }
-            const city = window.getSingleCityName();
+            const meta = typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {};
+            const city = meta.text || window.getSingleCityName() || meta.value;
             if (city) {
-                window.syncAllServiceCities(city);
+                window.applySingleCityLockToServiceDropdowns(meta);
             } else {
+                window.setServiceCityReadonly(false);
                 window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                     $(sel).each(function () {
                         $(this).val('').trigger('change');
@@ -7381,12 +7451,12 @@
                 if (!$hint.length || !$bundle.length) return;
 
                 if (!multi) {
-                    if (typeof window.setServiceCityReadonly === 'function') {
-                        window.setServiceCityReadonly(false);
-                    }
                     clearMultiSegmentStayContext();
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
                     if (typeof window.generateNightSelection === 'function') {
                         window.generateNightSelection();
                     }
@@ -7403,7 +7473,9 @@
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
                 } else {
-                    if (typeof window.setServiceCityReadonly === 'function') {
+                    if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                        window.releaseServiceCityDropdownsForMultiCity();
+                    } else if (typeof window.setServiceCityReadonly === 'function') {
                         window.setServiceCityReadonly(false);
                     }
                     clearMultiSegmentStayContext();
@@ -7440,12 +7512,16 @@
             function setCityMode(mode) {
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
-
-                // Single-city inputs shown/hidden
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
-
-                // main travel_dates MUST stay visible in both modes (main range constraint)
-                // so do nothing here; segments validate against #start_date/#end_date.
+                $('#travel_dates').closest('.col-md-3, .col-12, .col-sm-4').removeClass('d-none');
+                if (!isMulti) {
+                    ensureServicesBundleAtHome();
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
+                } else if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                    window.releaseServiceCityDropdownsForMultiCity();
+                }
                 refreshGlobalServicesVisibility();
             }
 
@@ -7536,7 +7612,80 @@
                 } catch (e) { /* ignore */ }
             }
 
+            function ensureServicesBundleAtHome() {
+                $('.segment-services-frozen').remove();
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                    $bundle.removeClass('d-none').show();
+                }
+            }
+
+            function refreshAllOnCityModeSwitch() {
+                ensureServicesBundleAtHome();
+
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                try {
+                    if (typeof selectedHotels !== 'undefined') selectedHotels = [];
+                    if (typeof selectedAttractions !== 'undefined') selectedAttractions = [];
+                    if (typeof selectedRestaurants !== 'undefined') selectedRestaurants = [];
+                    if (typeof selectedGuides !== 'undefined') selectedGuides = [];
+                    if (typeof hotelData !== 'undefined') hotelData = [];
+                    if (typeof lastSelectedHotelId !== 'undefined') lastSelectedHotelId = null;
+                    const sd = document.getElementById('start_date')?.value || '';
+                    const ed = document.getElementById('end_date')?.value || '';
+                    if (sd && ed && typeof moment !== 'undefined') {
+                        if (typeof tourStartDate !== 'undefined') tourStartDate = sd;
+                        if (typeof tourEndDate !== 'undefined') tourEndDate = ed;
+                        if (typeof tourNights !== 'undefined') tourNights = moment(ed).diff(moment(sd), 'days');
+                    }
+                } catch (e) { /* ignore */ }
+
+                ['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '[]';
+                });
+
+                const selectedHotelsEl = document.getElementById('selectedHotels');
+                if (selectedHotelsEl) selectedHotelsEl.innerHTML = '';
+                const ns = document.getElementById('nightSelection');
+                if (ns) ns.innerHTML = '';
+                const tdEl = document.getElementById('tourDates');
+                const hnEl = document.getElementById('hotelNights');
+                if (tdEl) tdEl.textContent = '';
+                if (hnEl) hnEl.textContent = '0 Nights Selected';
+
+                if (typeof window.resetServicesBundleFormControls === 'function') {
+                    window.resetServicesBundleFormControls();
+                }
+                if (typeof window.renderHotelAccordionHeader === 'function') {
+                    window.renderHotelAccordionHeader();
+                }
+                if (typeof displaySelectedHotels === 'function') {
+                    displaySelectedHotels();
+                }
+                if (typeof updateBookingsSummary === 'function') {
+                    updateBookingsSummary();
+                }
+                if (typeof updatePackageTotalPriceDisplay === 'function') {
+                    updatePackageTotalPriceDisplay();
+                }
+                if (typeof generateDailyServices === 'function') {
+                    generateDailyServices();
+                }
+            }
+
             function clearCityModeUIState() {
+                ensureServicesBundleAtHome();
+
                 if ($('#multi_cities').length) {
                     $('#multi_cities').val(null).trigger('change');
                 }
@@ -7546,30 +7695,33 @@
                 if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
 
                 clearMultiSegmentStayContext();
-
-                const $bundle = $('#segmentServicesBundle');
-                const $home = $('#servicesAccordionHome');
-                if ($bundle.length && $home.length) {
-                    $home.after($bundle);
-                }
-
+                ensureServicesBundleAtHome();
                 $('.service-grid').empty();
             }
 
             function resetTourPackageCityMode(mode) {
-                // Full reset of Tour Package Configuration when switching city mode
-                clearTourPackageHeaderFields();
-                clearCityModeUIState();
+                if ($('#single_city').length) {
+                    $('#single_city').val(null).trigger('change');
+                }
+                if ($('#multi_cities').length) {
+                    $('#multi_cities').val(null).trigger('change');
+                }
 
-                if (mode === 'multi') {
-                    // Switching to multi: clear single-city selection
-                    if ($('#single_city').length) {
-                        $('#single_city').val(null).trigger('change');
-                    }
-                } else {
-                    refreshGlobalServicesVisibility();
+                clearCityModeUIState();
+                refreshAllOnCityModeSwitch();
+                refreshGlobalServicesVisibility();
+
+                if (typeof window.generateNightSelection === 'function') {
+                    window.generateNightSelection();
+                }
+                if (typeof window.updateNightDisplay === 'function') {
+                    window.updateNightDisplay();
+                }
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
                 }
             }
 
@@ -7719,9 +7871,8 @@
                 if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
                     delete window.__segmentServiceState[rmKey];
                 }
-                const $bundle = $('#segmentServicesBundle');
-                if ($bundle.length && $seg.find('#segmentServicesBundle').length) {
-                    $('#servicesAccordionHome').after($bundle);
+                if ($seg.find('#segmentServicesBundle').length) {
+                    ensureServicesBundleAtHome();
                     clearMultiSegmentStayContext();
                 }
                 $seg.remove();
@@ -10707,6 +10858,31 @@
         }
 
         // Function to clear all selected services when country changes
+        window.resetServicesBundleFormControls = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) return;
+            root.querySelectorAll('input:not([type="file"]), select, textarea').forEach(function (el) {
+                if (!el || el.id === 'start_date' || el.id === 'end_date') return;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = false;
+                } else {
+                    el.value = '';
+                }
+            });
+            root.querySelectorAll('[id$="_total_price"]').forEach(function (el) {
+                if (el.tagName === 'INPUT') el.value = '0';
+            });
+            root.querySelectorAll('[id$="_TotalPrice"], [id$="_total_price_display"]').forEach(function (el) {
+                if (el.tagName === 'SPAN' || el.tagName === 'DIV') {
+                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+                }
+            });
+            const hotelHeader = document.getElementById('hotelHeaderDetails');
+            if (hotelHeader) hotelHeader.innerHTML = '';
+            const hotelTotal = document.getElementById('hotelTotalPrice');
+            if (hotelTotal) hotelTotal.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+        };
+
         window.clearAllSelectedServices = function() {
             console.log('🔄 Clearing all selected services due to country change...');
             
@@ -13632,7 +13808,7 @@
                                 option.value = restaurant.restaurant_id;
                                 option.textContent = restaurant.name;
                                 option.dataset.city = restaurant.city;
-                                option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
+                                option.dataset.mealTypes = JSON.stringify(normalizeRestaurantMealTypes(restaurant.meal_types || []));
                                 restaurantSelect.appendChild(option);
                             });
                         } else {
@@ -14322,19 +14498,29 @@
 
             // Wait for all dependencies to load
         $(document).ready(function() {
-            // Date Range Picker Initialization - only if not locked
             const travelDatesField = $('#travel_dates');
-            if (travelDatesField.attr('data-locked') !== 'true') {
-                travelDatesField.daterangepicker({
+
+            window.reinitializeTravelDatePicker = function () {
+                const $field = $('#travel_dates');
+                if (!$field.length || $field.attr('data-locked') === 'true') return;
+                try {
+                    const drp = $field.data('daterangepicker');
+                    if (drp && typeof drp.remove === 'function') drp.remove();
+                } catch (e) { /* ignore */ }
+                $field.daterangepicker({
                     opens: 'left',
                     autoUpdateInput: false,
-                    // Disable today too — only future dates (from tomorrow onward) are bookable.
                     minDate: moment().add(1, 'days'),
-                    locale: {
-                        format: 'MMM DD, YYYY',
-                        cancelLabel: 'Clear'
+                    locale: { format: 'MMM DD, YYYY', cancelLabel: 'Clear' }
+                });
+                $field.off('show.daterangepicker.travelFix').on('show.daterangepicker.travelFix', function (ev, picker) {
+                    if (picker && picker.container) {
+                        picker.container.css('z-index', 10050);
                     }
                 });
+            };
+            if (travelDatesField.length && travelDatesField.attr('data-locked') !== 'true') {
+                window.reinitializeTravelDatePicker();
             }
 
             // Function to check which services will be removed (without actually removing them)
@@ -21531,25 +21717,7 @@
                                     mealTypes = [];
                                 }
                             }
-                            
-                            // Ensure each meal type has required properties
-                            mealTypes = mealTypes.map(mt => {
-                                return {
-                                    type: mt.type || '',
-                                    label: mt.label || mt.type || '',
-                                    open_time: mt.open_time || '',
-                                    close_time: mt.close_time || ''
-                                };
-                            });
-                            
-                            // If no meal types defined, add default ones
-                            if (mealTypes.length === 0) {
-                                mealTypes = [
-                                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00:00', close_time: '10:00:00' },
-                                    { type: 'lunch', label: 'Lunch', open_time: '12:00:00', close_time: '15:00:00' },
-                                    { type: 'dinner', label: 'Dinner', open_time: '18:00:00', close_time: '22:00:00' }
-                                ];
-                            }
+                            mealTypes = normalizeRestaurantMealTypes(mealTypes);
                             
                             option.dataset.mealTypes = JSON.stringify(mealTypes);
                             selectElement.appendChild(option);
@@ -21601,7 +21769,7 @@
             
             // Get meal types from selected restaurant
             const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-            if (!restaurantSelect) {image.png
+            if (!restaurantSelect) {
                 console.error('Restaurant select not found:', 'day' + day + '_restaurant_' + index);
                 return;
             }
@@ -21618,66 +21786,114 @@
             loadDishesForRestaurant(day, restaurantId, index);
         };
         
+        const DEFAULT_RESTAURANT_MEAL_TIMES = {
+            breakfast: { open: '07:00', close: '10:00' },
+            lunch: { open: '12:00', close: '15:00' },
+            dinner: { open: '18:00', close: '22:00' }
+        };
+
+        function normalizeRestaurantMealTypeKey(type, label) {
+            const key = String(type || label || '').toLowerCase().trim();
+            if (!key || key === 'null' || key === 'undefined') return '';
+            if (key.includes('breakfast') || key === 'bf') return 'breakfast';
+            if (key.includes('lunch')) return 'lunch';
+            if (key.includes('dinner')) return 'dinner';
+            return key;
+        }
+
+        function getMealPeriodFromRestaurantType(type, label) {
+            const map = { breakfast: '1', lunch: '2', dinner: '3' };
+            return map[normalizeRestaurantMealTypeKey(type, label)] || '';
+        }
+
+        function normalizeRestaurantMealTypes(mealTypes) {
+            const normalized = (Array.isArray(mealTypes) ? mealTypes : []).map(function(mt) {
+                const typeKey = normalizeRestaurantMealTypeKey(mt.type, mt.label);
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {};
+                return {
+                    type: typeKey || (mt.type || mt.label || ''),
+                    label: mt.label || mt.type || typeKey || '',
+                    open_time: (mt.open_time || defaults.open || '').toString().trim(),
+                    close_time: (mt.close_time || defaults.close || '').toString().trim()
+                };
+            }).filter(function(mt) { return mt.type || mt.label; });
+
+            if (normalized.length === 0) {
+                return [
+                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00', close_time: '10:00' },
+                    { type: 'lunch', label: 'Lunch', open_time: '12:00', close_time: '15:00' },
+                    { type: 'dinner', label: 'Dinner', open_time: '18:00', close_time: '22:00' }
+                ];
+            }
+
+            return normalized;
+        }
+
+        function getRestaurantMealOptionTimes(option, mealTypeValue) {
+            if (!option) return { open: '', close: '' };
+            let openTime = (option.dataset.openTime || option.getAttribute('data-open-time') || '').trim();
+            let closeTime = (option.dataset.closeTime || option.getAttribute('data-close-time') || '').trim();
+            if ((!openTime || !closeTime) && mealTypeValue) {
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[normalizeRestaurantMealTypeKey(mealTypeValue, option.textContent)] || {};
+                openTime = openTime || defaults.open || '';
+                closeTime = closeTime || defaults.close || '';
+            }
+            return { open: openTime, close: closeTime };
+        }
+
+        function parseRestaurantTimeRangeString(rangeStr) {
+            if (!rangeStr) return [];
+            return String(rangeStr).trim().split(/\s*-\s*|\s+to\s+/i).map(function(s) { return s.trim(); }).filter(Boolean);
+        }
+
         // Update meal type dropdown with available options and timings
         function updateMealTypeDropdown(day, index, mealTypes) {
             const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
             if (!mealTypeSelect) return;
-            
-            let optionsHTML = '<option value="">Select Meal Type</option>';
-            
-            mealTypes.forEach(mealType => {
-                const timing = mealType.open_time && mealType.close_time 
-                    ? ` - ${mealType.open_time} to ${mealType.close_time}`
-                    : '';
-                
-                // Map meal type to meal_period number and add icons
-                let mealPeriod = '';
+
+            mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+            normalizeRestaurantMealTypes(mealTypes).forEach(function(mealType) {
+                const typeKey = normalizeRestaurantMealTypeKey(mealType.type, mealType.label);
+                const mealPeriod = getMealPeriodFromRestaurantType(mealType.type, mealType.label);
+                const times = {
+                    open: mealType.open_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).open || '',
+                    close: mealType.close_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).close || ''
+                };
+                const timing = times.open && times.close ? ' - ' + times.open + ' to ' + times.close : '';
                 let icon = '';
-                switch(mealType.type.toLowerCase()) {
-                    case 'breakfast':
-                        mealPeriod = '1';
-                        icon = '🌅 ';
-                        break;
-                    case 'lunch':
-                        mealPeriod = '2';
-                        icon = '☀️ ';
-                        break;
-                    case 'dinner':
-                        mealPeriod = '3';
-                        icon = '🌙 ';
-                        break;
-                }
-                
-                optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}" data-open-time="${mealType.open_time}" data-close-time="${mealType.close_time}">${icon}${mealType.label}${timing}</option>`;
+                if (typeKey === 'breakfast') icon = '🌅 ';
+                else if (typeKey === 'lunch') icon = '☀️ ';
+                else if (typeKey === 'dinner') icon = '🌙 ';
+
+                const option = document.createElement('option');
+                option.value = typeKey || mealType.type || mealType.label;
+                option.dataset.mealPeriod = mealPeriod;
+                option.dataset.openTime = times.open;
+                option.dataset.closeTime = times.close;
+                option.textContent = icon + (mealType.label || mealType.type || typeKey) + timing;
+                mealTypeSelect.appendChild(option);
             });
-            
-            mealTypeSelect.innerHTML = optionsHTML;
-            
-            // Add event listener for meal type change to filter dishes
-            mealTypeSelect.removeEventListener('change', mealTypeChangeHandler); // Remove existing listener
-            mealTypeSelect.addEventListener('change', mealTypeChangeHandler);
-            
-            function mealTypeChangeHandler() {
+
+            if (mealTypeSelect._restaurantMealTypeHandler) {
+                mealTypeSelect.removeEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+            }
+            mealTypeSelect._restaurantMealTypeHandler = function mealTypeChangeHandler() {
                 const selectedOption = this.options[this.selectedIndex];
-                const mealPeriod = selectedOption.dataset.mealPeriod;
                 const mealType = this.value;
+                const mealPeriod = (selectedOption && (selectedOption.dataset.mealPeriod || getMealPeriodFromRestaurantType(mealType, selectedOption.textContent))) || getMealPeriodFromRestaurantType(mealType);
                 const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
-                
-                // Get the dish select element (this should always exist)
-                const dishSelectId = 'day' + day + '_dish_' + index;
-                const dishSelect = document.getElementById(dishSelectId);
-                
+                const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+
                 if (!dishSelect) {
-                    console.error('Dish select element not found with ID:', dishSelectId);
-                    return; // Exit early if dish select doesn't exist
+                    console.error('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
+                    return;
                 }
-                
+
                 console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
-                
+
                 const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
                 const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-                
-                // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
+
                 if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
@@ -21687,14 +21903,15 @@
                     if (dishContainer) dishContainer.style.display = 'block';
                     const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
                     if (mealType && range) {
-                        const part = String(range).split('-').map(s => s.trim());
-                        if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
+                        const part = parseRestaurantTimeRangeString(range);
+                        if (part.length >= 2 && typeof populateTimeSlots === 'function') {
+                            populateTimeSlots(day, index, part[0], part[1]);
+                        }
                     }
                     updateRestaurantPricing(day, index);
                     return;
                 }
-                
-                // Clear dish selection when meal type changes (normal restaurant)
+
                 if (dishSelect) {
                     dishSelect.value = '';
                     dishSelect.innerHTML = '<option value="">Select Dish</option>';
@@ -21702,23 +21919,25 @@
                 if (dishContainer) dishContainer.style.display = 'none';
                 if (dishSelect) dishSelect.style.display = 'none';
                 updateRestaurantPricing(day, index);
-                
+
                 if (!mealType || mealType === '') {
+                    const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+                    if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                     return;
                 }
-                
+
                 if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                     if (mealPeriod) {
                         loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
-                        populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
                     } else {
                         loadDishesForRestaurant(day, restaurantId, index);
                     }
+                    const times = getRestaurantMealOptionTimes(selectedOption, mealType);
+                    populateTimeSlots(day, index, times.open, times.close);
                 } else {
                     console.log('Invalid restaurant ID in meal type change handler:', restaurantId);
-                    // Clear dish and time slot dropdowns (reuse dishSelect variable from above)
                     const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-                    
+
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
                         dishSelect.style.display = 'none';
@@ -21726,83 +21945,85 @@
                     if (timeSlotSelect) {
                         timeSlotSelect.innerHTML = '<option value="">Select restaurant first</option>';
                     }
-                    
-                    // Hide dish container if no valid restaurant
-                    if (dishContainer) {
-                        dishContainer.style.display = 'none';
-                    }
-                    
-                    // Update pricing when no valid restaurant
+                    if (dishContainer) dishContainer.style.display = 'none';
                     updateRestaurantPricing(day, index);
                 }
-            }
-            
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+
             console.log('Updated meal type dropdown with', mealTypes.length, 'options');
         }
         
         // Populate time slots with 30-minute intervals
         function populateTimeSlots(day, index, openTime, closeTime) {
             const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-            if (!timeSlotSelect || !openTime || !closeTime) return;
-            
+            if (!timeSlotSelect) return;
+
+            openTime = (openTime || '').toString().trim();
+            closeTime = (closeTime || '').toString().trim();
+            if (!openTime || !closeTime || openTime === 'null' || closeTime === 'null' || openTime === 'undefined' || closeTime === 'undefined') {
+                return;
+            }
+
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-            
-            // Parse open and close times
+
             const startTime = parseTime(openTime);
             const endTime = parseTime(closeTime);
-            
-            if (!startTime || !endTime) return;
-            
-            // Generate 30-minute intervals
+            if (!startTime || !endTime) {
+                console.log('Failed to parse restaurant time slots:', openTime, closeTime);
+                return;
+            }
+
             let currentTime = new Date(startTime);
-            
-            while (currentTime <= endTime) {
-                const timeValue = formatTime24(currentTime);
-                const timeDisplay = formatTime12(currentTime);
-                
+            let endDate = new Date(endTime);
+            if (endDate < currentTime) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+
+            let iterationCount = 0;
+            while (currentTime <= endDate && iterationCount < 100) {
                 const option = document.createElement('option');
-                option.value = timeValue;
-                option.textContent = timeDisplay;
+                option.value = formatTime24(currentTime);
+                option.textContent = formatTime12(currentTime);
                 timeSlotSelect.appendChild(option);
-                
-                // Add 30 minutes
-                currentTime.setMinutes(currentTime.getMinutes() + 30);
+                currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+                iterationCount++;
             }
         }
         
         // Parse time string (handles various formats)
         function parseTime(timeStr) {
             if (!timeStr) return null;
-            
+
             try {
-                console.log('Parsing time string:', timeStr);
-                
-                // Handle "HH:MM AM/PM" format
-                if (timeStr.includes('AM') || timeStr.includes('PM')) {
-                    const today = new Date();
-                    const [time, period] = timeStr.split(' ');
-                    const [hours, minutes] = time.split(':');
-                    let hour = parseInt(hours);
-                    
+                const normalized = String(timeStr).trim();
+                if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+
+                const periodMatch = normalized.match(/\s*(AM|PM|am|pm)\s*$/);
+                if (periodMatch) {
+                    const period = periodMatch[1].toUpperCase();
+                    const time = normalized.replace(/\s*(AM|PM|am|pm)\s*$/i, '').trim();
+                    const parts = time.split(':');
+                    let hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
                     if (period === 'PM' && hour !== 12) hour += 12;
                     if (period === 'AM' && hour === 12) hour = 0;
-                    
-                    today.setHours(hour, parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 12-hour time:', today);
-                    return today;
-                }
-                
-                // Handle "HH:MM" 24-hour format
-                if (timeStr.includes(':')) {
-                    const [hours, minutes] = timeStr.split(':');
                     const today = new Date();
-                    today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 24-hour time:', today);
+                    today.setHours(hour, minutes, 0, 0);
                     return today;
                 }
-                
-                // Handle other formats or return null
-                console.log('Unrecognized time format:', timeStr);
+
+                const parts = normalized.split(':');
+                if (parts.length >= 2) {
+                    const hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
+                    const today = new Date();
+                    today.setHours(hour, minutes, 0, 0);
+                    return today;
+                }
+
                 return null;
             } catch (e) {
                 console.error('Error parsing time:', timeStr, e);
@@ -22478,7 +22699,7 @@
                     const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
                     if (!slotEl) return;
                     if (range) {
-                        const part = range.split('-').map(s => s.trim());
+                        const part = parseRestaurantTimeRangeString(range);
                         if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
                         else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
                     } else {
