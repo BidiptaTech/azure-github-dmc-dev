@@ -937,11 +937,22 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" value="{{ now()->toDateString() }}">
+                    @php
+                        $enqToday = \Carbon\Carbon::today();
+                        $enqDateMin = $enqToday->copy()->subYear()->toDateString();
+                        $enqDateMax = $enqToday->copy()->addYear()->toDateString();
+                        $enqDefaultStart = $enqToday->toDateString();
+                        $enqDefaultEnd = $enqToday->copy()->addDays(30)->toDateString();
+                    @endphp
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter"
+                           min="{{ $enqDateMin }}" max="{{ $enqDateMax }}"
+                           value="{{ $enqDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" value="{{ now()->addDays(30)->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter"
+                           min="{{ $enqDateMin }}" max="{{ $enqDateMax }}"
+                           value="{{ $enqDefaultEnd }}">
                 </div>
             </div>
         </div>
@@ -1008,6 +1019,8 @@
                         <tr 
                             data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
+                            data-check-in="{{ $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->toDateString() : '' }}"
+                            data-check-out="{{ $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->toDateString() : '' }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-infant="{{ (int)($tour->infant ?? 0) }}"
@@ -2157,24 +2170,56 @@
 
 <script>
 // Filter functionality
+function toLocalDateString(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getEnquiryDateBounds() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    const maxDate = new Date(today);
+    maxDate.setFullYear(maxDate.getFullYear() + 1);
+    const defaultEnd = new Date(today);
+    defaultEnd.setDate(defaultEnd.getDate() + 30);
+    return {
+        todayStr: toLocalDateString(today),
+        minStr: toLocalDateString(minDate),
+        maxStr: toLocalDateString(maxDate),
+        endPlus30Str: toLocalDateString(defaultEnd),
+    };
+}
+
+function clampDateInputValue(input, minStr, maxStr) {
+    if (!input || !input.value) return;
+    if (minStr && input.value < minStr) input.value = minStr;
+    if (maxStr && input.value > maxStr) input.value = maxStr;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const countryFilter = document.getElementById('countryFilter');
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
     const endDateFilter = document.getElementById('endDateFilter');
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const endPlus30 = new Date(today);
-    endPlus30.setDate(endPlus30.getDate() + 30);
-    const endPlus30Str = endPlus30.toISOString().split('T')[0];
+    const bounds = getEnquiryDateBounds();
 
-    // Default range: today → today + 30 days
-    if (startDateFilter && !startDateFilter.value) {
-        startDateFilter.value = todayStr;
+    // Default range: today → today + 30 days; selectable window: 1 year past ↔ 1 year future
+    if (startDateFilter) {
+        startDateFilter.setAttribute('min', bounds.minStr);
+        startDateFilter.setAttribute('max', bounds.maxStr);
+        if (!startDateFilter.value) startDateFilter.value = bounds.todayStr;
+        clampDateInputValue(startDateFilter, bounds.minStr, bounds.maxStr);
     }
-    if (endDateFilter && !endDateFilter.value) {
-        endDateFilter.value = endPlus30Str;
+    if (endDateFilter) {
+        endDateFilter.setAttribute('min', bounds.minStr);
+        endDateFilter.setAttribute('max', bounds.maxStr);
+        if (!endDateFilter.value) endDateFilter.value = bounds.endPlus30Str;
+        clampDateInputValue(endDateFilter, bounds.minStr, bounds.maxStr);
     }
     
     // Add event listeners
@@ -2183,15 +2228,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (startDateFilter) {
         startDateFilter.addEventListener('change', function() {
+            clampDateInputValue(startDateFilter, bounds.minStr, bounds.maxStr);
             if (endDateFilter) {
                 if (startDateFilter.value) {
-                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    const endMin = startDateFilter.value > bounds.minStr ? startDateFilter.value : bounds.minStr;
+                    endDateFilter.setAttribute('min', endMin);
                     if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
                         endDateFilter.value = startDateFilter.value;
                     }
                 } else {
-                    endDateFilter.removeAttribute('min');
+                    endDateFilter.setAttribute('min', bounds.minStr);
                 }
+                clampDateInputValue(endDateFilter, endDateFilter.getAttribute('min') || bounds.minStr, bounds.maxStr);
             }
             filterTable();
         });
@@ -2201,6 +2249,7 @@ document.addEventListener('DOMContentLoaded', function() {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
         endDateFilter.addEventListener('change', function() {
+            clampDateInputValue(endDateFilter, endDateFilter.getAttribute('min') || bounds.minStr, bounds.maxStr);
             if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
                 startDateFilter.value = endDateFilter.value;
                 startDateFilter.dispatchEvent(new Event('change'));
@@ -2221,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load (today → today + 30 days)
+    // Apply initial filter on page load (today → today + 30 days by check_in/check_out)
     filterTable();
 });
 
@@ -2249,8 +2298,8 @@ function filterTable() {
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
         const createdBy = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const createdAt = row.getAttribute('data-created-at');
-        const updatedAt = row.getAttribute('data-updated-at');
+        const checkIn = (row.getAttribute('data-check-in') || '').trim();
+        const checkOut = (row.getAttribute('data-check-out') || '').trim();
         
         let show = true;
         
@@ -2278,30 +2327,22 @@ function filterTable() {
             show = false;
         }
         
-        // Date filtering (check both created_at and updated_at)
-        if ((startDateValue || endDateValue) && (createdAt || updatedAt)) {
-            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
-            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
-            let dateInRange = false;
-            
-            // Check created_at if available
-            if (createdAt) {
-                const createdDate = new Date(createdAt + 'T00:00:00');
-                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            // Check updated_at if available and created_at didn't match
-            if (!dateInRange && updatedAt) {
-                const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange) {
+        // Date filtering by tour travel dates (check_in_time / check_out_time overlap)
+        if (startDateValue || endDateValue) {
+            const tourStartStr = checkIn || checkOut;
+            const tourEndStr = checkOut || checkIn;
+
+            if (!tourStartStr) {
                 show = false;
+            } else {
+                const tourStart = new Date(tourStartStr + 'T00:00:00');
+                const tourEnd = new Date(tourEndStr + 'T23:59:59');
+                const filterStart = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+                const filterEnd = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
+                const overlaps = (!filterStart || tourEnd >= filterStart) && (!filterEnd || tourStart <= filterEnd);
+                if (!overlaps) {
+                    show = false;
+                }
             }
         }
         
@@ -2316,8 +2357,8 @@ function filterTable() {
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     const infants = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-infant') || '0', 10), 0);
     
-    // Count today's enquiries from visible rows
-    const today = new Date().toISOString().split('T')[0];
+    // Count today's enquiries from visible rows (by created date)
+    const today = toLocalDateString(new Date());
     const todayCount = visibleRows.filter(r => {
         const createdAt = r.getAttribute('data-created-at');
         return createdAt === today;
@@ -2347,8 +2388,8 @@ function filterTable() {
     updateFilterResults(visibleCount, totalRows);
 
     if (startDateValue || endDateValue) {
-        const start = startDateValue ? new Date(startDateValue) : null;
-        const end = endDateValue ? new Date(endDateValue) : null;
+        const start = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+        const end = endDateValue ? new Date(endDateValue + 'T00:00:00') : null;
         let label = '';
 
         if (start && end) {
@@ -2390,12 +2431,7 @@ function resetFilters() {
     const agentSelect = document.getElementById('agentFilter');
     const startDateInput = document.getElementById('startDateFilter');
     const endDateInput = document.getElementById('endDateFilter');
-
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const endPlus30 = new Date(today);
-    endPlus30.setDate(endPlus30.getDate() + 30);
-    const endPlus30Str = endPlus30.toISOString().split('T')[0];
+    const bounds = getEnquiryDateBounds();
 
     if (searchInput) searchInput.value = '';
     // Reset Select2 dropdowns properly
@@ -2410,11 +2446,14 @@ function resetFilters() {
         agentSelect.value = '';
     }
     if (startDateInput) {
-        startDateInput.value = todayStr;
+        startDateInput.setAttribute('min', bounds.minStr);
+        startDateInput.setAttribute('max', bounds.maxStr);
+        startDateInput.value = bounds.todayStr;
     }
     if (endDateInput) {
-        endDateInput.value = endPlus30Str;
-        endDateInput.setAttribute('min', todayStr);
+        endDateInput.setAttribute('min', bounds.todayStr);
+        endDateInput.setAttribute('max', bounds.maxStr);
+        endDateInput.value = bounds.endPlus30Str;
     }
     filterTable();
     
