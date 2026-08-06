@@ -213,7 +213,7 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Check-out To</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" min="{{ now()->startOfMonth()->toDateString() }}" value="{{ now()->copy()->addMonths(3)->endOfMonth()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" min="{{ now()->startOfMonth()->toDateString() }}" value="{{ now()->endOfMonth()->toDateString() }}">
                 </div>
                 @if(!empty($showBookingStatusColumn))
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -477,6 +477,39 @@
             $('#packageBookingsTable').DataTable().destroy();
         }
 
+        // Date range filter by package check-in / check-out (YYYY-MM-DD)
+        // Register BEFORE DataTable init so the first draw applies the current-month default.
+        if (!window.__pkgBookingDateSearchRegistered) {
+            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                if (!settings.nTable || settings.nTable.id !== 'packageBookingsTable') return true;
+
+                const start = document.getElementById('pkgStartDateFilter')?.value || '';
+                const end = document.getElementById('pkgEndDateFilter')?.value || '';
+                if (!start && !end) return true;
+
+                const api = new $.fn.dataTable.Api(settings);
+                const rowNode = api.row(dataIndex).node();
+                const checkIn = rowNode?.getAttribute('data-check-in') || '';
+                const checkOut = rowNode?.getAttribute('data-check-out') || checkIn;
+                if (!checkIn && !checkOut) return false;
+
+                // Overlap: booking [checkIn, checkOut] intersects filter [start, end]
+                if (start && checkOut && checkOut < start) return false;
+                if (end && checkIn && checkIn > end) return false;
+                return true;
+            });
+            window.__pkgBookingDateSearchRegistered = true;
+        }
+
+        function renumberPackageBookingRows(api) {
+            if (!api) return;
+            const info = api.page.info();
+            let n = (info.start || 0) + 1;
+            api.column(0, { page: 'current', search: 'applied', order: 'applied' }).nodes().each(function (cell) {
+                cell.innerHTML = String(n++);
+            });
+        }
+
         pkgTable = $('#packageBookingsTable').DataTable({
             dom: 'lrtip',
             responsive: true,
@@ -494,7 +527,10 @@
                 { searchable: false, targets: @json($__pkgNoOrder) }
             ],
             pageLength: 10,
-            lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]]
+            lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]],
+            drawCallback: function () {
+                renumberPackageBookingRows(this.api());
+            }
         });
 
         // Ensure columns are aligned (especially when scrollX is off)
@@ -502,40 +538,21 @@
             try { pkgTable.columns.adjust(); } catch (e) {}
         }, 50);
 
-        $(window).on('resize.pkgTable', function () {
+        $(window).off('resize.pkgTable').on('resize.pkgTable', function () {
             if (!pkgTable) return;
             try { pkgTable.columns.adjust(); } catch (e) {}
         });
 
         // External search
-        $('#pkgSearchInput').on('input', function () {
+        $('#pkgSearchInput').off('input.pkgFilter').on('input.pkgFilter', function () {
             pkgTable.search(this.value || '').draw();
         });
 
         // Agent filter (column index 4 after removing travel dates)
-        $('#pkgAgentFilter').on('change', function () {
+        $('#pkgAgentFilter').off('change.pkgFilter').on('change.pkgFilter', function () {
             const v = this.value || '';
             // Agent cell contains name + company on separate lines; use substring match.
             pkgTable.column(4).search(v, false, true).draw();
-        });
-
-        // Date range filter by package check-in / check-out (YYYY-MM-DD), future dates allowed
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'packageBookingsTable') return true;
-
-            const start = document.getElementById('pkgStartDateFilter')?.value || '';
-            const end = document.getElementById('pkgEndDateFilter')?.value || '';
-            if (!start && !end) return true;
-
-            const rowNode = pkgTable.row(dataIndex).node();
-            const checkIn = rowNode?.getAttribute('data-check-in') || '';
-            const checkOut = rowNode?.getAttribute('data-check-out') || checkIn;
-            if (!checkIn && !checkOut) return false;
-
-            // Overlap: booking [checkIn, checkOut] intersects filter [start, end]
-            if (start && checkOut && checkOut < start) return false;
-            if (end && checkIn && checkIn > end) return false;
-            return true;
         });
 
         function syncPkgCheckoutMinDate() {
@@ -554,10 +571,13 @@
 
         syncPkgCheckoutMinDate();
 
-        $('#pkgStartDateFilter, #pkgEndDateFilter').on('change input', function () {
+        $('#pkgStartDateFilter, #pkgEndDateFilter').off('change.pkgFilter input.pkgFilter').on('change.pkgFilter input.pkgFilter', function () {
             syncPkgCheckoutMinDate();
             if (pkgTable) pkgTable.draw();
         });
+
+        // Apply default current-month date filter + renumber (# starts at 1)
+        pkgTable.draw();
 
         @if(!empty($showBookingStatusColumn))
         $('#pkgBookingStatusFilter').on('change', function () {
@@ -642,9 +662,10 @@
         if (s) s.value = '';
         if (a) a.value = '';
         if (st) st.value = '';
+        // Reset date range to the current calendar month
         if (sd) sd.value = '{{ now()->startOfMonth()->toDateString() }}';
         if (ed) {
-            ed.value = '{{ now()->copy()->addMonths(3)->endOfMonth()->toDateString() }}';
+            ed.value = '{{ now()->endOfMonth()->toDateString() }}';
             ed.setAttribute('min', sd ? sd.value : '{{ now()->startOfMonth()->toDateString() }}');
         }
         if (pkgTable) {
