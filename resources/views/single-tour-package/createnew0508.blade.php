@@ -650,6 +650,52 @@
             border-color: rgba(13, 110, 253, 0.55) !important;
         }
 
+        /* Read-only "frozen" snapshot shown for a city plan you've switched away from.
+           The whole card (.segment-services-frozen) is a single clickable affordance to jump
+           back in and edit that city's services — not a dead, greyed-out dead end. The actual
+           disabled form snapshot lives in the nested .segment-services-frozen-inner. */
+        #segmentsWrapper .segment .segment-services-frozen {
+            position: relative;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+        #segmentsWrapper .segment .segment-services-frozen:hover,
+        #segmentsWrapper .segment .segment-services-frozen:focus-visible {
+            background-color: rgba(13, 110, 253, 0.04);
+            box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.35) inset;
+            outline: none;
+        }
+        #segmentsWrapper .segment .segment-services-frozen .segment-frozen-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #0b3d91;
+            background: rgba(13, 110, 253, 0.10);
+            border: 1px dashed rgba(13, 110, 253, 0.4);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+        }
+        #segmentsWrapper .segment .segment-services-frozen .segment-frozen-banner .segment-frozen-edit-hint {
+            font-weight: 700;
+            color: #0d6efd;
+            white-space: nowrap;
+        }
+        #segmentsWrapper .segment .segment-services-frozen:hover .segment-frozen-banner {
+            background: rgba(13, 110, 253, 0.18);
+            border-style: solid;
+        }
+        /* Everything below the banner is a static preview: dim it and block interaction so a
+           click always bubbles up to re-activate the plan instead of poking a disabled field. */
+        #segmentsWrapper .segment .segment-services-frozen .segment-services-frozen-inner {
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
         .add-agency-contact-wrap {
             background: #e8f7ff !important;
             border-bottom: 1px solid #b8e8ff !important;
@@ -7010,7 +7056,7 @@
             return p;
         };
 
-        // Service city dropdowns (single-city mode: locked to main tour city; multi-city: editable per segment)
+        // Service city dropdowns (single-city mode: default from main tour city; stays editable)
         window.SERVICE_CITY_SELECTORS = [
             '#hotelCitySelect',
             '#modal_local_transfer_city',
@@ -7032,71 +7078,9 @@
                     const $dd = $(this);
                     if (!$dd.length) return;
                     $dd.prop('disabled', ro);
+                    // If Select2 is attached, it will reflect disabled state automatically.
                 });
             });
-        };
-
-        window.refreshServiceCitySelect2 = function ($dd, placeholder, readonly) {
-            if (!$dd || !$dd.length) return;
-            try {
-                if ($dd.hasClass('select2-hidden-accessible')) {
-                    $dd.select2('destroy');
-                }
-            } catch (e) { /* ignore */ }
-            $dd.select2({
-                placeholder: placeholder || 'Select city...',
-                allowClear: !readonly,
-                width: '100%'
-            });
-            $dd.prop('disabled', !!readonly);
-        };
-
-        /** Single-city: service city fields show only the main tour city and cannot be changed. */
-        window.applySingleCityLockToServiceDropdowns = function (cityMeta) {
-            if (typeof window.isSingleCityMode !== 'function' || !window.isSingleCityMode()) {
-                return;
-            }
-            const meta = cityMeta || (typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {});
-            const cityName = (meta.text || window.getSingleCityName() || meta.value || '').trim();
-            if (!cityName) {
-                return;
-            }
-            const cityValue = cityName;
-            const cityId = meta.id ? String(meta.id) : '';
-
-            window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
-                $(sel).each(function () {
-                    const $dd = $(this);
-                    if (!$dd.length) return;
-
-                    const prevVal = String($dd.val() || '');
-                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
-                    $dd.html(
-                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
-                        cityName.replace(/</g, '&lt;') + '</option>'
-                    );
-                    $dd.val(cityValue);
-                    $dd.prop('disabled', true);
-                    window.refreshServiceCitySelect2($dd, cityName, true);
-
-                    if (prevVal !== cityValue) {
-                        $dd.trigger('change');
-                    }
-                });
-            });
-            window.setServiceCityReadonly(true);
-        };
-
-        /** Multi-city: restore editable service city lists from country. */
-        window.releaseServiceCityDropdownsForMultiCity = function () {
-            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
-                return;
-            }
-            window.setServiceCityReadonly(false);
-            const country = $('#user_country').val();
-            if (country && typeof window.populateAllCityDropdowns === 'function') {
-                window.populateAllCityDropdowns(country);
-            }
         };
 
         window.getSingleCityName = function () {
@@ -7143,12 +7127,6 @@
         };
 
         window.syncAllServiceCities = function (cityName) {
-            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
-                if (typeof window.applySingleCityLockToServiceDropdowns === 'function') {
-                    window.applySingleCityLockToServiceDropdowns();
-                }
-                return;
-            }
             if (!cityName || !String(cityName).trim()) return;
 
             const needle = String(cityName).trim();
@@ -7233,17 +7211,15 @@
             }
         };
 
-        // Single-city mode: lock all service city fields to the main tour city (top selector only is editable).
+        // Single-city mode: default tour city onto service city fields only (editable; never lock/disabled).
         window.syncSingleCityToAllServices = function () {
             if (!window.isSingleCityMode()) {
                 return;
             }
-            const meta = typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {};
-            const city = meta.text || window.getSingleCityName() || meta.value;
+            const city = window.getSingleCityName();
             if (city) {
-                window.applySingleCityLockToServiceDropdowns(meta);
+                window.syncAllServiceCities(city);
             } else {
-                window.setServiceCityReadonly(false);
                 window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                     $(sel).each(function () {
                         $(this).val('').trigger('change');
@@ -7408,19 +7384,41 @@
                 $clone.find('[id]').removeAttr('id');
                 $clone.find('label[for]').removeAttr('for');
 
-                // Make it read-only (visual snapshot).
-                $clone.find('input, select, textarea, button').prop('disabled', true);
-                $clone.addClass('segment-services-frozen');
-                $clone.css({ pointerEvents: 'none', opacity: 0.92 });
+                // Also strip `name` from every form control in the snapshot. Every segment's
+                // daily services reuse the same *local* naming (day1_attraction_1, day1_guide_1,
+                // ...), because day numbers always restart at 1 for whichever city is active.
+                // updateAttractionDataField()/updateGuideDataField()/updateRestaurantDataField()/
+                // updateTransportDataField() all rebuild their hidden data field by doing a
+                // *global* document.querySelectorAll('.attraction-select' /* etc */) and parsing
+                // day/index out of `select.name` — they are not scoped to the live bundle. Left
+                // alone, this frozen (read-only) snapshot's controls still match those scans and
+                // collide by name with the live segment's controls, so whichever segment gets
+                // saved next silently inherits (or overwrites) the wrong city's service data —
+                // e.g. a Singapore attraction "disappearing" as soon as you add one in India.
+                // Removing `name` here makes the snapshot inert to all of that, since it's a
+                // read-only visual reference only and was never meant to be read as form data.
+                $clone.find('[name]').removeAttr('name');
 
-                // Add a small header note (kept minimal to avoid layout shift).
-                $clone.prepend(
-                    $('<div class="mb-2 text-muted"></div>').css({ fontSize: '0.72rem' }).html(
-                        '<i class="ri-lock-line me-1"></i>Saved services for this city plan (read-only). Select this plan again to edit.'
+                // Make it read-only (visual snapshot) and mark it as the inner preview so the
+                // outer wrapper (below) can own click/hover behavior for "unlocking" it again.
+                $clone.find('input, select, textarea, button').prop('disabled', true);
+                $clone.addClass('segment-services-frozen-inner');
+
+                // Wrap the disabled snapshot in a clickable card: the whole thing is a single,
+                // obvious affordance ("click anywhere to edit") instead of a locked, dead-looking
+                // panel — clicking it re-activates this city plan (see the delegated click
+                // handler on '.segment' below), moving the live services bundle back into it.
+                const $wrap = $('<div class="segment-services-frozen" tabindex="0" role="button" ' +
+                    'aria-label="This city plan is showing saved services. Click to edit."></div>');
+                $wrap.append(
+                    $('<div class="segment-frozen-banner"></div>').html(
+                        '<span><i class="ri-lock-unlock-line me-1"></i>Showing saved services for this city — click to edit</span>' +
+                        '<span class="segment-frozen-edit-hint"><i class="ri-edit-2-line me-1"></i>Edit</span>'
                     )
                 );
+                $wrap.append($clone);
 
-                $segment.find('.segment-services').append($clone);
+                $segment.find('.segment-services').append($wrap);
             }
 
             /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
@@ -7434,12 +7432,24 @@
                 if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
             }
 
-            /** After city plan is set: fill hotel/port/attraction/guide/restaurant/transport city selects; retry for async DOM. */
-            function resyncSegmentCityToAllServiceSelects(cityLabel) {
-                if (!cityLabel || typeof window.syncAllServiceCities !== 'function') return;
+            /**
+             * After city plan is set: fill hotel/port/attraction/guide/restaurant/transport city selects;
+             * retry for async DOM. `onSettled` (optional) fires once, after the final retry, so callers
+             * can safely re-apply saved field values *after* city-sync is done touching these selects —
+             * see the "why did my previously-added service disappear when I came back to edit this city"
+             * note where this is used.
+             */
+            function resyncSegmentCityToAllServiceSelects(cityLabel, onSettled) {
+                if (!cityLabel || typeof window.syncAllServiceCities !== 'function') {
+                    if (typeof onSettled === 'function') onSettled();
+                    return;
+                }
                 window.syncAllServiceCities(cityLabel);
-                [120, 400, 800].forEach(function (ms) {
-                    setTimeout(function () { window.syncAllServiceCities(cityLabel); }, ms);
+                [120, 400, 800].forEach(function (ms, i, arr) {
+                    setTimeout(function () {
+                        window.syncAllServiceCities(cityLabel);
+                        if (i === arr.length - 1 && typeof onSettled === 'function') onSettled();
+                    }, ms);
                 });
             }
 
@@ -7451,12 +7461,12 @@
                 if (!$hint.length || !$bundle.length) return;
 
                 if (!multi) {
+                    if (typeof window.setServiceCityReadonly === 'function') {
+                        window.setServiceCityReadonly(false);
+                    }
                     clearMultiSegmentStayContext();
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
-                    if (typeof window.syncSingleCityToAllServices === 'function') {
-                        window.syncSingleCityToAllServices();
-                    }
                     if (typeof window.generateNightSelection === 'function') {
                         window.generateNightSelection();
                     }
@@ -7473,9 +7483,7 @@
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
                 } else {
-                    if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
-                        window.releaseServiceCityDropdownsForMultiCity();
-                    } else if (typeof window.setServiceCityReadonly === 'function') {
+                    if (typeof window.setServiceCityReadonly === 'function') {
                         window.setServiceCityReadonly(false);
                     }
                     clearMultiSegmentStayContext();
@@ -7512,16 +7520,12 @@
             function setCityMode(mode) {
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
+
+                // Single-city inputs shown/hidden
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
-                $('#travel_dates').closest('.col-md-3, .col-12, .col-sm-4').removeClass('d-none');
-                if (!isMulti) {
-                    ensureServicesBundleAtHome();
-                    if (typeof window.syncSingleCityToAllServices === 'function') {
-                        window.syncSingleCityToAllServices();
-                    }
-                } else if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
-                    window.releaseServiceCityDropdownsForMultiCity();
-                }
+
+                // main travel_dates MUST stay visible in both modes (main range constraint)
+                // so do nothing here; segments validate against #start_date/#end_date.
                 refreshGlobalServicesVisibility();
             }
 
@@ -7612,80 +7616,7 @@
                 } catch (e) { /* ignore */ }
             }
 
-            function ensureServicesBundleAtHome() {
-                $('.segment-services-frozen').remove();
-                const $bundle = $('#segmentServicesBundle');
-                const $home = $('#servicesAccordionHome');
-                if ($bundle.length && $home.length) {
-                    $home.after($bundle);
-                    $bundle.removeClass('d-none').show();
-                }
-            }
-
-            function refreshAllOnCityModeSwitch() {
-                ensureServicesBundleAtHome();
-
-                if (typeof window.clearAllSelectedServices === 'function') {
-                    window.clearAllSelectedServices();
-                }
-
-                try {
-                    if (typeof selectedHotels !== 'undefined') selectedHotels = [];
-                    if (typeof selectedAttractions !== 'undefined') selectedAttractions = [];
-                    if (typeof selectedRestaurants !== 'undefined') selectedRestaurants = [];
-                    if (typeof selectedGuides !== 'undefined') selectedGuides = [];
-                    if (typeof hotelData !== 'undefined') hotelData = [];
-                    if (typeof lastSelectedHotelId !== 'undefined') lastSelectedHotelId = null;
-                    const sd = document.getElementById('start_date')?.value || '';
-                    const ed = document.getElementById('end_date')?.value || '';
-                    if (sd && ed && typeof moment !== 'undefined') {
-                        if (typeof tourStartDate !== 'undefined') tourStartDate = sd;
-                        if (typeof tourEndDate !== 'undefined') tourEndDate = ed;
-                        if (typeof tourNights !== 'undefined') tourNights = moment(ed).diff(moment(sd), 'days');
-                    }
-                } catch (e) { /* ignore */ }
-
-                ['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '';
-                });
-                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '[]';
-                });
-
-                const selectedHotelsEl = document.getElementById('selectedHotels');
-                if (selectedHotelsEl) selectedHotelsEl.innerHTML = '';
-                const ns = document.getElementById('nightSelection');
-                if (ns) ns.innerHTML = '';
-                const tdEl = document.getElementById('tourDates');
-                const hnEl = document.getElementById('hotelNights');
-                if (tdEl) tdEl.textContent = '';
-                if (hnEl) hnEl.textContent = '0 Nights Selected';
-
-                if (typeof window.resetServicesBundleFormControls === 'function') {
-                    window.resetServicesBundleFormControls();
-                }
-                if (typeof window.renderHotelAccordionHeader === 'function') {
-                    window.renderHotelAccordionHeader();
-                }
-                if (typeof displaySelectedHotels === 'function') {
-                    displaySelectedHotels();
-                }
-                if (typeof updateBookingsSummary === 'function') {
-                    updateBookingsSummary();
-                }
-                if (typeof updatePackageTotalPriceDisplay === 'function') {
-                    updatePackageTotalPriceDisplay();
-                }
-                if (typeof generateDailyServices === 'function') {
-                    generateDailyServices();
-                }
-            }
-
             function clearCityModeUIState() {
-                ensureServicesBundleAtHome();
-
                 if ($('#multi_cities').length) {
                     $('#multi_cities').val(null).trigger('change');
                 }
@@ -7695,33 +7626,30 @@
                 if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
-                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
 
                 clearMultiSegmentStayContext();
-                ensureServicesBundleAtHome();
+
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                }
+
                 $('.service-grid').empty();
             }
 
             function resetTourPackageCityMode(mode) {
-                if ($('#single_city').length) {
-                    $('#single_city').val(null).trigger('change');
-                }
-                if ($('#multi_cities').length) {
-                    $('#multi_cities').val(null).trigger('change');
-                }
-
+                // Full reset of Tour Package Configuration when switching city mode
+                clearTourPackageHeaderFields();
                 clearCityModeUIState();
-                refreshAllOnCityModeSwitch();
-                refreshGlobalServicesVisibility();
 
-                if (typeof window.generateNightSelection === 'function') {
-                    window.generateNightSelection();
-                }
-                if (typeof window.updateNightDisplay === 'function') {
-                    window.updateNightDisplay();
-                }
-                if (typeof window.updateAddCityPlanButtonState === 'function') {
-                    window.updateAddCityPlanButtonState();
+                if (mode === 'multi') {
+                    // Switching to multi: clear single-city selection
+                    if ($('#single_city').length) {
+                        $('#single_city').val(null).trigger('change');
+                    }
+                } else {
+                    refreshGlobalServicesVisibility();
                 }
             }
 
@@ -7871,12 +7799,47 @@
                 if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
                     delete window.__segmentServiceState[rmKey];
                 }
-                if ($seg.find('#segmentServicesBundle').length) {
-                    ensureServicesBundleAtHome();
+                const $bundle = $('#segmentServicesBundle');
+                if ($bundle.length && $seg.find('#segmentServicesBundle').length) {
+                    $('#servicesAccordionHome').after($bundle);
                     clearMultiSegmentStayContext();
                 }
                 $seg.remove();
                 refreshGlobalServicesVisibility();
+            });
+
+            // Multi-city: once you switch away from a city plan (e.g. Singapore -> Malaysia),
+            // the one shared services bundle moves to the new plan and the old one is left
+            // showing a read-only "frozen" snapshot (see freezeServicesBundleInSegment). That
+            // snapshot has no way back in on its own, because the services grid only ever
+            // (re)activates on an actual value *change* of city/dates — and clicking a plan
+            // whose city/dates are already correctly filled in doesn't change anything, so no
+            // 'change' event fires. That is what made it look like a city's services got
+            // permanently "locked" as soon as you moved on to another city. Clicking (or
+            // pressing Enter/Space on, for keyboard users) anywhere on such a frozen plan now
+            // re-activates it by re-running the same activation logic (via a manual 'change'
+            // trigger), moving the live, editable services bundle back into it.
+            const reactivateFrozenSegment = function ($segment) {
+                if (!$segment || !$segment.find('.segment-services-frozen').length) return;
+                const city = $segment.find('.city-select').val();
+                const start = $segment.find('.start-date').val();
+                const end = $segment.find('.end-date').val();
+                if (!(city && start && end)) return;
+                $segment.find('.city-select').trigger('change');
+            };
+
+            $(document).on('click', '.segment', function (e) {
+                const $segment = $(this);
+                if (!$segment.find('.segment-services-frozen').length) return;
+                if ($(e.target).closest('.city-select, .start-date, .end-date, .removeSegment, .segment-body-toggle').length) return;
+                reactivateFrozenSegment($segment);
+            });
+
+            // Keyboard accessibility for the frozen snapshot's role="button" affordance.
+            $(document).on('keydown', '.segment-services-frozen', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                e.preventDefault();
+                reactivateFrozenSegment($(this).closest('.segment'));
             });
 
             // When master list changes, update all segment dropdown options
@@ -8064,6 +8027,10 @@
                             window.applyTourCurrencyForSegment($segment);
                         }
 
+                        // Always save/restore (or clear) live service arrays for this segment.
+                        // If Batam has no saved state yet, restore's empty path clears Singapore's
+                        // hotels/attractions from the shared live bundle — otherwise the previous
+                        // city's hotel stays visible under the new city.
                         if (typeof window.restoreMultiSegmentServiceState === 'function') {
                             window.restoreMultiSegmentServiceState($segment);
                         }
@@ -8076,11 +8043,27 @@
                         if (typeof generateDailyServices === 'function') {
                             generateDailyServices();
                         }
-                        // After DOM regeneration, restore field selections for this segment again.
+                        // After DOM regeneration, restore (or clear) this segment's services again.
                         if (typeof window.restoreMultiSegmentServiceState === 'function') {
                             window.restoreMultiSegmentServiceState($segment);
                         }
-                        resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax);
+                        // City sync force-fills each service city dropdown from this segment's city.
+                        // That can fire 'change' and wipe a just-restored attraction/guide/etc., so when
+                        // we have saved state we restore once more after sync settles — then re-sync
+                        // city so auto-populate always wins. Do NOT restore when there is no saved
+                        // state after sync: that empty-restore path would blank City again.
+                        resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax, function () {
+                            const key = String($segment.data('index') || '');
+                            const hasState = !!(window.__segmentServiceState && key && window.__segmentServiceState[key]);
+                            // Re-apply attractions/guides/restaurants/transport AFTER city options
+                            // finish loading. Do not call full restore + city sync again — that
+                            // race is what wiped non-hotel services while hotels (array-based) survived.
+                            if (hasState && typeof window.reapplyMultiSegmentBundleFormState === 'function') {
+                                window.reapplyMultiSegmentBundleFormState($segment);
+                            } else if (segmentCityLabelForAjax && typeof window.syncAllServiceCities === 'function') {
+                                window.syncAllServiceCities(segmentCityLabelForAjax);
+                            }
+                        });
                         if (typeof window.updateAttractionSectionSummary === 'function') {
                             window.updateAttractionSectionSummary(1);
                             const r = window.multiSegmentStayRange;
@@ -8131,10 +8114,22 @@
                             if (typeof generateDailyServices === 'function') {
                                 generateDailyServices();
                             }
+                            // Always restore-or-clear so a new city (no saved state) does not keep
+                            // the previous city's hotels in the shared live list.
                             if (typeof window.restoreMultiSegmentServiceState === 'function') {
                                 window.restoreMultiSegmentServiceState($segment);
                             }
-                            resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax);
+                            // After sync: restore only if this city has saved services; always
+                            // finish with city auto-fill so City never stays blank.
+                            resyncSegmentCityToAllServiceSelects(segmentCityLabelForAjax, function () {
+                                const key = String($segment.data('index') || '');
+                                const hasState = !!(window.__segmentServiceState && key && window.__segmentServiceState[key]);
+                                if (hasState && typeof window.reapplyMultiSegmentBundleFormState === 'function') {
+                                    window.reapplyMultiSegmentBundleFormState($segment);
+                                } else if (segmentCityLabelForAjax && typeof window.syncAllServiceCities === 'function') {
+                                    window.syncAllServiceCities(segmentCityLabelForAjax);
+                                }
+                            });
                             if (typeof window.updateAttractionSectionSummary === 'function') {
                                 window.updateAttractionSectionSummary(1);
                                 const r = window.multiSegmentStayRange;
@@ -10858,31 +10853,6 @@
         }
 
         // Function to clear all selected services when country changes
-        window.resetServicesBundleFormControls = function () {
-            const root = document.getElementById('segmentServicesBundle');
-            if (!root) return;
-            root.querySelectorAll('input:not([type="file"]), select, textarea').forEach(function (el) {
-                if (!el || el.id === 'start_date' || el.id === 'end_date') return;
-                if (el.type === 'checkbox' || el.type === 'radio') {
-                    el.checked = false;
-                } else {
-                    el.value = '';
-                }
-            });
-            root.querySelectorAll('[id$="_total_price"]').forEach(function (el) {
-                if (el.tagName === 'INPUT') el.value = '0';
-            });
-            root.querySelectorAll('[id$="_TotalPrice"], [id$="_total_price_display"]').forEach(function (el) {
-                if (el.tagName === 'SPAN' || el.tagName === 'DIV') {
-                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
-                }
-            });
-            const hotelHeader = document.getElementById('hotelHeaderDetails');
-            if (hotelHeader) hotelHeader.innerHTML = '';
-            const hotelTotal = document.getElementById('hotelTotalPrice');
-            if (hotelTotal) hotelTotal.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
-        };
-
         window.clearAllSelectedServices = function() {
             console.log('🔄 Clearing all selected services due to country change...');
             
@@ -10930,6 +10900,14 @@
             if (hotelDataField) {
                 hotelDataField.value = '';
             }
+            ['attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (el) el.value = '[]';
+            });
             
             // Reset hotel select and related fields
             const hotelSelect = document.getElementById('hotelSelect');
@@ -10995,6 +10973,141 @@
         };
 
         /**
+         * Multi-city restore: when city sync reloads attraction/guide/restaurant options via AJAX,
+         * it replaces <select> innerHTML and wipes a value we just restored. Stash pending values
+         * by control id and re-apply after each options load completes.
+         * Also used for attraction dependents (ticket, time slot, attraction-guide) which reload
+         * after the attraction itself is selected.
+         */
+        window.__pendingServiceSelectRestore = window.__pendingServiceSelectRestore || {};
+        window.rememberPendingServiceSelectRestore = function (elOrId, value, extra) {
+            const id = typeof elOrId === 'string' ? elOrId : (elOrId && elOrId.id ? elOrId.id : '');
+            if (!id) return;
+            const val = value === undefined || value === null ? '' : String(value);
+            if (!val) {
+                delete window.__pendingServiceSelectRestore[id];
+                return;
+            }
+            window.__pendingServiceSelectRestore[id] = Object.assign({ value: val }, extra || {});
+        };
+        window.applyPendingServiceSelectRestore = function (elOrId, opts) {
+            const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+            if (!el || !el.id) return false;
+            const pending = window.__pendingServiceSelectRestore[el.id];
+            if (!pending || !pending.value) return false;
+            const val = String(pending.value);
+            const isSelect = el.tagName === 'SELECT';
+            let has = !isSelect;
+            if (isSelect) {
+                Array.from(el.options || []).forEach(function (o) {
+                    if (String(o.value) === val) has = true;
+                });
+                if (!has) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = pending.label || val;
+                    if (pending.adultPrice !== undefined) opt.dataset.adultPrice = pending.adultPrice;
+                    if (pending.childPrice !== undefined) opt.dataset.childPrice = pending.childPrice;
+                    if (pending.seniorPrice !== undefined) opt.dataset.seniorPrice = pending.seniorPrice;
+                    el.appendChild(opt);
+                    has = true;
+                }
+            }
+            const already = String(el.value || '') === val;
+            el.value = val;
+            if (el.disabled && isSelect) el.disabled = false;
+            const triggerChange = !(opts && opts.quiet);
+            // Skip redundant change when value already matches — re-firing attraction/guide
+            // change rebuilds ticket/time/package and wipes a successful restore.
+            if (already && !(opts && opts.forceChange)) {
+                if (triggerChange && el.classList && el.classList.contains('attraction-select')) {
+                    const m = String(el.id).match(/^day(\d+)_attraction_(\d+)$/);
+                    if (m && typeof window.loadAttractionDetails === 'function') {
+                        const ticketEl = document.getElementById(`day${m[1]}_attraction_${m[2]}_ticket`);
+                        const timeEl = document.getElementById(`day${m[1]}_attraction_${m[2]}_time`);
+                        const ticketNeeds = !ticketEl || !ticketEl.value || ticketEl.options.length <= 1;
+                        const timeNeeds = !timeEl || !timeEl.value || timeEl.options.length <= 1;
+                        if (ticketNeeds || timeNeeds) {
+                            try { window.loadAttractionDetails(parseInt(m[1], 10), val, parseInt(m[2], 10)); } catch (e) { /* ignore */ }
+                        } else if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                            try { window.reapplyPendingAttractionDependents(m[1], m[2]); } catch (e) { /* ignore */ }
+                        }
+                    }
+                }
+                return true;
+            }
+            try {
+                if (typeof $ !== 'undefined') {
+                    const $el = $(el);
+                    if ($el.data('select2')) {
+                        $el.val(val);
+                        if (triggerChange) $el.trigger('change');
+                        else $el.trigger('change.select2');
+                    } else if (triggerChange) {
+                        $el.trigger('change');
+                    }
+                } else if (triggerChange && typeof el.dispatchEvent === 'function') {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } catch (e) { /* ignore */ }
+            return true;
+        };
+
+        /** After attraction options/details reload, restore ticket + time + guide for that row. */
+        window.reapplyPendingAttractionDependents = function (day, index) {
+            const idx = index || 1;
+            const ids = [
+                `day${day}_attraction_${idx}_time`,
+                `day${day}_attraction_${idx}_ticket`,
+                `day${day}_attraction_${idx}_guide_required`,
+                `day${day}_attraction_${idx}_guide`,
+                `day${day}_attraction_${idx}_guide_language`,
+                `day${day}_attraction_${idx}_guide_package`,
+                `day${day}_attraction_${idx}_guide_pickup_time`,
+                `day${day}_attraction_${idx}_guide_pickup_time_select`,
+                `day${day}_attraction_${idx}_transfer_required`,
+                `day${day}_attraction_${idx}_transfer_type`,
+                `day${day}_attraction_${idx}_transfer_way`,
+                `day${day}_attraction_${idx}_transfer_vehicle`,
+                `day${day}_attraction_${idx}_transfer_pickup_location`,
+                `day${day}_attraction_${idx}_transfer_pickup_time`
+            ];
+            // guide_required / transfer_required first so dependent panels open before values apply
+            const guideReqId = `day${day}_attraction_${idx}_guide_required`;
+            const transferReqId = `day${day}_attraction_${idx}_transfer_required`;
+            if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                window.applyPendingServiceSelectRestore(guideReqId, { quiet: false });
+                window.applyPendingServiceSelectRestore(transferReqId, { quiet: false });
+            }
+            // If pickup-time select was rebuilt, mirror pending from the hidden pickup time field.
+            const pendingPickup = window.__pendingServiceSelectRestore
+                && window.__pendingServiceSelectRestore[`day${day}_attraction_${idx}_guide_pickup_time`];
+            if (pendingPickup && pendingPickup.value) {
+                window.rememberPendingServiceSelectRestore(
+                    `day${day}_attraction_${idx}_guide_pickup_time_select`,
+                    pendingPickup.value,
+                    { label: pendingPickup.label || pendingPickup.value }
+                );
+            }
+            ids.forEach(function (id) {
+                if (id === guideReqId || id === transferReqId) return;
+                const quiet = /_ticket$|_time$|_guide$|_language$|_package$|_pickup_time$|_pickup_time_select$|_vehicle$|_pickup_location$|_type$|_way$/.test(id);
+                window.applyPendingServiceSelectRestore(id, { quiet: quiet });
+            });
+            try {
+                if (typeof updateAttractionPricing === 'function') updateAttractionPricing(day, idx);
+                else if (typeof window.updateAttractionPricing === 'function') window.updateAttractionPricing(day, idx);
+            } catch (e) { /* ignore */ }
+            try {
+                if (typeof window.updateAttractionSectionSummary === 'function') window.updateAttractionSectionSummary(day);
+            } catch (e) { /* ignore */ }
+            try {
+                if (typeof updateAttractionGuidePricing === 'function') updateAttractionGuidePricing(day, idx);
+                else if (typeof window.updateAttractionGuidePricing === 'function') window.updateAttractionGuidePricing(day, idx);
+            } catch (e) { /* ignore */ }
+        };
+
+        /**
          * Multi-city: one shared #segmentServicesBundle moves between rows, but hotel/attraction/etc.
          * state lives in JS arrays + hidden fields. Save/restore per segment index so a new stay row
          * does not show the previous stay's services.
@@ -11038,6 +11151,20 @@
                     const val = (el.type === 'checkbox' || el.type === 'radio')
                         ? { checked: !!el.checked, value: String(el.value || '') }
                         : { value: String(el.value || '') };
+
+                    // Keep selected option label/prices so ticket/time/guide can restore
+                    // after AJAX rebuilds wipe the <select> options.
+                    if (el.tagName === 'SELECT' && val.value) {
+                        const opt = el.options[el.selectedIndex];
+                        if (opt) {
+                            val.label = String(opt.textContent || '').trim();
+                            if (opt.dataset) {
+                                if (opt.dataset.adultPrice !== undefined) val.adultPrice = opt.dataset.adultPrice;
+                                if (opt.dataset.childPrice !== undefined) val.childPrice = opt.dataset.childPrice;
+                                if (opt.dataset.seniorPrice !== undefined) val.seniorPrice = opt.dataset.seniorPrice;
+                            }
+                        }
+                    }
 
                     if (id) {
                         byId[id] = val;
@@ -11094,29 +11221,308 @@
             }
             const st = window.__segmentServiceState[key];
 
-            const applyBundleFormState = function (bundleFormState) {
-                if (!bundleFormState) return;
-                const root = document.getElementById('segmentServicesBundle');
-                if (!root) return;
-                try {
-                    // Restore by id (most controls have unique ids like dayX_*).
-                    const byId = bundleFormState.byId || {};
-                    Object.keys(byId).forEach(function (id) {
-                        const el = document.getElementById(id);
-                        if (!el) return;
-                        const v = byId[id];
-                        if (!v) return;
-                        if (el.type === 'checkbox' || el.type === 'radio') {
-                            el.checked = !!v.checked;
-                        } else if (v.value !== undefined) {
-                            el.value = v.value;
+            // Invalidate pending delayed restores only when switching to a *different* city plan.
+            // Re-restoring the same plan must not cancel its own in-flight option-load reapply.
+            const prevActiveKey = String(window.__segmentRestoreActiveKey || '');
+            if (prevActiveKey && prevActiveKey !== key) {
+                window.__segmentRestoreEpoch = (window.__segmentRestoreEpoch || 0) + 1;
+            }
+            if (!window.__segmentRestoreEpoch) window.__segmentRestoreEpoch = 1;
+            const restoreEpoch = window.__segmentRestoreEpoch;
+            window.__segmentRestoreActiveKey = key;
+
+            if (!window.__segmentRestoreTimers) window.__segmentRestoreTimers = [];
+            window.__segmentRestoreTimers.forEach(function (t) { try { clearTimeout(t); } catch (e) {} });
+            window.__segmentRestoreTimers = [];
+            const scheduleRestoreTimer = function (fn, ms) {
+                const id = setTimeout(fn, ms);
+                window.__segmentRestoreTimers.push(id);
+                return id;
+            };
+
+            const isStaleRestore = function () {
+                return window.__segmentRestoreEpoch !== restoreEpoch
+                    || String(window.__segmentRestoreActiveKey || '') !== key;
+            };
+
+            const isServiceCityControl = function (el) {
+                if (!el) return false;
+                if (el.id === 'hotelCitySelect' || el.id === 'modal_local_transfer_city' || el.id === 'modal_exit_city') return true;
+                const cls = el.classList;
+                return !!(cls && (cls.contains('attraction-city-select') || cls.contains('guide-city-select')
+                    || cls.contains('restaurant-city-select') || cls.contains('transport-city-select')));
+            };
+
+            const isAsyncServiceSelect = function (el) {
+                if (!el || !el.id) return false;
+                const id = String(el.id);
+                // Attraction row dependents reload after attraction/city change
+                if (/_attraction_\d+_ticket$|_attraction_\d+_time$|_attraction_\d+_guide(_required|_language|_package|_pickup_time)?$|_attraction_\d+_transfer_/.test(id)) {
+                    return true;
+                }
+                if (!el.classList) return false;
+                return el.classList.contains('attraction-select')
+                    || el.classList.contains('guide-select')
+                    || el.classList.contains('restaurant-select')
+                    || el.classList.contains('vehicle-select')
+                    || el.classList.contains('attraction-guide-select');
+            };
+
+            const setControlValue = function (el, v, opts) {
+                if (!el || !v) return;
+                const quiet = !!(opts && opts.quiet);
+                let already = false;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    already = !!el.checked === !!v.checked;
+                    el.checked = !!v.checked;
+                } else if (v.value !== undefined) {
+                    const val = String(v.value || '');
+                    already = String(el.value || '') === val;
+                    if (val && el.tagName === 'SELECT') {
+                        let has = false;
+                        let label = v.label || '';
+                        let adultPrice = v.adultPrice;
+                        let childPrice = v.childPrice;
+                        let seniorPrice = v.seniorPrice;
+                        Array.from(el.options || []).forEach(function (o) {
+                            if (String(o.value) === val) {
+                                has = true;
+                                if (!label) label = o.textContent || '';
+                                if (adultPrice === undefined && o.dataset) adultPrice = o.dataset.adultPrice;
+                                if (childPrice === undefined && o.dataset) childPrice = o.dataset.childPrice;
+                                if (seniorPrice === undefined && o.dataset) seniorPrice = o.dataset.seniorPrice;
+                            }
+                        });
+                        if (!has) {
+                            const opt = document.createElement('option');
+                            opt.value = val;
+                            opt.textContent = label || val;
+                            if (adultPrice !== undefined) opt.dataset.adultPrice = adultPrice;
+                            if (childPrice !== undefined) opt.dataset.childPrice = childPrice;
+                            if (seniorPrice !== undefined) opt.dataset.seniorPrice = seniorPrice;
+                            el.appendChild(opt);
                         }
-                        if (typeof $ !== 'undefined') {
-                            $(el).trigger('change');
+                        if (isAsyncServiceSelect(el) || (el.classList && el.classList.contains('attraction-select'))) {
+                            window.rememberPendingServiceSelectRestore(el, val, {
+                                label: label || val,
+                                adultPrice: adultPrice,
+                                childPrice: childPrice,
+                                seniorPrice: seniorPrice
+                            });
+                        }
+                    } else if (val && isAsyncServiceSelect(el)) {
+                        window.rememberPendingServiceSelectRestore(el, val, {
+                            label: v.label || val,
+                            adultPrice: v.adultPrice,
+                            childPrice: v.childPrice,
+                            seniorPrice: v.seniorPrice
+                        });
+                    }
+                    el.value = v.value;
+                }
+                if (quiet) return;
+                // Do not re-fire change when value is unchanged — that rebuilds ticket/time/guide
+                // options and clears a restore that already succeeded.
+                if (already && el.tagName === 'SELECT') {
+                    if (el.classList && el.classList.contains('attraction-select') && v.value) {
+                        const m = String(el.id || '').match(/^day(\d+)_attraction_(\d+)$/);
+                        if (m) {
+                            const ticketEl = document.getElementById(`day${m[1]}_attraction_${m[2]}_ticket`);
+                            const timeEl = document.getElementById(`day${m[1]}_attraction_${m[2]}_time`);
+                            const ticketNeeds = !ticketEl || !ticketEl.value || ticketEl.options.length <= 1;
+                            const timeNeeds = !timeEl || !timeEl.value || timeEl.options.length <= 1;
+                            if (ticketNeeds || timeNeeds) {
+                                if (typeof window.loadAttractionDetails === 'function') {
+                                    try { window.loadAttractionDetails(parseInt(m[1], 10), String(v.value), parseInt(m[2], 10)); } catch (e) { /* ignore */ }
+                                }
+                            } else if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                                try { window.reapplyPendingAttractionDependents(m[1], m[2]); } catch (e) { /* ignore */ }
+                            }
+                        }
+                    }
+                    return;
+                }
+                if (typeof $ !== 'undefined') {
+                    $(el).trigger('change');
+                }
+            };
+
+            const clearAllLiveServicesForEmptySegment = function () {
+                // Wipe EVERY service type from the shared live bundle (not only hotels).
+                clearAllSelectedServices();
+                selectedHotels = [];
+                selectedAttractions = [];
+                selectedRestaurants = [];
+                selectedGuides = [];
+                hotelData = [];
+                lastSelectedHotelId = null;
+                window.__pendingServiceSelectRestore = {};
+
+                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '[]';
+                });
+                ['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
+                const root = document.getElementById('segmentServicesBundle');
+                if (root) {
+                    root.querySelectorAll('[id^="day"]').forEach(function (dayEl) {
+                        const trimExtra = function (sel) {
+                            dayEl.querySelectorAll(sel).forEach(function (item, i) {
+                                if (i > 0) item.remove();
+                            });
+                        };
+                        trimExtra('.attraction-item');
+                        trimExtra('.guide-item');
+                        trimExtra('.restaurant-item');
+                    });
+
+                    if (typeof $ !== 'undefined') {
+                        root.querySelectorAll('.pickup-zone-select, .dropoff-zone-select, .vehicle-select, .attraction-select, .guide-select, .restaurant-select').forEach(function (el) {
+                            try {
+                                var $e = $(el);
+                                if ($e.data('select2')) $e.select2('destroy');
+                            } catch (e) { /* ignore */ }
+                        });
+                    }
+
+                    root.querySelectorAll('input, select, textarea').forEach(function (el) {
+                        if (!el || el.type === 'file') return;
+                        if (isServiceCityControl(el)) return;
+                        if (el.type === 'checkbox' || el.type === 'radio') {
+                            el.checked = false;
+                        } else {
+                            el.value = '';
                         }
                     });
 
-                    // Restore by name only as fallback.
+                    root.querySelectorAll('.attraction-select, .guide-select, .restaurant-select, .vehicle-select').forEach(function (el) {
+                        try {
+                            el.selectedIndex = 0;
+                            el.value = '';
+                        } catch (e) { /* ignore */ }
+                    });
+
+                    root.querySelectorAll('input[type="hidden"][id$="_total_price"]').forEach(function (el) { el.value = '0'; });
+                    root.querySelectorAll('span[id$="_total_price_display"]').forEach(function (el) {
+                        el.textContent = getTourCurrency() + ' 0.00';
+                    });
+                    root.querySelectorAll('span[id$="_other_transport_vehicle_name"], span[id$="_arrival_vehicle_name"], span[id$="_departure_vehicle_name"]').forEach(function (el) {
+                        el.textContent = 'No vehicle selected';
+                    });
+                    root.querySelectorAll('div[id$="_other_transport_total_price"], div[id$="_arrival_total_price"], div[id$="_departure_total_price"]').forEach(function (el) {
+                        el.textContent = getTourCurrency() + ' 0.00';
+                    });
+                    root.querySelectorAll('[id$="_guideHeaderSummary"], [id$="_attractionHeaderSummary"], [id$="_restaurantHeaderSummary"]').forEach(function (el) {
+                        el.textContent = '';
+                    });
+                    root.querySelectorAll('[id$="_guideTotalPrice"], [id$="_attractionTotalPrice"], [id$="_restaurantTotalPrice"]').forEach(function (el) {
+                        el.textContent = getTourCurrency() + ' 0.00';
+                    });
+                    const hotelTotalPriceReset = document.getElementById('hotelTotalPrice');
+                    if (hotelTotalPriceReset) hotelTotalPriceReset.textContent = getTourCurrency() + ' 0.00';
+                    const hotelHeaderDetailsReset = document.getElementById('hotelHeaderDetails');
+                    if (hotelHeaderDetailsReset) hotelHeaderDetailsReset.innerHTML = '';
+                }
+
+                if (typeof displaySelectedHotels === 'function') displaySelectedHotels();
+                if (typeof updateBookingsSummary === 'function') updateBookingsSummary();
+                try {
+                    if (typeof window.updateAttractionSectionSummary === 'function') window.updateAttractionSectionSummary(1);
+                    if (typeof window.updateGuideSectionSummary === 'function') window.updateGuideSectionSummary(1);
+                    if (typeof window.updateRestaurantSectionSummary === 'function') window.updateRestaurantSectionSummary(1);
+                } catch (e) { /* ignore */ }
+            };
+
+            const applyBundleFormState = function (bundleFormState, phase) {
+                if (isStaleRestore()) return;
+                if (!bundleFormState) return;
+                const root = document.getElementById('segmentServicesBundle');
+                if (!root) return;
+                // phase: 'cities' | 'services' | 'all'
+                const mode = phase || 'all';
+                try {
+                    const byId = bundleFormState.byId || {};
+
+                    if (mode === 'cities') {
+                        Object.keys(byId).forEach(function (id) {
+                            if (isStaleRestore()) return;
+                            const el = document.getElementById(id);
+                            if (!el || !root.contains(el)) return;
+                            const v = byId[id];
+                            if (!v || !isServiceCityControl(el)) return;
+                            if (el.type === 'checkbox' || el.type === 'radio') return;
+                            if (!v.value) return;
+                            setControlValue(el, v, { quiet: false });
+                        });
+                        return;
+                    }
+
+                    // Services phase: stash ALL saved values as pending FIRST so AJAX reloads
+                    // (ticket/time/guide after attraction change) can re-apply them.
+                    Object.keys(byId).forEach(function (id) {
+                        const v = byId[id];
+                        if (!v || v.value === undefined || v.value === '') return;
+                        const el = document.getElementById(id);
+                        let label = v.label || '';
+                        let adultPrice = v.adultPrice;
+                        let childPrice = v.childPrice;
+                        let seniorPrice = v.seniorPrice;
+                        if (el && el.tagName === 'SELECT') {
+                            Array.from(el.options || []).forEach(function (o) {
+                                if (String(o.value) === String(v.value)) {
+                                    if (!label) label = o.textContent || '';
+                                    if (adultPrice === undefined && o.dataset) adultPrice = o.dataset.adultPrice;
+                                    if (childPrice === undefined && o.dataset) childPrice = o.dataset.childPrice;
+                                    if (seniorPrice === undefined && o.dataset) seniorPrice = o.dataset.seniorPrice;
+                                }
+                            });
+                        }
+                        window.rememberPendingServiceSelectRestore(id, v.value, {
+                            label: label || String(v.value),
+                            adultPrice: adultPrice,
+                            childPrice: childPrice,
+                            seniorPrice: seniorPrice
+                        });
+                    });
+
+                    // Apply dependent fields quietly first (ticket/time/guide_required/etc.)
+                    Object.keys(byId).forEach(function (id) {
+                        if (isStaleRestore()) return;
+                        const el = document.getElementById(id);
+                        if (!el || !root.contains(el)) return;
+                        const v = byId[id];
+                        if (!v) return;
+                        if (isServiceCityControl(el)) return;
+                        const isPrimary = el.classList && (
+                            el.classList.contains('attraction-select')
+                            || el.classList.contains('guide-select')
+                            || el.classList.contains('restaurant-select')
+                        );
+                        if (isPrimary) return;
+                        setControlValue(el, v, { quiet: true });
+                    });
+
+                    // Then primary service selects (triggers option/detail reloads).
+                    Object.keys(byId).forEach(function (id) {
+                        if (isStaleRestore()) return;
+                        const el = document.getElementById(id);
+                        if (!el || !root.contains(el)) return;
+                        const v = byId[id];
+                        if (!v) return;
+                        const isPrimary = el.classList && (
+                            el.classList.contains('attraction-select')
+                            || el.classList.contains('guide-select')
+                            || el.classList.contains('restaurant-select')
+                        );
+                        if (!isPrimary) return;
+                        setControlValue(el, v, { quiet: false });
+                    });
+
+                    // Name-based fallback for controls without ids
                     const byName = bundleFormState.byName || {};
                     const buckets = Object.create(null);
                     Object.keys(byName).forEach(function (k) {
@@ -11129,122 +11535,85 @@
                     });
 
                     Object.keys(buckets).forEach(function (nm) {
+                        if (isStaleRestore()) return;
                         const list = root.querySelectorAll(`[name="${CSS && CSS.escape ? CSS.escape(nm) : nm}"]`);
                         const vals = buckets[nm] || [];
                         list.forEach(function (el, i) {
                             const v = vals[i];
                             if (!v) return;
-                            if (el.type === 'checkbox' || el.type === 'radio') {
-                                el.checked = !!v.checked;
-                            } else if (v.value !== undefined) {
-                                el.value = v.value;
-                            }
-                            if (typeof $ !== 'undefined') {
-                                $(el).trigger('change');
-                            }
+                            if (isServiceCityControl(el)) return;
+                            setControlValue(el, v, { quiet: true });
                         });
+                    });
+
+                    // Re-apply any pending async selects that already finished loading.
+                    Object.keys(window.__pendingServiceSelectRestore || {}).forEach(function (id) {
+                        window.applyPendingServiceSelectRestore(id, { quiet: true });
+                    });
+
+                    // For each attraction row, re-apply ticket/time/guide after detail/ticket AJAX.
+                    root.querySelectorAll('.attraction-select[id]').forEach(function (el) {
+                        const m = String(el.id).match(/^day(\d+)_attraction_(\d+)$/);
+                        if (!m) return;
+                        const day = m[1];
+                        const idx = m[2];
+                        scheduleRestoreTimer(function () {
+                            if (isStaleRestore()) return;
+                            if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                                window.reapplyPendingAttractionDependents(day, idx);
+                            }
+                        }, 300);
+                        scheduleRestoreTimer(function () {
+                            if (isStaleRestore()) return;
+                            if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                                window.reapplyPendingAttractionDependents(day, idx);
+                            }
+                        }, 900);
+                        scheduleRestoreTimer(function () {
+                            if (isStaleRestore()) return;
+                            if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                                window.reapplyPendingAttractionDependents(day, idx);
+                            }
+                        }, 1800);
                     });
                 } catch (e) {
                     console.warn('applyBundleFormState failed', e);
                 }
             };
 
+            // Re-apply only DOM form fields for this segment (used after city-sync settles).
+            // Hotels are already in selectedHotels; this brings back attractions/guides/restaurants/transport.
+            window.reapplyMultiSegmentBundleFormState = function ($seg) {
+                if (!$seg || !$seg.length) return;
+                const k = String($seg.data('index') || '');
+                if (!k || !window.__segmentServiceState || !window.__segmentServiceState[k]) return;
+                if (String(window.__segmentRestoreActiveKey || '') !== k) return;
+                const state = window.__segmentServiceState[k];
+                if (!state || !state.bundleFormState) return;
+                applyBundleFormState(state.bundleFormState, 'cities');
+                [400, 900, 1600, 2500, 3500].forEach(function (ms) {
+                    scheduleRestoreTimer(function () {
+                        if (isStaleRestore()) return;
+                        applyBundleFormState(state.bundleFormState, 'services');
+                    }, ms);
+                });
+            };
+
             if (!st) {
-                clearAllSelectedServices();
-                hotelData = [];
-                lastSelectedHotelId = null;
-                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '[]';
-                });
-                ['attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '';
-                });
-
-                // Important: guide/restaurant selections mostly live in the moved DOM (not arrays).
-                // When this segment has no saved state, clear the bundle form controls so nothing "carries over".
-                (function resetBundleFormControls() {
-                    const root = document.getElementById('segmentServicesBundle');
-                    if (!root) return;
-                    if (typeof $ !== 'undefined') {
-                        root.querySelectorAll('.pickup-zone-select, .dropoff-zone-select, .vehicle-select, .transport-city-select').forEach(function (el) {
-                            try {
-                                var $e = $(el);
-                                if ($e.data('select2')) {
-                                    $e.select2('destroy');
-                                }
-                            } catch (e) { /* ignore */ }
-                        });
-                    }
-                    const els = root.querySelectorAll('input, select, textarea');
-                    els.forEach(function (el) {
-                        if (!el) return;
-                        if (el.type === 'file') return;
-                        if (el.type === 'checkbox' || el.type === 'radio') {
-                            el.checked = false;
-                        } else {
-                            // Keep start/end dates & segment master fields out of this bundle; safe to clear here.
-                            el.value = '';
-                        }
-                        if (typeof $ !== 'undefined') {
-                            $(el).trigger('change');
-                        }
-                    });
-
-                    // Reset hidden totals so section summaries cannot carry over previous prices.
-                    root.querySelectorAll('input[type="hidden"][id$="_total_price"]').forEach(function (el) {
-                        el.value = '0';
-                    });
-                    root.querySelectorAll('span[id$="_total_price_display"]').forEach(function (el) {
-                        el.textContent = getTourCurrency() + ' 0.00';
-                    });
-
-                    // Reset common header display spans for transport sections.
-                    root.querySelectorAll('span[id$="_other_transport_vehicle_name"]').forEach(function (el) {
-                        el.textContent = 'No vehicle selected';
-                    });
-                    root.querySelectorAll('div[id$="_other_transport_total_price"]').forEach(function (el) {
-                        el.textContent = getTourCurrency() + ' 0.00';
-                    });
-                    root.querySelectorAll('span[id$="_arrival_vehicle_name"], span[id$="_departure_vehicle_name"]').forEach(function (el) {
-                        el.textContent = 'No vehicle selected';
-                    });
-                    root.querySelectorAll('div[id$="_arrival_total_price"], div[id$="_departure_total_price"]').forEach(function (el) {
-                        el.textContent = getTourCurrency() + ' 0.00';
-                    });
-
-                    // Clear day-scoped section header summaries/prices (ids are day${day}_* after template fix).
-                    root.querySelectorAll('[id$="_guideHeaderSummary"], [id$="_attractionHeaderSummary"], [id$="_restaurantHeaderSummary"]').forEach(function (el) {
-                        el.textContent = '';
-                    });
-                    root.querySelectorAll('[id$="_guideTotalPrice"], [id$="_attractionTotalPrice"], [id$="_restaurantTotalPrice"]').forEach(function (el) {
-                        el.textContent = getTourCurrency() + ' 0.00';
-                    });
-                    const hotelTotalPriceReset = document.getElementById('hotelTotalPrice');
-                    if (hotelTotalPriceReset) hotelTotalPriceReset.textContent = getTourCurrency() + ' 0.00';
-                    const hotelHeaderDetailsReset = document.getElementById('hotelHeaderDetails');
-                    if (hotelHeaderDetailsReset) hotelHeaderDetailsReset.innerHTML = '';
-                })();
-
-                if (typeof displaySelectedHotels === 'function') {
-                    displaySelectedHotels();
-                }
-                if (typeof updateBookingsSummary === 'function') {
-                    updateBookingsSummary();
-                }
-
-                // Recompute summaries for day 1 and last day (when applicable) after clearing.
-                // Do not call updateOtherTransportHeader here — it reads live transport controls and can repopulate
-                // the header from the wrong DOM node when duplicate ids/names existed, or before Select2 resets.
+                // New / empty city plan: wipe previous city's hotels AND attractions/guides/
+                // restaurants/transport from the shared live bundle.
+                clearAllLiveServicesForEmptySegment();
                 setTimeout(function () {
+                    if (isStaleRestore()) return;
                     try {
+                        if (typeof window.updateAttractionSectionSummary === 'function') window.updateAttractionSectionSummary(1);
                         if (typeof window.updateGuideSectionSummary === 'function') window.updateGuideSectionSummary(1);
                         if (typeof window.updateRestaurantSectionSummary === 'function') window.updateRestaurantSectionSummary(1);
                         const r = window.multiSegmentStayRange;
                         if (r && r.start && r.end && typeof moment !== 'undefined') {
                             const td = moment(r.end).diff(moment(r.start), 'days') + 1;
                             if (td > 1) {
+                                if (typeof window.updateAttractionSectionSummary === 'function') window.updateAttractionSectionSummary(td);
                                 if (typeof window.updateGuideSectionSummary === 'function') window.updateGuideSectionSummary(td);
                                 if (typeof window.updateRestaurantSectionSummary === 'function') window.updateRestaurantSectionSummary(td);
                             }
@@ -11303,15 +11672,29 @@
             }
 
             // Re-apply bundle form selections after the DOM is (re)generated.
-            // generateDailyServices() rebuilds daily service DOM, and AJAX loads city-scoped option lists.
+            // Cities first (triggers AJAX option loads), then services on delayed retries
+            // so attraction/guide/restaurant values stick after options arrive.
             if (st.bundleFormState) {
-                setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 0);
-                setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 350);
-                setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 900);
+                scheduleRestoreTimer(function () {
+                    if (isStaleRestore()) return;
+                    applyBundleFormState(st.bundleFormState, 'cities');
+                }, 0);
+                [500, 1100, 2000, 3000].forEach(function (ms) {
+                    scheduleRestoreTimer(function () {
+                        if (isStaleRestore()) return;
+                        applyBundleFormState(st.bundleFormState, 'services');
+                    }, ms);
+                });
             }
             if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
-                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 0);
-                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 400);
+                scheduleRestoreTimer(function () {
+                    if (isStaleRestore()) return;
+                    window.refreshTourCurrencyDisplayInBundle();
+                }, 0);
+                scheduleRestoreTimer(function () {
+                    if (isStaleRestore()) return;
+                    window.refreshTourCurrencyDisplayInBundle();
+                }, 400);
             }
         };
 
@@ -11668,6 +12051,11 @@
                         }
                         
                         attractionSelect.disabled = false;
+
+                        // Multi-city: re-select attraction saved for this city after options reload.
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(attractionSelect);
+                        }
                         
                         // Load vehicles for transfer if transfer is enabled
                         const transferRequired = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
@@ -11680,6 +12068,9 @@
                         console.error('Error loading attractions for city:', error);
                         attractionSelect.innerHTML = '<option disabled>Error loading attractions</option>';
                         attractionSelect.disabled = false;
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(attractionSelect);
+                        }
                     });
             } else {
                 attractionSelect.disabled = true;
@@ -11902,6 +12293,14 @@
                         guideSelect.disabled = true;
                         
                         console.log(`Loaded ${data.guides ? data.guides.length : 0} guides with ${sortedLanguages.length} languages for attraction in ${cityName}`);
+
+                        // Multi-city: restore saved guide language, then guide itself.
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(languageSelect, { quiet: false });
+                        }
+                        if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                            try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                        }
                     })
                     .catch(error => {
                         console.error('Error loading guides for attraction:', error);
@@ -11934,11 +12333,39 @@
                 $(guideSelect).select2('destroy');
             }
             
-            // Reset guide select
+            // Reset guide select + dependent package/pickup BEFORE rebuilding options.
+            // (Previously this reset ran AFTER restore and wiped package/pickup/guide details.)
             guideSelect.innerHTML = '<option value="">Select Guide</option>';
+
+            const pickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
+            const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
+            const pickupTimeOptions = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
+            if (pickupTimeField) pickupTimeField.value = '';
+            if (packageSelect) {
+                packageSelect.value = '';
+                packageSelect.innerHTML = '<option value="">Select Duration</option>';
+            }
+            if (pickupTimeOptions) {
+                pickupTimeOptions.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
+            }
+            const guideBasePriceEl = document.getElementById(`day${day}_attraction_${index}_guide_base_price`);
+            const guideHoursEl = document.getElementById(`day${day}_attraction_${index}_guide_hours`);
+            const guideSurchargeEl = document.getElementById(`day${day}_attraction_${index}_guide_surcharge`);
+            const guideTotalPriceEl = document.getElementById(`day${day}_attraction_${index}_guide_total_price`);
+            if (guideBasePriceEl) guideBasePriceEl.value = '0';
+            if (guideHoursEl) guideHoursEl.value = '0';
+            if (guideSurchargeEl) guideSurchargeEl.value = '0';
+            if (guideTotalPriceEl) guideTotalPriceEl.value = '0';
+            const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
+            if (guidePricingContent) {
+                guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
+            }
             
             if (!selectedLanguage) {
                 guideSelect.disabled = true;
+                if (typeof updateAttractionTotalPrice === 'function') {
+                    updateAttractionTotalPrice(day, index);
+                }
                 return;
             }
             
@@ -11996,35 +12423,22 @@
                 }
                 
                 console.log(`Filtered ${filteredGuides.length} guides for language: ${selectedLanguage}`);
+
+                // Multi-city: restore saved guide (+ package/pickup) after language filter rebuilds options.
+                if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                    window.applyPendingServiceSelectRestore(guideSelect, { quiet: false });
+                }
+                if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                    setTimeout(function () {
+                        try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                    }, 50);
+                    setTimeout(function () {
+                        try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                    }, 400);
+                }
             } else {
                 guideSelect.innerHTML = '<option value="">No guides found for this language</option>';
                 guideSelect.disabled = true;
-            }
-            
-            // Reset guide-related fields when language changes
-            const pickupTimeField = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time`);
-            const packageSelect = document.getElementById(`day${day}_attraction_${index}_guide_package`);
-            const pickupTimeOptions = document.getElementById(`day${day}_attraction_${index}_guide_pickup_time_options`);
-            
-            if (pickupTimeField) pickupTimeField.value = '';
-            if (packageSelect) {
-                packageSelect.value = '';
-                packageSelect.innerHTML = '<option value="">Select Duration</option>';
-            }
-            if (pickupTimeOptions) {
-                pickupTimeOptions.innerHTML = '<select class="form-select" disabled><option value="">Select guide first</option></select>';
-            }
-            
-            // Reset pricing fields
-            document.getElementById(`day${day}_attraction_${index}_guide_base_price`).value = '0';
-            document.getElementById(`day${day}_attraction_${index}_guide_hours`).value = '0';
-            document.getElementById(`day${day}_attraction_${index}_guide_surcharge`).value = '0';
-            document.getElementById(`day${day}_attraction_${index}_guide_total_price`).value = '0';
-            
-            // Clear guide pricing content
-            const guidePricingContent = document.getElementById(`day${day}_attraction_${index}_guide_pricing_content`);
-            if (guidePricingContent) {
-                guidePricingContent.innerHTML = '<div class="text-muted small">No guide selected</div>';
             }
             
             // Update total price
@@ -12077,6 +12491,17 @@
             if (packageSelect && packageSelect.value) {
                 console.log('Package already selected, updating pricing...');
                 updateAttractionGuidePricing(day, index);
+            }
+
+            // Multi-city: restore saved package + pickup time after guide details rebuild those controls.
+            if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+            }
+            // Pickup time may live on a dynamically created select — apply pending by id if present.
+            if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                window.applyPendingServiceSelectRestore(`day${day}_attraction_${index}_guide_pickup_time`, { quiet: true });
+                window.applyPendingServiceSelectRestore(`day${day}_attraction_${index}_guide_pickup_time_select`, { quiet: false });
+                window.applyPendingServiceSelectRestore(`day${day}_attraction_${index}_guide_package`, { quiet: false });
             }
         };
         
@@ -13730,6 +14155,11 @@
                                 width: '100%'
                             });
                         }
+
+                        // Multi-city: re-select guide saved for this city after options reload.
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(guideSelect);
+                        }
                     })
                     .catch(error => {
                         console.error('Error loading guides for city:', error);
@@ -13808,7 +14238,7 @@
                                 option.value = restaurant.restaurant_id;
                                 option.textContent = restaurant.name;
                                 option.dataset.city = restaurant.city;
-                                option.dataset.mealTypes = JSON.stringify(normalizeRestaurantMealTypes(restaurant.meal_types || []));
+                                option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
                                 restaurantSelect.appendChild(option);
                             });
                         } else {
@@ -13818,6 +14248,11 @@
                         }
                         
                         restaurantSelect.disabled = false;
+
+                        // Multi-city: re-select restaurant saved for this city after options reload.
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(restaurantSelect);
+                        }
                         
                         const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                         if (transferRequired && transferRequired.value === 'Yes') {
@@ -13831,6 +14266,9 @@
                         prependMultiRestaurantOptions(restaurantSelect);
                         restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                         restaurantSelect.disabled = false;
+                        if (typeof window.applyPendingServiceSelectRestore === 'function') {
+                            window.applyPendingServiceSelectRestore(restaurantSelect);
+                        }
                     });
             } else {
                 restaurantSelect.disabled = false;
@@ -14498,29 +14936,19 @@
 
             // Wait for all dependencies to load
         $(document).ready(function() {
+            // Date Range Picker Initialization - only if not locked
             const travelDatesField = $('#travel_dates');
-
-            window.reinitializeTravelDatePicker = function () {
-                const $field = $('#travel_dates');
-                if (!$field.length || $field.attr('data-locked') === 'true') return;
-                try {
-                    const drp = $field.data('daterangepicker');
-                    if (drp && typeof drp.remove === 'function') drp.remove();
-                } catch (e) { /* ignore */ }
-                $field.daterangepicker({
+            if (travelDatesField.attr('data-locked') !== 'true') {
+                travelDatesField.daterangepicker({
                     opens: 'left',
                     autoUpdateInput: false,
+                    // Disable today too — only future dates (from tomorrow onward) are bookable.
                     minDate: moment().add(1, 'days'),
-                    locale: { format: 'MMM DD, YYYY', cancelLabel: 'Clear' }
-                });
-                $field.off('show.daterangepicker.travelFix').on('show.daterangepicker.travelFix', function (ev, picker) {
-                    if (picker && picker.container) {
-                        picker.container.css('z-index', 10050);
+                    locale: {
+                        format: 'MMM DD, YYYY',
+                        cancelLabel: 'Clear'
                     }
                 });
-            };
-            if (travelDatesField.length && travelDatesField.attr('data-locked') !== 'true') {
-                window.reinitializeTravelDatePicker();
             }
 
             // Function to check which services will be removed (without actually removing them)
@@ -15909,7 +16337,7 @@
             const chkCnb = document.getElementById('chkChildWithoutBed');
             const hint = document.getElementById('hotelChildPricingGuestHint');
             const section = document.getElementById('hotelChildPricingSection');
-            const msg = 'Please add child first';
+            const msg = 'Please add guest details';
 
             [chkCwb, chkCnb].forEach(function (chk) {
                 if (!chk) return;
@@ -15952,7 +16380,7 @@
                 if (!chk || !chk.disabled) return;
                 e.preventDefault();
                 e.stopPropagation();
-                const message = 'Please add child first';
+                const message = 'Please add guest details';
                 if (typeof showToastr === 'function') {
                     showToastr('info', message);
                 } else {
@@ -20628,6 +21056,9 @@
                 
                 updateAttractionPricing(day, index);
                 try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
+                if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                    try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                }
                 return;
             }
             
@@ -20690,10 +21121,19 @@
             
             // Load tickets for the selected attraction
             loadTicketsForAttraction(day, attractionId, index);
-            
+
             // Update attraction pricing display
             updateAttractionPricing(day, index);
             try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
+
+            // Multi-city: time slots were just rebuilt — restore saved time/guide now.
+            // Ticket restore also runs again inside loadTicketsForAttraction after AJAX.
+            if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                setTimeout(function () {
+                    try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                }, 150);
+            }
         };
         
         // Generate time slots between open and close time at 30-minute intervals
@@ -21211,17 +21651,34 @@
                         
                         // Update pricing display after loading tickets
                         updateAttractionPricing(day, index);
+
+                        // Multi-city: tickets were just rebuilt — restore saved ticket (+ time/guide).
+                        if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                            try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                            setTimeout(function () {
+                                try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                            }, 100);
+                            setTimeout(function () {
+                                try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                            }, 500);
+                        }
                     } else {
                         const option = document.createElement('option');
                         option.value = '';
                         option.textContent = data.message || 'No tickets available';
                         option.disabled = true;
                         ticketSelect.appendChild(option);
+                        if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                            try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error loading tickets:', error);
                     ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
+                    if (typeof window.reapplyPendingAttractionDependents === 'function') {
+                        try { window.reapplyPendingAttractionDependents(day, index); } catch (e) { /* ignore */ }
+                    }
                 });
         }
         
@@ -21717,7 +22174,25 @@
                                     mealTypes = [];
                                 }
                             }
-                            mealTypes = normalizeRestaurantMealTypes(mealTypes);
+                            
+                            // Ensure each meal type has required properties
+                            mealTypes = mealTypes.map(mt => {
+                                return {
+                                    type: mt.type || '',
+                                    label: mt.label || mt.type || '',
+                                    open_time: mt.open_time || '',
+                                    close_time: mt.close_time || ''
+                                };
+                            });
+                            
+                            // If no meal types defined, add default ones
+                            if (mealTypes.length === 0) {
+                                mealTypes = [
+                                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00:00', close_time: '10:00:00' },
+                                    { type: 'lunch', label: 'Lunch', open_time: '12:00:00', close_time: '15:00:00' },
+                                    { type: 'dinner', label: 'Dinner', open_time: '18:00:00', close_time: '22:00:00' }
+                                ];
+                            }
                             
                             option.dataset.mealTypes = JSON.stringify(mealTypes);
                             selectElement.appendChild(option);
@@ -21786,114 +22261,66 @@
             loadDishesForRestaurant(day, restaurantId, index);
         };
         
-        const DEFAULT_RESTAURANT_MEAL_TIMES = {
-            breakfast: { open: '07:00', close: '10:00' },
-            lunch: { open: '12:00', close: '15:00' },
-            dinner: { open: '18:00', close: '22:00' }
-        };
-
-        function normalizeRestaurantMealTypeKey(type, label) {
-            const key = String(type || label || '').toLowerCase().trim();
-            if (!key || key === 'null' || key === 'undefined') return '';
-            if (key.includes('breakfast') || key === 'bf') return 'breakfast';
-            if (key.includes('lunch')) return 'lunch';
-            if (key.includes('dinner')) return 'dinner';
-            return key;
-        }
-
-        function getMealPeriodFromRestaurantType(type, label) {
-            const map = { breakfast: '1', lunch: '2', dinner: '3' };
-            return map[normalizeRestaurantMealTypeKey(type, label)] || '';
-        }
-
-        function normalizeRestaurantMealTypes(mealTypes) {
-            const normalized = (Array.isArray(mealTypes) ? mealTypes : []).map(function(mt) {
-                const typeKey = normalizeRestaurantMealTypeKey(mt.type, mt.label);
-                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {};
-                return {
-                    type: typeKey || (mt.type || mt.label || ''),
-                    label: mt.label || mt.type || typeKey || '',
-                    open_time: (mt.open_time || defaults.open || '').toString().trim(),
-                    close_time: (mt.close_time || defaults.close || '').toString().trim()
-                };
-            }).filter(function(mt) { return mt.type || mt.label; });
-
-            if (normalized.length === 0) {
-                return [
-                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00', close_time: '10:00' },
-                    { type: 'lunch', label: 'Lunch', open_time: '12:00', close_time: '15:00' },
-                    { type: 'dinner', label: 'Dinner', open_time: '18:00', close_time: '22:00' }
-                ];
-            }
-
-            return normalized;
-        }
-
-        function getRestaurantMealOptionTimes(option, mealTypeValue) {
-            if (!option) return { open: '', close: '' };
-            let openTime = (option.dataset.openTime || option.getAttribute('data-open-time') || '').trim();
-            let closeTime = (option.dataset.closeTime || option.getAttribute('data-close-time') || '').trim();
-            if ((!openTime || !closeTime) && mealTypeValue) {
-                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[normalizeRestaurantMealTypeKey(mealTypeValue, option.textContent)] || {};
-                openTime = openTime || defaults.open || '';
-                closeTime = closeTime || defaults.close || '';
-            }
-            return { open: openTime, close: closeTime };
-        }
-
-        function parseRestaurantTimeRangeString(rangeStr) {
-            if (!rangeStr) return [];
-            return String(rangeStr).trim().split(/\s*-\s*|\s+to\s+/i).map(function(s) { return s.trim(); }).filter(Boolean);
-        }
-
         // Update meal type dropdown with available options and timings
         function updateMealTypeDropdown(day, index, mealTypes) {
             const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
             if (!mealTypeSelect) return;
-
-            mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
-            normalizeRestaurantMealTypes(mealTypes).forEach(function(mealType) {
-                const typeKey = normalizeRestaurantMealTypeKey(mealType.type, mealType.label);
-                const mealPeriod = getMealPeriodFromRestaurantType(mealType.type, mealType.label);
-                const times = {
-                    open: mealType.open_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).open || '',
-                    close: mealType.close_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).close || ''
-                };
-                const timing = times.open && times.close ? ' - ' + times.open + ' to ' + times.close : '';
+            
+            let optionsHTML = '<option value="">Select Meal Type</option>';
+            
+            mealTypes.forEach(mealType => {
+                const timing = mealType.open_time && mealType.close_time 
+                    ? ` - ${mealType.open_time} to ${mealType.close_time}`
+                    : '';
+                
+                // Map meal type to meal_period number and add icons
+                let mealPeriod = '';
                 let icon = '';
-                if (typeKey === 'breakfast') icon = '🌅 ';
-                else if (typeKey === 'lunch') icon = '☀️ ';
-                else if (typeKey === 'dinner') icon = '🌙 ';
-
-                const option = document.createElement('option');
-                option.value = typeKey || mealType.type || mealType.label;
-                option.dataset.mealPeriod = mealPeriod;
-                option.dataset.openTime = times.open;
-                option.dataset.closeTime = times.close;
-                option.textContent = icon + (mealType.label || mealType.type || typeKey) + timing;
-                mealTypeSelect.appendChild(option);
-            });
-
-            if (mealTypeSelect._restaurantMealTypeHandler) {
-                mealTypeSelect.removeEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
-            }
-            mealTypeSelect._restaurantMealTypeHandler = function mealTypeChangeHandler() {
-                const selectedOption = this.options[this.selectedIndex];
-                const mealType = this.value;
-                const mealPeriod = (selectedOption && (selectedOption.dataset.mealPeriod || getMealPeriodFromRestaurantType(mealType, selectedOption.textContent))) || getMealPeriodFromRestaurantType(mealType);
-                const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
-                const dishSelect = document.getElementById('day' + day + '_dish_' + index);
-
-                if (!dishSelect) {
-                    console.error('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
-                    return;
+                switch(mealType.type.toLowerCase()) {
+                    case 'breakfast':
+                        mealPeriod = '1';
+                        icon = '🌅 ';
+                        break;
+                    case 'lunch':
+                        mealPeriod = '2';
+                        icon = '☀️ ';
+                        break;
+                    case 'dinner':
+                        mealPeriod = '3';
+                        icon = '🌙 ';
+                        break;
                 }
-
+                
+                optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}" data-open-time="${mealType.open_time}" data-close-time="${mealType.close_time}">${icon}${mealType.label}${timing}</option>`;
+            });
+            
+            mealTypeSelect.innerHTML = optionsHTML;
+            
+            // Add event listener for meal type change to filter dishes
+            mealTypeSelect.removeEventListener('change', mealTypeChangeHandler); // Remove existing listener
+            mealTypeSelect.addEventListener('change', mealTypeChangeHandler);
+            
+            function mealTypeChangeHandler() {
+                const selectedOption = this.options[this.selectedIndex];
+                const mealPeriod = selectedOption.dataset.mealPeriod;
+                const mealType = this.value;
+                const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+                
+                // Get the dish select element (this should always exist)
+                const dishSelectId = 'day' + day + '_dish_' + index;
+                const dishSelect = document.getElementById(dishSelectId);
+                
+                if (!dishSelect) {
+                    console.error('Dish select element not found with ID:', dishSelectId);
+                    return; // Exit early if dish select doesn't exist
+                }
+                
                 console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
-
+                
                 const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
                 const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-
+                
+                // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
                 if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
@@ -21903,15 +22330,14 @@
                     if (dishContainer) dishContainer.style.display = 'block';
                     const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
                     if (mealType && range) {
-                        const part = parseRestaurantTimeRangeString(range);
-                        if (part.length >= 2 && typeof populateTimeSlots === 'function') {
-                            populateTimeSlots(day, index, part[0], part[1]);
-                        }
+                        const part = String(range).split('-').map(s => s.trim());
+                        if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
                     }
                     updateRestaurantPricing(day, index);
                     return;
                 }
-
+                
+                // Clear dish selection when meal type changes (normal restaurant)
                 if (dishSelect) {
                     dishSelect.value = '';
                     dishSelect.innerHTML = '<option value="">Select Dish</option>';
@@ -21919,25 +22345,23 @@
                 if (dishContainer) dishContainer.style.display = 'none';
                 if (dishSelect) dishSelect.style.display = 'none';
                 updateRestaurantPricing(day, index);
-
+                
                 if (!mealType || mealType === '') {
-                    const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-                    if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                     return;
                 }
-
+                
                 if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                     if (mealPeriod) {
                         loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
+                        populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
                     } else {
                         loadDishesForRestaurant(day, restaurantId, index);
                     }
-                    const times = getRestaurantMealOptionTimes(selectedOption, mealType);
-                    populateTimeSlots(day, index, times.open, times.close);
                 } else {
                     console.log('Invalid restaurant ID in meal type change handler:', restaurantId);
+                    // Clear dish and time slot dropdowns (reuse dishSelect variable from above)
                     const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-
+                    
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
                         dishSelect.style.display = 'none';
@@ -21945,85 +22369,83 @@
                     if (timeSlotSelect) {
                         timeSlotSelect.innerHTML = '<option value="">Select restaurant first</option>';
                     }
-                    if (dishContainer) dishContainer.style.display = 'none';
+                    
+                    // Hide dish container if no valid restaurant
+                    if (dishContainer) {
+                        dishContainer.style.display = 'none';
+                    }
+                    
+                    // Update pricing when no valid restaurant
                     updateRestaurantPricing(day, index);
                 }
-            };
-            mealTypeSelect.addEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
-
+            }
+            
             console.log('Updated meal type dropdown with', mealTypes.length, 'options');
         }
         
         // Populate time slots with 30-minute intervals
         function populateTimeSlots(day, index, openTime, closeTime) {
             const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-            if (!timeSlotSelect) return;
-
-            openTime = (openTime || '').toString().trim();
-            closeTime = (closeTime || '').toString().trim();
-            if (!openTime || !closeTime || openTime === 'null' || closeTime === 'null' || openTime === 'undefined' || closeTime === 'undefined') {
-                return;
-            }
-
+            if (!timeSlotSelect || !openTime || !closeTime) return;
+            
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-
+            
+            // Parse open and close times
             const startTime = parseTime(openTime);
             const endTime = parseTime(closeTime);
-            if (!startTime || !endTime) {
-                console.log('Failed to parse restaurant time slots:', openTime, closeTime);
-                return;
-            }
-
+            
+            if (!startTime || !endTime) return;
+            
+            // Generate 30-minute intervals
             let currentTime = new Date(startTime);
-            let endDate = new Date(endTime);
-            if (endDate < currentTime) {
-                endDate.setDate(endDate.getDate() + 1);
-            }
-
-            let iterationCount = 0;
-            while (currentTime <= endDate && iterationCount < 100) {
+            
+            while (currentTime <= endTime) {
+                const timeValue = formatTime24(currentTime);
+                const timeDisplay = formatTime12(currentTime);
+                
                 const option = document.createElement('option');
-                option.value = formatTime24(currentTime);
-                option.textContent = formatTime12(currentTime);
+                option.value = timeValue;
+                option.textContent = timeDisplay;
                 timeSlotSelect.appendChild(option);
-                currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
-                iterationCount++;
+                
+                // Add 30 minutes
+                currentTime.setMinutes(currentTime.getMinutes() + 30);
             }
         }
         
         // Parse time string (handles various formats)
         function parseTime(timeStr) {
             if (!timeStr) return null;
-
+            
             try {
-                const normalized = String(timeStr).trim();
-                if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
-
-                const periodMatch = normalized.match(/\s*(AM|PM|am|pm)\s*$/);
-                if (periodMatch) {
-                    const period = periodMatch[1].toUpperCase();
-                    const time = normalized.replace(/\s*(AM|PM|am|pm)\s*$/i, '').trim();
-                    const parts = time.split(':');
-                    let hour = parseInt(parts[0], 10);
-                    const minutes = parseInt(parts[1], 10) || 0;
-                    if (Number.isNaN(hour)) return null;
+                console.log('Parsing time string:', timeStr);
+                
+                // Handle "HH:MM AM/PM" format
+                if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                    const today = new Date();
+                    const [time, period] = timeStr.split(' ');
+                    const [hours, minutes] = time.split(':');
+                    let hour = parseInt(hours);
+                    
                     if (period === 'PM' && hour !== 12) hour += 12;
                     if (period === 'AM' && hour === 12) hour = 0;
-                    const today = new Date();
-                    today.setHours(hour, minutes, 0, 0);
+                    
+                    today.setHours(hour, parseInt(minutes) || 0, 0, 0);
+                    console.log('Parsed 12-hour time:', today);
                     return today;
                 }
-
-                const parts = normalized.split(':');
-                if (parts.length >= 2) {
-                    const hour = parseInt(parts[0], 10);
-                    const minutes = parseInt(parts[1], 10) || 0;
-                    if (Number.isNaN(hour)) return null;
+                
+                // Handle "HH:MM" 24-hour format
+                if (timeStr.includes(':')) {
+                    const [hours, minutes] = timeStr.split(':');
                     const today = new Date();
-                    today.setHours(hour, minutes, 0, 0);
+                    today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
+                    console.log('Parsed 24-hour time:', today);
                     return today;
                 }
-
+                
+                // Handle other formats or return null
+                console.log('Unrecognized time format:', timeStr);
                 return null;
             } catch (e) {
                 console.error('Error parsing time:', timeStr, e);
@@ -22699,7 +23121,7 @@
                     const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
                     if (!slotEl) return;
                     if (range) {
-                        const part = parseRestaurantTimeRangeString(range);
+                        const part = range.split('-').map(s => s.trim());
                         if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
                         else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
                     } else {

@@ -64,7 +64,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($bookings as $idx => $b)
+            @forelse(($bookings instanceof \Illuminate\Support\Collection ? $bookings->values() : $bookings) as $idx => $b)
                 @php
                     $userInfo = is_array($b->user_info ?? null) ? ($b->user_info ?? []) : (is_string($b->user_info ?? null) ? (json_decode($b->user_info, true) ?: []) : []);
                     $customerName = $userInfo['name'] ?? ($b->bookedBy->name ?? '—');
@@ -183,7 +183,7 @@
                     $canFinancePkgPayment = $u && in_array((int) ($u->role_id ?? 0), [36, 129, 131, 133, 134, 136, 137, 138, 126, 127], true);
                 @endphp
                 <tr data-check-in="{{ $checkInYmd }}" data-check-out="{{ $checkOutYmd }}" data-created-at="{{ optional($b->created_at)->toDateString() }}" @if($__showBookingStatus)data-booking-status="{{ e((string) $statusValue) }}"@endif>
-                    <td class="align-top">{{ $idx + 1 }}</td>
+                    <td class="align-top pkg-row-num">{{ $loop->iteration }}</td>
                     <td class="align-top">
                         <div class="d-flex flex-column gap-1">
                             <strong class="text-primary">{{ $b->booking_id ?? ('#' . ($b->id ?? '')) }}</strong>
