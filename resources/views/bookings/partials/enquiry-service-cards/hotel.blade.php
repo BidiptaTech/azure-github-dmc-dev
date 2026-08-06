@@ -9,15 +9,25 @@
     }
 
     $hotelPrice = (float) ($booking['price'] ?? $booking['totalPrice'] ?? 0);
-    $guidePrice = 0.0;
-    if (!empty($booking['guide_options']['total_price'])) {
-        $guidePrice = (float) $booking['guide_options']['total_price'];
-    }
-    $grandTotal = $hotelPrice + $guidePrice;
+    $tf = (isset($booking['transfer_options']) && is_array($booking['transfer_options']))
+        ? $booking['transfer_options']
+        : ((isset($booking['transferOptions']) && is_array($booking['transferOptions'])) ? $booking['transferOptions'] : []);
+    $go = (isset($booking['guide_options']) && is_array($booking['guide_options']))
+        ? $booking['guide_options']
+        : ((isset($booking['guideOptions']) && is_array($booking['guideOptions'])) ? $booking['guideOptions'] : []);
+    $isPro = (int) ($tour->is_pro ?? 0) === 1;
+    $transferPrice = $isPro
+        ? (float) ($tf['totalPrice'] ?? $tf['cost'] ?? 0)
+        : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? 0);
+    $guidePrice = (float) ($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
+    $grandTotal = $hotelPrice + $transferPrice + $guidePrice;
 
     $checkIn = 'N/A';
     $checkOut = 'N/A';
     $nights = null;
+    if (!empty($booking['nights'])) {
+        $nights = (int) $booking['nights'];
+    }
     if (isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 0) {
         try {
             $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0])->format('M d, Y');
@@ -25,7 +35,9 @@
                 $ci = \Carbon\Carbon::parse($booking['bookingDate'][0]);
                 $co = \Carbon\Carbon::parse(end($booking['bookingDate']));
                 $checkOut = $co->format('M d, Y');
-                $nights = $ci->diffInDays($co);
+                if ($nights === null || $nights <= 0) {
+                    $nights = $ci->diffInDays($co);
+                }
             }
         } catch (\Throwable $e) {
             $checkIn = (string) ($booking['bookingDate'][0] ?? 'N/A');
@@ -38,9 +50,6 @@
         trim(($booking['state'] ?? '') . ' ' . ($booking['zip'] ?? '')),
     ]);
     $addressLabel = count($addressParts) ? implode(', ', $addressParts) : 'Address not provided';
-
-    $tf = (isset($booking['transfer_options']) && is_array($booking['transfer_options'])) ? $booking['transfer_options'] : [];
-    $hasTransfer = !empty($tf['transfer_required']) && in_array($tf['transfer_required'], [true, 'true', 'Yes', 1, '1'], true);
     $mealPlan = \App\Helpers\CommonHelper::resolveHotelMealPlanLabel($booking['rooms'] ?? []);
 @endphp
 
@@ -121,56 +130,45 @@
                 <span class="svc-dl-value">{{ $hd['cancellation_charge'] }}</span>
             </div>
             @endif
-            <div class="svc-dl-row full">
-                <span class="svc-dl-label">Total Price</span>
-                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($grandTotal, 2) }}</span>
+            <div class="svc-dl-row">
+                <span class="svc-dl-label">Hotel Total</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($hotelPrice, 2) }}</span>
             </div>
         </div>
     </div>
 
     @include('bookings.partials.hotel-booking-modal-sections', ['booking' => $booking, 'currency' => $currency, 'professional' => true])
 
-    @if($hasTransfer)
+    @include('bookings.partials.enquiry-service-cards.transfer-guide-sections', [
+        'booking' => $booking,
+        'currency' => $currency,
+        'tour' => $tour ?? null,
+    ])
+
+    @if($transferPrice > 0 || $guidePrice > 0)
     <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
-        <p class="svc-section-title">Transfer Details</p>
+        <p class="svc-section-title">Price Summary</p>
         <div class="svc-dl">
             <div class="svc-dl-row">
-                <span class="svc-dl-label">Type</span>
-                <span class="svc-dl-value">{{ $tf['type'] ?? 'N/A' }}</span>
+                <span class="svc-dl-label">Hotel</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($hotelPrice, 2) }}</span>
             </div>
+            @if($transferPrice > 0)
             <div class="svc-dl-row">
-                <span class="svc-dl-label">Way</span>
-                <span class="svc-dl-value">{{ $tf['way'] ?? 'N/A' }}</span>
+                <span class="svc-dl-label">Transfer</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($transferPrice, 2) }}</span>
             </div>
-            @if(!empty($tf['destination_name']))
+            @endif
+            @if($guidePrice > 0)
+            <div class="svc-dl-row">
+                <span class="svc-dl-label">Guide</span>
+                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($guidePrice, 2) }}</span>
+            </div>
+            @endif
             <div class="svc-dl-row full">
-                <span class="svc-dl-label">Destination</span>
-                <span class="svc-dl-value">{{ $tf['destination_name'] }}</span>
+                <span class="svc-dl-label">Grand Total</span>
+                <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($grandTotal, 2) }}</span>
             </div>
-            @endif
-            @if(!empty($tf['pickup_location_name']))
-            <div class="svc-dl-row full">
-                <span class="svc-dl-label">Pickup</span>
-                <span class="svc-dl-value">{{ $tf['pickup_location_name'] }}</span>
-            </div>
-            @endif
-            @php
-                $vehicleName = $tf['vehicle_details']['vehicle_name'] ?? ($tf['vehicle_id'] ?? 'N/A');
-                $transferCost = $tf['cost'] ?? 0;
-                if ((int) ($tour->is_pro ?? 0) === 1 && isset($tf['totalPrice'])) {
-                    $transferCost = $tf['totalPrice'];
-                }
-            @endphp
-            <div class="svc-dl-row">
-                <span class="svc-dl-label">Vehicle</span>
-                <span class="svc-dl-value">{{ $vehicleName }}</span>
-            </div>
-            @if((float) $transferCost > 0)
-            <div class="svc-dl-row">
-                <span class="svc-dl-label">Cost</span>
-                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format((float) $transferCost, 2) }}</span>
-            </div>
-            @endif
         </div>
     </div>
     @endif
