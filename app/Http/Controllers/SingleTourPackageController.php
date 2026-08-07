@@ -4094,45 +4094,176 @@ class SingleTourPackageController extends Controller
     // }
 
     /**
-     * Resolve country + currency for an order (multi-country / multi-city tracking).
-     * Prefer request payload; fall back to tour destination + countries.currency.
+     * True when a country string is unusable (blank, CSV, or actually a city name).
      */
-    private function resolveOrderCountryCurrency(Request $request, $tourId): array
+    private function isInvalidOrderCountry(?string $country): bool
     {
-        $country = trim((string) $request->input('country', ''));
-        $currency = strtoupper(trim((string) $request->input('currency', '')));
+        $country = trim((string) $country);
+        if ($country === '') {
+            return true;
+        }
+        if (str_contains($country, ',')) {
+            return true;
+        }
 
-        if ($country === '' || $currency === '') {
-            $tour = Tour::where('tour_id', $tourId)->first();
-            if ($country === '' && $tour && !empty($tour->destination)) {
-                // destination may be city name or country; prefer country match first
-                $dest = trim((string) $tour->destination);
-                $countryRow = Country::where('name', $dest)->first();
-                if ($countryRow) {
-                    $country = $countryRow->name;
-                    if ($currency === '' && !empty($countryRow->currency)) {
-                        $currency = strtoupper(trim((string) $countryRow->currency));
-                    }
-                } else {
-                    $city = City::where('name', $dest)->orWhere('name', 'like', $dest . '%')->first();
-                    if ($city && !empty($city->country)) {
-                        $country = trim((string) $city->country);
-                    }
+        return City::where('name', $country)->exists() && !Country::where('name', $country)->exists();
+    }
+
+    /**
+     * Resolve country + currency from a service JSON row (multi-city / multi-country).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{country: ?string, currency: ?string, city: ?string}
+     */
+    private function resolveOrderGeoFromServicePayload(array $payload, ?string $fallbackDestination = null): array
+    {
+        $cityCandidates = [
+            $payload['city'] ?? null,
+            $payload['destination'] ?? null,
+            $payload['hotelCity'] ?? null,
+            $payload['hotel_city'] ?? null,
+            $payload['location'] ?? null,
+            $payload['AttractionCity'] ?? null,
+            $payload['attraction_city'] ?? null,
+            (is_array($payload['hotelDetails'] ?? null) ? ($payload['hotelDetails']['location'] ?? null) : null),
+            (is_array($payload['hotelDetails'] ?? null) ? ($payload['hotelDetails']['city'] ?? null) : null),
+        ];
+        $city = null;
+        foreach ($cityCandidates as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate === '') {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $candidate) as $part) {
+                $part = trim((string) $part);
+                if ($part === '' || preg_match('/^(Arrival|Departure)\s*:/i', $part)) {
+                    continue;
+                }
+                // Strip stay-range suffix: "Singapore [2026-08-01→2026-08-03]"
+                if (preg_match('/^(.+?)\s*\[/', $part, $m)) {
+                    $part = trim($m[1]);
+                }
+                if (City::where('name', $part)->exists()) {
+                    $city = $part;
+                    break 2;
+                }
+                if ($city === null) {
+                    $city = $part;
                 }
             }
         }
 
-        if ($currency === '' && $country !== '') {
-            $currencyFromCountry = Country::where('name', $country)->value('currency');
-            if ($currencyFromCountry) {
-                $currency = strtoupper(trim((string) $currencyFromCountry));
+        $country = trim((string) ($payload['country'] ?? ''));
+        if ($this->isInvalidOrderCountry($country)) {
+            $country = '';
+        }
+        if ($country === '' && is_array($payload['hotelDetails'] ?? null)) {
+            $hotelCountry = trim((string) ($payload['hotelDetails']['country'] ?? ''));
+            if (!$this->isInvalidOrderCountry($hotelCountry)) {
+                $country = $hotelCountry;
             }
+        }
+        if ($country === '' && $city) {
+            $country = trim((string) (City::where('name', $city)->value('country') ?? ''));
+        }
+        if ($country === '' && $fallbackDestination) {
+            foreach (preg_split('/\s*,\s*/', (string) $fallbackDestination) as $part) {
+                $part = trim((string) $part);
+                if ($part === '') {
+                    continue;
+                }
+                if (Country::where('name', $part)->exists()) {
+                    $country = $part;
+                    break;
+                }
+                $fromCity = City::where('name', $part)->value('country');
+                if (!empty($fromCity)) {
+                    $country = trim((string) $fromCity);
+                    break;
+                }
+            }
+        }
+
+        $currency = strtoupper(trim((string) ($payload['currency'] ?? '')));
+        if ($currency === '' && $country !== '') {
+            $currency = strtoupper(trim((string) (Country::where('name', $country)->value('currency') ?? '')));
         }
 
         return [
             'country' => $country !== '' ? $country : null,
             'currency' => $currency !== '' ? $currency : null,
+            'city' => $city,
         ];
+    }
+
+    /**
+     * Resolve country + currency for an order (multi-country / multi-city tracking).
+     * Prefer service payload city/country, then request, then tour destination.
+     *
+     * @param  array<string, mixed>|null  $servicePayload
+     * @return array{country: ?string, currency: ?string, city: ?string}
+     */
+    private function resolveOrderCountryCurrency(Request $request, $tourId, ?array $servicePayload = null): array
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $fallbackDestination = $tour ? (string) ($tour->destination ?? '') : null;
+
+        $requestCountry = trim((string) $request->input('country', ''));
+        $requestCurrency = strtoupper(trim((string) $request->input('currency', '')));
+        if ($this->isInvalidOrderCountry($requestCountry)) {
+            $requestCountry = '';
+        }
+
+        $payload = is_array($servicePayload) ? $servicePayload : [];
+        if ($requestCountry !== '' && empty($payload['country'])) {
+            $payload['country'] = $requestCountry;
+        }
+        if ($requestCurrency !== '' && empty($payload['currency'])) {
+            $payload['currency'] = $requestCurrency;
+        }
+
+        $geo = $this->resolveOrderGeoFromServicePayload($payload, $fallbackDestination);
+
+        if (empty($geo['currency']) && !empty($geo['country'])) {
+            $currencyFromCountry = Country::where('name', $geo['country'])->value('currency');
+            if ($currencyFromCountry) {
+                $geo['currency'] = strtoupper(trim((string) $currencyFromCountry));
+            }
+        }
+
+        return [
+            'country' => $geo['country'] ?? null,
+            'currency' => $geo['currency'] ?? null,
+            'city' => $geo['city'] ?? null,
+        ];
+    }
+
+    /**
+     * Ensure service JSON carries country/city/currency and return order-level geo columns.
+     *
+     * @param  array<string, mixed>  $serviceRow
+     * @return array{0: array<string, mixed>, 1: array{country: ?string, currency: ?string, city: ?string}}
+     */
+    private function applyOrderGeoToServiceRow(array $serviceRow, Request $request, $tourId): array
+    {
+        $geo = $this->resolveOrderCountryCurrency($request, $tourId, $serviceRow);
+
+        if (!empty($geo['country']) && (empty($serviceRow['country']) || $this->isInvalidOrderCountry((string) ($serviceRow['country'] ?? '')))) {
+            $serviceRow['country'] = $geo['country'];
+        }
+        if (!empty($geo['city']) && empty($serviceRow['city'])) {
+            $serviceRow['city'] = $geo['city'];
+        }
+        if (!empty($geo['currency'])) {
+            $serviceRow['currency'] = $geo['currency'];
+        }
+        if (!empty($geo['country']) && is_array($serviceRow['hotelDetails'] ?? null)) {
+            if (empty($serviceRow['hotelDetails']['country']) || $this->isInvalidOrderCountry((string) ($serviceRow['hotelDetails']['country'] ?? ''))) {
+                $serviceRow['hotelDetails']['country'] = $geo['country'];
+            }
+        }
+
+        return [$serviceRow, $geo];
     }
 
     public function storeServiceOrders(Request $request)
@@ -4341,6 +4472,11 @@ class SingleTourPackageController extends Controller
                                         
                                         // Tour ID
                                         'tour_id' => $tourId,
+
+                                        // Geo (multi-city / multi-country)
+                                        'city' => $hotelBooking['city'] ?? ($hotelBooking['hotelDetails']['location'] ?? $hotelBooking['hotel_location'] ?? null),
+                                        'country' => $hotelBooking['country'] ?? ($hotelBooking['hotelDetails']['country'] ?? null),
+                                        'currency' => $hotelBooking['currency'] ?? null,
                                         
                                         // Remarks (from hotel_remarks textarea)
                                         'remarks' => $hotelBooking['remarks'] ?? null,
@@ -4352,6 +4488,8 @@ class SingleTourPackageController extends Controller
                                         'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
                                         'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
                                     ];
+
+                                    [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);
                                     
                                     // Log transfer options for debugging
                                     if (isset($hotelBooking['transfer_options'])) {
@@ -4375,8 +4513,8 @@ class SingleTourPackageController extends Controller
                                         'tour_id' => $tourId,
                                         'data' => [$enhancedHotelData], // Store hotel data as array
                                         'type' => $type,
-                                        'country' => $orderCountry,
-                                        'currency' => $orderCurrency,
+                                        'country' => $hotelGeo['country'] ?? $orderCountry,
+                                        'currency' => $hotelGeo['currency'] ?? $orderCurrency,
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
                                         'remarks' => $hotelBooking['remarks'] ?? null,
@@ -4938,6 +5076,12 @@ class SingleTourPackageController extends Controller
         if (isset($bookingData['rooms']) && is_array($bookingData['rooms'])) {
             $bookingData['rooms'] = $this->fixRoomIds($bookingData['rooms'], $hotelId);
         }
+
+        [$bookingData, $orderGeo] = $this->applyOrderGeoToServiceRow(
+            is_array($bookingData) ? $bookingData : [],
+            $request,
+            $tourId
+        );
         
         // Generate a unique booking ID
         // $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -4951,6 +5095,8 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => [$bookingData],
             'type' => 'hotel',
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
@@ -5025,12 +5171,24 @@ class SingleTourPackageController extends Controller
         // while (Order::where('booking_id', $bookingId)->exists()) {
         //     $bookingId = CommonHelper::createId($bookingId);
         // }
+
+        $firstGuide = (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0]))
+            ? $bookingData[0]
+            : (is_array($bookingData) ? $bookingData : []);
+        [$firstGuide, $orderGeo] = $this->applyOrderGeoToServiceRow($firstGuide, $request, $tourId);
+        if (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0])) {
+            $bookingData[0] = $firstGuide;
+        } elseif (is_array($bookingData)) {
+            $bookingData = $firstGuide;
+        }
         
         $order =  Order::create([
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'guide',
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
@@ -5100,11 +5258,23 @@ class SingleTourPackageController extends Controller
         //     $bookingId = CommonHelper::createId($bookingId);
         // }
 
+        $firstRestaurant = (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0]))
+            ? $bookingData[0]
+            : (is_array($bookingData) ? $bookingData : []);
+        [$firstRestaurant, $orderGeo] = $this->applyOrderGeoToServiceRow($firstRestaurant, $request, $tourId);
+        if (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0])) {
+            $bookingData[0] = $firstRestaurant;
+        } elseif (is_array($bookingData)) {
+            $bookingData = $firstRestaurant;
+        }
+
         $order = Order::create([
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'restaurant',
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
@@ -5163,6 +5333,16 @@ class SingleTourPackageController extends Controller
         // while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
         //     $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
         // }
+
+        $firstAttraction = (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0]))
+            ? $bookingData[0]
+            : (is_array($bookingData) ? $bookingData : []);
+        [$firstAttraction, $orderGeo] = $this->applyOrderGeoToServiceRow($firstAttraction, $request, $tourId);
+        if (is_array($bookingData) && isset($bookingData[0]) && is_array($bookingData[0])) {
+            $bookingData[0] = $firstAttraction;
+        } elseif (is_array($bookingData)) {
+            $bookingData = $firstAttraction;
+        }
         
         // Create order
         $order = \App\Models\Order::create([
@@ -5170,6 +5350,8 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'attraction',
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
@@ -5251,6 +5433,16 @@ class SingleTourPackageController extends Controller
                 'all_keys' => array_keys($transportData[0])
             ]);
         }
+
+        $firstTransport = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
+            ? $transportData[0]
+            : (is_array($transportData) ? $transportData : []);
+        [$firstTransport, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransport, $request, $tourId);
+        if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
+            $transportData[0] = $firstTransport;
+        } elseif (is_array($transportData)) {
+            $transportData = [$firstTransport];
+        }
         
         // Create order
         $order = \App\Models\Order::create([
@@ -5258,6 +5450,8 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $request->input('type'),
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
@@ -5328,11 +5522,23 @@ class SingleTourPackageController extends Controller
             default => 'local_transport'
         };
 
+        $firstTransfer = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
+            ? $transportData[0]
+            : (is_array($transportData) ? $transportData : []);
+        [$firstTransfer, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransfer, $request, $tourId);
+        if (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0])) {
+            $transportData[0] = $firstTransfer;
+        } elseif (is_array($transportData)) {
+            $transportData = [$firstTransfer];
+        }
+
         $order = Order::create([
             'agent_id' => $agent_id,
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $orderType,
+            'country' => $orderGeo['country'] ?? null,
+            'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
