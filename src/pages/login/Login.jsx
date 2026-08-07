@@ -198,7 +198,7 @@ function Login() {
               maxWidth: 360,
             }}
           >
-            Destination management for travel trade partners
+            AI-powered travel operations for Travel Partners
           </Typography>
           <Typography
             sx={{
@@ -209,31 +209,44 @@ function Login() {
               mb: 3,
             }}
           >
-            Hotels, transfers, guides, and packages — managed in one professional
-            workflow across our operating markets.
+            Automate inquiries, bookings, quotations, and traveler engagement
+            with Travclicks AI — built for growing travel enterprises.
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {["Singapore", "Indonesia", "Australia"].map((market) => (
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            {[
+              "Singapore",
+              "Malaysia",
+              "Thailand",
+              "Indonesia",
+              "Australia",
+              "New Zealand",
+              "Laos",
+              "Cambodia",
+              "UAE",
+            ].map((market) => (
               <Box
                 key={market}
                 sx={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 1,
-                  color: "rgba(255,255,255,0.9)",
-                  fontSize: "0.85rem",
+                  gap: 0.75,
+                  px: 1.25,
+                  py: 0.5,
+                  borderRadius: "6px",
+                  bgcolor: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "rgba(255,255,255,0.95)",
+                  fontSize: "0.78rem",
                   fontWeight: 500,
                 }}
               >
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: "rgba(255,255,255,0.85)",
-                  }}
-                />
                 {market}
               </Box>
             ))}
@@ -431,7 +444,7 @@ function Login() {
               mt: 0.5,
             }}
           >
-            Access your TravClicks partner dashboard
+            Access your Travclicks AI partner dashboard
           </Typography>
         </Box>
 
@@ -574,7 +587,7 @@ function Login() {
             fontSize: "0.75rem",
           }}
         >
-          Secure access for registered travel partners
+          Secure access powered by Travclicks Technologies
         </Typography>
         </Paper>
 

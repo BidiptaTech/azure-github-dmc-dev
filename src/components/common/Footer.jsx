@@ -58,8 +58,14 @@ const Footer = () => {
 
   const destinations = [
     'Singapore',
+    'Malaysia',
+    'Thailand',
     'Indonesia',
     'Australia',
+    'New Zealand',
+    'Laos',
+    'Cambodia',
+    'UAE',
   ];
 
   const usefulLinks = [
@@ -177,7 +183,10 @@ const Footer = () => {
                   fontSize: '14px'
                 }}
               >
-                B2B destination management across Singapore, Indonesia, and Australia — hotels, transfers, guides, and packages for travel trade partners.
+                AI-powered travel technology for agencies — smart automation,
+                quotations, bookings, and traveler engagement across Singapore,
+                Malaysia, Thailand, Indonesia, Australia, New Zealand, Laos,
+                Cambodia, and UAE.
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {socialLinks.map((social, index) => (
