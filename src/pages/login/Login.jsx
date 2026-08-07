@@ -182,7 +182,7 @@ function Login() {
               fontSize: "0.75rem",
               fontWeight: 600,
               letterSpacing: "0.12em",
-              textTransform: "uppercase",
+          
               mb: 1.5,
             }}
           >
