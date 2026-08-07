@@ -29,10 +29,10 @@ const LandingHero = ({ heroSlides: heroSlidesProp }) => {
     {
       id: 1,
       image: "/img/masthead/1/bg.webp",
-      title: "Destination Management Partner",
+      title: "AI-Powered Travel Technology",
       subtitle:
-        "Professional ground services across Singapore, Indonesia, and Australia.",
-      location: "Asia Pacific",
+        "Automate operations, accelerate sales, and deliver real-time traveler experiences for travel agencies — all in one intelligent system.",
+      location: "Powered by Travclicks AI",
     },
   ];
 
@@ -164,7 +164,7 @@ const LandingHero = ({ heroSlides: heroSlidesProp }) => {
                       mb: 2,
                     }}
                   >
-                    TravClicks · B2B Destination Management
+                    Travclicks · AI Travel Technology
                   </Typography>
 
                   <Typography

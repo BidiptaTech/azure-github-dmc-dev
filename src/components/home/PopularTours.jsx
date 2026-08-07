@@ -83,8 +83,8 @@ const PopularTours = ({ tours: toursProp }) => {
                 lineHeight: 1.6,
               }}
             >
-              Illustrative packages across our operating markets. Final pricing
-              and availability are shared with registered partners.
+              Example packages across markets our partners serve. Build and quote
+              itineraries faster with Travclicks AI.
             </Typography>
           </Box>
 

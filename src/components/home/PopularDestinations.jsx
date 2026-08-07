@@ -13,7 +13,17 @@ import {
 const CORPORATE_NAVY = "#13357b";
 
 const PopularDestinations = ({ countries, destinations: destinationsProp }) => {
-  const countryList = countries ?? ["Singapore", "Indonesia", "Australia"];
+  const countryList = countries ?? [
+    "Singapore",
+    "Malaysia",
+    "Thailand",
+    "Indonesia",
+    "Australia",
+    "New Zealand",
+    "Laos",
+    "Cambodia",
+    "UAE",
+  ];
   const [selectedCountry, setSelectedCountry] = useState(countryList[0]);
 
   const destinations = destinationsProp ?? [];
@@ -50,7 +60,7 @@ const PopularDestinations = ({ countries, destinations: destinationsProp }) => {
                 letterSpacing: "-0.02em",
               }}
             >
-              Destinations We Serve
+              Destinations We Enable
             </Typography>
 
             <Typography
@@ -63,18 +73,20 @@ const PopularDestinations = ({ countries, destinations: destinationsProp }) => {
                 mb: 4,
               }}
             >
-              Focused operations across Singapore, Indonesia, and Australia —
-              delivering consistent service standards for travel agents and
-              corporate partners.
+              Markets where our partners operate — Singapore, Malaysia, Thailand,
+              Indonesia, Australia, New Zealand, Laos, Cambodia, and UAE.
             </Typography>
 
             <Stack
               direction="row"
-              spacing={1.5}
+              spacing={1}
+              useFlexGap
               sx={{
                 justifyContent: "center",
                 flexWrap: "wrap",
-                gap: 1.5,
+                gap: 1,
+                maxWidth: 720,
+                mx: "auto",
               }}
             >
               {countryList.map((country) => (
@@ -87,9 +99,9 @@ const PopularDestinations = ({ countries, destinations: destinationsProp }) => {
                       selectedCountry === country ? CORPORATE_NAVY : "white",
                     color: selectedCountry === country ? "white" : "#334155",
                     fontWeight: 600,
-                    fontSize: "0.875rem",
-                    px: 1.5,
-                    py: 2.25,
+                    fontSize: "0.8rem",
+                    px: 1,
+                    py: 1.75,
                     borderRadius: "6px",
                     border: "1px solid",
                     borderColor:
@@ -104,6 +116,7 @@ const PopularDestinations = ({ countries, destinations: destinationsProp }) => {
                           : "#eef2f7",
                     },
                     cursor: "pointer",
+                    height: 32,
                   }}
                 />
               ))}

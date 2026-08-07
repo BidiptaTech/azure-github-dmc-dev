@@ -315,7 +315,7 @@ const AboutCompany = () => {
                     fontSize: { xs: '2rem', md: '2.5rem' }
                   }}
                 >
-                  Get The Best Travel Experience With{' '}
+                  Get The Best Travel Operations With{' '}
                   <Box component="span" sx={{ color: '#4CAF50' }}>
                     Travclicks
                   </Box>
@@ -332,7 +332,10 @@ const AboutCompany = () => {
                     fontSize: '16px'
                   }}
                 >
-                  Available, But The Majority Have Suffered Alteration In Some Form By Injected Humour, Or Randomised Words Which Don't Look Even Slightly Believable.
+                  Travclicks Technologies provides AI-powered travel solutions for
+                  startup and growing travel enterprises — automating operations,
+                  accelerating sales, and delivering real-time traveler experiences
+                  in one intelligent system.
                 </Typography>
               </Fade>
 
@@ -351,10 +354,10 @@ const AboutCompany = () => {
                     >
                       <CheckCircle sx={{ color: theme.palette.primary.main, mb: 2, fontSize: 30 }} />
                       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, color: '#333' }}>
-                        Trusted Travel Guide
+                        Smart Automation
                       </Typography>
                       <Typography variant="body2" sx={{ color: '#666', lineHeight: 1.6 }}>
-                        Expert guides with years of experience
+                        Centralize inquiries, bookings, suppliers, and workflows
                       </Typography>
                     </Card>
                   </Fade>
@@ -373,10 +376,10 @@ const AboutCompany = () => {
                     >
                       <Visibility sx={{ color: '#4CAF50', mb: 2, fontSize: 30 }} />
                       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, color: '#333' }}>
-                        Mission & Vision
+                        AI Quotation Engine
                       </Typography>
                       <Typography variant="body2" sx={{ color: '#666', lineHeight: 1.6 }}>
-                        Creating unforgettable travel experiences
+                        Build stunning itineraries and quotes in minutes
                       </Typography>
                     </Card>
                   </Fade>

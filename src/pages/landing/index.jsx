@@ -15,9 +15,9 @@ import Footer from "@/components/common/Footer";
 import MetaComponent from "@/components/common/MetaComponent";
 
 const metadata = {
-  title: "TravClicks — B2B Destination Management",
+  title: "Travclicks — AI-Powered Travel Technology",
   description:
-    "Professional destination management across Singapore, Indonesia, and Australia. Hotels, transfers, guides, and packages for travel trade partners.",
+    "AI-powered travel solutions for travel agencies. Automate operations, accelerate sales, and deliver real-time traveler experiences across Singapore, Malaysia, Thailand, Indonesia, Australia, New Zealand, Laos, Cambodia, and UAE.",
 };
 
 const LandingPage = () => {

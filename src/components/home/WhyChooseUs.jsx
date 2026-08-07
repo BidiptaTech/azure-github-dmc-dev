@@ -1,10 +1,10 @@
 import React from "react";
 import { Box, Container, Typography, Grid } from "@mui/material";
 import {
-  Handshake,
-  Hub,
-  SupportAgent,
-  VerifiedUser,
+  AutoAwesome,
+  RequestQuote,
+  SmartToy,
+  Insights,
 } from "@mui/icons-material";
 
 const CORPORATE_NAVY = "#13357b";
@@ -13,31 +13,31 @@ const WhyChooseUs = () => {
   const features = [
     {
       id: 1,
-      icon: <VerifiedUser sx={{ fontSize: 28 }} />,
-      title: "Trusted Operations",
+      icon: <RequestQuote sx={{ fontSize: 28 }} />,
+      title: "AI Quotation Engine",
       description:
-        "Reliable on-ground delivery with clear SLAs for agents and corporate clients.",
+        "Create personalized itineraries and quotes in minutes with intelligent templates and pricing.",
     },
     {
       id: 2,
-      icon: <Hub sx={{ fontSize: 28 }} />,
-      title: "Integrated Services",
+      icon: <AutoAwesome sx={{ fontSize: 28 }} />,
+      title: "Smart Automation",
       description:
-        "Hotels, transfers, guides, attractions, and packages managed in one workflow.",
+        "Automate inquiries, bookings, supplier confirmations, and follow-ups in one workflow.",
     },
     {
       id: 3,
-      icon: <Handshake sx={{ fontSize: 28 }} />,
-      title: "Partner-First Approach",
+      icon: <SmartToy sx={{ fontSize: 28 }} />,
+      title: "TravHorse AI Companion",
       description:
-        "Built for travel trade — transparent processes and dedicated account support.",
+        "Real-time traveler engagement with alerts, tracking, messaging, and live support.",
     },
     {
       id: 4,
-      icon: <SupportAgent sx={{ fontSize: 28 }} />,
-      title: "Market Expertise",
+      icon: <Insights sx={{ fontSize: 28 }} />,
+      title: "AI Insights Dashboard",
       description:
-        "Focused coverage in Singapore, Indonesia, and Australia with local knowledge.",
+        "Predict demand, surface revenue opportunities, and remove operational bottlenecks.",
     },
   ];
 
@@ -55,7 +55,7 @@ const WhyChooseUs = () => {
               mb: 1.5,
             }}
           >
-            Why TravClicks
+            Why Travclicks
           </Typography>
           <Typography
             variant="h2"
@@ -67,19 +67,20 @@ const WhyChooseUs = () => {
               letterSpacing: "-0.02em",
             }}
           >
-            Built for Professional Travel Partners
+            AI-Powered Travel Operations
           </Typography>
           <Typography
             sx={{
               color: "#5a6577",
               fontSize: "1rem",
               lineHeight: 1.7,
-              maxWidth: 560,
+              maxWidth: 620,
               mx: "auto",
             }}
           >
-            A destination management platform designed for agents who need
-            dependable operations, not consumer booking gimmicks.
+            Travclicks Technologies gives travel agencies an always-on AI engine
+            that automates operations, accelerates sales, and delivers real-time
+            traveler experiences — inside one intelligent system.
           </Typography>
         </Box>
 
