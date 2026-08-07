@@ -186,7 +186,7 @@ function Login() {
               mb: 1.5,
             }}
           >
-            TravClicks
+            TravOS
           </Typography>
           <Typography
             sx={{
@@ -601,8 +601,7 @@ function Login() {
             }}
           >
             {[
-              { icon: <Hotel sx={{ fontSize: 18 }} />, label: "Hotels" },
-              { icon: <DirectionsCar sx={{ fontSize: 18 }} />, label: "Transfers" },
+
               { icon: <VerifiedUser sx={{ fontSize: 18 }} />, label: "Secure Access" },
               { icon: <SupportAgent sx={{ fontSize: 18 }} />, label: "Partner Support" },
             ].map((item) => (
