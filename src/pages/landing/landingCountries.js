@@ -14,7 +14,7 @@ export const LANDING_HERO_SLIDES = [
   {
     id: 1,
     image: "/img/masthead/1/bg.webp",
-    title: "Reimagine Travel Operations With AI",
+    title: "Reimagine Travel Operations With AI Auto Responder",
     subtitle:
       "An always-on AI engine that automates operations, accelerates sales, and delivers real-time traveler experiences for travel agencies.",
     location: "Powered by Travclicks AI",

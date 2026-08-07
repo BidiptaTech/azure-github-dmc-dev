@@ -198,7 +198,7 @@ function Login() {
               maxWidth: 360,
             }}
           >
-            AI-powered travel operations for agencies
+            AI-powered travel operations for Travel Partners
           </Typography>
           <Typography
             sx={{
