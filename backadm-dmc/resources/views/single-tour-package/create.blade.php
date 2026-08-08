@@ -6519,7 +6519,7 @@
                             <div class="p-3">
                                 <h6 class="text-warning fw-bold mb-3">
                                     <i class="ri-service-line me-2"></i>Selected Services
-                                </h6>
+                                </h6> 
                                 
                                 @if($hotels->count() > 0)
                                 <div class="service-item mb-3">

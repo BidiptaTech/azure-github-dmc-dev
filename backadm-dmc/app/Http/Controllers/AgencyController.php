@@ -657,7 +657,7 @@ class AgencyController extends Controller
             Log::error('Agency removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while removing the agency.'
+                'message' => $e->getMessage()
             ], 500);
         }
     }

@@ -2339,8 +2339,7 @@ class UserController extends Controller
             ['model' => Hotel::class, 'field' => 'dmc_id', 'message' => 'hotels'],
             ['model' => Attraction::class, 'field' => 'dmc_id', 'message' => 'attractions'],
             ['model' => Restaurant::class, 'field' => 'dmc_id', 'message' => 'restaurants'],
-            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides'],
-            ['model' => Agent::class, 'field' => 'sales_manager_dmc', 'message' => 'agents']
+            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides']
         ];
         
         foreach ($dependencies as $dependency) {
@@ -2961,6 +2960,45 @@ class UserController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Country not found'
+        ], 404);
+    }
+
+    /**
+     * AJAX: return currency for a country name (countries.currency).
+     * Used by add-user (and similar) to fill the read-only currency field.
+     */
+    public function getCurrencyByCountry(Request $request)
+    {
+        $countryName = trim((string) $request->input('country', ''));
+        if ($countryName === '') {
+            return response()->json([
+                'success' => false,
+                'currency' => '',
+                'message' => 'Country is required',
+            ], 422);
+        }
+
+        $currency = $this->resolveCurrencyForCountry($countryName);
+        if (!$currency) {
+            // Case-insensitive fallback
+            $currency = Country::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($countryName)])
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->value('currency');
+        }
+
+        if ($currency) {
+            return response()->json([
+                'success' => true,
+                'currency' => (string) $currency,
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'currency' => '',
+            'message' => 'Currency not found for this country',
         ], 404);
     }
 

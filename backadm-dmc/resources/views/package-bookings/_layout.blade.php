@@ -208,12 +208,23 @@
                     </select>
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">Check-in From</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter" value="{{ now()->startOfMonth()->toDateString() }}">
+                    <label class="form-label mb-0 small text-muted">Start Date</label>
+                    @php
+                        $pkgToday = \Carbon\Carbon::today();
+                        $pkgDateMin = $pkgToday->copy()->subYear()->toDateString();
+                        $pkgDateMax = $pkgToday->copy()->addYear()->toDateString();
+                        $pkgDefaultStart = $pkgToday->toDateString();
+                        $pkgDefaultEnd = $pkgToday->copy()->addDays(30)->toDateString();
+                    @endphp
+                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter"
+                           min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
+                           value="{{ $pkgDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">Check-out To</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" min="{{ now()->startOfMonth()->toDateString() }}" value="{{ now()->endOfMonth()->toDateString() }}">
+                    <label class="form-label mb-0 small text-muted">End Date</label>
+                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter"
+                           min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
+                           value="{{ $pkgDefaultEnd }}">
                 </div>
                 @if(!empty($showBookingStatusColumn))
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -478,7 +489,7 @@
         }
 
         // Date range filter by package check-in / check-out (YYYY-MM-DD)
-        // Register BEFORE DataTable init so the first draw applies the current-month default.
+        // Register BEFORE DataTable init so the first draw applies today → today+30 default.
         if (!window.__pkgBookingDateSearchRegistered) {
             $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
                 if (!settings.nTable || settings.nTable.id !== 'packageBookingsTable') return true;
@@ -489,13 +500,16 @@
 
                 const api = new $.fn.dataTable.Api(settings);
                 const rowNode = api.row(dataIndex).node();
-                const checkIn = rowNode?.getAttribute('data-check-in') || '';
-                const checkOut = rowNode?.getAttribute('data-check-out') || checkIn;
+                const checkIn = (rowNode?.getAttribute('data-check-in') || '').trim();
+                const checkOut = (rowNode?.getAttribute('data-check-out') || checkIn || '').trim();
                 if (!checkIn && !checkOut) return false;
 
-                // Overlap: booking [checkIn, checkOut] intersects filter [start, end]
-                if (start && checkOut && checkOut < start) return false;
-                if (end && checkIn && checkIn > end) return false;
+                const tourStart = checkIn || checkOut;
+                const tourEnd = checkOut || checkIn;
+
+                // Overlap: booking [tourStart, tourEnd] intersects filter [start, end]
+                if (start && tourEnd && tourEnd < start) return false;
+                if (end && tourStart && tourStart > end) return false;
                 return true;
             });
             window.__pkgBookingDateSearchRegistered = true;
@@ -555,18 +569,48 @@
             pkgTable.column(4).search(v, false, true).draw();
         });
 
+        function getPkgDateBounds() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const pad = (n) => String(n).padStart(2, '0');
+            const toYmd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const minDate = new Date(today);
+            minDate.setFullYear(minDate.getFullYear() - 1);
+            const maxDate = new Date(today);
+            maxDate.setFullYear(maxDate.getFullYear() + 1);
+            const endPlus30 = new Date(today);
+            endPlus30.setDate(endPlus30.getDate() + 30);
+            return {
+                todayStr: toYmd(today),
+                minStr: toYmd(minDate),
+                maxStr: toYmd(maxDate),
+                endPlus30Str: toYmd(endPlus30),
+            };
+        }
+
+        function clampPkgDateInput(input, minStr, maxStr) {
+            if (!input || !input.value) return;
+            if (minStr && input.value < minStr) input.value = minStr;
+            if (maxStr && input.value > maxStr) input.value = maxStr;
+        }
+
         function syncPkgCheckoutMinDate() {
+            const bounds = getPkgDateBounds();
             const sd = document.getElementById('pkgStartDateFilter');
             const ed = document.getElementById('pkgEndDateFilter');
             if (!sd || !ed) return;
-            if (sd.value) {
-                ed.setAttribute('min', sd.value);
-                if (ed.value && ed.value < sd.value) {
-                    ed.value = sd.value;
-                }
-            } else {
-                ed.removeAttribute('min');
+
+            sd.setAttribute('min', bounds.minStr);
+            sd.setAttribute('max', bounds.maxStr);
+            clampPkgDateInput(sd, bounds.minStr, bounds.maxStr);
+
+            const endMin = sd.value && sd.value > bounds.minStr ? sd.value : bounds.minStr;
+            ed.setAttribute('min', endMin);
+            ed.setAttribute('max', bounds.maxStr);
+            if (ed.value && ed.value < endMin) {
+                ed.value = endMin;
             }
+            clampPkgDateInput(ed, endMin, bounds.maxStr);
         }
 
         syncPkgCheckoutMinDate();
@@ -576,7 +620,7 @@
             if (pkgTable) pkgTable.draw();
         });
 
-        // Apply default current-month date filter + renumber (# starts at 1)
+        // Apply default today → today+30 date filter + renumber (# starts at 1)
         pkgTable.draw();
 
         @if(!empty($showBookingStatusColumn))
@@ -662,15 +706,49 @@
         if (s) s.value = '';
         if (a) a.value = '';
         if (st) st.value = '';
-        // Reset date range to the current calendar month
-        if (sd) sd.value = '{{ now()->startOfMonth()->toDateString() }}';
-        if (ed) {
-            ed.value = '{{ now()->endOfMonth()->toDateString() }}';
-            ed.setAttribute('min', sd ? sd.value : '{{ now()->startOfMonth()->toDateString() }}');
+
+        // Reset date range to today → today + 30 days (within ±1 year bounds)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const pad = (n) => String(n).padStart(2, '0');
+        const toYmd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const minDate = new Date(today);
+        minDate.setFullYear(minDate.getFullYear() - 1);
+        const maxDate = new Date(today);
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
+        const endPlus30 = new Date(today);
+        endPlus30.setDate(endPlus30.getDate() + 30);
+        const todayStr = toYmd(today);
+        const minStr = toYmd(minDate);
+        const maxStr = toYmd(maxDate);
+        const endPlus30Str = toYmd(endPlus30);
+
+        if (sd) {
+            sd.setAttribute('min', minStr);
+            sd.setAttribute('max', maxStr);
+            sd.value = todayStr;
         }
+        if (ed) {
+            ed.setAttribute('min', todayStr);
+            ed.setAttribute('max', maxStr);
+            ed.value = endPlus30Str;
+        }
+
         if (pkgTable) {
             pkgTable.search('').columns().search('');
             pkgTable.draw();
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Filters Reset!',
+                text: 'All filters have been cleared successfully.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                position: 'top-end',
+                toast: true
+            });
         }
     }
 
