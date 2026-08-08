@@ -259,6 +259,11 @@
         const map = new Map();
         (hotels || []).forEach(function (h) {
             const cityName = getHotelServiceCity(h);
+            // Keep city/destination stamped so later syncs keep same-city hotels in one group
+            if (cityName) {
+                if (!h.city) h.city = cityName;
+                if (!h.destination) h.destination = cityName;
+            }
             const key = serviceCityKey(cityName) || '__none__';
             if (!map.has(key)) {
                 map.set(key, { cityName: cityName || '', hotels: [] });
@@ -774,13 +779,12 @@
                 setOptionCityVisibility(opt, cities.length === 0 || cities.includes(opt.value));
             });
 
-            if (cities.length === 1) {
+            if (cities.length === 0) {
+                sel.value = '';
+            } else if (!sel.value || !cities.includes(sel.value)) {
+                // Multi-city: default Destination to the first header city (e.g. Singapore)
                 sel.value = cities[0];
                 sel.dispatchEvent(new Event('change'));
-            } else if (cities.length === 0) {
-                sel.value = '';
-            } else if (sel.value && !cities.includes(sel.value)) {
-                sel.value = '';
             }
         });
 
