@@ -178,7 +178,7 @@ class ZoneController extends Controller
         }
 
         $dmcUser = User::where('role_id', 11)
-            ->where('userId', $mappedDmcId)
+            ->where('dmcId', $mappedDmcId)
             ->first();
         $dmcName = $dmcUser
             ? trim((string) ($dmcUser->name ?? $dmcUser->company_name ?? ''))
