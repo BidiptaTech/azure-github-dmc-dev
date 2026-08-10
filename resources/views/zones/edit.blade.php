@@ -62,6 +62,18 @@
         border-color: #dc3545 !important;
     }
 
+    /* Readonly country/city (match zone type look) */
+    select#country:disabled + .select2-container .select2-selection--single,
+    select#city:disabled + .select2-container .select2-selection--single {
+        background-color: #f5f5f9 !important;
+        cursor: not-allowed !important;
+        opacity: 0.85;
+    }
+    select#country:disabled + .select2-container,
+    select#city:disabled + .select2-container {
+        pointer-events: none;
+    }
+
     .zone-type-options {
         min-height: 50px;
         display: flex;
@@ -186,7 +198,8 @@
 
                             <div class="col-md-3">
                                 <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
-                                <select class="form-select @error('country') is-invalid @enderror" id="country" name="country" required>
+                                <input type="hidden" name="country" value="{{ $preselectedCountry }}">
+                                <select class="form-select @error('country') is-invalid @enderror" id="country" disabled title="Country cannot be changed">
                                     @if(($countries ?? collect())->count() !== 1)
                                         <option value="">Select Country</option>
                                     @endif
@@ -201,7 +214,8 @@
 
                             <div class="col-md-3">
                                 <label for="city" class="form-label">City <span class="text-danger">*</span></label>
-                                <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
+                                <input type="hidden" name="city" value="{{ old('city', $zone->city) }}">
+                                <select class="form-select @error('city') is-invalid @enderror" id="city" disabled title="City cannot be changed">
                                     <option value="">{{ !empty($preselectedCountry) ? 'Select City' : 'Select Country First' }}</option>
                                     @foreach(($city ?? collect()) as $c)
                                         <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
@@ -269,72 +283,20 @@
             placeholder: 'Enter your content here...',
         });
 
-        const selectedCityId = @json(old('city', $zone->city));
-        const selectedCountry = @json(old('country', $selectedCountry ?? $zoneCountry ?? $preselectedCountry ?? ''));
-
-        function initCitySelect2(placeholder) {
-            if ($('#city').hasClass('select2-hidden-accessible')) {
-                $('#city').select2('destroy');
-            }
-            $('#city').select2({
-                placeholder: placeholder || 'Search and Select a City',
-                allowClear: true,
-                width: '100%'
-            });
-        }
-
-        function loadCitiesByCountry(countryName, cityId) {
-            if (!countryName) {
-                $('#city').html('<option value=""></option>');
-                initCitySelect2('Select country first');
-                return;
-            }
-
-            $('#city').html('<option value="">Loading cities...</option>');
-            initCitySelect2('Loading cities...');
-
-            $.ajax({
-                url: "{{ route('get.cities.by.country') }}",
-                type: 'GET',
-                data: { country: countryName },
-                dataType: 'json',
-                success: function(response) {
-                    const cities = response.cities || [];
-                    let options = '<option value=""></option>';
-                    if (cities.length === 0) {
-                        options += '<option value="" disabled>No cities found</option>';
-                    } else {
-                        cities.forEach(function(city) {
-                            const selected = cityId && String(cityId) === String(city.city_id) ? ' selected' : '';
-                            options += '<option value="' + city.city_id + '"' + selected + '>' + city.name + '</option>';
-                        });
-                    }
-                    $('#city').html(options);
-                    initCitySelect2('Search and Select a City');
-                },
-                error: function() {
-                    $('#city').html('<option value="">Error loading cities</option>');
-                    initCitySelect2('Error loading cities');
-                }
-            });
-        }
-
+        // Country & city are readonly on edit — display only (values submit via hidden inputs)
         $('#country').select2({
-            placeholder: 'Search and Select Country',
-            allowClear: true,
-            width: '100%'
+            placeholder: 'Country',
+            allowClear: false,
+            width: '100%',
+            disabled: true
         });
 
-        initCitySelect2(selectedCountry ? 'Search and Select a City' : 'Select country first');
-
-        $('#country').on('change', function() {
-            loadCitiesByCountry($(this).val(), null);
+        $('#city').select2({
+            placeholder: 'City',
+            allowClear: false,
+            width: '100%',
+            disabled: true
         });
-
-        // If city options are empty but country is set, load cities (preserve selection)
-        if (selectedCountry && $('#city option[value!=""]').length === 0) {
-            loadCitiesByCountry(selectedCountry, selectedCityId);
-        }
     });
 </script>
 @endsection
