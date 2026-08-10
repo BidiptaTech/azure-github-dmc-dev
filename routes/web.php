@@ -536,6 +536,7 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        Route::get('/zones/{id}/check-delete', [ZoneController::class, 'checkDelete'])->name('zones.check-delete');
         
         // Default Value Routes (DMC Product Configuration)
         Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
@@ -1119,6 +1120,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
         Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
+        Route::get('/users/master-dmc/{masterDmcId}/team', [UserController::class, 'masterDmcTeam'])->name('users.master-dmc.team');
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries'])->name('get-countries');
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry'])->name('get-markup');
