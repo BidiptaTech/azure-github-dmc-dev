@@ -1384,6 +1384,10 @@
                                         <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
+
+                                        <button type="button" class="btn btn-outline-secondary" id="clearHotelFormBtn" onclick="clearHotelForm()" title="Reset hotel form fields" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-eraser-line me-1"></i>Clear
+                                        </button>
                                     </div>
                                 </div>
                                 
@@ -6027,6 +6031,9 @@
                             if (payload.country) {
                                 fd.append('country', payload.country);
                             }
+                            if (payload.city) {
+                                fd.append('city', payload.city);
+                            }
                             if (payload.currency) {
                                 fd.append('currency', payload.currency);
                             }
@@ -6220,6 +6227,7 @@
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
                                         total_price: 0,
                                         country: seg.segCountry || '',
+                                        city: String(seg.cityLabel || '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
                                         currency: seg.segCurrency || ''
                                     });
 
@@ -6373,6 +6381,30 @@
                             const singleOrderCurrency = (typeof getTourCurrency === 'function')
                                 ? getTourCurrency()
                                 : (document.getElementById('tour_package_currency')?.value || '');
+                            let singleOrderCity = (typeof cityName !== 'undefined' && cityName) ? cityName : '';
+                            if (!singleOrderCity) {
+                                const cityEl = document.getElementById('single_city');
+                                if (cityEl) {
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                            const d2 = $(cityEl).select2('data');
+                                            if (d2 && d2.length && d2[0] && d2[0].text) {
+                                                singleOrderCity = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                            }
+                                        }
+                                    } catch (eCity) { /* ignore */ }
+                                    if (!singleOrderCity) {
+                                        const v = String(cityEl.value || '').trim();
+                                        if (v && !/^\d+$/.test(v)) {
+                                            singleOrderCity = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        } else if (cityEl.selectedIndex >= 0) {
+                                            const opt = cityEl.options[cityEl.selectedIndex];
+                                            const t = opt ? String(opt.textContent || '').trim() : '';
+                                            if (t) singleOrderCity = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        }
+                                    }
+                                }
+                            }
 
                             const result = await postServiceOrders({
                                 tour_id: tourId,
@@ -6385,6 +6417,7 @@
                                 exit_port_data: exitPortData,
                                 total_price: totalPrice,
                                 country: singleOrderCountry,
+                                city: singleOrderCity,
                                 currency: singleOrderCurrency
                             });
 
@@ -18284,9 +18317,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, 0)" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18602,9 +18640,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, 0)" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19048,9 +19091,14 @@
                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                                         </div>
                                                     </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                    <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, 1)" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                    </button>
                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                         <i class="ri-refresh-line"></i>
                                                     </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19130,6 +19178,14 @@
                                                             <i class="ri-chat-quote-line me-1"></i>Remarks
                                                         </label>
                                                         <textarea class="form-control" name="day${day}_attraction_1_remarks" id="day${day}_attraction_1_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row mt-3">
+                                                    <div class="col-12 d-flex justify-content-end">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, 1)" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                            <i class="ri-eraser-line me-1"></i>Clear Form
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 
@@ -19391,9 +19447,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_1_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, 1)" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19725,9 +19786,14 @@
                                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                                                         </div>
                                                                     </div>
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                    <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, 1)" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                                    </button>
                                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                         <i class="ri-refresh-line"></i>
                                                                     </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -20202,9 +20268,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -21507,9 +21578,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, ${newIndex})" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -21608,6 +21684,14 @@
                                                 <i class="ri-chat-quote-line me-1"></i>Remarks
                                             </label>
                                             <textarea class="form-control" name="day${day}_attraction_${newIndex}_remarks" id="day${day}_attraction_${newIndex}_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-12 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, ${newIndex})" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                <i class="ri-eraser-line me-1"></i>Clear Form
+                                            </button>
                                         </div>
                                     </div>
                                 </div><!-- /offline panel -->
@@ -23290,9 +23374,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, ${newIndex})" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24194,9 +24283,14 @@
                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_${newIndex}_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                     </div>
                                                 </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, ${newIndex})" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                    <i class="ri-close-circle-line me-1"></i>Clear
+                                                </button>
                                                 <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                     <i class="ri-refresh-line"></i>
                                                 </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24673,9 +24767,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day}, ${newIndex})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -25297,9 +25396,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, ${newIndex})" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -25662,9 +25766,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, ${newIndex})" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -26419,6 +26528,560 @@
         window.forceUpdateAttractionPricing = function(day, index) {
             console.log(`Force updating pricing for day ${day}, index ${index}`);
             updateAttractionPricing(day, index);
+        };
+
+        // Reset one attraction booking slot (wrong fill → clear and start over)
+        window.clearAttractionForm = function(day, index) {
+            const prefix = `day${day}_attraction`;
+            const citySelect = document.getElementById(`${prefix}_city_${index}`);
+            const attractionSelect = document.getElementById(`${prefix}_${index}`);
+            const timeSelect = document.getElementById(`${prefix}_${index}_time`);
+            const ticketSelect = document.getElementById(`${prefix}_${index}_ticket`);
+            const transferRequired = document.getElementById(`${prefix}_${index}_transfer_required`);
+            const guideRequired = document.getElementById(`${prefix}_${index}_guide_required`);
+            const supplement = document.getElementById(`${prefix}_${index}_is_supplement`);
+            const remarks = document.getElementById(`${prefix}_${index}_remarks`);
+            const cityMessage = document.getElementById(`${prefix}_city_message_${index}`);
+
+            const resetSelect = function(el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            };
+
+            // Keep city for multi-city segment; clear city for single-city full reset
+            let keepCity = '';
+            const isMulti = !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            if (isMulti && citySelect && citySelect.value) {
+                keepCity = citySelect.value;
+            } else if (citySelect) {
+                resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                if (typeof populateCityDropdown === 'function') {
+                    populateCityDropdown(citySelect);
+                }
+            }
+
+            resetSelect(
+                attractionSelect,
+                keepCity ? '<option value="">Select Attraction</option>' : '<option value="">Select city first</option>',
+                !keepCity,
+                keepCity ? 'Select Attraction' : 'Select city first'
+            );
+            resetSelect(timeSelect, '<option value="">Select Time Slot</option>', false, 'Select Time Slot');
+            resetSelect(ticketSelect, '<option value="">Select Ticket</option>', false, 'Select Ticket');
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
+            if (guideRequired) {
+                guideRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(guideRequired).data('select2')) {
+                    jQuery(guideRequired).val('No').trigger('change');
+                }
+            }
+            if (typeof window.toggleAttractionTransferFields === 'function') {
+                window.toggleAttractionTransferFields(day, index);
+            }
+            if (typeof window.toggleAttractionGuideFields === 'function') {
+                window.toggleAttractionGuideFields(day, index);
+            }
+
+            // Extra transfer / guide / price hidden fields
+            [
+                `${prefix}_${index}_transfer_type`,
+                `${prefix}_${index}_transfer_way`,
+                `${prefix}_${index}_transfer_pickup_time`,
+                `${prefix}_${index}_transfer_pickup_time_select`,
+                `${prefix}_${index}_guide_pickup_time`,
+                `${prefix}_${index}_guide_pickup_time_select`,
+                `${prefix}_${index}_description`,
+                `${prefix}_${index}_nri`,
+                `${prefix}_${index}_transport`,
+                `${prefix}_${index}_transport_selection`,
+                `${prefix}_${index}_booking_type`,
+                `${prefix}_${index}_package_type`,
+                `${prefix}_${index}_package_attraction_id`,
+                `${prefix}_${index}_date`,
+                `${prefix}_${index}_adult_price`,
+                `${prefix}_${index}_child_price`,
+                `${prefix}_${index}_senior_price`,
+                `${prefix}_${index}_guide_base_price`,
+                `${prefix}_${index}_guide_hours`,
+                `${prefix}_${index}_guide_surcharge`,
+                `${prefix}_${index}_guide_total_price`,
+                `${prefix}_${index}_transfer_cost`
+            ].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.tagName === 'SELECT') {
+                    el.innerHTML = el.options && el.options.length
+                        ? `<option value="">${(el.options[0].textContent || 'Select').trim()}</option>`
+                        : '<option value=""></option>';
+                    el.value = '';
+                } else {
+                    el.value = (id.endsWith('_price') || id.endsWith('_cost') || id.endsWith('_hours') || id.endsWith('_surcharge') || id.endsWith('_total_price')) ? '0' : '';
+                }
+                if (el.removeAttribute) {
+                    el.removeAttribute('data-ajax-base-price');
+                    el.removeAttribute('data-ajax-final-price');
+                }
+            });
+
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_vehicle`),
+                '<option value="">Select Vehicle</option>',
+                false,
+                'Select Vehicle'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_pickup_location`),
+                '<option value="">Select Pickup Location</option>',
+                false,
+                'Select Pickup Location'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_language`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_package`),
+                '<option value="">Select Duration</option>',
+                false,
+                'Select Duration'
+            );
+
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            if (cityMessage) cityMessage.style.display = 'none';
+
+            // Reset guests display to main tour guests
+            const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+            const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+            const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+            const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+            const adults = mainMale + mainFemale;
+            const summaryElement = document.getElementById(`${prefix}_${index}_guest_summary`);
+            if (summaryElement) {
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            }
+            try {
+                if (window.guestData && typeof window.guestData === 'object') {
+                    delete window.guestData[`day${day}_attraction_${index}`];
+                }
+            } catch (e) { /* ignore */ }
+
+            // Pricing UI
+            const pricingColumns = document.getElementById(`${prefix}_${index}_pricing_columns`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            const totalPriceRow = document.getElementById(`${prefix}_${index}_total_price_row`);
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
+            const ticketPricing = document.getElementById(`${prefix}_${index}_ticket_pricing_content`);
+            if (ticketPricing) ticketPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select ticket to see pricing</div>';
+            const transportPricing = document.getElementById(`${prefix}_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>';
+            const guidePricing = document.getElementById(`${prefix}_${index}_guide_pricing_content`);
+            if (guidePricing) guidePricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>';
+            const totalPriceDisplay = document.getElementById(`${prefix}_${index}_total_price_display`);
+            if (totalPriceDisplay) {
+                totalPriceDisplay.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+            }
+
+            // Multi-city: restore segment city and reload attractions for it
+            if (keepCity && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(keepCity).trigger('change');
+                } else {
+                    citySelect.value = keepCity;
+                }
+                if (typeof loadAttractionsForCity === 'function') {
+                    loadAttractionsForCity(day, keepCity, index);
+                }
+            } else if (isMulti && typeof window.getActiveSegmentCityLabelForServices === 'function' && typeof window.syncAllServiceCities === 'function') {
+                const segCity = window.getActiveSegmentCityLabelForServices();
+                if (segCity) {
+                    setTimeout(function () { window.syncAllServiceCities(segCity); }, 50);
+                }
+            }
+
+            if (typeof updateAttractionDataField === 'function') updateAttractionDataField();
+            if (typeof updateAttractionSectionSummary === 'function') updateAttractionSectionSummary(day);
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e2) { /* ignore */ }
+
+            if (typeof showNotification === 'function') {
+                showNotification('Attraction form cleared', 'info');
+            }
+        };
+
+        // Shared helpers for Clear Form buttons across all services
+        window.__serviceClearHelpers = {
+            isMultiCity: function () {
+                return !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                    || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            },
+            resetSelect: function (el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            },
+            setSelectValue: function (el, value) {
+                if (!el) return;
+                el.value = value;
+                if (typeof jQuery !== 'undefined' && jQuery(el).data('select2')) {
+                    jQuery(el).val(value).trigger('change');
+                } else {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            },
+            resetGuestSummary: function (summaryId) {
+                const summaryElement = document.getElementById(summaryId);
+                if (!summaryElement) return;
+                const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+                const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+                const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+                const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+                const adults = mainMale + mainFemale;
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            },
+            keepOrClearCity: function (citySelect) {
+                const h = window.__serviceClearHelpers;
+                let keepCity = '';
+                if (h.isMultiCity() && citySelect && citySelect.value) {
+                    keepCity = citySelect.value;
+                } else if (citySelect) {
+                    h.resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                    if (typeof populateCityDropdown === 'function') populateCityDropdown(citySelect);
+                }
+                return keepCity;
+            },
+            currency: function () {
+                return (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD');
+            }
+        };
+
+        window.clearHotelForm = function () {
+            const h = window.__serviceClearHelpers;
+            const hotelCity = document.getElementById('hotelCitySelect');
+            const hotelSelect = document.getElementById('hotelSelect');
+            const roomType = document.getElementById('roomTypeSelect');
+            const bedType = document.getElementById('bedTypeSelect');
+            const mealPlan = document.getElementById('mealPlanSelect');
+            const remarks = document.getElementById('hotel_remarks');
+            const rooms = document.getElementById('numberOfRooms');
+            const persons = document.getElementById('selectedPersons');
+            const price = document.getElementById('roomPriceDisplay');
+            const addBtn = document.getElementById('addHotelBtn');
+            const nightSelection = document.getElementById('nightSelection');
+            const nightSummary = document.getElementById('nightSelectionSummary');
+            const childWith = document.getElementById('chkChildWithBed');
+            const childWithout = document.getElementById('chkChildWithoutBed');
+            const suppBreakfast = document.getElementById('hotelSupplementBreakfastIncluded');
+
+            const keepCity = h.keepOrClearCity(hotelCity);
+            h.resetSelect(hotelSelect, keepCity ? '<option value="">Select Hotel</option>' : '<option value="">Select a city first to load hotels</option>', !keepCity, keepCity ? 'Select Hotel' : 'Select a city first to load hotels');
+            h.resetSelect(roomType, '<option value="">Room Type</option>', true, 'Room Type');
+            h.resetSelect(bedType, '<option value="">Bed Type</option>', true, 'Bed Type');
+            h.resetSelect(mealPlan, '<option value="">Select Meal Plans</option>', true, 'Select Meal Plans');
+            if (remarks) remarks.value = '';
+            if (rooms) rooms.value = '1';
+            if (persons) persons.value = '1';
+            if (price) { price.value = '0.00'; price.dataset.manuallyEdited = 'false'; }
+            if (addBtn) addBtn.disabled = true;
+            if (nightSelection) nightSelection.innerHTML = '';
+            if (nightSummary) nightSummary.innerHTML = '';
+            if (childWith) childWith.checked = false;
+            if (childWithout) childWithout.checked = false;
+            if (suppBreakfast) suppBreakfast.checked = false;
+            window.selectedBedInfo = null;
+            const personSelector = document.getElementById('personSelector');
+            if (personSelector) personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+            const hotelTotal = document.getElementById('hotelTotalPrice');
+            // Don't wipe already-added hotels list — only clear draft form
+            if (keepCity && hotelCity) {
+                h.setSelectValue(hotelCity, keepCity);
+                if (typeof loadHotelsForCity === 'function') loadHotelsForCity(keepCity);
+                else if (typeof window.loadHotelsByCity === 'function') window.loadHotelsByCity(keepCity);
+            } else if (h.isMultiCity() && typeof window.getActiveSegmentCityLabelForServices === 'function' && typeof window.syncAllServiceCities === 'function') {
+                const segCity = window.getActiveSegmentCityLabelForServices();
+                if (segCity) setTimeout(function () { window.syncAllServiceCities(segCity); }, 50);
+            }
+            if (typeof showNotification === 'function') showNotification('Hotel form cleared', 'info');
+        };
+
+        window.clearGuideForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const citySelect = document.getElementById(`day${day}_guide_city_${index}`);
+            const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+            const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+            const pickupInput = document.getElementById(`day${day}_guide_${index}_pickup_time_input`);
+            const pickupAmpm = document.getElementById(`day${day}_guide_${index}_pickup_time_ampm`);
+            const pickupHidden = document.getElementById(`day${day}_guide_${index}_pickup_time`);
+            const supplement = document.getElementById(`day${day}_guide_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_guide_${index}_remarks`);
+
+            const keepCity = h.keepOrClearCity(citySelect);
+            h.resetSelect(guideSelect, keepCity ? '<option value="">Select Guide</option>' : '<option value="">Select city first</option>', !keepCity, keepCity ? 'Select Guide' : 'Select city first');
+            h.resetSelect(packageSelect, '<option value="">Select Duration</option>', false, 'Select Duration');
+            if (pickupInput) pickupInput.value = '';
+            if (pickupAmpm) pickupAmpm.value = 'AM';
+            if (pickupHidden) pickupHidden.value = '';
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            ['base_price', 'hours', 'surcharge', 'total_price'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_guide_${index}_${k}`);
+                if (el) el.value = '0';
+            });
+            h.resetGuestSummary(`day${day}_guide_${index}_guest_summary`);
+            const totalDisp = document.getElementById(`day${day}_guide_${index}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_guide_${index}_guide_name`);
+            if (nameEl) nameEl.textContent = 'Guide Name';
+            const pkgDisp = document.getElementById(`day${day}_guide_${index}_package_price_display`);
+            if (pkgDisp) pkgDisp.textContent = h.currency() + ' 0.00';
+            if (keepCity && citySelect) {
+                h.setSelectValue(citySelect, keepCity);
+                if (typeof loadGuidesForCity === 'function') loadGuidesForCity(day, keepCity, index);
+            }
+            if (typeof updateGuideDataField === 'function') updateGuideDataField();
+            if (typeof showNotification === 'function') showNotification('Guide form cleared', 'info');
+        };
+
+        window.clearRestaurantForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
+            const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+            const mealType = document.getElementById(`day${day}_meal_type_${index}`);
+            const dish = document.getElementById(`day${day}_dish_${index}`);
+            const timeSlot = document.getElementById(`day${day}_time_slot_${index}`);
+            const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+            const supplement = document.getElementById(`day${day}_restaurant_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_restaurant_${index}_remarks`);
+
+            const keepCity = h.keepOrClearCity(citySelect);
+            h.resetSelect(restaurantSelect, keepCity ? '<option value="">Select Restaurant</option>' : '<option value="">Select city first</option>', !keepCity, keepCity ? 'Select Restaurant' : 'Select city first');
+            h.resetSelect(mealType, '<option value="">Select Meal Type</option>', false, 'Select Meal Type');
+            h.resetSelect(dish, '<option value="">Select Dish</option>', false, 'Select Dish');
+            h.resetSelect(timeSlot, '<option value="">Select Time Slot</option>', false, 'Select Time Slot');
+            if (transferRequired) h.setSelectValue(transferRequired, 'No');
+            if (typeof window.toggleRestaurantTransferFields === 'function') {
+                window.toggleRestaurantTransferFields(day, index);
+            }
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalHidden = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (totalHidden) totalHidden.value = '0';
+            h.resetGuestSummary(`day${day}_restaurant_${index}_guest_summary`);
+            const totalDisp = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_restaurant_${index}_restaurant_name`);
+            if (nameEl) nameEl.textContent = '';
+            const pricingDetails = document.getElementById(`day${day}_restaurant_${index}_pricing_details`);
+            if (pricingDetails) pricingDetails.innerHTML = '';
+            const transportPricing = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted small">No transport selected</div>';
+            if (keepCity && citySelect) {
+                h.setSelectValue(citySelect, keepCity);
+                if (typeof loadRestaurantsForCity === 'function') loadRestaurantsForCity(day, keepCity, index);
+            }
+            if (typeof updateRestaurantDataField === 'function') updateRestaurantDataField();
+            if (typeof showNotification === 'function') showNotification('Restaurant form cleared', 'info');
+        };
+
+        window.clearEntryPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            // Shared search fields (only clear fully on first vehicle slot)
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_arrival_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_entry_pickup_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_entry_pickup_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_local_transfer_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['entry_pickup_container', 'entry_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_entry_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_entry_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_entry_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_entry_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_entry_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_entry_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Arrival transport form cleared', 'info');
+        };
+
+        window.clearExitPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_departure_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_exit_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_exit_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_exit_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_exit_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['exit_pickup_container', 'exit_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_exit_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_exit_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_exit_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_exit_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_exit_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_exit_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Departure transport form cleared', 'info');
+        };
+
+        window.clearTransportForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const isFirst = (index === undefined || index === null || String(index) === '0' || String(index) === '1' && !document.getElementById(`day${day}_transport_city_${index}`));
+            const cityId = document.getElementById(`day${day}_transport_city_${index}`)
+                ? `day${day}_transport_city_${index}`
+                : `day${day}_transport_city_0`;
+            const citySelect = document.getElementById(cityId);
+            const keepCity = h.keepOrClearCity(citySelect);
+
+            // First slot uses unindexed vehicle ids; addMore uses indexed ids
+            const vehicleId = document.getElementById(`day${day}_transport_${index}_vehicle_id`)
+                || document.getElementById(`day${day}_transport_vehicle_id`);
+            const serviceType = document.getElementById(`day${day}_transport_${index}_service_type_select`)
+                || document.getElementById(`day${day}_transport_${index}_service_type`)
+                || document.getElementById(`day${day}_transport_service_type`);
+            h.resetSelect(vehicleId, '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(serviceType, '<option value="">Select service type</option>', false, 'Select service type');
+
+            const suppIdx = (index !== undefined && index !== null) ? index : 1;
+            const supplement = document.getElementById(`day${day}_transport_${suppIdx}_is_supplement`)
+                || document.getElementById(`day${day}_transport_1_is_supplement`);
+            const remarks = document.getElementById(`day${day}_transport_${suppIdx}_remarks`)
+                || document.getElementById(`day${day}_transport_1_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+
+            // Reset location/time fields inside this transport item if present
+            const item = (vehicleId && vehicleId.closest) ? vehicleId.closest('.transport-item, .card') : null;
+            const root = item || document.getElementById(`day${day}_transports_container`) || document;
+            root.querySelectorAll(`input[type="text"], input[type="number"], textarea`).forEach(function (inp) {
+                if (!inp.id || inp.id.indexOf(`day${day}_transport`) === -1) return;
+                if (inp.id.indexOf('adults') !== -1 || inp.id.indexOf('passengers') !== -1) {
+                    inp.value = document.getElementById('adults')?.value || '1';
+                } else if (inp.id.indexOf('children') !== -1) {
+                    inp.value = '0';
+                } else if (inp.type === 'number') {
+                    inp.value = '';
+                } else if (inp.tagName === 'TEXTAREA' || inp.type === 'text') {
+                    if (inp.id.indexOf('remarks') === -1) inp.value = '';
+                }
+            });
+            root.querySelectorAll('select').forEach(function (sel) {
+                if (!sel.id || sel.id.indexOf(`day${day}_transport`) === -1) return;
+                if (sel.id.indexOf('_city_') !== -1) return;
+                if (sel === vehicleId || sel === serviceType) return;
+                if (sel.options && sel.options.length) {
+                    sel.selectedIndex = 0;
+                    if (typeof jQuery !== 'undefined' && jQuery(sel).data('select2')) {
+                        jQuery(sel).val(sel.value).trigger('change');
+                    }
+                }
+            });
+
+            const totalDisp = document.getElementById(`day${day}_transport_${index}_total_price_display`)
+                || document.getElementById(`day${day}_transport_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_transport_${index}_pricing_content`)
+                || document.getElementById(`day${day}_transport_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+
+            if (keepCity && citySelect) h.setSelectValue(citySelect, keepCity);
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Transport form cleared', 'info');
         };
         
         // Function to update all attraction pricing immediately
