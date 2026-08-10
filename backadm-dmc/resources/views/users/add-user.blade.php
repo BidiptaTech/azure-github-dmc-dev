@@ -661,7 +661,10 @@
                     countrySelect.empty();
                     countrySelect.append('<option selected disabled>Choose...</option>');
                     if (response.countries.length > 0) {
-                        $.each(response.countries, function (key, value) {
+                        var countries = response.countries.slice().sort(function(a, b) {
+                            return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+                        });
+                        $.each(countries, function (key, value) {
                             countrySelect.append(`<option value="${value}">${value}</option>`);
                         });
 
@@ -1114,7 +1117,10 @@
                         $('#city').html('<option selected disabled value>Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
+                            var cities = response.cities.slice().sort(function(a, b) {
+                                return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+                            });
+                            $.each(cities, function(key, city) {
                                 $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
                             });
                         } else {
