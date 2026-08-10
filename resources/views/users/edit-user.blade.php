@@ -62,6 +62,38 @@
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
+
+    /* Multi-select: keep full width when empty / cleared */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--multiple {
+        min-height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple,
+    .select2-container--default.select2-container--open .select2-selection--multiple {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #696cff !important;
+        border: none !important;
+        color: #fff !important;
+        border-radius: 0.25rem !important;
+        padding: 2px 8px !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #fff !important;
+        margin-right: 4px !important;
+    }
     
     /* Invalid field styling */
     .form-control.is-invalid, .form-select.is-invalid {
@@ -482,10 +514,11 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <script>
     $(document).ready(function() {
-        // Initialize select2
+        // Initialize select2 (width:100% prevents collapse when all countries are cleared)
         $('.select2').select2({
             placeholder: "Choose countries...",
-            allowClear: true
+            allowClear: true,
+            width: '100%'
         });
 
         // Initialize Select2 for User Country dropdown
