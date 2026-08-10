@@ -1440,7 +1440,7 @@ class UserController extends Controller
                 'phone' => 'required',
                 'email' => 'required|email',
                 'password' => 'required|min:8',
-                'thirdparty' => 'nullable|in:yes,no',
+                'thirdparty' => 'nullable|string|in:yes,no',
             ]);
         
             // Step 2: Check for validation errors first
@@ -1546,8 +1546,11 @@ class UserController extends Controller
         $userCurrency = $this->resolveCurrencyForCountry($userCountry);
 
         // Third party flag only applies to DMC roles; everyone else stays 'no'.
+        // DB columns are enum('yes','no') — always store lowercase string values.
         $isDmcRole = in_array((int) $role, [11, 20], true);
-        $thirdParty = $isDmcRole && $request->input('thirdparty') === 'yes' ? 'yes' : 'no';
+        $thirdPartyRaw = strtolower(trim((string) $request->input('thirdparty', 'no')));
+        $thirdParty = ($isDmcRole && $thirdPartyRaw === 'yes') ? 'yes' : 'no';
+        $thirdPartyEnabled = $thirdParty === 'yes' ? 'no' : 'yes';
 
         $user = User::create([
             'salutation' => $request->input('salutation'),
@@ -1576,8 +1579,8 @@ class UserController extends Controller
             'password' => bcrypt($request->input('password')),
             'sales_manager_admin' => (int) ($salemg_admin ?? 0), // Ensure integer
             'company_name' => $request->company_name ?? Auth::user()->company_name ?? 'Travclicks',
-            'thirdparty' => $thirdParty,
-            'thirdparty_enabled' => 'no',
+            'thirdparty' => (string) $thirdParty, // enum string: yes|no
+            'thirdparty_enabled' => (string) $thirdPartyEnabled, // enum string: yes|no (inverse of thirdparty on create)
             'company_code' => $request->input('company_code') ?: null,
             'user_code' => $request->input('user_code') ?: null,
             'company_reg_no' => $request->input('company_reg_no') ?: null,
@@ -2131,7 +2134,7 @@ class UserController extends Controller
             $validationRules['markup_price_attraction'] = 'nullable|numeric|min:0';
             $validationRules['markup_type_flight'] = 'nullable|in:0,1';
             $validationRules['markup_price_flight'] = 'nullable|numeric|min:0';
-            $validationRules['thirdparty'] = 'nullable|in:yes,no';
+            $validationRules['thirdparty'] = 'nullable|string|in:yes,no';
             // Only require country_name if it's being sent (created by Master DMC)
             if ($request->has('country_name')) {
                 $validationRules['country_name'] = 'required|string';
@@ -2248,10 +2251,20 @@ class UserController extends Controller
             $updateData['markup_price_flight'] = $request->filled('markup_price_flight')
                 ? (float) $request->markup_price_flight
                 : (float) ($user->markup_price_flight ?? 0);
-            $updateData['thirdparty'] = $request->has('thirdparty')
-                ? ($request->input('thirdparty') === 'yes' ? 'yes' : 'no')
-                : ($user->thirdparty ?? 'no');
         }
+
+        // Third party flag only applies to DMC roles; everyone else stays 'no'.
+        // DB columns are enum('yes','no') — always store lowercase string values.
+        // Same rule as create: thirdparty=yes → thirdparty_enabled=no; thirdparty=no → thirdparty_enabled=yes.
+        $isDmcRole = in_array((int) $userRole, [11, 20], true);
+        $thirdPartyRaw = strtolower(trim((string) $request->input(
+            'thirdparty',
+            $user->thirdparty ?? 'no'
+        )));
+        $thirdParty = ($isDmcRole && $thirdPartyRaw === 'yes') ? 'yes' : 'no';
+        $thirdPartyEnabled = $thirdParty === 'yes' ? 'no' : 'yes';
+        $updateData['thirdparty'] = (string) $thirdParty;
+        $updateData['thirdparty_enabled'] = (string) $thirdPartyEnabled;
 
         // Optional codes / registration fields (update only when present in request)
         if ($request->has('company_code')) {
@@ -2326,8 +2339,7 @@ class UserController extends Controller
             ['model' => Hotel::class, 'field' => 'dmc_id', 'message' => 'hotels'],
             ['model' => Attraction::class, 'field' => 'dmc_id', 'message' => 'attractions'],
             ['model' => Restaurant::class, 'field' => 'dmc_id', 'message' => 'restaurants'],
-            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides'],
-            ['model' => Agent::class, 'field' => 'sales_manager_dmc', 'message' => 'agents']
+            ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides']
         ];
         
         foreach ($dependencies as $dependency) {
@@ -2648,7 +2660,7 @@ class UserController extends Controller
 
         $request->validate([
             'user_id' => 'required|integer',
-            'thirdparty_enabled' => 'required|in:yes,no',
+            'thirdparty_enabled' => 'required|string|in:yes,no',
         ]);
 
         $user = User::where('userId', $request->user_id)->first();
@@ -2660,7 +2672,7 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'Third party access applies to DMC users only.'], 422);
         }
 
-        if (strtolower((string) ($user->thirdparty ?? 'no')) !== 'yes') {
+        if (strtolower(trim((string) ($user->thirdparty ?? 'no'))) !== 'yes') {
             return response()->json(['success' => false, 'message' => 'This DMC is not a third party DMC.'], 422);
         }
 
@@ -2669,16 +2681,17 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'You can only update third party access for your own DMCs.'], 403);
         }
 
-        $user->thirdparty_enabled = $request->input('thirdparty_enabled');
+        $thirdPartyEnabled = strtolower(trim((string) $request->input('thirdparty_enabled'))) === 'yes' ? 'yes' : 'no';
+        $user->thirdparty_enabled = $thirdPartyEnabled;
         $user->save();
 
-        $label = $user->thirdparty_enabled === 'yes' ? 'enabled' : 'disabled';
+        $label = $thirdPartyEnabled === 'yes' ? 'enabled' : 'disabled';
 
         return response()->json([
             'success' => true,
             'message' => "Third party access {$label} successfully.",
-            'user_id' => $user->userId,
-            'thirdparty_enabled' => $user->thirdparty_enabled,
+            'user_id' => (int) $user->userId,
+            'thirdparty_enabled' => (string) $user->thirdparty_enabled,
         ]);
     }
 
@@ -2947,6 +2960,45 @@ class UserController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Country not found'
+        ], 404);
+    }
+
+    /**
+     * AJAX: return currency for a country name (countries.currency).
+     * Used by add-user (and similar) to fill the read-only currency field.
+     */
+    public function getCurrencyByCountry(Request $request)
+    {
+        $countryName = trim((string) $request->input('country', ''));
+        if ($countryName === '') {
+            return response()->json([
+                'success' => false,
+                'currency' => '',
+                'message' => 'Country is required',
+            ], 422);
+        }
+
+        $currency = $this->resolveCurrencyForCountry($countryName);
+        if (!$currency) {
+            // Case-insensitive fallback
+            $currency = Country::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($countryName)])
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->value('currency');
+        }
+
+        if ($currency) {
+            return response()->json([
+                'success' => true,
+                'currency' => (string) $currency,
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'currency' => '',
+            'message' => 'Currency not found for this country',
         ], 404);
     }
 

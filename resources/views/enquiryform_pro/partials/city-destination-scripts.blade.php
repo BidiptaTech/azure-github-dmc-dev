@@ -259,6 +259,11 @@
         const map = new Map();
         (hotels || []).forEach(function (h) {
             const cityName = getHotelServiceCity(h);
+            // Keep city/destination stamped so later syncs keep same-city hotels in one group
+            if (cityName) {
+                if (!h.city) h.city = cityName;
+                if (!h.destination) h.destination = cityName;
+            }
             const key = serviceCityKey(cityName) || '__none__';
             if (!map.has(key)) {
                 map.set(key, { cityName: cityName || '', hotels: [] });
@@ -274,18 +279,37 @@
         const key = serviceCityKey(cityName);
         const rows = Array.isArray(list) ? list : [];
         let fallback = null;
+        let best = null;
         for (let i = 0; i < rows.length; i++) {
             const e = rows[i];
-            if (!e || e.sourceType !== 'hotel') continue;
-            if (e.travel_type !== travelType) continue;
+            if (!e) continue;
+            const tt = e.travel_type;
+            const ty = (e.type || '').toString();
+            const matchesType = (tt === travelType)
+                || ((!tt || tt === '') && (
+                    (travelType === 'entry_port' && ty === 'Arrival')
+                    || (travelType === 'exit_port' && ty === 'Departure')
+                ));
+            if (!matchesType) continue;
+            // Prefer hotel-linked rows; still accept port rows missing sourceType (loaded edit data)
+            if (e.sourceType && e.sourceType !== 'hotel' && e.sourceType !== 'standalone') {
+                // allow through — some loaders omit sourceType
+            }
+            if (e.sourceType === 'standalone') continue;
             const eKey = serviceCityKey(e.city || e.destination || '');
             if (!key) {
                 return e;
             }
-            if (eKey && eKey === key) return e;
+            if (eKey && eKey === key) {
+                // Prefer row with port/vehicle over blank placeholders
+                if (!best || ((e.portId || e.portName) && !(best.portId || best.portName))) {
+                    best = e;
+                }
+                continue;
+            }
             if (!eKey && !fallback) fallback = e;
         }
-        return key ? null : fallback;
+        return best || (key ? null : fallback);
     }
     window.findHotelSyncedArrDep = findHotelSyncedArrDep;
 
@@ -755,13 +779,12 @@
                 setOptionCityVisibility(opt, cities.length === 0 || cities.includes(opt.value));
             });
 
-            if (cities.length === 1) {
+            if (cities.length === 0) {
+                sel.value = '';
+            } else if (!sel.value || !cities.includes(sel.value)) {
+                // Multi-city: default Destination to the first header city (e.g. Singapore)
                 sel.value = cities[0];
                 sel.dispatchEvent(new Event('change'));
-            } else if (cities.length === 0) {
-                sel.value = '';
-            } else if (sel.value && !cities.includes(sel.value)) {
-                sel.value = '';
             }
         });
 

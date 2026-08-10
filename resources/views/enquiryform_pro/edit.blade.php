@@ -1093,7 +1093,9 @@
             tour_end_date: @json($initialData['tour_end_date'] ?? ''),
             country: @json($tour->destination ?? ''),
             agency_id: {{ $initialData['agency_id'] ?? 'null' }},
+            agency_name: @json($initialData['agency_name'] ?? ''),
             agent_id: {{ $tour->agent_id ?? 'null' }},
+            agent_name: @json($initialData['agent_name'] ?? ''),
             status: @json((string)($tour->status ?? '')),
             remarks: @json($tour->remarks ?? ''),
             created_at: @json($tour->created_at ? $tour->created_at->toISOString() : '')
@@ -1317,21 +1319,20 @@
                         <select class="form-select form-select-sm" id="agencySelect" style="font-size: 9px; width: 120px; padding: 1px 3px;" onchange="loadAgentsByAgency()">
                             <option value="">-- Select --</option>
                             @foreach($agencies as $agency)
-                                <option value="{{ $agency->agency_id }}" {{ isset($initialData['agency_id']) && $initialData['agency_id'] == $agency->agency_id ? 'selected' : '' }}>{{ $agency->agency_name }}</option>
+                                <option value="{{ $agency->agency_id }}" {{ isset($initialData['agency_id']) && (int) $initialData['agency_id'] === (int) $agency->agency_id ? 'selected' : '' }}>{{ $agency->agency_name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-auto d-flex align-items-center">
                         <span class="detail-label me-1" style="font-size: 9px;">Agent:</span>
-                        <select class="form-select form-select-sm" id="agentSelect" style="font-size: 9px; width: 100px; padding: 1px 3px;" {{ !isset($initialData['agent_id']) ? 'disabled' : '' }}>
-                            @if(isset($initialData['agent_id']) && !empty($agents) && count($agents) > 0)
+                        <select class="form-select form-select-sm" id="agentSelect" style="font-size: 9px; width: 100px; padding: 1px 3px;" {{ empty($initialData['agency_id']) ? 'disabled' : '' }}>
+                            <option value="">-- Select Agent --</option>
+                            @if(!empty($agents) && count($agents) > 0)
                                 @foreach($agents as $ag)
-                                    <option value="{{ $ag->agent_id }}" {{ (int) $initialData['agent_id'] === (int) $ag->agent_id ? 'selected' : '' }}>{{ $ag->name }}</option>
+                                    <option value="{{ $ag->agent_id }}" {{ isset($initialData['agent_id']) && (int) $initialData['agent_id'] === (int) $ag->agent_id ? 'selected' : '' }}>{{ $ag->name }}</option>
                                 @endforeach
-                            @elseif(isset($initialData['agent_id']))
+                            @elseif(!empty($initialData['agent_id']))
                                 <option value="{{ $initialData['agent_id'] }}" selected>{{ $initialData['agent_name'] ?? 'Agent' }}</option>
-                            @else
-                                <option value="">-- Select --</option>
                             @endif
                         </select>
                     </div>
@@ -1689,11 +1690,7 @@
                 <table class="table table-custom table-hover" id="transferTable" style="display: none;">
                     <thead>
                         <tr>
-                            <th><input type="checkbox"></th>
-                            <th>Date/Time</th>
-                            <th>Service</th>
-                            <th>Mode</th>
-                            <th>Vehicle Type</th>
+                            <th><input type="checkbox" id="selectAllTransfers" onchange="toggleSelectAllTransfers()"></th>
                             <th>Type</th>
                             <th>Way</th>
                             <th>Adults</th>
@@ -1724,7 +1721,7 @@
                 <table class="table table-custom table-hover" id="guideTable" style="display: none;">
                     <thead>
                         <tr>
-                            <th><input type="checkbox"></th>
+                            <th><input type="checkbox" id="selectAllGuidesMain" onchange="toggleSelectAllGuidesMain()"></th>
                             <th>Date/Time</th>
                             <th>Tour/Activity</th>
                             <th>Language</th>
@@ -2706,7 +2703,11 @@
 
                 <!-- Room Pricing Summary Section removed - calculation is for footer only -->
             </div>
-            <div class="modal-footer py-2" style="background: #f8f9fa;">
+            <div class="modal-footer py-2 d-flex align-items-center flex-wrap gap-2" style="background: #f8f9fa;">
+                <span id="accommodationPricingStatus" class="me-auto small text-muted align-items-center" style="display:none;font-size:10px;">
+                    <span class="spinner-border spinner-border-sm text-primary me-1" role="status" aria-hidden="true"></span>
+                    <span id="accommodationPricingStatusText">Loading transfer &amp; guide prices…</span>
+                </span>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherAccommodation()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
@@ -3943,14 +3944,18 @@
 <div class="modal fade" id="costSheetModal" tabindex="-1" aria-labelledby="costSheetModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 95%;">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 10px 15px;">
-                <h5 class="modal-title text-white" id="costSheetModalLabel">
-                    <i class="ri-file-list-3-line me-2"></i>Cost Sheet
-                </h5>
-                <div class="d-flex ms-auto me-3 align-items-center gap-3" style="margin-bottom: 0;">
+            <div class="modal-header cost-sheet-modal-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="ri-file-list-3-line" style="font-size: 1.15rem;"></i>
+                    <div>
+                        <h5 class="modal-title mb-0" id="costSheetModalLabel">Cost Sheet</h5>
+                        <div class="cost-sheet-modal-header-sub">Quotation summary · sell rates excl. tax</div>
+                    </div>
+                </div>
+                <div class="d-flex ms-auto me-2 align-items-center gap-3" style="margin-bottom: 0;">
                     <div class="form-check d-flex align-items-center" style="margin-bottom: 0;">
                         <input class="form-check-input" type="checkbox" id="showPnLCostSheet" style="cursor: pointer;">
-                        <label class="form-check-label text-white ms-1" for="showPnLCostSheet" style="font-size: 11px; cursor: pointer;">Show P&L</label>
+                        <label class="form-check-label text-white ms-1" for="showPnLCostSheet" style="font-size: 11px; cursor: pointer;">Show P&amp;L</label>
                     </div>
                     <div class="form-check d-flex align-items-center" style="margin-bottom: 0;">
                         <input class="form-check-input" type="checkbox" id="useAgencyLogoCostSheet" style="cursor: pointer;">
@@ -3983,23 +3988,220 @@
 </div>
 
 <style>
-    /* Cost Sheet - header checkboxes (white on gradient header) */
+    /* Cost Sheet modal — business document look */
+    #costSheetModal .cost-sheet-modal-header {
+        background: #1e293b;
+        color: #fff;
+        padding: 12px 18px;
+        border-bottom: 3px solid #0f766e;
+    }
+    #costSheetModal .cost-sheet-modal-header .modal-title {
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+    }
+    #costSheetModal .cost-sheet-modal-header-sub {
+        font-size: 10px;
+        color: rgba(255,255,255,0.72);
+        margin-top: 1px;
+    }
     #costSheetModal .modal-header .form-check-input {
         background-color: transparent;
         border-color: #fff;
     }
     #costSheetModal .modal-header .form-check-input:checked {
-        background-color: #fff;
-        border-color: #fff;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23667eea' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+        background-color: #0f766e;
+        border-color: #0f766e;
     }
     #costSheetModal .modal-header .form-check-input:focus {
-        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.35);
         border-color: #fff;
     }
+    #costSheetModal .modal-footer {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 10px 16px;
+    }
+    #costSheetModal .modal-footer .btn-primary {
+        background: #0f766e;
+        border-color: #0f766e;
+    }
+    #costSheetModal .modal-footer .btn-primary:hover {
+        background: #0d9488;
+        border-color: #0d9488;
+    }
 
-    /* Cost Sheet Modal - compact design (match form: small space, small text) */
-    .cost-sheet-modal-body { background: #f8f9fa; padding: 10px 12px !important; }
+    .cost-sheet-modal-body { background: #eef2f6; padding: 14px 16px !important; }
+    .cost-sheet-content .cs-doc {
+        background: #fff;
+        border: 1px solid #d8dee6;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        color: #1e293b;
+    }
+    .cost-sheet-content .cs-letterhead {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px 18px 12px;
+        border-bottom: 2px solid #1e293b;
+        background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    }
+    .cost-sheet-content .cs-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+    .cost-sheet-content .cs-brand-logo {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        background: #fff;
+        padding: 2px;
+    }
+    .cost-sheet-content .cs-brand-name {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+    .cost-sheet-content .cs-brand-meta {
+        font-size: 10px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+    .cost-sheet-content .cs-doc-title {
+        text-align: right;
+    }
+    .cost-sheet-content .cs-doc-title h5 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f766e;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .cost-sheet-content .cs-doc-title .cs-ref {
+        font-size: 11px;
+        color: #334155;
+        margin-top: 4px;
+        font-weight: 600;
+    }
+    .cost-sheet-content .cs-doc-title .cs-note {
+        font-size: 9px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+    .cost-sheet-content .cs-meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    .cost-sheet-content .cs-meta-item {
+        padding: 10px 14px;
+        border-right: 1px solid #e2e8f0;
+        min-width: 0;
+    }
+    .cost-sheet-content .cs-meta-item:last-child { border-right: none; }
+    .cost-sheet-content .cs-meta-label {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 3px;
+    }
+    .cost-sheet-content .cs-meta-value {
+        font-size: 11px;
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-word;
+    }
+    .cost-sheet-content .cs-body { padding: 12px 14px 16px; }
+    .cost-sheet-content .cs-section {
+        margin-bottom: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .cost-sheet-content .cs-section-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 7px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #0f172a;
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+        border-left: 3px solid #0f766e;
+    }
+    .cost-sheet-content .cs-section-head.cs-charges {
+        background: #ecfdf5;
+        border-left-color: #047857;
+        color: #065f46;
+    }
+    .cost-sheet-content .cs-table {
+        width: 100%;
+        margin: 0;
+        font-size: 10px;
+        border-collapse: collapse;
+    }
+    .cost-sheet-content .cs-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 6px 8px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        border-top: none !important;
+        white-space: nowrap;
+    }
+    .cost-sheet-content .cs-table td {
+        padding: 6px 8px !important;
+        border-color: #edf2f7 !important;
+        vertical-align: middle !important;
+        color: #1e293b;
+    }
+    .cost-sheet-content .cs-table tbody tr:nth-child(even) { background: #fafbfc; }
+    .cost-sheet-content .cs-table tbody tr:hover { background: #f0fdfa; }
+    .cost-sheet-content .cs-table .text-end {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: #0f172a;
+    }
+    .cost-sheet-content .cs-footer-note {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px dashed #cbd5e1;
+        font-size: 9px;
+        color: #64748b;
+        text-align: right;
+    }
+    @media (max-width: 992px) {
+        .cost-sheet-content .cs-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .cost-sheet-content .cs-meta-item:nth-child(2n) { border-right: none; }
+        .cost-sheet-content .cs-letterhead { flex-direction: column; }
+        .cost-sheet-content .cs-doc-title { text-align: left; }
+    }
+
+    /* Back-compat aliases used by older cost-sheet fragments */
     .cost-sheet-content .cost-sheet-card { font-size: 10px; }
     .cost-sheet-content .cost-sheet-header { padding: 6px 10px !important; }
     .cost-sheet-content .cost-sheet-title { font-size: 13px !important; }
@@ -7355,8 +7557,10 @@
                         }
                     });
                     
-                    // Auto-select first country if not already set (when adding new hotel)
-                    if (!hotelDestination.value && headerValues.cities.length > 0) {
+                    // New Add: always default to first header city; Edit keeps existing destination
+                    const isEditingHotel = (window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined)
+                        || (typeof editingHotelId !== 'undefined' && editingHotelId !== null);
+                    if (!isEditingHotel || !hotelDestination.value || !headerValues.cities.includes(hotelDestination.value)) {
                         hotelDestination.value = headerValues.cities[0];
                         // Trigger onchange to load hotels (this will auto-select default hotel)
                         if (typeof loadHotelsByDestination === 'function') {
@@ -7371,6 +7575,11 @@
                                 loadHotelsByDestination();
                             }
                         }
+                    }
+                    const arrDepCitySync = document.getElementById('arrivalDepartureCity');
+                    if (arrDepCitySync && hotelDestination.value
+                        && Array.from(arrDepCitySync.options).some(o => o.value === hotelDestination.value)) {
+                        arrDepCitySync.value = hotelDestination.value;
                     }
                 } else {
                     // No countries selected in header - disable dropdown
@@ -7499,8 +7708,9 @@
                         }
                     });
                     
-                    // Auto-select first country if not already set
-                    if (!tourDestination.value && headerValues.cities.length > 0) {
+                    // New Add: default to first header city; Edit keeps existing when valid
+                    const isEditingTour = window.editingTourIndex !== null && window.editingTourIndex !== undefined;
+                    if (!isEditingTour || !tourDestination.value || !headerValues.cities.includes(tourDestination.value)) {
                         tourDestination.value = headerValues.cities[0];
                         // Trigger onchange to load attractions
                         if (typeof loadAttractionsByDestination === 'function') {
@@ -7570,8 +7780,9 @@
                         }
                     });
                     
-                    // Auto-select first country if not already set
-                    if (!mealDestination.value && headerValues.cities.length > 0) {
+                    // New Add: default to first header city; Edit keeps existing when valid
+                    const isEditingMeal = window.editingMealIndex !== null && window.editingMealIndex !== undefined;
+                    if (!isEditingMeal || !mealDestination.value || !headerValues.cities.includes(mealDestination.value)) {
                         mealDestination.value = headerValues.cities[0];
                         // Trigger onchange to load restaurants
                         if (typeof loadRestaurantsByDestination === 'function') {
@@ -7852,8 +8063,9 @@
                         }
                     });
                     
-                    // Auto-select first country if not already set
-                    if (!guideDestination.value && headerValues.cities.length > 0) {
+                    // New Add: default to first header city; Edit keeps existing when valid
+                    const isEditingGuide = window.editingGuideIndex !== null && window.editingGuideIndex !== undefined;
+                    if (!isEditingGuide || !guideDestination.value || !headerValues.cities.includes(guideDestination.value)) {
                         guideDestination.value = headerValues.cities[0];
                         // Trigger onchange to load guides
                         if (typeof loadGuidesByDestination === 'function') {
@@ -7912,8 +8124,9 @@
                         }
                     });
                     
-                    // Auto-select first country if not already set
-                    if (!miscDestination.value && headerValues.cities.length > 0) {
+                    // New Add: default to first header city; Edit keeps existing when valid
+                    const isEditingMisc = window.editingMiscIndex !== null && window.editingMiscIndex !== undefined;
+                    if (!isEditingMisc || !miscDestination.value || !headerValues.cities.includes(miscDestination.value)) {
                         miscDestination.value = headerValues.cities[0];
                         // Trigger onchange to load misc items
                         if (typeof loadMiscItemsByDestination === 'function') {
@@ -9974,6 +10187,9 @@
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
                     type: 'Arrival',
+                    travel_type: 'entry_port',
+                    sourceType: 'hotel',
+                    hasTransfer: !!(order.vehicle_id || order.vehicleId || order.vehicle_name || order.vehicles_name || order.transferType || order.transfer_type),
                     // Preserve exact stored datetime if available
                     dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     portId: order.port_id || '',
@@ -9986,8 +10202,12 @@
                     transferDestinationId: order.transfer_destination_id || order.dropoff_id || '',
                     transferDestinationName: order.transfer_destination_name || order.dropoff || '',
                     adults: parseInt(order.adults || order.adult || 0),
+                    adultsQty: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
+                    childQty: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
+                    infantQty: parseInt(order.infants || order.infant || 0),
+                    city: order.city || order.destination || '',
                     cost: displayBase,
                     sell: displayBase,
                     adultCost: displayBase,
@@ -10015,6 +10235,9 @@
                     orderId: order.id || order.order_id,
                     bookingId: order.booking_id,
                     type: 'Departure',
+                    travel_type: 'exit_port',
+                    sourceType: 'hotel',
+                    hasTransfer: !!(order.vehicle_id || order.vehicleId || order.vehicle_name || order.vehicles_name || order.transferType || order.transfer_type),
                     // Preserve exact stored datetime if available
                     dateTime: order.dateTime || order.date_time || order.date || order.bookingDate || '',
                     portId: order.port_id || '',
@@ -10027,8 +10250,12 @@
                     transferDestinationId: order.transfer_destination_id || order.pickup_id || '',
                     transferDestinationName: order.transfer_destination_name || order.pickup || '',
                     adults: parseInt(order.adults || order.adult || 0),
+                    adultsQty: parseInt(order.adults || order.adult || 0),
                     child: parseInt(order.children || order.child || 0),
+                    childQty: parseInt(order.children || order.child || 0),
                     infant: parseInt(order.infants || order.infant || 0),
+                    infantQty: parseInt(order.infants || order.infant || 0),
+                    city: order.city || order.destination || '',
                     cost: displayBase,
                     sell: displayBase,
                     adultCost: displayBase,
@@ -10664,6 +10891,9 @@
                 window.editingAccommodationIndex = null;
                 window.hotelModalPreviewActive = false;
                 window.hotelModalBaseList = null;
+                window.hotelModalBaseArrivalDepartureList = null;
+                window.hotelModalBaseTransferList = null;
+                window.hotelModalBaseGuideList = null;
                 console.log('Accommodation modal closed, all flags reset');
             });
         }
@@ -10836,7 +11066,7 @@
             $('.select2-port').select2(enquiryProPortSelect2Options({
                 dropdownParent: $('#accommodationModal')
             }));
-            if (typeof filterPortsBySelectedCountries === 'function') {
+            if (typeof filterPortsBySelectedCountries === 'function' && !isArrivalDepartureOnly) {
                 filterPortsBySelectedCountries(document.getElementById('hotelDestination')?.value || undefined);
             }
         }
@@ -10854,7 +11084,10 @@
         }
 
         // Show modal arrival/departure info when hotels already saved (match create form)
-        setTimeout(() => { if (typeof updateModalArrivalDeptInfo === 'function') updateModalArrivalDeptInfo(); }, 200);
+        // Skip when opening Edit Arrival / Edit Departure — populate comes from the clicked row
+        if (!isArrivalDepartureOnly) {
+            setTimeout(() => { if (typeof updateModalArrivalDeptInfo === 'function') updateModalArrivalDeptInfo(); }, 200);
+        }
         
         // Clear destination if header has no destinations (override backend pre-selection)
         setTimeout(() => {
@@ -10875,7 +11108,37 @@
         }, 50);
         
         // Auto-fill adults, children, infants, and country from header AFTER modal is shown
+        // Skip hotel-destination auto-load in Arrival/Departure-only edit — it forces first header city (e.g. Singapore)
+        // and overwrites the clicked row's city via loadHotelsByDestination().
         setTimeout(() => {
+            if (isArrivalDepartureOnly || window.isEditingArrivalDeparture || window.isArrivalDepartureOnlyMode) {
+                const headerValues = getHeaderValues();
+                const arrivalAdults = document.getElementById('arrivalAdults');
+                const arrivalChild = document.getElementById('arrivalChild');
+                const arrivalInfant = document.getElementById('arrivalInfant');
+                const departureAdults = document.getElementById('departureAdults');
+                const departureChild = document.getElementById('departureChild');
+                const departureInfant = document.getElementById('departureInfant');
+                if (arrivalAdults && (!arrivalAdults.value || arrivalAdults.value === '0' || arrivalAdults.value === '2')) {
+                    arrivalAdults.value = headerValues.adults;
+                }
+                if (arrivalChild && (!arrivalChild.value || arrivalChild.value === '0')) {
+                    arrivalChild.value = headerValues.children;
+                }
+                if (arrivalInfant && (!arrivalInfant.value || arrivalInfant.value === '0')) {
+                    arrivalInfant.value = headerValues.infants;
+                }
+                if (departureAdults && (!departureAdults.value || departureAdults.value === '0' || departureAdults.value === '2')) {
+                    departureAdults.value = headerValues.adults;
+                }
+                if (departureChild && (!departureChild.value || departureChild.value === '0')) {
+                    departureChild.value = headerValues.children;
+                }
+                if (departureInfant && (!departureInfant.value || departureInfant.value === '0')) {
+                    departureInfant.value = headerValues.infants;
+                }
+                return;
+            }
             autoFillModalFields('accommodation');
             // Sync guide counts after auto-fill
             syncArrivalGuideCounts();
@@ -10888,13 +11151,32 @@
             if (window.skipArrivalDepartureAutoPopulate || window.isEditingArrivalDeparture) {
                 return;
             }
+            // Hotel Add/Edit: city-scoped A/D dates come from updateModalArrivalDeptInfo.
+            // Do NOT paste another city's hotel-synced Arrival/Departure (e.g. Kolkata 19-Oct) into Batam.
+            if (!window.isArrivalDepartureOnlyMode) {
+                if (typeof updateModalArrivalDeptInfo === 'function') updateModalArrivalDeptInfo();
+                return;
+            }
+
+            const isTrueStandalone = (item) => {
+                if (!item) return false;
+                if (item.sourceType === 'hotel') return false;
+                if (item.travel_type === 'entry_port' || item.travel_type === 'exit_port') {
+                    return item.sourceType === 'standalone';
+                }
+                return item.sourceType === 'standalone'
+                    || (item.accommodationIndex === null || item.accommodationIndex === undefined);
+            };
+
+            const standaloneArrival = arrivalDepartureList.find(item =>
+                isTrueStandalone(item) && ((item.type || '').toString() === 'Arrival' || item.travel_type === 'entry_port')
+            );
+            const standaloneDeparture = arrivalDepartureList.find(item =>
+                isTrueStandalone(item) && ((item.type || '').toString() === 'Departure' || item.travel_type === 'exit_port')
+            );
             
-            const standaloneArrival = arrivalDepartureList.find(item => item.type === 'Arrival' && item.accommodationIndex === null);
-            const standaloneDeparture = arrivalDepartureList.find(item => item.type === 'Departure' && item.accommodationIndex === null);
-            
-            // If standalone entries exist, populate them
+            // If true standalone entries exist, populate them
             if (standaloneArrival) {
-                // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
                 const normalizedDateTime = normalizeDateTimeLocal(standaloneArrival.dateTime);
                 document.getElementById('arrivalDateTime').value = normalizedDateTime || '';
                 $('#arrivalPort').val(standaloneArrival.portId).trigger('change');
@@ -10905,7 +11187,6 @@
             }
             
             if (standaloneDeparture) {
-                // Normalize date to YYYY-MM-DDTHH:mm format for datetime-local input
                 const normalizedDateTime = normalizeDateTimeLocal(standaloneDeparture.dateTime);
                 document.getElementById('departureDateTime').value = normalizedDateTime || '';
                 $('#departurePort').val(standaloneDeparture.portId).trigger('change');
@@ -11065,8 +11346,9 @@
         }
         
         // Populate arrival/departure from header dates if available and not already set
+        // Skip for hotel accommodation flow — city-scoped dates come from updateModalArrivalDeptInfo
         // Skip if we're editing an existing arrival/departure entry
-        if (!window.isEditingArrivalDeparture) {
+        if (!window.isEditingArrivalDeparture && (window.isArrivalDepartureOnlyMode || window.willOpenArrivalDepartureOnly)) {
             if (tourStart && tourStart.value && !arrivalDateTime.value) {
                 arrivalDateTime.value = tourStart.value + 'T00:00';
             }
@@ -11080,21 +11362,30 @@
         calculateAccommodationNights();
     }
 
-    // Load agents by agency via AJAX
-    function loadAgentsByAgency() {
-        const agencyId = document.getElementById('agencySelect').value;
+    // Load agents by agency via AJAX (preserves selected agent on edit)
+    function loadAgentsByAgency(preferredAgentId) {
+        const agencySelect = document.getElementById('agencySelect');
         const agentSelect = document.getElementById('agentSelect');
-        
-        // Reset agent select
+        if (!agencySelect || !agentSelect) return;
+
+        const agencyId = agencySelect.value;
+        const keepAgentId = preferredAgentId != null && preferredAgentId !== ''
+            ? preferredAgentId
+            : (agentSelect.value
+                || window.existingTourData?.agent_id
+                || @json($initialData['agent_id'] ?? null));
+        const keepAgentName = window.existingTourData?.agent_name
+            || @json($initialData['agent_name'] ?? '');
+
         agentSelect.innerHTML = '<option value="">-- Loading agents... --</option>';
         agentSelect.disabled = true;
-        
+
         if (!agencyId) {
             agentSelect.innerHTML = '<option value="">-- Select Agency First --</option>';
+            agentSelect.disabled = true;
             return;
         }
-        
-        // Fetch agents via AJAX
+
         fetch('{{ route("enquiry-form-pro.get-agents") }}?agency_id=' + encodeURIComponent(agencyId), {
             method: 'GET',
             headers: {
@@ -11105,36 +11396,60 @@
         .then(response => response.json())
         .then(data => {
             agentSelect.innerHTML = '<option value="">-- Select Agent --</option>';
-            
+
             if (!data.success || !data.agents || data.agents.length === 0) {
+                // Keep known agent so edit/cost sheet still show a name
+                if (keepAgentId) {
+                    const opt = document.createElement('option');
+                    opt.value = String(keepAgentId);
+                    opt.textContent = keepAgentName || ('Agent #' + keepAgentId);
+                    opt.selected = true;
+                    agentSelect.appendChild(opt);
+                    agentSelect.disabled = false;
+                    return;
+                }
                 agentSelect.innerHTML = '<option value="">No agents available for this agency</option>';
+                agentSelect.disabled = true;
                 return;
             }
-            
-            // Get pre-selected agent ID if available
-            @if(isset($initialData) && isset($initialData['agent_id']))
-            const preSelectedAgentId = {{ $initialData['agent_id'] }};
-            @else
-            const preSelectedAgentId = null;
-            @endif
-            
-            // Populate agent dropdown
+
+            let matched = false;
             data.agents.forEach(agent => {
                 const option = document.createElement('option');
-                option.value = agent.agent_id;
+                option.value = String(agent.agent_id);
                 option.textContent = agent.name;
-                if (preSelectedAgentId && agent.agent_id == preSelectedAgentId) {
+                if (keepAgentId != null && String(agent.agent_id) === String(keepAgentId)) {
                     option.selected = true;
+                    matched = true;
                 }
                 agentSelect.appendChild(option);
             });
-            
+
+            // Agent may be inactive / filtered out — still show saved name
+            if (!matched && keepAgentId) {
+                const option = document.createElement('option');
+                option.value = String(keepAgentId);
+                option.textContent = keepAgentName || ('Agent #' + keepAgentId);
+                option.selected = true;
+                agentSelect.appendChild(option);
+            }
+
             agentSelect.disabled = false;
         })
         .catch(error => {
             console.error('Error loading agents:', error);
+            if (keepAgentId) {
+                agentSelect.innerHTML = '<option value="">-- Select Agent --</option>';
+                const option = document.createElement('option');
+                option.value = String(keepAgentId);
+                option.textContent = keepAgentName || ('Agent #' + keepAgentId);
+                option.selected = true;
+                agentSelect.appendChild(option);
+                agentSelect.disabled = false;
+                return;
+            }
             agentSelect.innerHTML = '<option value="">-- Error loading agents --</option>';
-            alert('Error loading agents. Please try again.');
+            agentSelect.disabled = true;
         });
     }
 
@@ -11194,12 +11509,21 @@
         }
 
         // Scope arrival/departure ports + drop-offs to this hotel city (not all multi-city ports)
+        // Never overwrite A/D city while editing a specific arrival/departure row (multi-city fix)
+        const skipArrDepCitySync = !!(window.isArrivalDepartureOnlyMode
+            || window.isEditingArrivalDeparture
+            || window._populatingArrDepEdit
+            || window.willOpenArrivalDepartureOnly);
         const arrDepCitySelLoad = document.getElementById('arrivalDepartureCity');
-        if (arrDepCitySelLoad && destination) {
+        if (!skipArrDepCitySync && arrDepCitySelLoad && destination) {
             arrDepCitySelLoad.value = destination;
         }
         if (typeof filterPortsBySelectedCountries === 'function') {
-            filterPortsBySelectedCountries(destination);
+            filterPortsBySelectedCountries(
+                skipArrDepCitySync
+                    ? (arrDepCitySelLoad?.value || destination)
+                    : destination
+            );
         }
         
         // Fetch hotels via AJAX
@@ -12814,6 +13138,10 @@
         window.hotelModalPreviewActive = true;
         window.hotelModalSaved = false;
         window.hotelModalBaseList = JSON.parse(JSON.stringify(accommodationList));
+        // Also snapshot A/D + local transfers + guides — live hotel sync must not persist on Close
+        window.hotelModalBaseArrivalDepartureList = JSON.parse(JSON.stringify(arrivalDepartureList || []));
+        window.hotelModalBaseTransferList = JSON.parse(JSON.stringify(transferList || []));
+        window.hotelModalBaseGuideList = JSON.parse(JSON.stringify(guideList || []));
         const isEdit = window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined;
         window.hotelModalEditStartIndex = isEdit ? window.editingAccommodationIndex : null;
         window.hotelModalEditSpanCount = isEdit ? 1 : 0;
@@ -12825,10 +13153,26 @@
             accommodationList = JSON.parse(JSON.stringify(window.hotelModalBaseList));
             updateAccommodationTable();
             recalculateEntryExitPorts();
-            if (typeof recalculateTotals === 'function') recalculateTotals();
         }
+        // Restore A/D + Local Transfer Arrival:/Departure: rows if user only viewed then closed
+        if (window.hotelModalBaseArrivalDepartureList) {
+            arrivalDepartureList = JSON.parse(JSON.stringify(window.hotelModalBaseArrivalDepartureList));
+            if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+        }
+        if (window.hotelModalBaseTransferList) {
+            transferList = JSON.parse(JSON.stringify(window.hotelModalBaseTransferList));
+            if (typeof updateTransferTable === 'function') updateTransferTable();
+        }
+        if (window.hotelModalBaseGuideList) {
+            guideList = JSON.parse(JSON.stringify(window.hotelModalBaseGuideList));
+            if (typeof updateGuideTable === 'function') updateGuideTable();
+        }
+        if (typeof recalculateTotals === 'function') recalculateTotals();
         window.hotelModalPreviewActive = false;
         window.hotelModalBaseList = null;
+        window.hotelModalBaseArrivalDepartureList = null;
+        window.hotelModalBaseTransferList = null;
+        window.hotelModalBaseGuideList = null;
         window.hotelModalEditStartIndex = null;
         window.hotelModalEditSpanCount = 0;
     }
@@ -14623,8 +14967,18 @@
     async function saveSelectedHotels() {
         // Check if we're in arrival/departure only mode
         if (window.isArrivalDepartureOnlyMode) {
+            if (typeof ensureAccommodationPricingReady === 'function') {
+                const ready = await ensureAccommodationPricingReady();
+                if (!ready) return;
+            }
             saveArrivalDepartureOnly();
             return;
+        }
+
+        // Wait for zone/guide pricing APIs before saving hotel + auto A/D
+        if (typeof ensureAccommodationPricingReady === 'function') {
+            const ready = await ensureAccommodationPricingReady();
+            if (!ready) return;
         }
         
         // Check if we're editing an existing accommodation
@@ -15105,6 +15459,11 @@
         if (window.isArrivalDepartureOnlyMode) return;
         window._suppressArrDepZoneRefresh = true;
         window._suppressArrDepLiveSync = true;
+        // Hold Save & Close while hotel-linked A/D fields + zone APIs settle
+        if (typeof setAccommodationPricingSide === 'function') {
+            setAccommodationPricingSide('arrivalZone', 'loading');
+            setAccommodationPricingSide('departureZone', 'loading');
+        }
 
         // Edit Arrival / Edit Departure hides one wrapper (modalArrivalOnlyContent or modalDepartureOnlyContent).
         // Re-opening the hotel accommodation flow must show both halves again.
@@ -15114,7 +15473,15 @@
         if (modalDepWrapRestore) modalDepWrapRestore.style.display = '';
 
         const section = document.getElementById('arrivalDepartureSection');
-        if (!section) return;
+        if (!section) {
+            window._suppressArrDepZoneRefresh = false;
+            window._suppressArrDepLiveSync = false;
+            if (typeof setAccommodationPricingSide === 'function') {
+                setAccommodationPricingSide('arrivalZone', 'ready');
+                setAccommodationPricingSide('departureZone', 'ready');
+            }
+            return;
+        }
 
         const checkIn  = document.getElementById('checkInDate')?.value  || '';
         const checkOut = document.getElementById('checkOutDate')?.value || '';
@@ -15123,6 +15490,12 @@
             const depXferFocWrapNoDates = document.getElementById('departureTransferFocRowWrap');
             if (depXferFocWrapNoDates) depXferFocWrapNoDates.style.display = '';
             section.style.display = 'none';
+            window._suppressArrDepZoneRefresh = false;
+            window._suppressArrDepLiveSync = false;
+            if (typeof setAccommodationPricingSide === 'function') {
+                setAccommodationPricingSide('arrivalZone', 'ready');
+                setAccommodationPricingSide('departureZone', 'ready');
+            }
             return;
         }
 
@@ -15186,22 +15559,32 @@
         if (!existingArr) {
             existingArr = arrivalDepartureList.find(e =>
                 (e.travel_type === 'entry_port' && e.sourceType === 'hotel') ||
-                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Arrival')
+                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Arrival' && e.sourceType === 'hotel')
             );
             // Multi-city: do not restore another city's row into this modal
             if (existingArr && modalHotelCityEarly) {
                 const eCity = String(existingArr.city || existingArr.destination || '').trim();
-                if (eCity && eCity.toLowerCase() !== modalHotelCityEarly.toLowerCase()) existingArr = null;
+                const sameCity = eCity && (
+                    typeof serviceCityKey === 'function'
+                        ? serviceCityKey(eCity) === serviceCityKey(modalHotelCityEarly)
+                        : eCity.toLowerCase() === modalHotelCityEarly.toLowerCase()
+                );
+                if (!sameCity) existingArr = null;
             }
         }
         if (!existingDep) {
             existingDep = arrivalDepartureList.find(e =>
                 (e.travel_type === 'exit_port' && e.sourceType === 'hotel') ||
-                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Departure')
+                ((!e.travel_type || e.travel_type === '') && (e.type || '').toString() === 'Departure' && e.sourceType === 'hotel')
             );
             if (existingDep && modalHotelCityEarly) {
                 const eCity = String(existingDep.city || existingDep.destination || '').trim();
-                if (eCity && eCity.toLowerCase() !== modalHotelCityEarly.toLowerCase()) existingDep = null;
+                const sameCity = eCity && (
+                    typeof serviceCityKey === 'function'
+                        ? serviceCityKey(eCity) === serviceCityKey(modalHotelCityEarly)
+                        : eCity.toLowerCase() === modalHotelCityEarly.toLowerCase()
+                );
+                if (!sameCity) existingDep = null;
             }
         }
 
@@ -15399,6 +15782,9 @@
             if (!entry || !modalHotelCity) return !modalHotelCity;
             const entryCity = String(entry.city || entry.destination || entry.portCity || '').trim();
             if (!entryCity) return false;
+            if (typeof serviceCityKey === 'function') {
+                return serviceCityKey(entryCity) === serviceCityKey(modalHotelCity);
+            }
             return entryCity.toLowerCase() === modalHotelCity.toLowerCase();
         }
 
@@ -15463,6 +15849,20 @@
 
         section.style.display = 'block';
 
+        // Re-lock city-scoped dates after any populate/filter (must win over older A/D rows)
+        if (arrDT && minIn) {
+            arrDT.value = minIn + 'T00:00';
+            arrDT.readOnly = true;
+            arrDT.style.cssText += ';background:#eaf4ff!important;color:#1a6fa0!important;font-weight:700!important;';
+            arrDT.title = 'Auto-set from earliest hotel check-in (this city)';
+        }
+        if (depDT && maxOut) {
+            depDT.value = maxOut + 'T00:00';
+            depDT.readOnly = true;
+            depDT.style.cssText += ';background:#fff0f0!important;color:#c0392b!important;font-weight:700!important;';
+            depDT.title = 'Auto-set from latest hotel check-out (this city)';
+        }
+
         setTimeout(() => {
             window._suppressArrDepZoneRefresh = false;
             window._suppressArrDepLiveSync = false;
@@ -15477,12 +15877,16 @@
             } else if (typeof refreshDepartureTransferZonePrice === 'function') {
                 refreshDepartureTransferZonePrice();
             }
+            if (typeof refreshArrivalGuidePriceDisplay === 'function') refreshArrivalGuidePriceDisplay();
+            if (typeof refreshDepartureGuidePriceDisplay === 'function') refreshDepartureGuidePriceDisplay();
         }, 450);
     }
 
     // Debounced live sync: hotel modal arr/dep → outside tables (does NOT re-fetch zone prices)
+    // Hotel edit: only touch the active city (activeCityOnly) so other cities / Local Transfer stay intact while viewing.
     function scheduleHotelArrDepLiveSync() {
         if (window._suppressArrDepLiveSync) return;
+        if (window._populatingArrDepEdit) return;
         const inHotelEdit = window.editingAccommodationIndex !== null && window.editingAccommodationIndex !== undefined;
         const inPortEdit = window.editingArrivalDepartureIndex !== null && window.editingArrivalDepartureIndex !== undefined;
         if (!inHotelEdit && !inPortEdit) return;
@@ -15508,6 +15912,7 @@
                     }
                     await syncHotelArrDepToGlobal({
                         preserveGuideSelection: true,
+                        activeCityOnly: true,
                         previewHotel: {
                             checkIn: checkInPreview,
                             checkOut: checkOutPreview,
@@ -15534,12 +15939,28 @@
             return;
         }
         window._pendingArrivalZoneRefresh = false;
+        if (typeof setAccommodationPricingSide === 'function' && typeof accommodationTransferNeedsPrice === 'function'
+            && accommodationTransferNeedsPrice('arrival')) {
+            const dmcId = '{{ $dmc_id ?? "" }}';
+            const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('arrivalVehicleType') : '')
+                || document.getElementById('arrivalVehicleType')?.value || '';
+            const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('arrivalPort') : '')
+                || document.getElementById('arrivalPort')?.value || '';
+            const dest = typeof resolveArrDepDestMeta === 'function'
+                ? resolveArrDepDestMeta(document.getElementById('arrivalDestination'))
+                : { id: '', type: 'hotel' };
+            const cached = (typeof peekZonePriceCache === 'function' && vehicleId && portId && dest.id)
+                ? peekZonePriceCache(vehicleId, portId, 'port', dest.id, dest.type || 'hotel', dmcId)
+                : null;
+            if (!cached) setAccommodationPricingSide('arrivalZone', 'loading');
+        }
         clearTimeout(window._arrivalZonePriceTimer);
         window._arrivalZonePriceTimer = setTimeout(() => {
             refreshArrivalTransferZonePrice().then(() => {
                 if (!window._suppressArrDepLiveSync) scheduleHotelArrDepLiveSync();
+                if (typeof updateAccommodationSaveGate === 'function') updateAccommodationSaveGate();
             });
-        }, 200);
+        }, 180);
     }
 
     function scheduleDepartureZonePriceRefresh() {
@@ -15548,12 +15969,28 @@
             return;
         }
         window._pendingDepartureZoneRefresh = false;
+        if (typeof setAccommodationPricingSide === 'function' && typeof accommodationTransferNeedsPrice === 'function'
+            && accommodationTransferNeedsPrice('departure')) {
+            const dmcId = '{{ $dmc_id ?? "" }}';
+            const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('departureVehicleType') : '')
+                || document.getElementById('departureVehicleType')?.value || '';
+            const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('departurePort') : '')
+                || document.getElementById('departurePort')?.value || '';
+            const dest = typeof resolveArrDepDestMeta === 'function'
+                ? resolveArrDepDestMeta(document.getElementById('departureDestination'))
+                : { id: '', type: 'hotel' };
+            const cached = (typeof peekZonePriceCache === 'function' && vehicleId && portId && dest.id)
+                ? peekZonePriceCache(vehicleId, dest.id, dest.type || 'hotel', portId, 'port', dmcId)
+                : null;
+            if (!cached) setAccommodationPricingSide('departureZone', 'loading');
+        }
         clearTimeout(window._departureZonePriceTimer);
         window._departureZonePriceTimer = setTimeout(() => {
             refreshDepartureTransferZonePrice().then(() => {
                 if (!window._suppressArrDepLiveSync) scheduleHotelArrDepLiveSync();
+                if (typeof updateAccommodationSaveGate === 'function') updateAccommodationSaveGate();
             });
-        }, 200);
+        }, 180);
     }
 
     // Sync hotel arrival/departure into arrivalDepartureList:
@@ -15561,6 +15998,7 @@
     // - Different country/city: one A/D pair per city group
     async function syncHotelArrDepToGlobal(options = {}) {
         const preserveGuideSelection = options.preserveGuideSelection === true;
+        const activeCityOnly = options.activeCityOnly === true;
         const dmcId = '{{ $dmc_id ?? "" }}';
         let allHotels = accommodationList.filter(h => h.checkIn && h.checkOut);
 
@@ -15610,37 +16048,88 @@
             ? serviceCityKey(activeCityName)
             : activeCityName.toLowerCase();
 
+        // Hotel names per city — used to match existing A/D rows even when city stamp is missing
+        const hotelNamesByCity = {};
+        cityGroups.forEach((group, cKey) => {
+            hotelNamesByCity[cKey] = (group.hotels || []).map(h =>
+                String(h.hotelName || h.name || '').trim().toLowerCase()
+            ).filter(Boolean);
+        });
+
+        function isHotelLinkedArrDep(e) {
+            if (!e) return false;
+            const tt = e.travel_type;
+            const ty = (e.type || '').toString();
+            if (e.sourceType === 'hotel' && (tt === 'entry_port' || tt === 'exit_port')) return true;
+            if ((tt === 'entry_port' || tt === 'exit_port') && (ty === 'Arrival' || ty === 'Departure')) return true;
+            if ((!tt || tt === '') && (ty === 'Arrival' || ty === 'Departure') && e.sourceType !== 'standalone') return true;
+            return false;
+        }
+
+        function resolveArrDepTravelType(e) {
+            const tt = e.travel_type;
+            if (tt === 'entry_port' || tt === 'exit_port') return tt;
+            const ty = (e.type || '').toString();
+            return ty === 'Departure' ? 'exit_port' : 'entry_port';
+        }
+
+        function matchRowToCityKey(e) {
+            const cKey = (typeof serviceCityKey === 'function')
+                ? serviceCityKey(e.city || e.destination || '')
+                : String(e.city || e.destination || '').toLowerCase().trim();
+            if (cKey && cityGroups.has(cKey)) return cKey;
+            const destName = String(e.transferDestinationName || e.transfer_destination_name || '').trim().toLowerCase();
+            if (destName) {
+                for (const [ck, names] of Object.entries(hotelNamesByCity)) {
+                    if (names.some(n => n === destName || n.indexOf(destName) === 0 || destName.indexOf(n) === 0)) {
+                        return ck;
+                    }
+                }
+            }
+            return cKey || '';
+        }
+
         // Snapshot existing hotel-synced rows by city + travel_type (preserve ids/transfers across rebuild)
         const snapByCity = {};
         const legacySnaps = { entry_port: null, exit_port: null };
         arrivalDepartureList.forEach(e => {
-            if (!e) return;
-            const tt = e.travel_type;
-            const ty = (e.type || '').toString();
-            const isHotel = e.sourceType === 'hotel' && (tt === 'entry_port' || tt === 'exit_port');
-            const isLegacy = (!tt || tt === '') && (ty === 'Arrival' || ty === 'Departure');
-            if (!isHotel && !isLegacy) return;
-            const travelType = isHotel ? tt : (ty === 'Arrival' ? 'entry_port' : 'exit_port');
-            const cKey = (typeof serviceCityKey === 'function')
-                ? serviceCityKey(e.city || e.destination || '')
-                : String(e.city || e.destination || '').toLowerCase().trim();
+            if (!isHotelLinkedArrDep(e)) return;
+            const travelType = resolveArrDepTravelType(e);
+            const cKey = matchRowToCityKey(e);
             if (cKey) {
                 if (!snapByCity[cKey]) snapByCity[cKey] = {};
-                if (!snapByCity[cKey][travelType]) snapByCity[cKey][travelType] = e;
-            } else if (!legacySnaps[travelType]) {
+                // Prefer richer snap (has port/vehicle) over blank placeholders
+                const prev = snapByCity[cKey][travelType];
+                const richer = (!prev)
+                    || ((e.portId || e.portName) && !(prev.portId || prev.portName))
+                    || ((e.vehicleId || e.vehicleName) && !(prev.vehicleId || prev.vehicleName));
+                if (richer) snapByCity[cKey][travelType] = e;
+            } else if (!legacySnaps[travelType] || ((e.portId || e.portName) && !(legacySnaps[travelType].portId || legacySnaps[travelType].portName))) {
                 legacySnaps[travelType] = e;
             }
         });
 
-        // Drop hotel-synced port rows; rebuild one pair per city group below.
+        // Drop hotel-synced port rows that will be rebuilt (all cities, or active city only for live preview)
+        const removedPortIds = new Set();
         arrivalDepartureList = arrivalDepartureList.filter(item => {
-            if (item.sourceType === 'hotel' && (item.travel_type === 'entry_port' || item.travel_type === 'exit_port')) {
-                return false;
+            if (!isHotelLinkedArrDep(item)) return true;
+            const itemCityKey = matchRowToCityKey(item);
+            if (activeCityOnly && activeCityKey && itemCityKey && itemCityKey !== activeCityKey) {
+                return true; // keep other cities untouched during live preview
             }
-            return true;
+            if (activeCityOnly && activeCityKey && !itemCityKey) {
+                // Ambiguous city — keep unless we're single-city
+                if (cityGroups.size > 1) return true;
+            }
+            if (item.id != null) removedPortIds.add(String(item.id));
+            return false;
         });
 
         const keptPortIds = new Set();
+        // Keep ids of rows we did not remove (other cities)
+        arrivalDepartureList.forEach(e => {
+            if (e && e.id != null) keptPortIds.add(String(e.id));
+        });
         const syncedEntries = [];
 
         async function upsertCityPort(travelType, cityName, cityKey, arrHotel, depHotel, snapRow, useForm) {
@@ -15648,9 +16137,12 @@
             const hotel = isArrival ? arrHotel : depHotel;
             const minIn = arrHotel?.checkIn?.substring(0, 10) || '';
             const maxOut = depHotel?.checkOut?.substring(0, 10) || '';
-            const dtVal = isArrival
-                ? (normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00'))
-                : (normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00'));
+            // Prefer existing snap datetime when form/hotel dates are not being edited for this city
+            const dtVal = (useForm || !snapRow?.dateTime)
+                ? (isArrival
+                    ? (normalizeDateTimeLocal(arrHotel?.checkIn) || (minIn + 'T09:00'))
+                    : (normalizeDateTimeLocal(depHotel?.checkOut) || (maxOut + 'T09:00')))
+                : (normalizeDateTimeLocal(snapRow.dateTime) || snapRow.dateTime);
 
             const portSelId = isArrival ? 'arrivalPort' : 'departurePort';
             const flightId = isArrival ? 'arrivalFlightNo' : 'departureFlightNo';
@@ -15684,8 +16176,19 @@
                     ? (snapRow?.vehicleId || vehicleSel?.value || '')
                     : (vehicleSel?.value || '');
                 const vehicleOpt = vehicleSel?.selectedOptions[0];
-                vehicleName = vehicleOpt?.text || snapRow?.vehicleName || '';
-                vehicleType = vehicleOpt?.getAttribute('data-type') || snapRow?.vehicleType || '';
+                vehicleName = (vehicleSel?.value && vehicleOpt?.text) || snapRow?.vehicleName || '';
+                vehicleType = (vehicleSel?.value && vehicleOpt?.getAttribute('data-type')) || snapRow?.vehicleType || '';
+                // If form still empty (modal not fully populated), never wipe saved port/vehicle
+                if (!portId && snapRow) {
+                    portId = snapRow.portId || '';
+                    portName = snapRow.portName || portName;
+                }
+                if (!vehicleId && snapRow) {
+                    vehicleId = snapRow.vehicleId || '';
+                    vehicleName = snapRow.vehicleName || vehicleName;
+                    vehicleType = snapRow.vehicleType || vehicleType;
+                    if (snapRow.transferType) xferType = snapRow.transferType;
+                }
                 nAdults = preserveGuideSelection
                     ? parseInt((snapRow?.adultsQty ?? snapRow?.adults ?? document.getElementById(adultsId)?.value ?? 2), 10)
                     : parseInt((document.getElementById(adultsId)?.value ?? 2), 10);
@@ -15719,6 +16222,7 @@
 
             let vehiclePrice = 0;
             let zonePrice = { private_price: 0, shared_price: 0 };
+            const snapPrice = parseFloat(snapRow?.adultCost || snapRow?.cost || snapRow?.sell || 0) || 0;
             if (hasTransfer && vehicleId && portId && destId) {
                 let actualDestId = destId;
                 if (destType === 'hotel') {
@@ -15738,8 +16242,10 @@
                 } catch (e) {
                     console.warn('syncHotelArrDep: zone price fetch failed', travelType, cityName, e);
                 }
-            } else if (snapRow && !useForm) {
-                vehiclePrice = parseFloat(snapRow.adultCost || snapRow.cost || snapRow.sell || 0) || 0;
+                // Keep saved price if zone fetch returned 0 (no mapping / race while viewing)
+                if (!vehiclePrice && snapPrice > 0) vehiclePrice = snapPrice;
+            } else if (snapRow) {
+                vehiclePrice = snapPrice;
             }
 
             const entryId = snapRow?.id || generateId('port');
@@ -15753,9 +16259,13 @@
                     if ((t.sourceType || '').toLowerCase() !== sourceKey) return;
                     const bySrc = String(t.sourceId) === String(entryId);
                     const byTid = expectedXferId && String(t.id) === String(expectedXferId);
+                    const dest = String(t.destination || t.service || '');
+                    const byPrefix = dest.indexOf(prefix) === 0;
+                    const byCity = cityName && String(t.city || '').toLowerCase() === String(cityName).toLowerCase();
                     let score = 0;
                     if (bySrc) score += 2;
                     if (byTid) score += 3;
+                    if (byPrefix && byCity) score += 1;
                     if (score) scored.push({ i, score });
                 });
                 if (scored.length) {
@@ -15812,6 +16322,8 @@
             const effectiveVehicleName = vehicleName || (prevTransfer?.vehicleName || '');
             const effectiveAdults = preserveGuideSelection ? (prevTransfer?.adults ?? nAdults) : nAdults;
             const effectiveChild = preserveGuideSelection ? (prevTransfer?.child ?? nChild) : nChild;
+            const effectiveCost = vehiclePrice || parseFloat(prevTransfer?.cost || 0) || 0;
+            const effectiveSell = vehiclePrice || parseFloat(prevTransfer?.sell || 0) || effectiveCost;
 
             if (hasTransfer && effectiveVehicleId) {
                 const transferId = existingTransferIdx !== -1
@@ -15841,10 +16353,10 @@
                     hasTransfer: true,
                     adults: effectiveAdults,
                     child: effectiveChild,
-                    cost: vehiclePrice,
-                    sell: vehiclePrice,
-                    zonePrivatePrice: zonePrice?.private_price || 0,
-                    zoneSharedPrice: zonePrice?.shared_price || 0,
+                    cost: effectiveCost,
+                    sell: effectiveSell,
+                    zonePrivatePrice: zonePrice?.private_price || prevTransfer?.zonePrivatePrice || 0,
+                    zoneSharedPrice: zonePrice?.shared_price || prevTransfer?.zoneSharedPrice || 0,
                     taxIncluded: false,
                     focServiceDiscount: focSvc
                 };
@@ -15962,6 +16474,10 @@
 
         // Process each city group independently
         for (const [cityKey, group] of cityGroups.entries()) {
+            // Live hotel preview: only rebuild the city currently open in the modal
+            if (activeCityOnly && activeCityKey && cityKey !== activeCityKey) {
+                continue;
+            }
             const hotels = group.hotels || [];
             if (!hotels.length) continue;
             const cityName = group.cityName
@@ -15988,6 +16504,10 @@
             if (!useForm && cityGroups.size === 1) {
                 useForm = true;
             }
+            // Never create blank A/D for another city when snap is missing during live preview
+            if (activeCityOnly && !useForm && !snapArr && !snapDep) {
+                continue;
+            }
 
             // Update locked modal date fields only for the active city
             if (useForm) {
@@ -16009,18 +16529,25 @@
                 'departureGuideAdultQty', 'departureGuideChildQty', useForm);
         }
 
-        // Keep only airport transfers linked to current hotel-synced port ids
+        // Keep airport transfers linked to current hotel-synced port ids.
+        // During activeCityOnly, only drop transfers whose sourceId was removed for the edited city.
         transferList = transferList.filter(t => {
             const st = (t.sourceType || '').toLowerCase();
             if (st !== 'arrival' && st !== 'departure') return true;
             const dest = String(t.destination || t.service || '');
-            if (st === 'arrival' && dest.indexOf('Arrival:') === 0) {
-                return keptPortIds.has(String(t.sourceId));
+            const isArrDepXfer = (st === 'arrival' && dest.indexOf('Arrival:') === 0)
+                || (st === 'departure' && dest.indexOf('Departure:') === 0);
+            if (!isArrDepXfer) return true;
+            if (keptPortIds.has(String(t.sourceId))) return true;
+            // Rematch by city during live/partial sync — do not wipe other cities' Local Transfer rows
+            if (activeCityOnly) {
+                const tCity = (typeof serviceCityKey === 'function')
+                    ? serviceCityKey(t.city || '')
+                    : String(t.city || '').toLowerCase();
+                if (activeCityKey && tCity && tCity !== activeCityKey) return true;
+                if (removedPortIds.size && t.sourceId && !removedPortIds.has(String(t.sourceId))) return true;
             }
-            if (st === 'departure' && dest.indexOf('Departure:') === 0) {
-                return keptPortIds.has(String(t.sourceId));
-            }
-            return true;
+            return false;
         });
 
         // Link each hotel to its city A/D pair ids
@@ -16566,7 +17093,7 @@
             arrivalDepartureSection.style.display = 'block';
         }
 
-        // City select — sync with header (single city auto-select)
+        // City select — default to first header city (multi-city supported)
         const arrDepCitySel = document.getElementById('arrivalDepartureCity');
         if (arrDepCitySel) {
             const headerCities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
@@ -16578,10 +17105,9 @@
                 opt.hidden = !ok;
                 opt.disabled = !ok;
             });
-            if (headerCities.length === 1) {
+            if (headerCities.length > 0) {
+                // ADD mode: always start on first header city (user can change)
                 arrDepCitySel.value = headerCities[0];
-            } else if (!headerCities.includes(arrDepCitySel.value)) {
-                arrDepCitySel.value = '';
             }
         }
 
@@ -17022,22 +17548,37 @@
                 console.log('=== EDITING ARRIVAL/DEPARTURE ===');
                 console.log('Type:', arrivalDeparture.type);
                 console.log('Original dateTime:', arrivalDeparture.dateTime);
-                
+                console.log('Port:', arrivalDeparture.portName, 'Dest:', arrivalDeparture.transferDestinationName, 'City:', arrivalDeparture.city);
+
                 function applyVehicleToSelect(selectEl, vehicleId, vehicleName) {
                     if (!selectEl) return;
                     const vid = vehicleId != null && vehicleId !== '' ? String(vehicleId).trim() : '';
                     if (!vid) return;
                     selectEl.value = vid;
-                    if (selectEl.value === vid) return;
+                    if (selectEl.value === vid) {
+                        if (typeof jQuery !== 'undefined') jQuery(selectEl).val(vid).trigger('change');
+                        return;
+                    }
                     const baseName = (vehicleName || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
                     const opt = Array.from(selectEl.options).find(o =>
                         String(o.value) === vid ||
                         (baseName && (o.textContent || '').trim().indexOf(baseName) !== -1)
                     );
-                    if (opt) selectEl.value = opt.value;
+                    if (opt) {
+                        if (typeof setOptionCityVisibility === 'function') setOptionCityVisibility(opt, true);
+                        selectEl.value = opt.value;
+                        if (typeof jQuery !== 'undefined') jQuery(selectEl).val(opt.value).trigger('change');
+                    }
                 }
 
+                // Prefer the clicked row's own port/destination; only fill gaps from linked transfer
                 let data = { ...arrivalDeparture };
+                const rowPortId = data.portId || data.port_id || '';
+                const rowPortName = data.portName || data.port_name || '';
+                const rowDestId = data.transferDestinationId || data.transfer_destination_id || '';
+                const rowDestName = data.transferDestinationName || data.transfer_destination_name || '';
+                const rowCity = String(data.city || data.destination || '').trim();
+
                 let linkedTransfer = null;
                 if (data.transferId) {
                     linkedTransfer = transferList.find(t => String(t.id) === String(data.transferId));
@@ -17052,79 +17593,106 @@
                     });
                 }
                 if (linkedTransfer) {
-                    if (linkedTransfer.vehicleId != null && linkedTransfer.vehicleId !== '') data.vehicleId = linkedTransfer.vehicleId;
-                    if (linkedTransfer.vehicleType != null && linkedTransfer.vehicleType !== '') data.vehicleType = linkedTransfer.vehicleType;
-                    if (linkedTransfer.vehicleName != null && linkedTransfer.vehicleName !== '') data.vehicleName = linkedTransfer.vehicleName;
+                    if (!data.vehicleId && linkedTransfer.vehicleId != null && linkedTransfer.vehicleId !== '') data.vehicleId = linkedTransfer.vehicleId;
+                    if (!data.vehicleType && linkedTransfer.vehicleType != null && linkedTransfer.vehicleType !== '') data.vehicleType = linkedTransfer.vehicleType;
+                    if (!data.vehicleName && linkedTransfer.vehicleName != null && linkedTransfer.vehicleName !== '') data.vehicleName = linkedTransfer.vehicleName;
                     const rowXfer = data.transferType ?? data.transfer_type;
                     const rowHasXfer = rowXfer != null && String(rowXfer).trim() !== '';
                     if (!rowHasXfer) {
                         const ltXfer = linkedTransfer.transferType ?? linkedTransfer.type;
                         if (ltXfer != null && String(ltXfer).trim() !== '') data.transferType = ltXfer;
-                    } else {
-                        const ps = transferServiceRawToPS(data);
-                        linkedTransfer.type = ps;
-                        linkedTransfer.transferType = ps;
                     }
-                    if (linkedTransfer.way != null && linkedTransfer.way !== '') data.transferWay = linkedTransfer.way;
-                    if (linkedTransfer.destinationId != null && linkedTransfer.destinationId !== '') data.transferDestinationId = linkedTransfer.destinationId;
-                    if (linkedTransfer.destinationName != null && linkedTransfer.destinationName !== '') data.transferDestinationName = linkedTransfer.destinationName;
-                    else if (linkedTransfer.destination) data.transferDestinationName = linkedTransfer.destination;
-                    if (!data.city && linkedTransfer.city) data.city = linkedTransfer.city;
+                    if (!data.transferWay && linkedTransfer.way != null && linkedTransfer.way !== '') data.transferWay = linkedTransfer.way;
+                    // Only fill destination from transfer when row is missing it (avoid wrong pickup/dropoff)
+                    if (!rowDestId && (linkedTransfer.destinationId || linkedTransfer.transferDestinationId)) {
+                        data.transferDestinationId = linkedTransfer.destinationId || linkedTransfer.transferDestinationId;
+                    }
+                    if (!rowDestName && (linkedTransfer.destinationName || linkedTransfer.transferDestinationName || linkedTransfer.destination)) {
+                        data.transferDestinationName = linkedTransfer.destinationName || linkedTransfer.transferDestinationName || linkedTransfer.destination;
+                    }
+                    if (!rowCity && linkedTransfer.city) data.city = linkedTransfer.city;
                 }
 
-                // Restore City then filter catalogs (skip defaults so saved values are preserved)
-                const cityToRestore = String(data.city || linkedTransfer?.city || '').trim();
-                const arrDepCitySelEdit = document.getElementById('arrivalDepartureCity');
-                if (arrDepCitySelEdit) {
-                    if (cityToRestore) arrDepCitySelEdit.value = cityToRestore;
-                    if (typeof applyArrivalDepartureCityFilters === 'function') {
-                        applyArrivalDepartureCityFilters(arrDepCitySelEdit.value || cityToRestore, { skipDefaults: true });
-                    } else if (typeof filterPortsBySelectedCountries === 'function') {
-                        filterPortsBySelectedCountries(arrDepCitySelEdit.value || cityToRestore);
-                    }
+                // Always restore row port/dest (authoritative for the clicked table row)
+                data.portId = rowPortId || data.portId || '';
+                data.portName = rowPortName || data.portName || '';
+                data.transferDestinationId = rowDestId || data.transferDestinationId || '';
+                data.transferDestinationName = rowDestName || data.transferDestinationName || '';
+
+                // Resolve city city-wise (Batam/Kolkata/Singapore) — never fall back to first header city
+                let cityToRestore = (typeof resolveCityForArrDepRow === 'function')
+                    ? resolveCityForArrDepRow(data)
+                    : String(data.city || rowCity || '').trim();
+                if (!cityToRestore && linkedTransfer && typeof resolveCityForArrDepRow === 'function') {
+                    cityToRestore = resolveCityForArrDepRow(linkedTransfer);
+                }
+                window._populatingArrDepEdit = true;
+                window._suppressArrDepZoneRefresh = true;
+                window._suppressArrDepLiveSync = true;
+
+                if (typeof ensureArrDepCitySelectOptions === 'function') {
+                    cityToRestore = ensureArrDepCitySelectOptions(cityToRestore) || cityToRestore;
+                }
+                data.city = cityToRestore;
+                if (typeof stampArrivalDepartureGeo === 'function') {
+                    stampArrivalDepartureGeo(data, cityToRestore);
+                }
+
+                // ALWAYS pass cityToRestore (not select.value) — disabled options leave select stuck on Singapore
+                if (typeof applyArrivalDepartureCityFilters === 'function') {
+                    applyArrivalDepartureCityFilters(cityToRestore, { skipDefaults: true });
+                } else if (typeof filterPortsBySelectedCountries === 'function') {
+                    filterPortsBySelectedCountries(cityToRestore);
+                }
+                if (typeof ensureArrDepCitySelectOptions === 'function') {
+                    ensureArrDepCitySelectOptions(cityToRestore);
                 }
 
                 const wayVal = (data.transferWay === 'both-way' || data.transferWay === 'Both Way' || data.transferWay === 'Round Trip') ? 'both-way' : 'one-way';
                 
                 if (arrivalDeparture.type === 'Arrival') {
-                    window._suppressArrDepZoneRefresh = true;
-                    window._suppressArrDepLiveSync = true;
                     const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     document.getElementById('arrivalDateTime').value = normalizedDateTime || '';
-                    if (data.portId) { $('#arrivalPort').val(data.portId); }
+                    setArrDepSelectByIdOrName('arrivalPort', data.portId, data.portName);
                     document.getElementById('arrivalFlightNo').value = data.flightNo || '';
                     document.getElementById('arrivalAdults').value = data.adultsQty ?? data.adults ?? 2;
                     document.getElementById('arrivalChild').value = data.childQty ?? data.child ?? 0;
                     document.getElementById('arrivalInfant').value = data.infantQty ?? data.infant ?? 0;
                     document.getElementById('arrivalTransferType').value = transferServiceRawToPS(data);
                     document.getElementById('arrivalTransferWay').value = wayVal;
-                    document.getElementById('arrivalTransfer').checked = data.hasTransfer || false;
+                    document.getElementById('arrivalTransfer').checked = !!(data.hasTransfer || data.vehicleId || data.transferDestinationId || data.transferDestinationName);
                     toggleArrivalTransferFields();
-                    if (data.transferDestinationId) {
-                        $('#arrivalDestination').val(data.transferDestinationId);
+                    setArrDepSelectByIdOrName('arrivalDestination', data.transferDestinationId, data.transferDestinationName);
+                    if (typeof filterPortsBySelectedCountries === 'function') {
+                        filterPortsBySelectedCountries(cityToRestore);
                     }
+                    setArrDepSelectByIdOrName('arrivalPort', data.portId, data.portName);
+                    setArrDepSelectByIdOrName('arrivalDestination', data.transferDestinationId, data.transferDestinationName);
                     const savedArrCost = parseFloat(data.cost || data.adultCost || linkedTransfer?.cost || 0) || 0;
                     const savedArrSell = parseFloat(data.sell || data.adultSell || linkedTransfer?.sell || 0) || 0;
+                    document.getElementById('arrivalCost').value = savedArrCost;
+                    document.getElementById('arrivalSell').value = savedArrSell;
+                    setArrDepTransferPriceUI('arrival', savedArrCost, savedArrSell, savedArrCost > 0 || savedArrSell > 0 ? '' : '(Saved price)', true);
                     setTimeout(() => {
-                        filterArrivalVehiclesByServiceType();
+                        if (typeof ensureArrDepCitySelectOptions === 'function') ensureArrDepCitySelectOptions(cityToRestore);
+                        filterArrivalVehiclesByServiceType(cityToRestore);
                         applyVehicleToSelect(document.getElementById('arrivalVehicleType'), data.vehicleId, data.vehicleName);
-                        setArrDepTransferPriceUI('arrival', savedArrCost, savedArrSell, '', true);
+                        setArrDepSelectByIdOrName('arrivalPort', data.portId, data.portName);
+                        setArrDepSelectByIdOrName('arrivalDestination', data.transferDestinationId, data.transferDestinationName);
+                        setArrDepTransferPriceUI('arrival', savedArrCost, savedArrSell, savedArrCost > 0 || savedArrSell > 0 ? '' : '(Saved price)', true);
                         refreshArrivalGuidePriceDisplay();
                         setTimeout(() => {
                             window._suppressArrDepZoneRefresh = false;
                             window._suppressArrDepLiveSync = false;
-                        }, 100);
-                    }, 150);
-                    // Populate cost and sell
-                    document.getElementById('arrivalCost').value = savedArrCost;
-                    document.getElementById('arrivalSell').value = savedArrSell;
+                            window._populatingArrDepEdit = false;
+                        }, 150);
+                    }, 200);
                     const afocXferEd = document.getElementById('arrivalFocServiceDiscount');
                     if (afocXferEd) {
                         afocXferEd.checked = !!(linkedTransfer && (linkedTransfer.focServiceDiscount || linkedTransfer.foc_service_discount)) ||
                             !!(data.focServiceDiscount || data.foc_service_discount);
                     }
                     
-                    // Sync guide counts with transfer values
                     syncArrivalGuideCounts();
 
                     let arrGuideEntry = data.guideId
@@ -17133,34 +17701,30 @@
                     if (!arrGuideEntry) {
                         arrGuideEntry = guideList.find(g =>
                             String(g.linkedTo || '').toLowerCase() === 'arrival' &&
-                            String(g.arrivalId || '') === String(data.id || '')
+                            String(g.arrivalId || g.sourceId || '') === String(data.id || '')
                         );
                     }
-                    if (!arrGuideEntry) {
-                        arrGuideEntry = guideList.find(g => String(g.linkedTo || '').toLowerCase() === 'arrival');
+                    if (!arrGuideEntry && cityToRestore) {
+                        arrGuideEntry = guideList.find(g =>
+                            String(g.linkedTo || '').toLowerCase() === 'arrival' &&
+                            String(g.city || '').toLowerCase() === cityToRestore.toLowerCase()
+                        );
                     }
                     if (arrGuideEntry) {
                         data.guideId = arrGuideEntry.id;
                     }
                     
-                    // Show guide section if transfer is checked or if guide exists
                     if (data.hasTransfer || data.guideId || arrGuideEntry) {
                         const arrivalGuideSection = document.getElementById('arrivalGuideSection');
-                        if (arrivalGuideSection) {
-                            arrivalGuideSection.style.display = 'block';
-                        }
+                        if (arrivalGuideSection) arrivalGuideSection.style.display = 'block';
                     }
                     
-                    // Populate arrival guide if exists
                     if (arrGuideEntry) {
                         const guideEntry = arrGuideEntry;
                         const arrivalGuideSection = document.getElementById('arrivalGuideSection');
-                        if (arrivalGuideSection) {
-                            arrivalGuideSection.style.display = 'block';
-                        }
+                        if (arrivalGuideSection) arrivalGuideSection.style.display = 'block';
                         document.getElementById('arrivalGuideCheckbox').checked = true;
                         
-                        // Try to find guide ID by matching guide name if guideId is empty
                         let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
                         if (!guideIdToSet && guideEntry.guideName) {
                             const arrivalGuideSelect = document.getElementById('arrivalGuide');
@@ -17169,90 +17733,75 @@
                                     const optName = opt.getAttribute('data-name') || '';
                                     return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
                                 });
-                                if (guideOption) {
-                                    guideIdToSet = guideOption.value;
-                                }
+                                if (guideOption) guideIdToSet = guideOption.value;
                             }
                         }
                         
                         document.getElementById('arrivalGuide').value = guideIdToSet;
-                        // Populate adult and child quantities
                         const arrivalGuideAdultQty = document.getElementById('arrivalGuideAdultQty');
                         const arrivalGuideChildQty = document.getElementById('arrivalGuideChildQty');
-                        if (arrivalGuideAdultQty) {
-                            arrivalGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
-                        }
-                        if (arrivalGuideChildQty) {
-                            arrivalGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
-                        }
+                        if (arrivalGuideAdultQty) arrivalGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                        if (arrivalGuideChildQty) arrivalGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
                         const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
-                        if (arrivalGuideFieldsRow) {
-                            arrivalGuideFieldsRow.style.display = 'block';
-                        }
+                        if (arrivalGuideFieldsRow) arrivalGuideFieldsRow.style.display = 'block';
                         const arrivalGuideHeaderRow = document.getElementById('arrivalGuideHeaderRow');
-                        if (arrivalGuideHeaderRow) {
-                            arrivalGuideHeaderRow.style.display = 'block';
-                        }
+                        if (arrivalGuideHeaderRow) arrivalGuideHeaderRow.style.display = 'block';
                         const agfPopEd = document.getElementById('arrivalGuideFocServiceDiscount');
                         if (agfPopEd) agfPopEd.checked = !!(guideEntry.focServiceDiscount || guideEntry.foc_service_discount);
                     } else {
-                        // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
                         const arrivalGuideSection = document.getElementById('arrivalGuideSection');
-                        if (arrivalGuideSection) {
-                            arrivalGuideSection.style.display = 'block';
-                        }
-                        // Uncheck guide checkbox and hide guide fields when no guide is linked
+                        if (arrivalGuideSection) arrivalGuideSection.style.display = 'block';
                         document.getElementById('arrivalGuideCheckbox').checked = false;
                         const arrivalGuideFieldsRow = document.getElementById('arrivalGuideFieldsRow');
-                        if (arrivalGuideFieldsRow) {
-                            arrivalGuideFieldsRow.style.display = 'none';
-                        }
+                        if (arrivalGuideFieldsRow) arrivalGuideFieldsRow.style.display = 'none';
                         const arrivalGuideHeaderRow = document.getElementById('arrivalGuideHeaderRow');
-                        if (arrivalGuideHeaderRow) {
-                            arrivalGuideHeaderRow.style.display = 'none';
-                        }
+                        if (arrivalGuideHeaderRow) arrivalGuideHeaderRow.style.display = 'none';
                         const agfClrEd = document.getElementById('arrivalGuideFocServiceDiscount');
                         if (agfClrEd) agfClrEd.checked = false;
                     }
                 } else {
-                    window._suppressArrDepZoneRefresh = true;
-                    window._suppressArrDepLiveSync = true;
                     const normalizedDateTime = normalizeDateTimeLocal(data.dateTime);
                     document.getElementById('departureDateTime').value = normalizedDateTime || '';
-                    if (data.portId) { $('#departurePort').val(data.portId); }
+                    setArrDepSelectByIdOrName('departurePort', data.portId, data.portName);
                     document.getElementById('departureFlightNo').value = data.flightNo || '';
                     document.getElementById('departureAdults').value = data.adultsQty ?? data.adults ?? 2;
                     document.getElementById('departureChild').value = data.childQty ?? data.child ?? 0;
                     document.getElementById('departureInfant').value = data.infantQty ?? data.infant ?? 0;
                     document.getElementById('departureTransferType').value = transferServiceRawToPS(data);
                     document.getElementById('departureTransferWay').value = wayVal;
-                    document.getElementById('departureTransfer').checked = data.hasTransfer || false;
+                    document.getElementById('departureTransfer').checked = !!(data.hasTransfer || data.vehicleId || data.transferDestinationId || data.transferDestinationName);
                     toggleDepartureTransferFields();
-                    if (data.transferDestinationId) {
-                        $('#departureDestination').val(data.transferDestinationId);
+                    setArrDepSelectByIdOrName('departureDestination', data.transferDestinationId, data.transferDestinationName);
+                    if (typeof filterPortsBySelectedCountries === 'function') {
+                        filterPortsBySelectedCountries(cityToRestore);
                     }
+                    setArrDepSelectByIdOrName('departurePort', data.portId, data.portName);
+                    setArrDepSelectByIdOrName('departureDestination', data.transferDestinationId, data.transferDestinationName);
                     const savedDepCost = parseFloat(data.cost || data.adultCost || linkedTransfer?.cost || 0) || 0;
                     const savedDepSell = parseFloat(data.sell || data.adultSell || linkedTransfer?.sell || 0) || 0;
+                    document.getElementById('departureCost').value = savedDepCost;
+                    document.getElementById('departureSell').value = savedDepSell;
+                    setArrDepTransferPriceUI('departure', savedDepCost, savedDepSell, savedDepCost > 0 || savedDepSell > 0 ? '' : '(Saved price)', true);
                     setTimeout(() => {
-                        filterDepartureVehiclesByServiceType();
+                        if (typeof ensureArrDepCitySelectOptions === 'function') ensureArrDepCitySelectOptions(cityToRestore);
+                        filterDepartureVehiclesByServiceType(cityToRestore);
                         applyVehicleToSelect(document.getElementById('departureVehicleType'), data.vehicleId, data.vehicleName);
-                        setArrDepTransferPriceUI('departure', savedDepCost, savedDepSell, '', true);
+                        setArrDepSelectByIdOrName('departurePort', data.portId, data.portName);
+                        setArrDepSelectByIdOrName('departureDestination', data.transferDestinationId, data.transferDestinationName);
+                        setArrDepTransferPriceUI('departure', savedDepCost, savedDepSell, savedDepCost > 0 || savedDepSell > 0 ? '' : '(Saved price)', true);
                         refreshDepartureGuidePriceDisplay();
                         setTimeout(() => {
                             window._suppressArrDepZoneRefresh = false;
                             window._suppressArrDepLiveSync = false;
-                        }, 100);
-                    }, 150);
-                    // Populate cost and sell
-                    document.getElementById('departureCost').value = savedDepCost;
-                    document.getElementById('departureSell').value = savedDepSell;
+                            window._populatingArrDepEdit = false;
+                        }, 150);
+                    }, 200);
                     const dfocXferEd = document.getElementById('departureFocServiceDiscount');
                     if (dfocXferEd) {
                         dfocXferEd.checked = !!(linkedTransfer && (linkedTransfer.focServiceDiscount || linkedTransfer.foc_service_discount)) ||
                             !!(data.focServiceDiscount || data.foc_service_discount);
                     }
                     
-                    // Sync guide counts with transfer values
                     syncDepartureGuideCounts();
 
                     let depGuideEntry = data.guideId
@@ -17261,34 +17810,30 @@
                     if (!depGuideEntry) {
                         depGuideEntry = guideList.find(g =>
                             String(g.linkedTo || '').toLowerCase() === 'departure' &&
-                            String(g.arrivalId || '') === String(data.id || '')
+                            String(g.arrivalId || g.sourceId || '') === String(data.id || '')
                         );
                     }
-                    if (!depGuideEntry) {
-                        depGuideEntry = guideList.find(g => String(g.linkedTo || '').toLowerCase() === 'departure');
+                    if (!depGuideEntry && cityToRestore) {
+                        depGuideEntry = guideList.find(g =>
+                            String(g.linkedTo || '').toLowerCase() === 'departure' &&
+                            String(g.city || '').toLowerCase() === cityToRestore.toLowerCase()
+                        );
                     }
                     if (depGuideEntry) {
                         data.guideId = depGuideEntry.id;
                     }
                     
-                    // Show guide section if transfer is checked or if guide exists
                     if (data.hasTransfer || data.guideId || depGuideEntry) {
                         const departureGuideSection = document.getElementById('departureGuideSection');
-                        if (departureGuideSection) {
-                            departureGuideSection.style.display = 'block';
-                        }
+                        if (departureGuideSection) departureGuideSection.style.display = 'block';
                     }
                     
-                    // Populate departure guide if exists
                     if (depGuideEntry) {
                         const guideEntry = depGuideEntry;
                         const departureGuideSection = document.getElementById('departureGuideSection');
-                        if (departureGuideSection) {
-                            departureGuideSection.style.display = 'block';
-                        }
+                        if (departureGuideSection) departureGuideSection.style.display = 'block';
                         document.getElementById('departureGuideCheckbox').checked = true;
                         
-                        // Try to find guide ID by matching guide name if guideId is empty
                         let guideIdToSet = guideEntry.guideId || guideEntry.guide_id || '';
                         if (!guideIdToSet && guideEntry.guideName) {
                             const departureGuideSelect = document.getElementById('departureGuide');
@@ -17297,48 +17842,29 @@
                                     const optName = opt.getAttribute('data-name') || '';
                                     return optName === guideEntry.guideName || optName.trim() === guideEntry.guideName.trim();
                                 });
-                                if (guideOption) {
-                                    guideIdToSet = guideOption.value;
-                                }
+                                if (guideOption) guideIdToSet = guideOption.value;
                             }
                         }
                         
                         document.getElementById('departureGuide').value = guideIdToSet;
-                        // Populate adult and child quantities
                         const departureGuideAdultQty = document.getElementById('departureGuideAdultQty');
                         const departureGuideChildQty = document.getElementById('departureGuideChildQty');
-                        if (departureGuideAdultQty) {
-                            departureGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
-                        }
-                        if (departureGuideChildQty) {
-                            departureGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
-                        }
+                        if (departureGuideAdultQty) departureGuideAdultQty.value = guideEntry.adultsQty || guideEntry.adults || 0;
+                        if (departureGuideChildQty) departureGuideChildQty.value = guideEntry.childQty || guideEntry.children || 0;
                         const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
-                        if (departureGuideFieldsRow) {
-                            departureGuideFieldsRow.style.display = 'block';
-                        }
+                        if (departureGuideFieldsRow) departureGuideFieldsRow.style.display = 'block';
                         const departureGuideHeaderRow = document.getElementById('departureGuideHeaderRow');
-                        if (departureGuideHeaderRow) {
-                            departureGuideHeaderRow.style.display = 'block';
-                        }
+                        if (departureGuideHeaderRow) departureGuideHeaderRow.style.display = 'block';
                         const dgfPopEd = document.getElementById('departureGuideFocServiceDiscount');
                         if (dgfPopEd) dgfPopEd.checked = !!(guideEntry.focServiceDiscount || guideEntry.foc_service_discount);
                     } else {
-                        // Show guide section even if no guide is selected, but uncheck checkbox and hide fields
                         const departureGuideSection = document.getElementById('departureGuideSection');
-                        if (departureGuideSection) {
-                            departureGuideSection.style.display = 'block';
-                        }
-                        // Uncheck guide checkbox and hide guide fields when no guide is linked
+                        if (departureGuideSection) departureGuideSection.style.display = 'block';
                         document.getElementById('departureGuideCheckbox').checked = false;
                         const departureGuideFieldsRow = document.getElementById('departureGuideFieldsRow');
-                        if (departureGuideFieldsRow) {
-                            departureGuideFieldsRow.style.display = 'none';
-                        }
+                        if (departureGuideFieldsRow) departureGuideFieldsRow.style.display = 'none';
                         const departureGuideHeaderRow = document.getElementById('departureGuideHeaderRow');
-                        if (departureGuideHeaderRow) {
-                            departureGuideHeaderRow.style.display = 'none';
-                        }
+                        if (departureGuideHeaderRow) departureGuideHeaderRow.style.display = 'none';
                         const dgfClrEd = document.getElementById('departureGuideFocServiceDiscount');
                         if (dgfClrEd) dgfClrEd.checked = false;
                     }
@@ -17616,6 +18142,225 @@
         return String(value || '').trim();
     }
 
+    /** Set port/destination select by id, then by visible name (Select2-safe). */
+    function setArrDepSelectByIdOrName(elOrId, idValue, nameValue) {
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return false;
+        const id = idValue != null && idValue !== '' ? String(idValue).trim() : '';
+        const name = nameValue != null && nameValue !== '' ? String(nameValue).trim().toLowerCase() : '';
+        const opts = Array.from(el.options || []);
+
+        function reveal(opt) {
+            if (!opt) return;
+            if (typeof setOptionCityVisibility === 'function') {
+                setOptionCityVisibility(opt, true);
+            } else {
+                opt.disabled = false;
+                opt.hidden = false;
+                opt.style.display = '';
+            }
+            const group = opt.parentElement;
+            if (group && group.tagName === 'OPTGROUP') group.hidden = false;
+        }
+
+        let match = null;
+        if (id) {
+            match = opts.find(o =>
+                String(o.value) === id
+                || String(o.getAttribute('data-port-id') || '') === id
+                || String(o.getAttribute('data-hotel-unique-id') || '') === id
+                || String(o.getAttribute('data-attraction-id') || '') === id
+                || String(o.getAttribute('data-restaurant-id') || '') === id
+            ) || null;
+        }
+        if (!match && name) {
+            match = opts.find(o => {
+                if (!o.value) return false;
+                const dn = String(o.getAttribute('data-name') || o.textContent || '').trim().toLowerCase();
+                return dn === name || dn.indexOf(name) === 0 || name.indexOf(dn) === 0;
+            }) || null;
+        }
+        if (!match) {
+            if (typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+                jQuery(el).val('').trigger('change');
+            } else {
+                el.value = '';
+            }
+            return false;
+        }
+        reveal(match);
+        el.value = match.value;
+        if (typeof jQuery !== 'undefined') {
+            jQuery(el).val(match.value).trigger('change');
+        }
+        return true;
+    }
+
+    /**
+     * Resolve service city for an arrival/departure row (multi-city edit).
+     * Prefer stamped city when it is a real destination; else hotel dropoff/pickup city; else port city_id.
+     */
+    function resolveCityForArrDepRow(row) {
+        if (!row || typeof row !== 'object') return '';
+
+        function isKnownServiceCity(name) {
+            const n = String(name || '').split(',')[0].trim();
+            if (!n || /^(Arrival|Departure)\s*:/i.test(n)) return false;
+            if (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations)) {
+                if (selectedDestinations.some(c => String(c || '').trim().toLowerCase() === n.toLowerCase())) return true;
+            }
+            if (typeof cityIdMap !== 'undefined' && cityIdMap) {
+                if (Object.prototype.hasOwnProperty.call(cityIdMap, n)) return true;
+                if (Object.keys(cityIdMap).some(k => k.toLowerCase() === n.toLowerCase())) return true;
+            }
+            const citySel = document.getElementById('arrivalDepartureCity');
+            if (citySel) {
+                return Array.from(citySel.options || []).some(o =>
+                    o.value && (
+                        o.value === n
+                        || String(o.value).toLowerCase() === n.toLowerCase()
+                        || String(o.textContent || '').trim().toLowerCase() === n.toLowerCase()
+                    )
+                );
+            }
+            return false;
+        }
+
+        let city = String(row.city || '').split(',')[0].trim();
+        if (/^(Arrival|Departure)\s*:/i.test(city)) city = '';
+        if (isKnownServiceCity(city)) {
+            return (typeof normalizeServiceCityName === 'function') ? normalizeServiceCityName(city) : city;
+        }
+
+        const hotelName = String(
+            row.transferDestinationName || row.transfer_destination_name || ''
+        ).trim().toLowerCase();
+        if (hotelName) {
+            const destSel = document.getElementById('arrivalDestination')
+                || document.getElementById('departureDestination');
+            if (destSel) {
+                const hotelOpt = Array.from(destSel.options || []).find(o => {
+                    if ((o.getAttribute('data-type') || '') !== 'hotel') return false;
+                    const n = String(o.getAttribute('data-name') || o.textContent || '').trim().toLowerCase();
+                    return n === hotelName || n.indexOf(hotelName) === 0 || hotelName.indexOf(n) === 0;
+                });
+                if (hotelOpt) {
+                    const hc = String(hotelOpt.getAttribute('data-city') || '').trim();
+                    if (hc) city = hc;
+                }
+            }
+            if (!isKnownServiceCity(city) && typeof accommodationList !== 'undefined') {
+                const hotel = (accommodationList || []).find(h => {
+                    const hn = String(h.hotelName || '').trim().toLowerCase();
+                    return hn === hotelName || hn.indexOf(hotelName) === 0 || hotelName.indexOf(hn) === 0;
+                });
+                if (hotel) {
+                    const hc = (typeof getHotelServiceCity === 'function')
+                        ? getHotelServiceCity(hotel)
+                        : String(hotel.city || hotel.destination || '').trim();
+                    if (hc) city = hc;
+                }
+            }
+        }
+
+        if (!isKnownServiceCity(city) && (row.portId || row.portName)) {
+            const portSel = document.getElementById('arrivalPort') || document.getElementById('departurePort');
+            if (portSel) {
+                const pid = String(row.portId || '');
+                const pname = String(row.portName || '').trim().toLowerCase();
+                const portOpt = Array.from(portSel.options || []).find(o =>
+                    (pid && (String(o.value) === pid || String(o.getAttribute('data-port-id') || '') === pid))
+                    || (pname && String(o.textContent || '').trim().toLowerCase().indexOf(pname) !== -1)
+                );
+                if (portOpt) {
+                    const cityId = parseInt(portOpt.getAttribute('data-city-id') || '0', 10) || 0;
+                    if (cityId && typeof cityIdMap !== 'undefined' && cityIdMap) {
+                        const matched = Object.keys(cityIdMap).find(n => parseInt(cityIdMap[n], 10) === cityId);
+                        if (matched) city = matched;
+                    }
+                }
+            }
+        }
+
+        // Last resort: destination field if it is a known city
+        if (!isKnownServiceCity(city) && isKnownServiceCity(row.destination)) {
+            city = String(row.destination || '').split(',')[0].trim();
+        }
+
+        if (city && typeof normalizeServiceCityName === 'function') {
+            city = normalizeServiceCityName(city);
+        }
+        return city;
+    }
+
+    /** Enable city options on arrivalDepartureCity (header cities + preferred). */
+    function ensureArrDepCitySelectOptions(preferredCity) {
+        const sel = document.getElementById('arrivalDepartureCity');
+        if (!sel) return '';
+        const headerCities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+            ? selectedDestinations.map(c => String(c || '').trim()).filter(Boolean)
+            : [];
+        const preferred = String(preferredCity || '').trim();
+        sel.querySelectorAll('option').forEach(opt => {
+            if (!opt.value) return;
+            const ok = headerCities.length === 0
+                || headerCities.includes(opt.value)
+                || (preferred && (
+                    opt.value === preferred
+                    || String(opt.value).toLowerCase() === preferred.toLowerCase()
+                    || String(opt.textContent || '').trim().toLowerCase() === preferred.toLowerCase()
+                ));
+            opt.hidden = !ok;
+            opt.disabled = !ok;
+            if (ok) opt.style.display = '';
+        });
+        if (preferred) {
+            let match = Array.from(sel.options).find(o =>
+                o.value === preferred
+                || String(o.value).toLowerCase() === preferred.toLowerCase()
+                || String(o.textContent || '').trim().toLowerCase() === preferred.toLowerCase()
+            );
+            if (match) {
+                match.disabled = false;
+                match.hidden = false;
+                sel.value = match.value;
+            }
+        }
+        return String(sel.value || preferred || '').trim();
+    }
+
+    /** Drop duplicate arrival/departure rows loaded from orders (same city/port/route/date/type). */
+    function dedupeArrivalDepartureList() {
+        if (!Array.isArray(arrivalDepartureList) || arrivalDepartureList.length < 2) return;
+        const seenOrderIds = new Set();
+        const seenSigs = new Set();
+        const kept = [];
+        arrivalDepartureList.forEach((item) => {
+            if (!item) return;
+            const orderKey = item.orderId != null && item.orderId !== '' ? String(item.orderId) : '';
+            if (orderKey) {
+                if (seenOrderIds.has(orderKey)) return;
+                seenOrderIds.add(orderKey);
+            }
+            const dt = String(item.dateTime || '').replace('T', ' ').substring(0, 16);
+            const sig = [
+                item.type || '',
+                dt,
+                item.portName || item.port_name || '',
+                item.transferDestinationName || item.transfer_destination_name || '',
+                String(item.transferType || item.type || '').toLowerCase(),
+                item.city || item.destination || ''
+            ].join('|').toLowerCase();
+            if (seenSigs.has(sig)) return;
+            seenSigs.add(sig);
+            kept.push(item);
+        });
+        if (kept.length !== arrivalDepartureList.length) {
+            console.log('Deduped arrival/departure:', arrivalDepartureList.length, '→', kept.length);
+            arrivalDepartureList = kept;
+        }
+    }
+
     function resolveArrDepDestMeta(destSel) {
         if (!destSel) return { id: '', type: 'hotel', name: '', zoneId: '' };
         let value = getArrDepSelectValue(destSel);
@@ -17707,6 +18452,137 @@
         };
     }
 
+    // --- Accommodation Save gate: wait until A/D zone + guide prices settle ---
+    window._accPricingState = window._accPricingState || {
+        arrivalZone: 'ready',
+        departureZone: 'ready',
+        arrivalGuide: 'ready',
+        departureGuide: 'ready'
+    };
+    window._arrivalZoneFetchSeq = window._arrivalZoneFetchSeq || 0;
+    window._departureZoneFetchSeq = window._departureZoneFetchSeq || 0;
+
+    function setAccommodationPricingSide(side, status) {
+        if (!window._accPricingState) return;
+        window._accPricingState[side] = status;
+        updateAccommodationSaveGate();
+    }
+
+    function accommodationTransferNeedsPrice(side) {
+        const isArr = side === 'arrival';
+        const xfer = document.getElementById(isArr ? 'arrivalTransfer' : 'departureTransfer');
+        if (!xfer || !xfer.checked) return false;
+        const vehicleId = (typeof getArrDepSelectValue === 'function'
+            ? getArrDepSelectValue(isArr ? 'arrivalVehicleType' : 'departureVehicleType')
+            : '') || document.getElementById(isArr ? 'arrivalVehicleType' : 'departureVehicleType')?.value || '';
+        const portId = (typeof getArrDepSelectValue === 'function'
+            ? getArrDepSelectValue(isArr ? 'arrivalPort' : 'departurePort')
+            : '') || document.getElementById(isArr ? 'arrivalPort' : 'departurePort')?.value || '';
+        const dest = typeof resolveArrDepDestMeta === 'function'
+            ? resolveArrDepDestMeta(document.getElementById(isArr ? 'arrivalDestination' : 'departureDestination'))
+            : { id: '' };
+        return !!(vehicleId && portId && dest.id);
+    }
+
+    function getAccommodationPricingBlockReason() {
+        const s = window._accPricingState || {};
+        if (s.arrivalZone === 'loading' || s.departureZone === 'loading'
+            || s.arrivalGuide === 'loading' || s.departureGuide === 'loading') {
+            return 'Loading transfer & guide prices…';
+        }
+        const arrXferOn = document.getElementById('arrivalTransfer')?.checked;
+        if (arrXferOn) {
+            const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('arrivalVehicleType') : '')
+                || document.getElementById('arrivalVehicleType')?.value || '';
+            if (!vehicleId) return 'Select arrival vehicle to load price';
+            if (accommodationTransferNeedsPrice('arrival')) {
+                const cost = parseFloat(document.getElementById('arrivalCost')?.value || 0) || 0;
+                const meta = (document.getElementById('arrivalZonePriceMeta')?.textContent || '').toLowerCase();
+                if (cost <= 0 && !meta.includes('no zone mapping') && !meta.includes('could not load') && !meta.includes('(zone:')) {
+                    return 'Waiting for arrival zone price…';
+                }
+            }
+        }
+        const depXferOn = document.getElementById('departureTransfer')?.checked;
+        if (depXferOn) {
+            const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('departureVehicleType') : '')
+                || document.getElementById('departureVehicleType')?.value || '';
+            if (!vehicleId) return 'Select departure vehicle to load price';
+            if (accommodationTransferNeedsPrice('departure')) {
+                const cost = parseFloat(document.getElementById('departureCost')?.value || 0) || 0;
+                const meta = (document.getElementById('departureZonePriceMeta')?.textContent || '').toLowerCase();
+                if (cost <= 0 && !meta.includes('no zone mapping') && !meta.includes('could not load') && !meta.includes('(zone:')) {
+                    return 'Waiting for departure zone price…';
+                }
+            }
+        }
+        if (document.getElementById('arrivalGuideCheckbox')?.checked) {
+            const sel = document.getElementById('arrivalGuide');
+            if (!sel?.value) return 'Select arrival guide';
+            const opt = sel.selectedOptions[0];
+            if (opt && !opt.hasAttribute('data-twelve-hour-price')) return 'Arrival guide price not available';
+        }
+        if (document.getElementById('departureGuideCheckbox')?.checked) {
+            const sel = document.getElementById('departureGuide');
+            if (!sel?.value) return 'Select departure guide';
+            const opt = sel.selectedOptions[0];
+            if (opt && !opt.hasAttribute('data-twelve-hour-price')) return 'Departure guide price not available';
+        }
+        return '';
+    }
+
+    function updateAccommodationSaveGate() {
+        const btn = document.getElementById('saveAccommodationBtn');
+        const statusEl = document.getElementById('accommodationPricingStatus');
+        const statusText = document.getElementById('accommodationPricingStatusText');
+        if (!btn) return;
+        const reason = getAccommodationPricingBlockReason();
+        const blocked = !!reason;
+        btn.disabled = blocked;
+        btn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+        btn.classList.toggle('disabled', blocked);
+        if (statusEl) {
+            statusEl.style.display = blocked ? 'inline-flex' : 'none';
+            if (statusText) statusText.textContent = reason || 'Loading transfer & guide prices…';
+        }
+    }
+
+    async function ensureAccommodationPricingReady() {
+        try {
+            clearTimeout(window._arrivalZonePriceTimer);
+            clearTimeout(window._departureZonePriceTimer);
+            if (typeof refreshArrivalGuidePriceDisplay === 'function') refreshArrivalGuidePriceDisplay();
+            if (typeof refreshDepartureGuidePriceDisplay === 'function') refreshDepartureGuidePriceDisplay();
+            const jobs = [];
+            if (accommodationTransferNeedsPrice('arrival') && typeof refreshArrivalTransferZonePrice === 'function') {
+                jobs.push(refreshArrivalTransferZonePrice());
+            }
+            if (accommodationTransferNeedsPrice('departure') && typeof refreshDepartureTransferZonePrice === 'function') {
+                jobs.push(refreshDepartureTransferZonePrice());
+            }
+            if (jobs.length) await Promise.all(jobs);
+        } catch (e) {
+            console.warn('ensureAccommodationPricingReady', e);
+        }
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline) {
+            updateAccommodationSaveGate();
+            if (!getAccommodationPricingBlockReason()) return true;
+            const s = window._accPricingState || {};
+            const stillLoading = s.arrivalZone === 'loading' || s.departureZone === 'loading'
+                || s.arrivalGuide === 'loading' || s.departureGuide === 'loading';
+            if (!stillLoading) break;
+            await new Promise(r => setTimeout(r, 150));
+        }
+        updateAccommodationSaveGate();
+        const reason = getAccommodationPricingBlockReason();
+        if (reason) {
+            alert(reason + '\n\nPlease wait until prices finish loading, then try Save & Close again.');
+            return false;
+        }
+        return true;
+    }
+
     async function refreshArrivalTransferZonePrice() {
         if (window._suppressArrDepZoneRefresh) {
             window._pendingArrivalZoneRefresh = true;
@@ -17715,6 +18591,7 @@
         const transferChecked = document.getElementById('arrivalTransfer')?.checked;
         if (!transferChecked) {
             setArrDepTransferPriceUI('arrival', 0, 0, '', false);
+            setAccommodationPricingSide('arrivalZone', 'ready');
             return;
         }
         const fetchSeq = ++window._arrivalZoneFetchSeq;
@@ -17725,9 +18602,11 @@
         const transferType = document.getElementById('arrivalTransferType')?.value || 'S';
         const adults = parseInt(document.getElementById('arrivalAdults')?.value || '2', 10);
         const child = parseInt(document.getElementById('arrivalChild')?.value || '0', 10);
+        const dmcId = '{{ $dmc_id ?? "" }}';
 
         if (!vehicleId) {
             setArrDepTransferPriceUI('arrival', 0, 0, 'Select vehicle', true);
+            if (fetchSeq === window._arrivalZoneFetchSeq) setAccommodationPricingSide('arrivalZone', 'ready');
             return;
         }
 
@@ -17736,8 +18615,10 @@
             meta = !portId ? 'Select arrival port' : 'Select drop-off';
         } else {
             try {
-                const dmcId = '{{ $dmc_id ?? "" }}';
                 const dropIdForZone = dest.id;
+                const hadCache = typeof peekZonePriceCache === 'function'
+                    && !!peekZonePriceCache(vehicleId, portId, 'port', dropIdForZone, dest.type, dmcId);
+                if (!hadCache) setAccommodationPricingSide('arrivalZone', 'loading');
                 const zonePrice = await fetchZonePrice(vehicleId, portId, 'port', dropIdForZone, dest.type, dmcId);
                 if (fetchSeq !== window._arrivalZoneFetchSeq) return;
                 const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
@@ -17752,6 +18633,7 @@
         }
         if (fetchSeq !== window._arrivalZoneFetchSeq) return;
         setArrDepTransferPriceUI('arrival', cost, sell, meta, true);
+        setAccommodationPricingSide('arrivalZone', 'ready');
     }
 
     async function refreshDepartureTransferZonePrice() {
@@ -17762,8 +18644,10 @@
         const transferChecked = document.getElementById('departureTransfer')?.checked;
         if (!transferChecked) {
             setArrDepTransferPriceUI('departure', 0, 0, '', false);
+            setAccommodationPricingSide('departureZone', 'ready');
             return;
         }
+        const fetchSeq = ++window._departureZoneFetchSeq;
         const vSel = document.getElementById('departureVehicleType');
         const vehicleId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue(vSel) : '') || vSel?.value || '';
         const portId = (typeof getArrDepSelectValue === 'function' ? getArrDepSelectValue('departurePort') : '') || document.getElementById('departurePort')?.value || '';
@@ -17771,10 +18655,11 @@
         const transferType = document.getElementById('departureTransferType')?.value || 'S';
         const adults = parseInt(document.getElementById('departureAdults')?.value || '2', 10);
         const child = parseInt(document.getElementById('departureChild')?.value || '0', 10);
+        const dmcId = '{{ $dmc_id ?? "" }}';
 
-        const fetchSeq = ++window._departureZoneFetchSeq;
         if (!vehicleId) {
             setArrDepTransferPriceUI('departure', 0, 0, 'Select vehicle', true);
+            if (fetchSeq === window._departureZoneFetchSeq) setAccommodationPricingSide('departureZone', 'ready');
             return;
         }
 
@@ -17783,8 +18668,10 @@
             meta = !dest.id ? 'Select pickup' : 'Select departure port';
         } else {
             try {
-                const dmcId = '{{ $dmc_id ?? "" }}';
                 const pickIdForZone = dest.id;
+                const hadCache = typeof peekZonePriceCache === 'function'
+                    && !!peekZonePriceCache(vehicleId, pickIdForZone, dest.type, portId, 'port', dmcId);
+                if (!hadCache) setAccommodationPricingSide('departureZone', 'loading');
                 const zonePrice = await fetchZonePrice(vehicleId, pickIdForZone, dest.type, portId, 'port', dmcId);
                 if (fetchSeq !== window._departureZoneFetchSeq) return;
                 const result = transferPriceFromZone(zonePrice, transferType, 'one-way', adults, child);
@@ -17799,6 +18686,7 @@
         }
         if (fetchSeq !== window._departureZoneFetchSeq) return;
         setArrDepTransferPriceUI('departure', cost, sell, meta, true);
+        setAccommodationPricingSide('departureZone', 'ready');
     }
 
     function refreshArrivalGuidePriceDisplay() {
@@ -17806,15 +18694,21 @@
         const disp = document.getElementById('arrivalGuidePriceDisplay');
         const checked = document.getElementById('arrivalGuideCheckbox')?.checked;
         const sel = document.getElementById('arrivalGuide');
-        if (!row || !disp) return;
+        setAccommodationPricingSide('arrivalGuide', 'loading');
+        if (!row || !disp) {
+            setAccommodationPricingSide('arrivalGuide', 'ready');
+            return;
+        }
         if (!checked || !sel?.value) {
             row.style.display = 'none';
             disp.textContent = '—';
+            setAccommodationPricingSide('arrivalGuide', 'ready');
             return;
         }
         const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
         row.style.display = '';
         disp.textContent = formatArrDepZonePrice(price);
+        setAccommodationPricingSide('arrivalGuide', 'ready');
     }
 
     function refreshDepartureGuidePriceDisplay() {
@@ -17822,15 +18716,21 @@
         const disp = document.getElementById('departureGuidePriceDisplay');
         const checked = document.getElementById('departureGuideCheckbox')?.checked;
         const sel = document.getElementById('departureGuide');
-        if (!row || !disp) return;
+        setAccommodationPricingSide('departureGuide', 'loading');
+        if (!row || !disp) {
+            setAccommodationPricingSide('departureGuide', 'ready');
+            return;
+        }
         if (!checked || !sel?.value) {
             row.style.display = 'none';
             disp.textContent = '—';
+            setAccommodationPricingSide('departureGuide', 'ready');
             return;
         }
         const price = parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0);
         row.style.display = '';
         disp.textContent = formatArrDepZonePrice(price);
+        setAccommodationPricingSide('departureGuide', 'ready');
     }
 
     function initArrDepZonePriceListeners() {
@@ -19614,6 +20514,24 @@
         const checkboxes = document.querySelectorAll('.tour-checkbox');
         checkboxes.forEach(cb => cb.checked = selectAll.checked);
     }
+
+    // Toggle select all Local Transfer rows (main table only)
+    function toggleSelectAllTransfers() {
+        const selectAll = document.getElementById('selectAllTransfers');
+        if (!selectAll) return;
+        document.querySelectorAll('#transferTableBody .transfer-checkbox').forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+    }
+
+    // Toggle select all Tour Guide rows (main table only — not modal)
+    function toggleSelectAllGuidesMain() {
+        const selectAll = document.getElementById('selectAllGuidesMain');
+        if (!selectAll) return;
+        document.querySelectorAll('#guideTableBody .guide-checkbox').forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+    }
     
     // Remove selected tours
     function removeSelectedTours() {
@@ -20106,6 +21024,8 @@
         const tbody = document.getElementById('guideTableBody');
         const table = document.getElementById('guideTable');
         const emptyMessage = document.getElementById('emptyGuideMessage');
+        const selectAllGuidesMain = document.getElementById('selectAllGuidesMain');
+        if (selectAllGuidesMain) selectAllGuidesMain.checked = false;
         
         if (guideList.length === 0) {
             table.style.display = 'none';
@@ -20355,7 +21275,7 @@
     
     // Remove selected guides
     function removeSelectedGuides() {
-        const checkboxes = document.querySelectorAll('.guide-checkbox:checked');
+        const checkboxes = document.querySelectorAll('#guideTableBody .guide-checkbox:checked');
         if (checkboxes.length === 0) {
             alert('Please select guides to remove');
             return;
@@ -23834,6 +24754,8 @@
         const tbody = document.getElementById('transferTableBody');
         const table = document.getElementById('transferTable');
         const emptyMessage = document.getElementById('emptyTransferMessage');
+        const selectAllTransfers = document.getElementById('selectAllTransfers');
+        if (selectAllTransfers) selectAllTransfers.checked = false;
         
         if (transferList.length === 0) {
             table.style.display = 'none';
@@ -24451,8 +25373,8 @@
         }, 300);
     }
     
-    // Fetch zone price for vehicle
-    async function fetchZonePrice(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
+    // Fetch zone price for vehicle (uncached network + DOM resolve)
+    async function fetchZonePriceUncached(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
         console.log('=== FETCH ZONE PRICE DEBUG START ===');
         console.log('Input parameters:');
         console.log('  vehicleId:', vehicleId);
@@ -25013,6 +25935,63 @@
             
             // For other errors, return zero prices (network errors, etc.)
             return { private_price: 0, shared_price: 0 };
+        }
+    }
+
+    // Cache + single-flight: same/reverse route shares one get-zone-prices HTTP call
+    window._zonePriceCache = window._zonePriceCache || new Map();
+    window._zonePriceInflight = window._zonePriceInflight || new Map();
+
+    function getZonePriceCacheKey(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
+        return [
+            String(vehicleId || ''),
+            String(pickupId || ''),
+            String(pickupType || '').toLowerCase(),
+            String(dropId || ''),
+            String(dropType || '').toLowerCase(),
+            String(dmcId || '')
+        ].join('|');
+    }
+
+    function peekZonePriceCache(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
+        if (!vehicleId || !pickupId || !dropId || !dmcId) return null;
+        const fwd = getZonePriceCacheKey(vehicleId, pickupId, pickupType, dropId, dropType, dmcId);
+        const rev = getZonePriceCacheKey(vehicleId, dropId, dropType, pickupId, pickupType, dmcId);
+        return window._zonePriceCache.get(fwd) || window._zonePriceCache.get(rev) || null;
+    }
+
+    async function fetchZonePrice(vehicleId, pickupId, pickupType, dropId, dropType, dmcId) {
+        if (!vehicleId || !pickupId || !dropId || !dmcId) {
+            return { private_price: 0, shared_price: 0 };
+        }
+        const fwdKey = getZonePriceCacheKey(vehicleId, pickupId, pickupType, dropId, dropType, dmcId);
+        const revKey = getZonePriceCacheKey(vehicleId, dropId, dropType, pickupId, pickupType, dmcId);
+        const cached = window._zonePriceCache.get(fwdKey) || window._zonePriceCache.get(revKey);
+        if (cached) {
+            return { private_price: cached.private_price || 0, shared_price: cached.shared_price || 0 };
+        }
+        const inflight = window._zonePriceInflight.get(fwdKey) || window._zonePriceInflight.get(revKey);
+        if (inflight) {
+            return inflight;
+        }
+        const requestPromise = (async () => {
+            const result = await fetchZonePriceUncached(vehicleId, pickupId, pickupType, dropId, dropType, dmcId);
+            const prices = {
+                private_price: parseFloat(result?.private_price || 0) || 0,
+                shared_price: parseFloat(result?.shared_price || 0) || 0
+            };
+            // Do not cache empty results (early call before drop-off/port settle)
+            if (prices.private_price > 0 || prices.shared_price > 0) {
+                window._zonePriceCache.set(fwdKey, prices);
+                window._zonePriceCache.set(revKey, prices);
+            }
+            return prices;
+        })();
+        window._zonePriceInflight.set(fwdKey, requestPromise);
+        try {
+            return await requestPromise;
+        } finally {
+            window._zonePriceInflight.delete(fwdKey);
         }
     }
     
@@ -25749,7 +26728,7 @@
     
     // Remove selected transfers
     function removeSelectedTransfers() {
-        const checkboxes = document.querySelectorAll('.transfer-checkbox:checked');
+        const checkboxes = document.querySelectorAll('#transferTableBody .transfer-checkbox:checked');
         if (checkboxes.length === 0) {
             alert('Please select transfers to remove');
             return;
@@ -27241,15 +28220,26 @@
         // Initialize Select2 for port dropdowns - will be initialized per modal
         // Removed global initialization to allow per-modal initialization
 
-        // Auto-load agents if agency is pre-selected from initial data
-        @if(isset($initialData) && isset($initialData['agency_id']))
-        const agencyId = {{ $initialData['agency_id'] }};
-        if (agencyId) {
-            // Trigger the loadAgentsByAgency function after a short delay
-            setTimeout(function() {
-                loadAgentsByAgency();
-            }, 500);
-        }
+        // Auto-load agents if agency is pre-selected from initial data (keep tour agent selected)
+        @if(!empty($initialData['agency_id']))
+        (function() {
+            const agencyId = {{ (int) $initialData['agency_id'] }};
+            const agentId = {{ !empty($initialData['agent_id']) ? (int) $initialData['agent_id'] : 'null' }};
+            const agencySelect = document.getElementById('agencySelect');
+            const agentSelect = document.getElementById('agentSelect');
+            if (agencySelect && agencyId && String(agencySelect.value) !== String(agencyId)) {
+                agencySelect.value = String(agencyId);
+            }
+            // Only refresh agent list when current selection is empty/wrong
+            const needsAgentReload = !agentSelect
+                || !agentSelect.value
+                || (agentId && String(agentSelect.value) !== String(agentId));
+            if (agencyId && needsAgentReload && typeof loadAgentsByAgency === 'function') {
+                setTimeout(function() {
+                    loadAgentsByAgency(agentId);
+                }, 300);
+            }
+        })();
         @endif
 
         // Add event listeners for markup and discount controls
@@ -30497,12 +31487,54 @@
 
     // Generate Cost Sheet HTML - structure matches form: Hotel (Nights, Single–Infant sell), Attraction/Restaurant/Misc (Adult/Child/Infant sell), Local transfer & Guide (Price sell), Footer (Single, Twin, Triple, CWB, CNB, Infant)
     function generateCostSheetHTML() {
+        function readSelectLabel(selectEl, fallbackName) {
+            if (!selectEl) return fallbackName || 'N/A';
+            const opt = selectEl.options[selectEl.selectedIndex];
+            const text = (opt?.text || '').trim();
+            const val = (selectEl.value || '').trim();
+            if (!val || !text || /^--\s*/.test(text) || /^select/i.test(text) || /^no agents/i.test(text) || /^error/i.test(text) || /^loading/i.test(text)) {
+                return fallbackName || 'N/A';
+            }
+            return text;
+        }
         const agencySelect = document.getElementById('agencySelect');
         const agentSelect = document.getElementById('agentSelect');
-        const agencyName = agencySelect?.options[agencySelect.selectedIndex]?.text || 'N/A';
-        const agentName = agentSelect?.options[agentSelect.selectedIndex]?.text || 'N/A';
+        const agencyName = readSelectLabel(
+            agencySelect,
+            window.existingTourData?.agency_name || @json($initialData['agency_name'] ?? '')
+        );
+        const agentName = readSelectLabel(
+            agentSelect,
+            window.existingTourData?.agent_name || @json($initialData['agent_name'] ?? '')
+        );
+        const customerName = document.getElementById('customerNameInput')?.value || window.existingTourData?.customer_name || 'N/A';
+        const contactNo = document.getElementById('contactNumberInput')?.value || window.existingTourData?.phone || 'N/A';
+        const adultsCount = document.getElementById('adultCountInput')?.value || '0';
+        const childCount = document.getElementById('childCountInput')?.value || '0';
+        const startDate = getHeaderStartInput()?.value || window.existingTourData?.tour_start_date || 'N/A';
+        const endDate = getHeaderEndInput()?.value || window.existingTourData?.tour_end_date || 'N/A';
+        const tourRef = document.querySelector('.enquiry-tour-ref-id')?.textContent?.trim()
+            || window.existingTourData?.display_id
+            || (window.tourId ? ('#' + window.tourId) : '');
+        const useAgencyDetails = document.getElementById('useAgencyLogoCostSheet')?.checked === true;
+        const brandName = useAgencyDetails
+            ? (agencyName !== 'N/A' ? agencyName : (costSheetDmcCompanyName || 'DMC'))
+            : (costSheetDmcCompanyName || 'DMC');
+        const brandLogo = useAgencyDetails
+            ? (typeof agencyLogoMap !== 'undefined' && agencySelect?.value && agencyLogoMap[agencySelect.value]
+                ? agencyLogoMap[agencySelect.value]
+                : (costSheetDmcLogo || ''))
+            : (costSheetDmcLogo || '');
+        const brandContact = useAgencyDetails
+            ? ''
+            : [costSheetDmcContact, costSheetDmcEmail].filter(Boolean).join(' · ');
         const sections = [];
         const fmt = (v) => (Number.isFinite(v) ? parseFloat(v).toFixed(2) : '0.00');
+        const sectionOpen = (icon, title, extraClass = '') =>
+            `<div class="cs-section"><h6 class="cs-section-head ${extraClass}"><i class="${icon}"></i>${title}</h6>`;
+        const sectionClose = () => `</div>`;
+        const tableWrap = (thead, tbody) =>
+            `<table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 
         // Helper: get sell value from footer row (hasHotels: td 3,5,7,9,11,13 = single,twin,triple,cwb,cnb,infant sell)
         function getFooterRowSells(tr, hasHotelColumns) {
@@ -30616,19 +31648,45 @@
             otherTriple += isPrivate ? ceilIfDecimal(sell / 3) : sell;
         });
 
-        // Header (compact)
+        // Header (business letterhead + meta)
         sections.push(`
-            <div class="card shadow-sm cost-sheet-card">
-                <div class="card-header bg-primary text-white py-2 cost-sheet-header">
-                    <h5 class="mb-0 cost-sheet-title">Cost Sheet Summary</h5>
-                    <small class="opacity-90 cost-sheet-subtitle">All amounts exclude GST and tax (sell values only)</small>
-                </div>
-                <div class="card-body p-2 cost-sheet-body">
-                    <div class="row g-1 mb-2 cost-sheet-row">
-                        <div class="col-md-3"><p class="mb-0 cost-sheet-p"><strong>Customer:</strong> ${document.getElementById('customerNameInput')?.value || 'N/A'}</p><p class="mb-0 cost-sheet-p"><strong>Contact:</strong> ${document.getElementById('contactNumberInput')?.value || 'N/A'}</p></div>
-                        <div class="col-md-3"><p class="mb-0 cost-sheet-p"><strong>Agency:</strong> ${agencyName}</p><p class="mb-0 cost-sheet-p"><strong>Agent:</strong> ${agentName}</p></div>
-                        <div class="col-md-3"><p class="mb-0 cost-sheet-p"><strong>Adults:</strong> ${document.getElementById('adultCountInput')?.value || '0'} | <strong>Children:</strong> ${document.getElementById('childCountInput')?.value || '0'}</p><p class="mb-0 cost-sheet-p"><strong>Start:</strong> ${getHeaderStartInput()?.value || 'N/A'} | <strong>End:</strong> ${getHeaderEndInput()?.value || 'N/A'}</p></div>
+            <div class="cs-doc cost-sheet-card">
+                <div class="cs-letterhead">
+                    <div class="cs-brand">
+                        ${brandLogo ? `<img src="${brandLogo}" alt="" class="cs-brand-logo">` : ''}
+                        <div>
+                            <div class="cs-brand-name">${brandName}</div>
+                            ${brandContact ? `<div class="cs-brand-meta">${brandContact}</div>` : ''}
+                        </div>
                     </div>
+                    <div class="cs-doc-title">
+                        <h5>Cost Sheet</h5>
+                        ${tourRef ? `<div class="cs-ref">${tourRef}</div>` : ''}
+                        <div class="cs-note">All amounts exclude GST and tax (sell values only)</div>
+                    </div>
+                </div>
+                <div class="cs-meta">
+                    <div class="cs-meta-item">
+                        <span class="cs-meta-label">Customer</span>
+                        <div class="cs-meta-value">${customerName}</div>
+                        <div class="cs-meta-value" style="font-weight:500;color:#475569;margin-top:2px;">${contactNo}</div>
+                    </div>
+                    <div class="cs-meta-item">
+                        <span class="cs-meta-label">Agency</span>
+                        <div class="cs-meta-value">${agencyName}</div>
+                        <div class="cs-meta-value" style="font-weight:500;color:#475569;margin-top:2px;">Agent: ${agentName}</div>
+                    </div>
+                    <div class="cs-meta-item">
+                        <span class="cs-meta-label">Pax</span>
+                        <div class="cs-meta-value">Adults ${adultsCount} · Children ${childCount}</div>
+                    </div>
+                    <div class="cs-meta-item">
+                        <span class="cs-meta-label">Travel dates</span>
+                        <div class="cs-meta-value">${startDate}</div>
+                        <div class="cs-meta-value" style="font-weight:500;color:#475569;margin-top:2px;">to ${endDate}</div>
+                    </div>
+                </div>
+                <div class="cs-body cost-sheet-body">
         `);
 
         // 1. Hotel: Hotel, Nights, Single, Twin, Triple, CWB, CNB, Infant (all sell)
@@ -30677,10 +31735,10 @@
                 </tr>`;
             }).join('');
             sections.push(`
-                <div class="mb-2 cost-sheet-block">
-                    <h6 class="cost-sheet-h6"><i class="ri-hotel-line me-1"></i>Hotel</h6>
-                    <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                        <thead class="table-light"><tr>
+                <div class="cs-section">
+                    <h6 class="cs-section-head"><i class="ri-hotel-line"></i>Hotel</h6>
+                    <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                        <thead><tr>
                             <th>Hotel</th>
                             <th class="text-end">Nights</th>
                             <th class="text-end">Single</th>
@@ -30723,10 +31781,10 @@
                 </tr>`;
             }).join('');
             sections.push(`
-                <div class="mb-2 cost-sheet-block">
-                    <h6 class="cost-sheet-h6"><i class="ri-map-pin-line me-1"></i>Attraction</h6>
-                    <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                        <thead class="table-light"><tr>
+                <div class="cs-section">
+                    <h6 class="cs-section-head"><i class="ri-map-pin-line"></i>Attraction</h6>
+                    <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                        <thead><tr>
                             <th>Attraction</th>
                             <th class="text-end">Adult</th>
                             <th class="text-end">Child</th>
@@ -30768,10 +31826,10 @@
                 </tr>`;
             }).join('');
             sections.push(`
-                <div class="mb-2 cost-sheet-block">
-                    <h6 class="cost-sheet-h6"><i class="ri-restaurant-line me-1"></i>Restaurant</h6>
-                    <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                        <thead class="table-light"><tr>
+                <div class="cs-section">
+                    <h6 class="cs-section-head"><i class="ri-restaurant-line"></i>Restaurant</h6>
+                    <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                        <thead><tr>
                             <th>Restaurant</th>
                             <th class="text-end">Adult</th>
                             <th class="text-end">Child</th>
@@ -30815,10 +31873,10 @@
                 return `<tr><td>${service}</td><td class="text-end">${fmt(sell)}</td></tr>`;
             }).join('');
             sections.push(`
-                <div class="mb-2 cost-sheet-block">
-                    <h6 class="cost-sheet-h6"><i class="ri-car-line me-1"></i>Local Transfer</h6>
-                    <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                        <thead class="table-light"><tr><th>Service</th><th class="text-end">Price</th></tr></thead>
+                <div class="cs-section">
+                    <h6 class="cs-section-head"><i class="ri-car-line"></i>Local Transfer</h6>
+                    <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                        <thead><tr><th>Service</th><th class="text-end">Price</th></tr></thead>
                         <tbody>${transferRows}</tbody>
                     </table>
                 </div>
@@ -30845,10 +31903,10 @@
             }).join('');
             if (guideRows) {
                 sections.push(`
-                    <div class="mb-2 cost-sheet-block">
-                        <h6 class="cost-sheet-h6"><i class="ri-user-line me-1"></i>Guide</h6>
-                        <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                            <thead class="table-light"><tr><th>Guide</th><th class="text-end">Price</th></tr></thead>
+                    <div class="cs-section">
+                        <h6 class="cs-section-head"><i class="ri-user-line"></i>Guide</h6>
+                        <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                            <thead><tr><th>Guide</th><th class="text-end">Price</th></tr></thead>
                             <tbody>${guideRows}</tbody>
                         </table>
                     </div>
@@ -30885,10 +31943,10 @@
             }).join('');
             if (miscRows) {
                 sections.push(`
-                    <div class="mb-2 cost-sheet-block">
-                        <h6 class="cost-sheet-h6"><i class="ri-more-line me-1"></i>Miscellaneous</h6>
-                        <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                            <thead class="table-light"><tr>
+                    <div class="cs-section">
+                        <h6 class="cs-section-head"><i class="ri-more-line"></i>Miscellaneous</h6>
+                        <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                            <thead><tr>
                                 <th>Item</th>
                                 <th class="text-end">Adult</th>
                                 <th class="text-end">Child</th>
@@ -30925,10 +31983,10 @@
                 ? `<tr><th>Hotel / Room</th><th class="text-end">Single</th><th class="text-end">Twin</th><th class="text-end">Triple</th><th class="text-end">Child w/ bed</th><th class="text-end">Child w/o bed</th><th class="text-end">Infant</th></tr>`
                 : `<tr><th>Package</th><th class="text-end">Adult</th><th class="text-end">Child</th></tr>`;
             sections.push(`
-                <div class="mt-2 cost-sheet-block">
-                    <h6 class="cost-sheet-h6 cost-sheet-charges">Charges (Sell)</h6>
-                    <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                        <thead class="table-light">${footerHeader}</thead>
+                <div class="cs-section">
+                    <h6 class="cs-section-head cs-charges">Charges (Sell)</h6>
+                    <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                        <thead>${footerHeader}</thead>
                         <tbody>${footerTableRows}</tbody>
                     </table>
                 </div>
@@ -31039,10 +32097,10 @@
         }
 
         const pnlTable = `
-            <div class="mb-2 cost-sheet-block cost-sheet-pnl-section" style="${showPnL ? '' : 'display:none;'}">
-                <h6 class="cost-sheet-h6" style="background: #d4edda; border-color: #28a745;"><i class="ri-bar-chart-line me-1"></i>Profit & Loss Report</h6>
-                <table class="table table-bordered table-sm mb-0 cost-sheet-table">
-                    <thead class="table-light">
+            <div class="cs-section cost-sheet-pnl-section" style="${showPnL ? '' : 'display:none;'}">
+                <h6 class="cs-section-head" style="border-left-color:#047857;background:#ecfdf5;color:#065f46;"><i class="ri-bar-chart-line"></i>Profit &amp; Loss Report</h6>
+                <table class="table table-bordered table-sm mb-0 cs-table cost-sheet-table">
+                    <thead>
                         <tr>
                             <th></th>
                             ${pnlHeaders.map(h => `<th class="text-end">${h}</th>`).join('')}
@@ -31050,15 +32108,15 @@
                     </thead>
                     <tbody>
                         ${buildPnlRow('Total Cost', totalCost, '', '')}
-                        ${markupLabel ? buildPnlRow('(+) ' + markupLabel, markupAmounts, 'color: green;', 'color: green;') : ''}
-                        ${discountLabel ? buildPnlRow('(-) ' + discountLabel, discountAmounts, 'color: red;', 'color: red;') : ''}
-                        ${buildPnlRow('Total Sell', computedSell, 'font-weight: 700; border-top: 2px solid #333;', 'font-weight: 700; border-top: 2px solid #333;')}
+                        ${markupLabel ? buildPnlRow('(+) ' + markupLabel, markupAmounts, 'color: #047857;', 'color: #047857;') : ''}
+                        ${discountLabel ? buildPnlRow('(-) ' + discountLabel, discountAmounts, 'color: #b91c1c;', 'color: #b91c1c;') : ''}
+                        ${buildPnlRow('Total Sell', computedSell, 'font-weight: 700; border-top: 2px solid #1e293b;', 'font-weight: 700; border-top: 2px solid #1e293b;')}
                         ${buildPnlRow('Profit / Loss', profit, 'font-weight: 700;', 'font-weight: 700;')}
                         <tr>
                             <td style="font-weight: 700;">Margin %</td>
                             ${pnlCategories.map(k => {
                                 const pct = profitPct[k];
-                                const color = pct > 0 ? 'color: green;' : (pct < 0 ? 'color: red;' : '');
+                                const color = pct > 0 ? 'color: #047857;' : (pct < 0 ? 'color: #b91c1c;' : '');
                                 return `<td class="text-end" style="font-weight: 700; ${color}">${pct.toFixed(1)}%</td>`;
                             }).join('')}
                         </tr>
@@ -31068,13 +32126,22 @@
         `;
         sections.push(pnlTable);
 
+        sections.push(`<div class="cs-footer-note">Generated from enquiry ${tourRef || ''} · Rates shown are sell values exclusive of GST/tax</div>`);
         sections.push('</div></div>');
         return sections.join('');
     }
 
     // Print Cost Sheet - design and format aligned with invoice (invoices/pdf/final.blade.php)
     function printCostSheet() {
-        const costSheetContent = document.querySelector('.cost-sheet-content').innerHTML;
+        const contentRoot = document.querySelector('.cost-sheet-content');
+        if (!contentRoot) return;
+
+        // Clone modal content and drop its on-screen letterhead (print has its own)
+        const clone = contentRoot.cloneNode(true);
+        clone.querySelectorAll('.cs-letterhead, .cs-footer-note').forEach(el => el.remove());
+        // Keep only body sections + meta for print body
+        const printBodyHtml = clone.innerHTML;
+
         const useAgencyDetails = document.getElementById('useAgencyLogoCostSheet')?.checked || false;
         let printLogoSrc = (typeof costSheetDmcLogo !== 'undefined' && costSheetDmcLogo) ? costSheetDmcLogo : '';
         let printLogoAlt = 'DMC';
@@ -31099,183 +32166,230 @@
             }
         }
 
-        const printWindow = window.open('', '', 'height=700,width=900');
-        const printDoc = `
-<!DOCTYPE html>
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const tourRef = document.querySelector('.enquiry-tour-ref-id')?.textContent?.trim()
+            || window.existingTourData?.display_id
+            || (window.tourId ? ('#' + window.tourId) : '');
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        const printWindow = window.open('', '', 'height=900,width=980');
+        if (!printWindow) {
+            alert('Please allow pop-ups to print the cost sheet.');
+            return;
+        }
+
+        const printDoc = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cost Sheet</title>
+    <title>Cost Sheet${tourRef ? ' — ' + esc(tourRef) : ''}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 12mm 12mm 14mm 12mm; }
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-            color: #333;
-            padding: 20px;
-            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            font-size: 10.5px;
+            color: #1e293b;
+            background: #fff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; page-break-inside: auto; }
-        thead { display: table-header-group; }
-        tbody { display: table-row-group; }
-        tr { page-break-inside: avoid; page-break-after: auto; }
-        th, td { padding: 6px; text-align: left; border: 1px solid #ddd; }
-        th { background-color: #f0f0f0; font-weight: bold; page-break-after: avoid; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .header { width: 100%; margin-bottom: 20px; }
-        .header-table { width: 100%; border-collapse: collapse; }
-        .header-table td { vertical-align: middle; }
-        .header-left { width: 25%; vertical-align: middle; text-align: center; padding: 15px; }
-        .header-center { width: 50%; text-align: center; padding: 15px; }
-        .header-right { width: 25%; vertical-align: middle; text-align: right; font-size: 11px; padding: 15px; }
-        .header h1 { font-size: 28px; margin-bottom: 4px; font-weight: bold; color: #333; letter-spacing: 2px; }
-        .header .dmc-name { font-size: 16px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; color: #333; }
-        .header .subtitle { font-size: 12px; color: #555; }
-        .dmc-logo-wrapper { width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; }
-        .dmc-logo-wrapper img { max-width: 100%; max-height: 100%; object-fit: contain; object-position: center; }
-        .header-right-info { line-height: 1.5; }
-        .document-badge {
-            background-color: #20B2AA;
-            color: #ffffff;
-            padding: 8px 14px;
-            border-radius: 8px;
-            display: inline-block;
-            font-size: 11px;
-            font-weight: bold;
-            margin-top: 8px;
+        .print-sheet { width: 100%; }
+        .print-letterhead {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+            border-bottom: 2.5px solid #0f766e;
         }
-        .info-section {
-            margin-bottom: 20px;
-            background-color: #f5f5f5;
-            border-radius: 8px;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
+        .print-brand { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+        .print-logo {
+            width: 64px; height: 64px; object-fit: contain;
+            border: 1px solid #e2e8f0; border-radius: 4px; background: #fff; padding: 3px;
         }
-        .info-section-title {
-            font-weight: bold;
-            font-size: 13px;
-            margin-bottom: 12px;
-            color: #555;
+        .print-company { font-size: 15px; font-weight: 700; color: #0f172a; line-height: 1.25; }
+        .print-company-meta { font-size: 9.5px; color: #64748b; margin-top: 3px; line-height: 1.45; }
+        .print-doc-block { text-align: right; flex-shrink: 0; }
+        .print-doc-title {
+            font-size: 18px; font-weight: 750; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #0f766e; margin: 0;
+        }
+        .print-doc-ref { font-size: 11px; font-weight: 650; color: #334155; margin-top: 4px; }
+        .print-doc-date { font-size: 9.5px; color: #64748b; margin-top: 3px; }
+        .print-doc-note { font-size: 8.5px; color: #94a3b8; margin-top: 6px; max-width: 220px; margin-left: auto; }
+
+        .cost-sheet-print-wrapper .cs-doc,
+        .cost-sheet-print-wrapper .cost-sheet-card {
+            border: none !important; box-shadow: none !important; background: transparent !important;
+        }
+        .cost-sheet-print-wrapper .cs-letterhead { display: none !important; }
+        .cost-sheet-print-wrapper .cs-body,
+        .cost-sheet-print-wrapper .cost-sheet-body { padding: 0 !important; }
+
+        .cost-sheet-print-wrapper .cs-meta {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 0 !important;
+            margin: 0 0 16px 0 !important;
+            border: 1px solid #cbd5e1 !important;
+            background: #f8fafc !important;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .cost-sheet-print-wrapper .cs-meta-item {
+            padding: 9px 11px !important;
+            border-right: 1px solid #e2e8f0 !important;
+            background: transparent !important;
+        }
+        .cost-sheet-print-wrapper .cs-meta-item:last-child { border-right: none !important; }
+        .cost-sheet-print-wrapper .cs-meta-label {
+            display: block;
+            font-size: 8px !important;
+            font-weight: 700 !important;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #ccc;
+            letter-spacing: 0.07em;
+            color: #64748b !important;
+            margin-bottom: 3px;
         }
-        .info-row { margin-bottom: 6px; font-size: 11px; line-height: 1.5; }
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 18px;
-            margin-bottom: 8px;
-            color: #333;
-            padding: 6px 0;
-            border-bottom: 2px solid #333;
+        .cost-sheet-print-wrapper .cs-meta-value {
+            font-size: 10.5px !important;
+            font-weight: 650 !important;
+            color: #0f172a !important;
+            line-height: 1.35;
         }
-        .cost-sheet-print-wrapper .card { border: none; box-shadow: none; margin-bottom: 0; }
-        .cost-sheet-print-wrapper .card-header {
-            background-color: #f5f5f5 !important;
-            color: #333 !important;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px 15px;
-            margin-bottom: 15px;
+
+        .cost-sheet-print-wrapper .cs-section,
+        .cost-sheet-print-wrapper .cost-sheet-block {
+            margin: 0 0 14px 0 !important;
+            border: 1px solid #dbe3ec !important;
+            border-radius: 3px;
+            overflow: hidden;
+            page-break-inside: avoid;
+            background: #fff;
         }
-        .cost-sheet-print-wrapper .card-header h5 { font-size: 16px; margin: 0; color: #333; }
-        .cost-sheet-print-wrapper .card-header small { font-size: 10px; color: #555; }
-        .cost-sheet-print-wrapper .card-body {
-            padding: 0 0 10px 0;
-            background: transparent !important;
-            border: none !important;
-        }
-        .cost-sheet-print-wrapper .cost-sheet-block { margin-bottom: 18px; page-break-inside: avoid; }
+        .cost-sheet-print-wrapper .cs-section-head,
         .cost-sheet-print-wrapper .cost-sheet-h6 {
-            font-size: 14px !important;
-            font-weight: bold !important;
-            margin: 0 0 8px 0 !important;
-            padding: 6px 0 !important;
-            background: transparent !important;
+            display: flex !important;
+            align-items: center;
+            gap: 6px;
+            margin: 0 !important;
+            padding: 7px 10px !important;
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #0f172a !important;
+            background: #f1f5f9 !important;
             border: none !important;
-            border-bottom: 2px solid #333 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            border-left: 3px solid #0f766e !important;
             border-radius: 0 !important;
-            color: #333 !important;
         }
-        .cost-sheet-print-wrapper .cost-sheet-charges { border-bottom-color: #333 !important; }
-        .cost-sheet-print-wrapper .cost-sheet-table,
-        .cost-sheet-print-wrapper table.cost-sheet-table {
-            font-size: 11px !important;
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 0;
+        .cost-sheet-print-wrapper .cs-charges,
+        .cost-sheet-print-wrapper .cost-sheet-charges {
+            background: #ecfdf5 !important;
+            border-left-color: #047857 !important;
+            color: #065f46 !important;
         }
-        .cost-sheet-print-wrapper .cost-sheet-table th,
-        .cost-sheet-print-wrapper .cost-sheet-table td,
-        .cost-sheet-print-wrapper table.cost-sheet-table th,
-        .cost-sheet-print-wrapper table.cost-sheet-table td {
-            padding: 6px !important;
-            border: 1px solid #ddd !important;
+
+        .cost-sheet-print-wrapper table,
+        .cost-sheet-print-wrapper .cs-table,
+        .cost-sheet-print-wrapper .cost-sheet-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 0 !important;
+            font-size: 9.5px !important;
+        }
+        .cost-sheet-print-wrapper thead { display: table-header-group; }
+        .cost-sheet-print-wrapper tr { page-break-inside: avoid; }
+        .cost-sheet-print-wrapper th,
+        .cost-sheet-print-wrapper td {
+            padding: 5px 7px !important;
+            border: 1px solid #e5ebf2 !important;
             vertical-align: middle !important;
+            color: #1e293b;
         }
-        .cost-sheet-print-wrapper .cost-sheet-table thead th,
-        .cost-sheet-print-wrapper table.cost-sheet-table thead th {
-            background-color: #f0f0f0 !important;
-            font-size: 11px !important;
-            font-weight: bold !important;
+        .cost-sheet-print-wrapper thead th {
+            background: #f8fafc !important;
+            color: #475569 !important;
+            font-size: 8.5px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid #cbd5e1 !important;
         }
-        .cost-sheet-print-wrapper .row { display: block; margin-bottom: 8px; }
-        .cost-sheet-print-wrapper .cost-sheet-p { font-size: 11px; margin-bottom: 4px; }
+        .cost-sheet-print-wrapper tbody tr:nth-child(even) td { background: #fafbfc !important; }
+        .cost-sheet-print-wrapper .text-end,
+        .cost-sheet-print-wrapper .text-right {
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+            font-weight: 650;
+        }
+
+        .print-footer {
+            margin-top: 18px;
+            padding-top: 8px;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 8.5px;
+            color: #64748b;
+        }
+        .print-footer strong { color: #334155; }
+
         @media print {
-            body { padding: 15px; }
+            body { padding: 0; }
             .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <table class="header-table">
-            <tr>
-                <td class="header-left">` +
-                    (printLogoSrc
-                        ? '<div class="dmc-logo-wrapper"><img src="' + printLogoSrc.replace(/"/g, '&quot;') + '" class="dmc-logo" alt="' + printLogoAlt + '" /></div>'
-                        : '') +
-                `</td>
-                <td class="header-center">
-                    <h1>COST SHEET</h1>
-                    <div class="dmc-name">` + String(printCompanyName).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + `</div>
-                    <div class="subtitle">All amounts exclude GST and tax (sell values only)</div>
-                    <div class="document-badge">Enquiry Cost Sheet</div>
-                </td>
-                <td class="header-right">` +
-                    (function() {
-                        var today = new Date();
-                        var esc = function(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-                        var dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                        var html = '<div class="header-right-info"><strong>Date:</strong> ' + dateStr;
-                        if (printContact) {
-                            html += '<br><strong>Tel:</strong> ' + esc(printContact);
-                        }
-                        if (printEmail) {
-                            html += '<br><strong>Email:</strong> ' + esc(printEmail);
-                        }
-                        html += '</div>';
-                        return html;
-                    })() +
-                `</td>
-            </tr>
-        </table>
-    </div>
-    <div class="cost-sheet-print-wrapper">
-        ${costSheetContent}
+    <div class="print-sheet">
+        <div class="print-letterhead">
+            <div class="print-brand">
+                ${printLogoSrc
+                    ? `<img src="${esc(printLogoSrc)}" class="print-logo" alt="${esc(printLogoAlt)}">`
+                    : ''}
+                <div>
+                    <div class="print-company">${esc(printCompanyName)}</div>
+                    <div class="print-company-meta">
+                        ${printContact ? `Tel: ${esc(printContact)}` : ''}
+                        ${printContact && printEmail ? '<br>' : ''}
+                        ${printEmail ? `Email: ${esc(printEmail)}` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="print-doc-block">
+                <h1 class="print-doc-title">Cost Sheet</h1>
+                ${tourRef ? `<div class="print-doc-ref">${esc(tourRef)}</div>` : ''}
+                <div class="print-doc-date">Issued ${esc(dateStr)}</div>
+                <div class="print-doc-note">All amounts exclude GST and tax (sell values only)</div>
+            </div>
+        </div>
+        <div class="cost-sheet-print-wrapper">
+            ${printBodyHtml}
+        </div>
+        <div class="print-footer">
+            <div><strong>${esc(printCompanyName)}</strong> · Enquiry cost sheet</div>
+            <div>Confidential — for agency use</div>
+        </div>
     </div>
     <script>
         window.onload = function() {
+            window.focus();
             window.print();
-            setTimeout(function() { window.close(); }, 150);
+            setTimeout(function() { window.close(); }, 200);
         };
     <\/script>
 </body>
 </html>`;
+
         printWindow.document.write(printDoc);
         printWindow.document.close();
     }
@@ -31377,13 +32491,11 @@
         if (agencySelect && tour.agency_id) {
             agencySelect.value = String(tour.agency_id);
             if (typeof loadAgentsByAgency === 'function') {
-                loadAgentsByAgency();
+                loadAgentsByAgency(tour.agent_id || null);
             }
-        }
-        
-        const agentSelect = document.getElementById('agentSelect');
-        if (agentSelect && tour.agent_id) {
-            agentSelect.value = String(tour.agent_id);
+        } else if (tour.agent_id) {
+            const agentSelect = document.getElementById('agentSelect');
+            if (agentSelect) agentSelect.value = String(tour.agent_id);
         }
         
         console.log('Tour header data loaded successfully');
@@ -31818,6 +32930,19 @@
             
             // Update arrival/departure table
             if (typeof updateArrivalDepartureTable === 'function') {
+                if (typeof dedupeArrivalDepartureList === 'function') dedupeArrivalDepartureList();
+                // Re-stamp cities from hotels/ports after all accommodations are in memory
+                if (typeof resolveCityForArrDepRow === 'function' && Array.isArray(arrivalDepartureList)) {
+                    arrivalDepartureList.forEach(item => {
+                        const city = resolveCityForArrDepRow(item);
+                        if (city) {
+                            item.city = city;
+                            if (typeof stampArrivalDepartureGeo === 'function') {
+                                stampArrivalDepartureGeo(item, city);
+                            }
+                        }
+                    });
+                }
                 updateArrivalDepartureTable();
             } else {
                 console.warn('updateArrivalDepartureTable function not found');
@@ -31888,20 +33013,41 @@
         if (!Array.isArray(arrivalDepartureList)) {
             arrivalDepartureList = [];
         }
+
+        // Skip duplicate order rows (same DB order id already loaded)
+        const incomingOrderId = order.id || order.order_id || null;
+        if (incomingOrderId != null && arrivalDepartureList.some(a =>
+            a.type === 'Arrival' && String(a.orderId) === String(incomingOrderId)
+        )) {
+            console.warn('Skipping duplicate arrival order:', incomingOrderId);
+            return;
+        }
         
         // Check if transfer exists - if vehicleName, vehicleId, or transferType exists, there's a transfer
-        const hasTransferData = !!(data.vehicles_name || data.vehicleName || data.vehicle_id || data.vehicleId || data.transferType || data.type);
+        // Do NOT treat payload.type alone as transfer (type may be Private/Shared or legacy)
+        const hasTransferData = !!(
+            data.vehicles_name || data.vehicleName || data.vehicle_name
+            || data.vehicle_id || data.vehicleId
+            || data.transferType || data.transfer_type
+            || data.hasTransfer === true || data.has_transfer === true
+            || data.transfer_destination_id || data.transferDestinationId
+            || data.entrydropoff || data.dropoff
+        );
         const mappedPS = resolvePrivateSharedPSFromPayload(data);
         
         const arrivalFocSvc = resolveFocServiceDiscountFromPayload(data);
+        const portName = data.port_name || data.portName || data.entrypickup || data.pickup || data.pickupLocation || '';
+        const destName = data.transfer_destination_name || data.transferDestinationName
+            || data.entrydropoff || data.dropoff || data.dropoffLocation || '';
         const arrival = {
             id: data.id || order.order_id || generateId('arrival'),
             orderId: order.id || order.order_id,
             bookingId: order.booking_id || order.bookingId || null,
             type: 'Arrival',
-            dateTime: data.bookingDate || data.dateTime || '',
+            travel_type: data.travel_type || 'entry_port',
+            dateTime: data.bookingDate || data.dateTime || data.date_time || data.date || '',
             portId: data.port_id || data.portId || '',
-            portName: data.port_name || data.portName || '',
+            portName: portName,
             flightNo: data.flight_number || data.flightNumber || '-',
             adultsQty: parseInt(data.adults || data.adultsQty || 0),
             childQty: parseInt(data.children || data.childQty || 0),
@@ -31913,7 +33059,7 @@
             vehicleType: data.vehicle_type || data.vehicleType || '',
             vehicleName: data.vehicles_name || data.vehicleName || data.vehicle_name || '',
             transferDestinationId: data.transfer_destination_id || data.transferDestinationId || '',
-            transferDestinationName: data.transfer_destination_name || data.transferDestinationName || '',
+            transferDestinationName: destName,
             // Use adultCost/adultSell if cost is 0 (transfer pricing is per person)
             adultCost: parseFloat(data.adultCost || (data.cost === 0 ? data.adultCost : data.cost) || 0),
             adultSell: parseFloat(data.adultSell || (data.sell === 0 ? data.adultSell : data.sell) || 0),
@@ -31926,8 +33072,18 @@
             destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
-            isStandalone: true
+            sourceType: data.sourceType || data.source_type || 'hotel',
+            isStandalone: true,
+            accommodationIndex: null
         };
+
+        // Prefer hotel city over country/wrong destination stamp for multi-city edit
+        if (typeof resolveCityForArrDepRow === 'function') {
+            const resolvedCity = resolveCityForArrDepRow(arrival);
+            if (resolvedCity) arrival.city = resolvedCity;
+        } else if (typeof stampArrivalDepartureGeo === 'function') {
+            stampArrivalDepartureGeo(arrival, arrival.city);
+        }
         
         arrivalDepartureList.push(arrival);
         console.log('Loaded arrival:', arrival);
@@ -32033,20 +33189,40 @@
         if (!Array.isArray(arrivalDepartureList)) {
             arrivalDepartureList = [];
         }
+
+        const incomingOrderId = order.id || order.order_id || null;
+        if (incomingOrderId != null && arrivalDepartureList.some(a =>
+            a.type === 'Departure' && String(a.orderId) === String(incomingOrderId)
+        )) {
+            console.warn('Skipping duplicate departure order:', incomingOrderId);
+            return;
+        }
         
         // Check if transfer exists - if vehicleName, vehicleId, or transferType exists, there's a transfer
-        const hasTransferData = !!(data.vehicles_name || data.vehicleName || data.vehicle_id || data.vehicleId || data.transferType || data.type);
+        const hasTransferData = !!(
+            data.vehicles_name || data.vehicleName || data.vehicle_name
+            || data.vehicle_id || data.vehicleId
+            || data.transferType || data.transfer_type
+            || data.hasTransfer === true || data.has_transfer === true
+            || data.transfer_destination_id || data.transferDestinationId
+            || data.entrypickup || data.pickup
+        );
         const mappedPS = resolvePrivateSharedPSFromPayload(data);
         
         const departureFocSvc = resolveFocServiceDiscountFromPayload(data);
+        // Departure: port is airport (dropoff); transfer destination / pickup is hotel
+        const portName = data.port_name || data.portName || data.exitdropoff || data.dropoff || data.dropoffLocation || '';
+        const destName = data.transfer_destination_name || data.transferDestinationName
+            || data.exitpickup || data.pickup || data.pickupLocation || '';
         const departure = {
             id: data.id || order.order_id || generateId('departure'),
             orderId: order.id || order.order_id,
             bookingId: order.booking_id || order.bookingId || null,
             type: 'Departure',
-            dateTime: data.bookingDate || data.dateTime || '',
+            travel_type: data.travel_type || 'exit_port',
+            dateTime: data.bookingDate || data.dateTime || data.date_time || data.date || '',
             portId: data.port_id || data.portId || '',
-            portName: data.port_name || data.portName || '',
+            portName: portName,
             flightNo: data.flight_number || data.flightNumber || '-',
             adultsQty: parseInt(data.adults || data.adultsQty || 0),
             childQty: parseInt(data.children || data.childQty || 0),
@@ -32058,7 +33234,7 @@
             vehicleType: data.vehicle_type || data.vehicleType || '',
             vehicleName: data.vehicles_name || data.vehicleName || data.vehicle_name || '',
             transferDestinationId: data.transfer_destination_id || data.transferDestinationId || '',
-            transferDestinationName: data.transfer_destination_name || data.transferDestinationName || '',
+            transferDestinationName: destName,
             // Use adultCost/adultSell if cost is 0 (transfer pricing is per person)
             adultCost: parseFloat(data.adultCost || (data.cost === 0 ? data.adultCost : data.cost) || 0),
             adultSell: parseFloat(data.adultSell || (data.sell === 0 ? data.adultSell : data.sell) || 0),
@@ -32071,8 +33247,17 @@
             destination: data.destination || data.country || data.city || '',
             country: data.country || data.destination || '',
             city: data.city || data.destination || '',
-            isStandalone: true
+            sourceType: data.sourceType || data.source_type || 'hotel',
+            isStandalone: true,
+            accommodationIndex: null
         };
+
+        if (typeof resolveCityForArrDepRow === 'function') {
+            const resolvedCity = resolveCityForArrDepRow(departure);
+            if (resolvedCity) departure.city = resolvedCity;
+        } else if (typeof stampArrivalDepartureGeo === 'function') {
+            stampArrivalDepartureGeo(departure, departure.city);
+        }
         
         arrivalDepartureList.push(departure);
         console.log('Loaded departure:', departure);

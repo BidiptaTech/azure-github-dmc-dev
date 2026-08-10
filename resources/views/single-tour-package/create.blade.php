@@ -1388,22 +1388,12 @@
                                 </div>
                                 
                                 
-                                <div id="nightSelectionSummary">
-                            <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                                    </div>
-                                </div>
+                                <div id="nightSelectionSummary"></div>
                             </div>
                             </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
-                            <div id="selectedHotels">
-                                <div class="alert alert-info d-flex align-items-center">
-                                    <i class="ri-information-line me-2"></i>
-                                    <span>No hotels selected yet. Choose your hotels above.</span>
-                                </div>
-                            </div>
+                            <div id="selectedHotels"></div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -6529,7 +6519,7 @@
                             <div class="p-3">
                                 <h6 class="text-warning fw-bold mb-3">
                                     <i class="ri-service-line me-2"></i>Selected Services
-                                </h6>
+                                </h6> 
                                 
                                 @if($hotels->count() > 0)
                                 <div class="service-item mb-3">
@@ -15128,12 +15118,7 @@
                 summaryHTML += '</div>';
                 document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
             } else {
-                document.getElementById('nightSelectionSummary').innerHTML = `
-                    <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                    </div>
-                `;
+                document.getElementById('nightSelectionSummary').innerHTML = '';
             }
         }
 
@@ -17883,12 +17868,7 @@
             const container = document.getElementById('selectedHotels');
             
             if (selectedHotels.length === 0) {
-                container.innerHTML = `
-                    <div class="alert d-flex align-items-center" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <span style="color: #495057; font-size: 0.85rem;">No hotels selected yet. Choose your hotels above.</span>
-                    </div>
-                `;
+                container.innerHTML = '';
             } else {
                 let hotelsHtml = '';
                 const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
@@ -18139,10 +18119,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -18455,10 +18434,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -19863,7 +19841,7 @@
                                             <label class="form-label fw-semibold">
                                                 <i class="ri-building-line me-1"></i>City
                                             </label>
-                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0)">
+                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                                 <option value="">Select City</option>
                                             </select>
                                             <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_0">Please select a city first.</small>
@@ -24392,7 +24370,7 @@
                                 <label class="form-label fw-semibold">
                                     <i class="ri-building-line me-1"></i>City
                                 </label>
-                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex})">
+                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex}); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                     <option value="">Select City</option>
                                 </select>
                                 <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_${newIndex}">Please select a city first.</small>
@@ -33410,6 +33388,146 @@
                         console.log('All guide pricing triggered');
                     };
 
+                    // Cache geocoded city bounds so Other Transport autocomplete can stay city-scoped.
+                    window._gmapsCityBoundsCache = window._gmapsCityBoundsCache || {};
+
+                    // Resolve the city dropdown tied to a Google Maps location input (Other Transport / entry / exit).
+                    window.resolveCityForAutocompleteInput = function(input) {
+                        if (!input) return '';
+                        const inputId = input.id || '';
+                        let citySelect = null;
+
+                        // day1_transport_2_pickup_location / day1_transport_2_hourly_pickup_location
+                        let match = inputId.match(/^day(\d+)_transport_(\d+)_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                        if (match) {
+                            citySelect = document.getElementById(`day${match[1]}_transport_city_${match[2]}`);
+                        } else {
+                            // day1_transport_pickup_location / day1_transport_hourly_pickup_location
+                            match = inputId.match(/^day(\d+)_transport_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                            if (match) {
+                                citySelect = document.getElementById(`day${match[1]}_transport_city_0`);
+                            }
+                        }
+
+                        if (!citySelect) {
+                            if (inputId.includes('_entry_')) {
+                                citySelect = document.getElementById('modal_local_transfer_city');
+                            } else if (inputId.includes('_exit_')) {
+                                citySelect = document.getElementById('modal_exit_city');
+                            }
+                        }
+
+                        if (!citySelect) return '';
+
+                        const opt = citySelect.options?.[citySelect.selectedIndex];
+                        const fromData = (opt?.getAttribute?.('data-city-name') || '').trim();
+                        const fromText = (opt?.textContent || '').trim().split('(')[0].trim();
+                        const fromValue = String(citySelect.value || '').trim();
+                        return fromData || fromText || fromValue;
+                    };
+
+                    // Geocode city (+ country) and apply strict viewport bounds to Autocomplete.
+                    window.applyCityBoundsToAutocomplete = function(autocomplete, cityName, countryName) {
+                        if (!autocomplete || !cityName || typeof google === 'undefined' || !google.maps?.Geocoder) {
+                            return;
+                        }
+
+                        const cacheKey = `${String(cityName).trim().toLowerCase()}|${String(countryName || '').trim().toLowerCase()}`;
+                        const applyBounds = (bounds) => {
+                            if (!bounds) return;
+                            try {
+                                autocomplete.setBounds(bounds);
+                                autocomplete.setOptions({ strictBounds: true });
+                            } catch (e) {
+                                console.warn('Failed to apply city bounds to autocomplete', e);
+                            }
+                        };
+
+                        if (window._gmapsCityBoundsCache[cacheKey]) {
+                            applyBounds(window._gmapsCityBoundsCache[cacheKey]);
+                            return;
+                        }
+
+                        const geocoder = new google.maps.Geocoder();
+                        const address = countryName ? `${cityName}, ${countryName}` : cityName;
+                        geocoder.geocode({ address: address }, function(results, status) {
+                            if (status !== 'OK' || !results?.[0]) {
+                                console.warn('City geocode failed for autocomplete bias:', address, status);
+                                return;
+                            }
+                            const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                            if (!bounds) return;
+                            window._gmapsCityBoundsCache[cacheKey] = bounds;
+                            applyBounds(bounds);
+                        });
+                    };
+
+                    window.placeMatchesSelectedCity = function(place, cityName) {
+                        if (!cityName || !place) return true;
+                        const needle = String(cityName).trim().toLowerCase();
+                        if (!needle) return true;
+                        const parts = [
+                            place.formatted_address || '',
+                            place.name || '',
+                            ...((place.address_components || []).map(c => `${c.long_name || ''} ${c.short_name || ''}`))
+                        ];
+                        return parts.join(' ').toLowerCase().includes(needle);
+                    };
+
+                    // Refresh bounds on already-initialized inputs when Other Transport city changes.
+                    window.refreshAutocompleteCityBounds = function(citySelectEl) {
+                        if (!citySelectEl) return;
+                        const selectId = citySelectEl.id || '';
+                        const match = selectId.match(/^day(\d+)_transport_city_(\d+)$/);
+                        if (!match) return;
+
+                        const day = match[1];
+                        const index = parseInt(match[2], 10) || 0;
+                        const ids = index === 0
+                            ? [
+                                `day${day}_transport_pickup_location`,
+                                `day${day}_transport_dropoff_location`,
+                                `day${day}_transport_hourly_pickup_location`
+                            ]
+                            : [
+                                `day${day}_transport_${index}_pickup_location`,
+                                `day${day}_transport_${index}_dropoff_location`,
+                                `day${day}_transport_${index}_hourly_pickup_location`
+                            ];
+
+                        const countryName = (typeof window.resolveSelectedCountryNameForAutocomplete === 'function')
+                            ? window.resolveSelectedCountryNameForAutocomplete()
+                            : (document.getElementById('user_country')?.value || '');
+                        const cityName = window.resolveCityForAutocompleteInput(document.getElementById(ids[0])) ||
+                            String(citySelectEl.value || '').trim();
+
+                        ids.forEach(function(id) {
+                            const input = document.getElementById(id);
+                            if (!input) return;
+                            // Clear previous location when city changes so stale out-of-city values are not kept.
+                            if (input.value) {
+                                input.value = '';
+                                const latField = document.getElementById(id.replace('_location', '_lat'));
+                                const lngField = document.getElementById(id.replace('_location', '_lng'));
+                                const placeIdField = document.getElementById(id.replace('_location', '_place_id'));
+                                if (latField) latField.value = '';
+                                if (lngField) lngField.value = '';
+                                if (placeIdField) placeIdField.value = '';
+                            }
+                            if (input._placesAutocomplete && cityName) {
+                                window.applyCityBoundsToAutocomplete(input._placesAutocomplete, cityName, countryName);
+                            } else {
+                                input.removeAttribute('data-autocomplete-initialized');
+                            }
+                        });
+
+                        setTimeout(function() {
+                            if (typeof window.initializeGoogleMapsAutocomplete === 'function') {
+                                window.initializeGoogleMapsAutocomplete();
+                            }
+                        }, 50);
+                    };
+
                     // Google Maps Autocomplete Functionality
                     window.initializeGoogleMapsAutocomplete = function() {
                         console.log('Initializing Google Maps Autocomplete...');
@@ -33435,21 +33553,18 @@
                                 const fromCityOption = opt?.getAttribute?.('data-country') || '';
                                 if (fromCityOption) return fromCityOption;
                             }
+
+                            // Fall back to Other Transport city option metadata
+                            const transportCity = document.querySelector('.transport-city-select');
+                            const transportOpt = transportCity?.options?.[transportCity.selectedIndex];
+                            const fromTransport = transportOpt?.getAttribute?.('data-country') || '';
+                            if (fromTransport) return fromTransport;
                             
                             return '';
                         };
+                        window.resolveSelectedCountryNameForAutocomplete = resolveSelectedCountryName;
                         
                         const selectedCountry = resolveSelectedCountryName();
-                        const selectedCity = ''; // City will be selected per service section
-                        
-                        // Create location bias for better search results
-                        let locationBias = null;
-                        if (selectedCountry && selectedCity) {
-                            // Use the city as the center point for location bias
-                            locationBias = selectedCity + ', ' + selectedCountry;
-                        } else if (selectedCountry) {
-                            locationBias = selectedCountry;
-                        }
                         
                         // Initialize autocomplete for all transport location inputs
                         document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
@@ -33466,8 +33581,15 @@
                                 if (countryCode) {
                                     autocompleteOptions.componentRestrictions = { country: countryCode };
                                 }
+
+                                const cityName = window.resolveCityForAutocompleteInput(input);
                                 
                                 const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
+                                input._placesAutocomplete = autocomplete;
+
+                                if (cityName) {
+                                    window.applyCityBoundsToAutocomplete(autocomplete, cityName, selectedCountry);
+                                }
                                 
                                 // Add place_changed event listener
                                 autocomplete.addListener('place_changed', function() {
@@ -33475,6 +33597,21 @@
                                     
                                     if (!place.geometry) {
                                         console.log('No geometry found for selected place');
+                                        return;
+                                    }
+
+                                    const selectedCityForInput = window.resolveCityForAutocompleteInput(input);
+                                    if (selectedCityForInput && !window.placeMatchesSelectedCity(place, selectedCityForInput)) {
+                                        console.warn('Selected place is outside the chosen city:', selectedCityForInput, place.formatted_address);
+                                        input.value = '';
+                                        const clearId = input.id || '';
+                                        const latField = document.getElementById(clearId.replace('_location', '_lat'));
+                                        const lngField = document.getElementById(clearId.replace('_location', '_lng'));
+                                        const placeIdField = document.getElementById(clearId.replace('_location', '_place_id'));
+                                        if (latField) latField.value = '';
+                                        if (lngField) lngField.value = '';
+                                        if (placeIdField) placeIdField.value = '';
+                                        alert(`Please select a location within ${selectedCityForInput} only.`);
                                         return;
                                     }
                                     
@@ -33815,6 +33952,19 @@
                             setTimeout(() => {
                                 reinitializeAutocomplete();
                             }, 1000); // Wait for city options to load
+                        }
+                        // Other Transport city change → scope Google suggestions to that city only
+                        if (e.target.classList && e.target.classList.contains('transport-city-select')) {
+                            setTimeout(() => {
+                                if (typeof window.refreshAutocompleteCityBounds === 'function') {
+                                    window.refreshAutocompleteCityBounds(e.target);
+                                }
+                            }, 100);
+                        }
+                        if (e.target.id === 'modal_local_transfer_city' || e.target.id === 'modal_exit_city') {
+                            setTimeout(() => {
+                                reinitializeAutocomplete();
+                            }, 200);
                         }
                     });
                     

@@ -286,15 +286,20 @@
                         </div>
                     </div>
 
-                    <!-- Third Party (DMC only) -->
+                    <!-- Third Party (DMC only) — values must be string enum: yes|no -->
                     <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
                         <div class="mb-3">
                             <label for="thirdparty" class="form-label"><strong>Third Party DMC</strong></label>
-                            @php $currentThirdParty = old('thirdparty', $users->thirdparty ?? 'no'); @endphp
+                            @php
+                                $currentThirdParty = strtolower((string) old('thirdparty', $users->thirdparty ?? 'no')) === 'yes' ? 'yes' : 'no';
+                            @endphp
                             <select class="form-select" id="thirdparty" name="thirdparty">
-                                <option value="no" @if($currentThirdParty !== 'yes') selected @endif>No</option>
-                                <option value="yes" @if($currentThirdParty === 'yes') selected @endif>Yes</option>
+                                <option value="no" @selected($currentThirdParty === 'no')>No</option>
+                                <option value="yes" @selected($currentThirdParty === 'yes')>Yes</option>
                             </select>
+                            @error('thirdparty')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -713,6 +718,15 @@
             Object.values(containers).forEach(container => container.hide());
             containers.user_code_container.show();
 
+            const $thirdparty = $('#thirdparty');
+            // Preserve string enum (yes|no) across visibility toggles; do not coerce to boolean/number
+            const preservedThirdParty = $thirdparty.length
+                ? (String($thirdparty.val() || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+                : 'no';
+            if ($thirdparty.length) {
+                $thirdparty.prop('disabled', true); // avoid submitting when not a DMC role
+            }
+
             // Show relevant containers based on role
             if (userRole >= 5 && userRole <= 9) {
                 containers.country_names.show();
@@ -736,6 +750,10 @@
                 containers.thirdparty_container.show();
                 containers.dmc_settings_section.show();
                 containers.dmc_only_attr_flight_markup.show();
+                if ($thirdparty.length) {
+                    $thirdparty.prop('disabled', false);
+                    $thirdparty.val(preservedThirdParty);
+                }
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
             } else if ([3, 24, 25, 26, 27].includes(userRole)) {

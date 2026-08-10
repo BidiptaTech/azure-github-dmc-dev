@@ -866,8 +866,8 @@ class EnquiryFormPro extends Controller
         ]);
         
         // Get agency and agent details
-        $agency = Agency::find($validated['agency_id']);
-        $agent = Agent::find($validated['agent_id']);
+        $agency = Agency::where('agency_id', $validated['agency_id'])->first();
+        $agent = Agent::where('agent_id', $validated['agent_id'])->first();
         
         // Prepare destination data
         if ($request->has('multiple_destination') && $request->multiple_destination) {
@@ -3125,10 +3125,12 @@ class EnquiryFormPro extends Controller
         }
         $ports = $portsQuery->get();
         
-        // Get agency and agent (agency comes from agent relationship â€” Tour has agent_id only)
-        $agent = $tour->agent_id ? Agent::find($tour->agent_id) : ($tour->agent ?? null);
-        $agencyId = $agent->agency_id ?? ($tour->agent->agency_id ?? null);
-        $agency = $agencyId ? Agency::find($agencyId) : null;
+        // Get agency and agent (Tour.agent_id → agents.agent_id, NOT agents.id)
+        // Agent::find($id) uses primary key `id` and can return the wrong agent.
+        $agent = $tour->agent
+            ?? ($tour->agent_id ? Agent::where('agent_id', $tour->agent_id)->first() : null);
+        $agencyId = $agent->agency_id ?? null;
+        $agency = $agencyId ? Agency::where('agency_id', $agencyId)->first() : null;
         
         // Decode guest data from tour table
         $mainGuestData = null;
@@ -3284,12 +3286,20 @@ class EnquiryFormPro extends Controller
         }
         
         // Get agents for the selected agency (if any)
-        $agents = [];
+        $agents = collect();
         if ($agencyId) {
             $agents = Agent::where('status', 1)
                 ->where('agency_id', $agencyId)
                 ->orderBy('name', 'asc')
                 ->get(['agent_id', 'name', 'email']);
+        }
+        // Ensure tour's agent appears even if inactive / filtered out
+        if (!empty($tour->agent_id) && $agent && !$agents->contains('agent_id', $agent->agent_id)) {
+            $agents = $agents->push((object) [
+                'agent_id' => $agent->agent_id,
+                'name' => $agent->name,
+                'email' => $agent->email ?? null,
+            ])->sortBy('name')->values();
         }
         
         $master_dmc_destinations = $countries;

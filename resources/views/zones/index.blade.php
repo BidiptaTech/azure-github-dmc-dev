@@ -5,6 +5,7 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     @php
+    
         $currentZoneType = request()->query('zone_type');
         $allowedZoneTypes = ['Hotel', 'Restaurant', 'Attraction'];
         $currentZoneType = in_array($currentZoneType, $allowedZoneTypes, true) ? $currentZoneType : null;
