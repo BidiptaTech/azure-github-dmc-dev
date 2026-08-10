@@ -13,46 +13,112 @@
   $isMasterDmcViewer = $authRoleId === 10;
   $collapseToTravclicksAndMasterDmc = $collapseToTravclicksAndMasterDmc ?? false;
   $masterDmcTeams = collect($masterDmcTeams ?? []);
-  $usersCollection = $users instanceof \Illuminate\Pagination\AbstractPaginator ? $users->getCollection() : collect($users);
-  $showSettingsColumn = $usersCollection->contains(function ($u) use ($settingsRoleIds, $dmcRoleIds, $authRoleId) {
-      $rowRoleId = (int) ($u->role_id ?? 0);
-      $isThirdPartyDmc = in_array($rowRoleId, $dmcRoleIds, true)
-          && strtolower((string) ($u->thirdparty ?? 'no')) === 'yes';
-      return in_array($rowRoleId, $settingsRoleIds, true)
-          || $isThirdPartyDmc
-          || ($authRoleId === 10 && $rowRoleId === 11);
-  });
-  $showBookingTypeColumn = $usersCollection->contains(function ($u) use ($authRoleId) {
-      $rowRoleId = (int) ($u->role_id ?? 0);
-      return ($authRoleId === 1 && $rowRoleId === 10) || ($authRoleId === 10 && $rowRoleId === 11);
-  });
 @endphp
 <style>
-  /* Compact users table layout */
-  .datatables-basic {
-    font-size: 12px;
-    line-height: 1.2;
+  /* —— Corporate users list (aligned with Master DMC team modal) —— */
+  .users-corp-page .card {
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
   }
 
-  .datatables-basic thead th,
-  .datatables-basic tbody td {
-    padding: 0.35rem 0.45rem !important;
-    vertical-align: middle;
+  .users-corp-toolbar {
+    margin: 0;
+    padding: 1.1rem 1.35rem;
+    background: linear-gradient(135deg, #0f2744 0%, #1a3a5c 55%, #243b53 100%);
+    color: #fff;
+  }
+
+  .users-corp-toolbar .card-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .users-corp-toolbar .users-corp-eyebrow {
+    margin: 0 0 0.2rem;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .users-corp-toolbar .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .users-corp-toolbar .btn-primary {
+    background: #3b82f6;
+    border-color: #3b82f6;
+  }
+
+  .users-corp-toolbar .btn-warning {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #0f172a;
+  }
+
+  .datatables-basic {
+    font-size: 12px;
+    line-height: 1.35;
+    border: 0 !important;
+    margin: 0 !important;
   }
 
   .datatables-basic thead th {
-    font-weight: 600;
+    background: linear-gradient(135deg, #0f2744 0%, #1a3a5c 100%) !important;
+    border: 0 !important;
+    border-bottom: 2px solid #2d6a9f !important;
+    color: #ffffff !important;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.95rem 1rem !important;
     white-space: nowrap;
+    vertical-align: middle;
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  .datatables-basic thead th.settings-controls-col {
-    white-space: normal;
-    vertical-align: bottom;
+  .datatables-basic thead th:first-child {
+    border-top-left-radius: 0;
   }
 
-  .datatables-basic .badge {
-    font-size: 10px;
-    padding: 0.25rem 0.45rem;
+  .datatables-basic thead th + th {
+    border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  /* DataTables sorting icons remain readable on dark header */
+  .datatables-basic thead th.sorting:before,
+  .datatables-basic thead th.sorting:after,
+  .datatables-basic thead th.sorting_asc:before,
+  .datatables-basic thead th.sorting_asc:after,
+  .datatables-basic thead th.sorting_desc:before,
+  .datatables-basic thead th.sorting_desc:after {
+    color: rgba(255, 255, 255, 0.55) !important;
+    opacity: 1 !important;
+  }
+
+  .datatables-basic tbody td {
+    padding: 1rem !important;
+    vertical-align: top;
+    border-color: #eef2f7 !important;
+    background: #fff;
+  }
+
+  .datatables-basic tbody tr:hover td {
+    background: #fafbfc;
+  }
+
+  .datatables-basic tr.user-inactive-row td {
+    background: #fbfbfc;
+    opacity: 0.92;
   }
 
   .datatables-basic .form-check {
@@ -64,87 +130,255 @@
     margin-top: 0;
   }
 
-  /* Settings column: 7 aligned slots (incl. AI Response) */
-  .settings-header-grid,
-  .settings-controls-grid {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.35rem;
-    width: 100%;
-    min-width: 380px;
-  }
-
-  .settings-header-grid {
-    align-items: end;
-    font-size: 10px;
-    line-height: 1.15;
-    text-align: center;
-  }
-
-  .settings-controls-grid {
-    align-items: start;
-  }
-
-  .settings-header-grid > span {
-    display: block;
-    padding: 0 2px;
-    word-break: break-word;
-    hyphens: auto;
-  }
-
-  .settings-controls-grid .settings-col {
-    display: flex;
-    justify-content: center;
+  .users-corp-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #1e4a7a, #2d6a9f);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-flex;
     align-items: center;
-    min-width: 0;
-  }
-
-  .settings-controls-grid .form-check.form-switch {
-    padding-left: 0;
-    margin-bottom: 0;
-    display: flex;
     justify-content: center;
+    flex-shrink: 0;
   }
 
-  .settings-controls-grid .form-check.form-switch .form-check-input {
-    margin-left: 0;
-    float: none;
+  .users-corp-name {
+    font-weight: 650;
+    font-size: 14px;
+    color: #0f172a;
+    line-height: 1.25;
+    margin: 0;
   }
 
-  /* Pin the third party switch to its header slot even when the other
-     settings controls are not rendered for that row. */
-  .settings-controls-grid .settings-col.third-party-col {
-    grid-column: 6;
+  .users-corp-company {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 0.15rem;
   }
 
-  .datatables-basic .booking-type-select,
-  .datatables-basic .auto-cancel-dropdown,
-  .datatables-basic .ai-response-dropdown,
-  .datatables-basic .guide-pax-input {
-    height: 26px !important;
-    font-size: 11px !important;
-    padding: 0.1rem 0.35rem !important;
+  .users-corp-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.45rem;
   }
 
-  .datatables-basic .btn.btn-sm {
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    min-height: 26px !important;
-    padding: 0 !important;
-  }
-
-  .user-status-badge {
+  .users-corp-pill {
+    display: inline-flex;
+    align-items: center;
     font-size: 10px;
-    padding: 0.2rem 0.45rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
   }
 
-  .datatables-basic tr.user-inactive-row {
-    background-color: #fff8f8;
+  .users-corp-pill-role {
+    background: #eef2ff;
+    color: #3730a3;
+    border-color: #e0e7ff;
   }
 
-  .datatables-basic tr.user-inactive-row td {
-    opacity: 0.92;
+  .users-corp-pill-type {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+  }
+
+  .users-corp-meta {
+    margin-top: 0.55rem;
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .users-corp-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.35;
+  }
+
+  .users-corp-meta i {
+    width: 12px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 10px;
+  }
+
+  .users-corp-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.45rem;
+  }
+
+  .users-corp-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    min-width: 260px;
+    max-width: 360px;
+  }
+
+  .users-corp-control-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    background: #f8fafc;
+    border: 1px solid #e8eef5;
+    border-radius: 8px;
+    padding: 0.4rem 0.55rem;
+    min-height: 36px;
+  }
+
+  .users-corp-control-item .users-corp-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .users-corp-control-item .form-check {
+    margin: 0;
+    min-height: 0;
+    padding-left: 2.5em;
+    display: flex;
+    align-items: center;
+  }
+
+  .users-corp-control-item .form-check.form-switch {
+    padding-left: 2.6em;
+  }
+
+  .users-corp-control-item .form-check-input {
+    float: none;
+    cursor: pointer;
+    margin-top: 0;
+    margin-left: -2.6em;
+  }
+
+  /* Force clear toggle look for Zone / Price / Email / 3rd Party */
+  .users-corp-control-item .form-switch .form-check-input {
+    width: 2.4em !important;
+    height: 1.25em !important;
+    margin-left: -2.6em;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e") !important;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2em !important;
+    transition: background-position 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .users-corp-control-item .form-switch .form-check-input:checked {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    background-position: right center;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+  }
+
+  .users-corp-control-item .form-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.2) !important;
+  }
+
+  .users-corp-control-item .form-switch .form-check-input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .users-corp-control-item .form-select {
+    height: 28px !important;
+    font-size: 11px !important;
+    padding: 0.15rem 0.4rem !important;
+    min-width: 84px;
+    width: auto;
+    border-color: #dbe3ee;
+    border-radius: 6px;
+    background-color: #fff;
+  }
+
+  .users-corp-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 76px;
+  }
+
+  .users-corp-status-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .users-corp-status-badge.is-active {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+
+  .users-corp-status-badge.is-inactive {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+  }
+
+  .users-corp-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    min-width: 108px;
+  }
+
+  .users-corp-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+    height: 32px;
+    padding: 0 0.7rem;
+    white-space: nowrap;
+  }
+
+  .users-corp-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  .users-corp-actions-row {
+    display: flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+  }
+
+  .users-corp-empty-controls {
+    color: #94a3b8;
+    font-size: 12px;
+    font-style: italic;
   }
 
   .auto-login-disabled {
@@ -152,11 +386,27 @@
     opacity: 0.55;
   }
 
+  .dataTables_wrapper {
+    padding: 0 0.75rem 1rem;
+    background: #f4f6f9;
+  }
+
   .dataTables_wrapper .dataTables_filter input,
   .dataTables_wrapper .dataTables_length select {
-    height: 30px;
+    height: 32px;
     font-size: 12px;
-    padding: 0.2rem 0.45rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid #dbe3ee;
+  }
+
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_filter,
+  .dataTables_wrapper .dataTables_paginate {
+    padding-top: 0.75rem;
+    color: #64748b;
+    font-size: 12px;
   }
 
   .master-dmc-team-trigger {
@@ -166,6 +416,14 @@
 
   .master-dmc-team-trigger:hover {
     filter: brightness(0.95);
+  }
+
+  @media (max-width: 992px) {
+    .users-corp-controls {
+      grid-template-columns: 1fr;
+      min-width: 0;
+      max-width: none;
+    }
   }
 
   /* —— Corporate Master DMC team modal —— */
@@ -382,13 +640,40 @@
   #masterDmcTeamModal .mdmc-control-item .form-check {
     margin: 0;
     min-height: 0;
-    padding-left: 0;
+    padding-left: 2.6em;
+    display: flex;
+    align-items: center;
   }
 
-  #masterDmcTeamModal .mdmc-control-item .form-check-input {
-    margin: 0;
+  #masterDmcTeamModal .mdmc-control-item .form-switch .form-check-input {
+    width: 2.4em !important;
+    height: 1.25em !important;
+    margin-top: 0;
+    margin-left: -2.6em;
     float: none;
     cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e") !important;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2em !important;
+    transition: background-position 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  #masterDmcTeamModal .mdmc-control-item .form-switch .form-check-input:checked {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    background-position: right center;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+  }
+
+  #masterDmcTeamModal .mdmc-control-item .form-switch .form-check-input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   #masterDmcTeamModal .mdmc-control-item .form-select {
@@ -524,23 +809,22 @@
   }
 </style>
 <div class="content-wrapper">
-  <div class="container-xxl flex-grow-1 container-p-y">
+  <div class="container-xxl flex-grow-1 container-p-y users-corp-page">
     <div class="card">
       <div class="card-datatable table-responsive pt-0">
-            <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
-                <div class="d-flex align-items-center">
+            <div class="d-flex justify-content-between align-items-center users-corp-toolbar">
+                <div>
+                    <p class="users-corp-eyebrow">User management</p>
                     <h5 class="card-title mb-0">Users</h5>
                 </div>
 
-                <div class="d-flex justify-content-between gap-3">
-                    <!-- Add New User Button -->
+                <div class="d-flex justify-content-between gap-2">
                     @if(hasPermission('create users'))
                       <a href="{{ route('users.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                           <i class="fas fa-plus"></i> Add New User
                       </a>
                     @endif
 
-                    <!-- Export Dropdown Button -->
                     <div class="dropdown">
                         <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -557,43 +841,14 @@
                 </div>
             </div>
             <x-alert />
-            
-        <table class="datatables-basic table table-bordered">
+
+        <table class="datatables-basic table">
           <thead>
             <tr>
-              <th>No</th>
-              <th>Company Name</th>
-              <th>User Details</th>
-              <th>Contact Information</th>
-              <th>Country & City</th>
-
-              @if($showSettingsColumn)
-                <th class="settings-controls-col" style="min-width: 380px;">
-                  <div class="settings-header-grid fw-bold text-uppercase">
-                    <span>Zone On</span>
-                    <span>Price Hide</span>
-                    <span>Email On</span>
-                    {{-- <span>Auto Cancel Status</span> --}}
-                    <span>Auto Cancel</span>
-                    {{-- <span>Guide Pax</span> --}}
-                    <span>AI Response</span>
-                    <span>Third Party Access</span>
-                  </div>
-                </th>
-              @endif
-              @if($showBookingTypeColumn)
-                <th class="booking-type-col" style="min-width: 150px;">Booking Type</th>
-              @endif
-
-              <th style="min-width: 90px;">Active</th>
-              <th>User Type</th>
-
-              @if(hasPermission('edit users') || hasPermission('delete users'))
-                  <th>Action</th>
-              @endif
-              @if(auth::user()->user_type == 1 || auth::user()->user_type == 2 || auth::user()->user_type == 3 )
-              <th>Auto Login</th>
-              @endif
+              <th>User</th>
+              <th class="settings-controls-col">Settings</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -602,17 +857,15 @@
                 $rowRoleId = (int) ($user->role_id ?? 0);
                 $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
                     || ($authRoleId === 10 && $rowRoleId === 11);
-                // Third party access toggle: only for DMCs marked as third-party.
                 $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true)
                     && strtolower((string) ($user->thirdparty ?? 'no')) === 'yes';
-                // Only the DMC's own Master DMC may flip the toggle (mirrors other settings controls).
                 $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
                     && $isMasterDmcViewer
                     && (int) ($user->master_dmc_id ?? 0) === $authUserId;
-                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
                 $thirdPartyEnabled = strtolower((string) ($user->thirdparty_enabled ?? 'no')) === 'yes';
                 $showBookingTypeForThisRow = ($authRoleId === 1 && (int) ($user->role_id ?? 0) === 10)
                     || ($authRoleId === 10 && (int) ($user->role_id ?? 0) === 11);
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow;
                 $bookingOptionsForRow = [
                     1 => 'Lite Form',
                     2 => 'Pro Form',
@@ -631,7 +884,6 @@
                         $selectedBookingTypeForRow = 2;
                         $bookingTypeLockedForRow = true;
                     } elseif ($authUserIsPro === 3) {
-                        // Full access: show all 3 options, default to Both on initialization.
                         $bookingOptionsForRow = [
                             1 => 'Lite Form',
                             2 => 'Pro Form',
@@ -643,363 +895,241 @@
                     $selectedBookingTypeForRow = 1;
                 }
                 $userIsActive = (int) ($user->is_active ?? 1) === 1;
+                $nameParts = preg_split('/\s+/', trim((string) ($user->name ?? '')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                if (count($nameParts) >= 2) {
+                    $userInitials = strtoupper(mb_substr($nameParts[0], 0, 1) . mb_substr($nameParts[count($nameParts) - 1], 0, 1));
+                } elseif (count($nameParts) === 1) {
+                    $userInitials = strtoupper(mb_substr($nameParts[0], 0, 2));
+                } else {
+                    $userInitials = 'U';
+                }
+                $canEditSettings = (int) auth()->user()->role_id === 10;
+                $showAutoLogin = in_array((int) auth()->user()->user_type, [1, 2, 3], true);
               @endphp
               <tr class="{{ ($showSettingsCellForThisRow ? '' : 'no-settings-row') . ($userIsActive ? '' : ' user-inactive-row') }}">
-                <td>{{ ++$key }}</td>
-                <td>{{ $user->company_name ?? 'N/A' }}</td>
                 <td>
-                  <div class="d-flex flex-column">
-                    <span class="fw-medium">{{ $user->name }}</span>
-                    @if($collapseToTravclicksAndMasterDmc && $rowRoleId === 10)
-                      <button type="button"
-                        class="badge bg-primary mt-1 border-0 master-dmc-team-trigger align-self-start"
-                        data-toggle="modal"
-                        data-target="#masterDmcTeamModal"
-                        data-bs-toggle="modal"
-                        data-bs-target="#masterDmcTeamModal"
-                        data-master-id="{{ $user->userId }}"
-                        data-master-name="{{ $user->name }}"
-                        title="View DMC and other roles under this Master DMC">
-                        {{ $user->role->name ?? 'Master Dmc' }}
-                        <i class="fas fa-users ms-1"></i>
-                      </button>
-                    @else
-                      <span class="badge bg-secondary mt-1">{{ $user->role->name ?? 'No Role' }}</span>
-                    @endif
-                  </div>
-                </td>
-                
-                <td>
-                  <div class="d-flex flex-column user-contact">
-                    <span class="fw-medium">{{ $user->email }}</span>
-                    @if($user->phone)
-                      <span class="text-muted fw-medium mt-1 text-decoration-underline text-primary">📞 {{ $user->phone }}</span>
-                    @endif
-                  </div>
-                </td>
-
-                <td>
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
-                        <div>
-                            <span class="fw-medium text-primary">{{ $user->user_country ?? 'N/A' }}</span>
-                            <br>
-                            <small class="text-muted">{{ $user->city ?? 'N/A' }}</small>
-                        </div>
+                  <div class="d-flex align-items-start gap-3">
+                    <div class="users-corp-avatar" title="#{{ $key + 1 }}">{{ $userInitials }}</div>
+                    <div class="flex-grow-1 min-w-0">
+                      <p class="users-corp-name">{{ $user->name }}</p>
+                      <div class="users-corp-company">{{ $user->company_name ?? 'N/A' }}</div>
+                      <div class="users-corp-pills">
+                        @if($collapseToTravclicksAndMasterDmc && $rowRoleId === 10)
+                          <button type="button"
+                            class="users-corp-pill users-corp-pill-role master-dmc-team-trigger"
+                            data-toggle="modal"
+                            data-target="#masterDmcTeamModal"
+                            data-bs-toggle="modal"
+                            data-bs-target="#masterDmcTeamModal"
+                            data-master-id="{{ $user->userId }}"
+                            data-master-name="{{ $user->name }}"
+                            title="View DMC and other roles under this Master DMC">
+                            {{ $user->role->name ?? 'Master Dmc' }}
+                            <i class="fas fa-users ms-1"></i>
+                          </button>
+                        @else
+                          <span class="users-corp-pill users-corp-pill-role">{{ $user->role->name ?? 'No Role' }}</span>
+                        @endif
+                        <span class="users-corp-pill users-corp-pill-type">{{ $user->getUserTypeName() }}</span>
+                      </div>
+                      <div class="users-corp-meta">
+                        <span><i class="fas fa-envelope"></i>{{ $user->email ?? '—' }}</span>
+                        @if($user->phone)
+                          <span><i class="fas fa-phone"></i>{{ $user->phone }}</span>
+                        @endif
+                        <span>
+                          <i class="fas fa-map-marker-alt"></i>
+                          {{ $user->user_country ?? 'N/A' }}{{ $user->city ? ', ' . $user->city : '' }}
+                        </span>
+                      </div>
                     </div>
+                  </div>
                 </td>
 
-                @if($showSettingsColumn)
                 <td class="settings-controls-cell">
-                  @if($showSettingsCellForThisRow)
-                    <div class="settings-controls-grid">
-                      @if($showSettingsForThisRow)
-                      @if(auth::user()->role_id == 10)
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="zone_on" value="0">
-                                <input {{$user->zone_on == 1 ? 'checked' : ''}} 
-                                    class="form-check-input zone-toggle" 
-                                    data-user-id="{{ $user->userId }}"
-                                    type="checkbox" 
-                                    id="zone_on_{{ $user->userId }}"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;">
-                            </div>
-                        </div>
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="price_hide" value="0">
-                                <input {{$user->price_hide == 1 ? 'checked' : ''}} 
-                                    class="form-check-input price-hide_toggle" 
-                                    data-user-id="{{ $user->userId }}"
-                                    type="checkbox" 
-                                    id="price_hide_{{ $user->userId }}"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;">
-                            </div>
-                        </div>
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="email_on" value="0">
-                                <input {{$user->email_on == 1 ? 'checked' : ''}} 
-                                    class="form-check-input email-toggle" 
-                                    data-user-id="{{ $user->userId }}"
-                                    type="checkbox" 
-                                    id="email_on_{{ $user->userId }}"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;">
-                            </div>
-                        </div>  
-                        {{-- <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="auto_cancel_on" value="0">
-                                <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
-                                    class="form-check-input auto-cancel-toggle"
-                                    data-user-id="{{ $user->userId }}"
-                                    type="checkbox"
-                                    id="auto_cancel_toggle_{{ $user->userId }}"
-                                    value="1"
-                                    style="width: 25px; height: 15px;">
-                            </div>
-                        </div> --}}
-                        <div class="settings-col">
-                            <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }}; padding-right: 5px;">
-                                <select class="form-select auto-cancel-dropdown"
-                                    data-user-id="{{ $user->userId }}"
-                                    id="auto_cancel_{{ $user->userId }}"
-                                    style="width: 60px; height: 25px; font-size: 12px; padding: 1px; ">
-                                    <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : '' }}>D-1</option>
-                                    <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
-                                    <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
-                                    <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
-                                    <option value="5" {{ $user->auto_cancel_date == 5 ? 'selected' : '' }}>D-5</option>
-                                    <option value="6" {{ $user->auto_cancel_date == 6 ? 'selected' : '' }}>D-6</option>
-                                    <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
-                                    <option value="8" {{ $user->auto_cancel_date == 8 ? 'selected' : '' }}>D-8</option>
-                                    <option value="9" {{ $user->auto_cancel_date == 9 ? 'selected' : '' }}>D-9</option>
-                                    <option value="10" {{ $user->auto_cancel_date == 10 ? 'selected' : '' }}>D-10</option>
-                                    <option value="11" {{ $user->auto_cancel_date == 11 ? 'selected' : '' }}>D-11</option>
-                                    <option value="12" {{ $user->auto_cancel_date == 12 ? 'selected' : '' }}>D-12</option>
-                                    <option value="13" {{ $user->auto_cancel_date == 13 ? 'selected' : '' }}>D-13</option>
-                                    <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- <div class="settings-col">
-                            <div class="form-group mb-0">
-                                <input type="text" class="form-control guide-pax-input"
-                                    data-user-id="{{ $user->userId }}"
-                                    id="guide_pax_{{ $user->userId }}"
-                                    value="{{ $user->guide_pax ?? 0 }}"
-                                    maxlength="2" inputmode="numeric" pattern="[0-9]*"
-                                    style="width: 50px; height: 25px; font-size: 12px; padding: 1px; text-align: center; padding-left: 5px;"
-                                    oninput="this.value = this.value.replace(/\D/g, '').slice(0, 2);">
-                            </div>
-                        </div> --}}
-                        <div class="settings-col">
-                            <div class="form-group mb-0">
-                                <select class="form-select ai-response-dropdown"
-                                    data-user-id="{{ $user->userId }}"
-                                    data-previous-value="{{ strtoupper((string) ($user->ai_response ?? '')) }}"
-                                    id="ai_response_{{ $user->userId }}"
-                                    title="QTN = Quotation, ITN = Itinerary"
-                                    style="width: 62px; height: 25px; font-size: 11px; padding: 1px;">
-                                    <option value="" {{ empty($user->ai_response) ? 'selected' : '' }}>--</option>
-                                    <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
-                                    <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
-                                </select>
-                            </div>
-                        </div>
-                      @else
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="zone_on" value="0">
-                                <input {{$user->zone_on == 1 ? 'checked' : ''}} 
-                                    class="form-check-input" 
-                                    name="zone_on" 
-                                    type="checkbox" 
-                                    id="zone_on"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;" 
-                                    disabled>
-                            </div>
-                        </div>
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="price_hide" value="0">
-                                <input {{$user->price_hide == 1 ? 'checked' : ''}} 
-                                    class="form-check-input" 
-                                    name="price_hide" 
-                                    type="checkbox" 
-                                    id="price_hide"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;" 
-                                    disabled>
-                            </div>
-                        </div>
-                        <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input type="hidden" name="email_on" value="0">
-                                <input {{$user->email_on == 1 ? 'checked' : ''}} 
-                                    class="form-check-input" 
-                                    name="email_on" 
-                                    type="checkbox" 
-                                    id="email_on"
-                                    value="1" 
-                                    style="width: 25px; height: 15px;" 
-                                    disabled>
-                            </div>
-                        </div>
-                        {{-- <div class="settings-col">
-                            <div class="form-check form-switch mb-0">
-                                <input {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'checked' : '' }}
-                                    class="form-check-input" type="checkbox" value="1"
-                                    style="width: 25px; height: 15px;" disabled>
-                            </div>
-                        </div> --}}
-                        <div class="settings-col">
-                            <div class="form-group mb-0" style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
-                                <select class="form-select" id="auto_cancel_disabled"
-                                    style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" disabled>
-                                    <option value="">--</option>
-                                    <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
-                                    <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
-                                    <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- <div class="settings-col">
-                            <span class="text-muted small">—</span>
-                        </div> --}}
-                        <div class="settings-col">
-                            <div class="form-group mb-0">
-                                <select class="form-select ai-response-dropdown"
-                                    style="width: 62px; height: 25px; font-size: 11px; padding: 1px;" disabled>
-                                    <option value="" {{ empty($user->ai_response) ? 'selected' : '' }}>--</option>
-                                    <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
-                                    <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
-                                </select>
-                            </div>
-                        </div>
-                      @endif
-                      @endif
-                      @if($showThirdPartyForThisRow)
-                        <div class="settings-col third-party-col">
-                            <div class="form-check form-switch mb-0">
-                                <input {{ $thirdPartyEnabled ? 'checked' : '' }}
-                                    class="form-check-input {{ $canToggleThirdPartyForThisRow ? 'third-party-toggle' : '' }}"
-                                    data-user-id="{{ $user->userId }}"
-                                    type="checkbox"
-                                    id="thirdparty_enabled_{{ $user->userId }}"
-                                    value="1"
-                                    title="{{ $canToggleThirdPartyForThisRow
-                                        ? ($thirdPartyEnabled ? 'Third party access on' : 'Third party access off')
-                                        : 'Only the Master DMC can change third party access' }}"
-                                    style="width: 25px; height: 15px;"
-                                    {{ $canToggleThirdPartyForThisRow ? '' : 'disabled' }}>
-                            </div>
-                        </div>
-                      @endif
-                    </div>
-                  @else
-                    <span class="d-none">N/A</span>
-                  @endif
-                </td>
-                @endif
-                @if($showBookingTypeColumn)
-                <td class="booking-type-cell">
-                  @if($showBookingTypeForThisRow)
-                    <select class="form-select form-select-sm booking-type-select"
+                  <div class="users-corp-section-label">Settings</div>
+                  @if($showSettingsForThisRow || $showThirdPartyForThisRow || $showBookingTypeForThisRow)
+                  <div class="users-corp-controls">
+                    @if($showSettingsForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Zone</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $user->zone_on == 1 ? 'checked' : '' }}
+                            class="form-check-input {{ $canEditSettings ? 'zone-toggle' : '' }}"
                             data-user-id="{{ $user->userId }}"
-                            data-previous-value="{{ $selectedBookingTypeForRow }}"
-                            style="min-width: 130px;"
-                            {{ $bookingTypeLockedForRow ? 'disabled' : '' }}>
-                      @foreach($bookingOptionsForRow as $bookingValue => $bookingLabel)
-                        <option value="{{ $bookingValue }}" {{ $selectedBookingTypeForRow === $bookingValue ? 'selected' : '' }}>
-                          {{ $bookingLabel }}
-                        </option>
-                      @endforeach
-                    </select>
+                            type="checkbox"
+                            role="switch"
+                            id="zone_on_{{ $user->userId }}"
+                            value="1"
+                            {{ $canEditSettings ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Price</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $user->price_hide == 1 ? 'checked' : '' }}
+                            class="form-check-input {{ $canEditSettings ? 'price-hide_toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="price_hide_{{ $user->userId }}"
+                            value="1"
+                            {{ $canEditSettings ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Email</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $user->email_on == 1 ? 'checked' : '' }}
+                            class="form-check-input {{ $canEditSettings ? 'email-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="email_on_{{ $user->userId }}"
+                            value="1"
+                            {{ $canEditSettings ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Cancel</span>
+                        @if($canEditSettings)
+                          <div class="form-group auto-cancel-day-wrap mb-0" data-user-id="{{ $user->userId }}"
+                            style="display: {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? 'block' : 'none' }};">
+                            <select class="form-select auto-cancel-dropdown"
+                              data-user-id="{{ $user->userId }}"
+                              id="auto_cancel_{{ $user->userId }}">
+                              @for($d = 1; $d <= 14; $d++)
+                                <option value="{{ $d }}" {{ ($user->auto_cancel_date == $d || (is_null($user->auto_cancel_date) && $d === 1)) ? 'selected' : '' }}>D-{{ $d }}</option>
+                              @endfor
+                            </select>
+                          </div>
+                          @if($user->auto_cancel_date === null || $user->auto_cancel_date < 1)
+                            <span class="text-muted" style="font-size:10px;">Off</span>
+                          @endif
+                        @else
+                          <span class="text-muted" style="font-size:11px;">
+                            {{ ($user->auto_cancel_date !== null && $user->auto_cancel_date >= 1) ? ('D-' . $user->auto_cancel_date) : 'Off' }}
+                          </span>
+                        @endif
+                      </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">AI</span>
+                        @if($canEditSettings)
+                          <select class="form-select ai-response-dropdown"
+                            data-user-id="{{ $user->userId }}"
+                            data-previous-value="{{ strtoupper((string) ($user->ai_response ?? '')) }}"
+                            id="ai_response_{{ $user->userId }}"
+                            title="QTN = Quotation, ITN = Itinerary">
+                            <option value="" {{ empty($user->ai_response) ? 'selected' : '' }}>--</option>
+                            <option value="QTN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'QTN' ? 'selected' : '' }}>QTN</option>
+                            <option value="ITN" {{ strtoupper((string) ($user->ai_response ?? '')) === 'ITN' ? 'selected' : '' }}>ITN</option>
+                          </select>
+                        @else
+                          <span class="text-muted" style="font-size:11px;">{{ $user->ai_response ?: '—' }}</span>
+                        @endif
+                      </div>
+                    @endif
+
+                    @if($showThirdPartyForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">3rd Party</span>
+                        <div class="form-check form-switch mb-0">
+                          <input {{ $thirdPartyEnabled ? 'checked' : '' }}
+                            class="form-check-input {{ $canToggleThirdPartyForThisRow ? 'third-party-toggle' : '' }}"
+                            data-user-id="{{ $user->userId }}"
+                            type="checkbox"
+                            role="switch"
+                            id="thirdparty_enabled_{{ $user->userId }}"
+                            value="1"
+                            title="{{ $canToggleThirdPartyForThisRow
+                                ? ($thirdPartyEnabled ? 'Third party access on' : 'Third party access off')
+                                : 'Only the Master DMC can change third party access' }}"
+                            {{ $canToggleThirdPartyForThisRow ? '' : 'disabled' }}>
+                        </div>
+                      </div>
+                    @endif
+
+                    @if($showBookingTypeForThisRow)
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">Booking</span>
+                        <select class="form-select booking-type-select"
+                          data-user-id="{{ $user->userId }}"
+                          data-previous-value="{{ $selectedBookingTypeForRow }}"
+                          {{ $bookingTypeLockedForRow ? 'disabled' : '' }}>
+                          @foreach($bookingOptionsForRow as $bookingValue => $bookingLabel)
+                            <option value="{{ $bookingValue }}" {{ $selectedBookingTypeForRow === $bookingValue ? 'selected' : '' }}>
+                              {{ $bookingLabel }}
+                            </option>
+                          @endforeach
+                        </select>
+                      </div>
+                    @endif
+                  </div>
                   @else
-                    <span class="d-none">N/A</span>
+                    <span class="users-corp-empty-controls">No settings for this role</span>
                   @endif
                 </td>
-                @endif
 
-                <td class="text-center">
-                  @if(hasPermission('edit users'))
-                    <div class="form-check form-switch d-inline-flex justify-content-center mb-0">
-                      <input type="checkbox"
-                        class="form-check-input user-active-toggle"
-                        data-user-id="{{ $user->userId }}"
-                        id="user_active_{{ $user->userId }}"
-                        {{ $userIsActive ? 'checked' : '' }}
-                        {{ (int) $user->userId === (int) auth()->user()->userId ? 'data-self="1"' : '' }}
-                        style="width: 34px; height: 18px; cursor: pointer;"
-                        title="{{ $userIsActive ? 'Active — click to deactivate' : 'Inactive — click to activate' }}">
-                    </div>
-                    <div class="mt-1">
-                      <span class="badge user-status-badge {{ $userIsActive ? 'bg-success' : 'bg-secondary' }}">
-                        {{ $userIsActive ? 'Active' : 'Inactive' }}
-                      </span>
-                    </div>
-                  @else
-                    <span class="badge user-status-badge {{ $userIsActive ? 'bg-success' : 'bg-secondary' }}">
+                <td>
+                  <div class="users-corp-section-label text-center">Status</div>
+                  <div class="users-corp-status">
+                    @if(hasPermission('edit users'))
+                      <div class="form-check form-switch mb-0">
+                        <input type="checkbox"
+                          class="form-check-input user-active-toggle"
+                          data-user-id="{{ $user->userId }}"
+                          id="user_active_{{ $user->userId }}"
+                          {{ $userIsActive ? 'checked' : '' }}
+                          {{ (int) $user->userId === (int) auth()->user()->userId ? 'data-self="1"' : '' }}
+                          style="width: 36px; height: 18px; cursor: pointer;"
+                          title="{{ $userIsActive ? 'Active — click to deactivate' : 'Inactive — click to activate' }}">
+                      </div>
+                    @endif
+                    <span class="users-corp-status-badge {{ $userIsActive ? 'is-active' : 'is-inactive' }}">
                       {{ $userIsActive ? 'Active' : 'Inactive' }}
                     </span>
-                  @endif
+                  </div>
                 </td>
 
-                <td>{{ $user->getUserTypeName() }}</td>
-                
-                
-                @if((auth::user()->user_type == 1 || auth::user()->user_type == 2 || auth::user()->user_type == 3))
-                <!-- <td>
-                  <button type="button" class="btn btn-primary btn-sm" 
-                          style="padding: 4px 8px; border-radius: 4px;"
-                          data-toggle="modal" data-target="#walletmodal"
-                          data-id="{{ $user->id }}">
-                      Add Balance
-                  </button>
-                </td> -->
-                @endif
-                @if(hasPermission('edit users') || hasPermission('delete users'))
                 <td>
-                  <div class="d-flex gap-2">
-                    <!-- Edit Button -->
-                    @if(hasPermission('edit users'))
-                      <a href="{{ route('users.edit', Crypt::encrypt($user->userId)) }}" 
-                        class="btn btn-primary btn-sm d-flex align-items-center justify-content-center rounded-circle" 
-                        style="width: 28px; height: 28px; padding: 0;">
-                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                          <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
-                        </svg>
-                      </a>
+                  <div class="users-corp-section-label text-end">Actions</div>
+                  <div class="users-corp-actions">
+                    @if($showAutoLogin)
+                      @if($userIsActive)
+                        <a href="{{ route('admin.loginAsUser', $user->userId) }}"
+                           class="btn btn-primary"
+                           title="Auto login as {{ $user->name }}">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>
+                          Login
+                        </a>
+                      @else
+                        <button type="button" class="btn btn-secondary auto-login-disabled" disabled title="Auto login unavailable — user is inactive">Login</button>
+                      @endif
                     @endif
-                
-                    <!-- Delete Button -->
-                    @if(hasPermission('delete users'))
-                    <button type="button" 
-                            class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded-circle" 
-                            style="width: 28px; height: 28px; padding: 0;" 
-                            data-toggle="modal" 
-                            data-target="#deleteModal"      
-                           
-                            onclick="setDeleteForm('{{ route('users.destroy', $user->userId) }}')">
-                      <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
-                        <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
-                      </svg>
-                    </button>
+
+                    @if(hasPermission('edit users') || hasPermission('delete users'))
+                      <div class="users-corp-actions-row">
+                        @if(hasPermission('edit users'))
+                          <a href="{{ route('users.edit', Crypt::encrypt($user->userId)) }}"
+                            class="btn btn-outline-primary btn-icon"
+                            title="Edit">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
+                          </a>
+                        @endif
+                        @if(hasPermission('delete users'))
+                          <button type="button"
+                            class="btn btn-outline-danger btn-icon"
+                            data-toggle="modal"
+                            data-target="#deleteModal"
+                            onclick="setDeleteForm('{{ route('users.destroy', $user->userId) }}')"
+                            title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="14px" viewBox="0 -960 960 960" width="14px" fill="currentColor"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                          </button>
+                        @endif
+                      </div>
                     @endif
                   </div>
                 </td>
-                @endif
-                
-                @if(auth::user()->user_type == 1 || auth::user()->user_type == 2 || auth::user()->user_type == 3)
-                <td>
-                    @if($userIsActive)
-                    <a href="{{ route('admin.loginAsUser', $user->userId) }}"
-                       class="btn btn-primary btn-sm"
-                       title="Auto login as {{ $user->name }}">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
-                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
-                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
-                      </svg>
-                    </a>
-                    @else
-                    <button type="button"
-                            class="btn btn-secondary btn-sm auto-login-disabled"
-                            disabled
-                            title="Auto login unavailable — user is inactive">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
-                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
-                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
-                      </svg>
-                    </button>
-                    @endif
-                </td>
-                @endif
               </tr>
             @endforeach
           </tbody>
@@ -1099,6 +1229,8 @@
         // Initialize DataTable with export buttons
         const usersTable = $('.datatables-basic').DataTable({
             responsive: true,
+            // Keep server order: Travclicks roles first, then Master DMC
+            order: [],
             buttons: [
                 'copy',
                 'csv',
@@ -1382,7 +1514,7 @@
             '<div class="form-check form-switch mb-0">' +
                 '<input class="form-check-input' + (className ? (' ' + className) : '') + '"' +
                     (className ? (' data-user-id="' + userId + '"') : '') +
-                    ' type="checkbox" id="' + id + '" value="1" style="width:28px;height:16px;"' +
+                    ' type="checkbox" id="' + id + '" value="1" role="switch"' +
                     (checked ? ' checked' : '') +
                     (disabled ? ' disabled' : '') + '>' +
             '</div>' +
