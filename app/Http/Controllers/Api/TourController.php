@@ -2443,12 +2443,13 @@ class TourController extends Controller
                 $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
-                $order->booking_id = $bookId;
+                // $order->booking_id = $bookId;
                 $order->status = $stattus;
                 $order->bookingType = $bookingType;
                 $order->discount = $commission;
                 $order->markup_percentage = $markup_percentage;
                 $order->save();
+                $order->refresh();
                 
                 // Update tour status based on booking type and current status
                 if($bookingType == 'enquiry'){
