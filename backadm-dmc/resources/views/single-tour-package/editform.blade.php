@@ -1437,7 +1437,7 @@
                                 @php
                                     $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
                                 @endphp
-                                <div class="col-md-2" id="discountAmountCol">
+                                <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
                                     </label>
@@ -1672,7 +1672,8 @@
                                         data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}"
                                         data-service-start="{{ $checkInValue }}"
                                         data-service-end="{{ $checkOutValue }}"
-                                        data-service-city="{{ $hotelDetails['location'] ?? '' }}"
+                                        data-service-city="{{ $hotelDetails['location'] ?? ($hotelDetails['city'] ?? '') }}"
+                                        data-service-country="{{ $hotelOrder->country ?? ($hotelDetails['country'] ?? ($hotelInfo['country'] ?? '')) }}"
                                     >
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
@@ -3809,8 +3810,28 @@
                                             $guideTotalPrice = $guideOptions['total_price'] ?? 0;
                                             $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
                                             $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['AttractionCity'] ?? $payload['attraction_city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['AttractionId'] ?? $payload['attraction_id'] ?? null)) {
+                                                $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'];
+                                                $masterAttraction = collect($attractions ?? [])->first(function ($a) use ($attractionIdLookup, $attractionName) {
+                                                    if ($attractionIdLookup !== null && $attractionIdLookup !== '') {
+                                                        return (string) ($a->attraction_id ?? $a->id ?? '') === (string) $attractionIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($a->name ?? ''), (string) $attractionName) === 0;
+                                                });
+                                                if ($masterAttraction) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterAttraction->location ?? $masterAttraction->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterAttraction->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="attraction">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4460,8 +4481,37 @@
                                             }
                                             $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
                                             $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            // entrypickup is often "City, (Country)"
+                                            if ($serviceCity === '' && !empty($payload['entrypickup'])) {
+                                                $entryPickup = trim((string) $payload['entrypickup']);
+                                                if (preg_match('/^([^,(]+)/', $entryPickup, $m)) {
+                                                    $serviceCity = trim($m[1]);
+                                                }
+                                            }
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['guide_id'] ?? null)) {
+                                                $guideIdLookup = $payload['guide_id'];
+                                                $masterGuide = collect($guides ?? [])->first(function ($g) use ($guideIdLookup) {
+                                                    return (string) ($g->guide_id ?? $g->id ?? '') === (string) $guideIdLookup;
+                                                });
+                                                if ($masterGuide) {
+                                                    if ($serviceCity === '') {
+                                                        $guideCityVal = $masterGuide->city ?? null;
+                                                        if (is_object($guideCityVal)) {
+                                                            $serviceCity = trim((string) ($guideCityVal->name ?? ''));
+                                                        } else {
+                                                            $serviceCity = trim((string) ($guideCityVal ?? ''));
+                                                        }
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterGuide->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="guide">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4696,8 +4746,38 @@
                                             $transportReturn = ($transportWay === 'Two Way');
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            // Geo for multi-city segment filtering (prefer order columns, then JSON, then master restaurant)
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if ($serviceCity === '' || $serviceCountry === '') {
+                                                $restaurantIdLookup = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                $masterRestaurant = collect($restaurants ?? [])->first(function ($r) use ($restaurantIdLookup, $restaurantName) {
+                                                    if ($restaurantIdLookup !== null && $restaurantIdLookup !== '') {
+                                                        return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $restaurantIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                });
+                                                if ($masterRestaurant) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterRestaurant->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterRestaurant->country ?? ''));
+                                                    }
+                                                }
+                                            }
+                                            if ($serviceCity === '' && $serviceCountry !== '' && isset($cities)) {
+                                                // Only auto-fill city when exactly one city maps to this country in the tour city list
+                                                $citiesForCountry = collect($cities)->filter(function ($c) use ($serviceCountry) {
+                                                    return strcasecmp((string) ($c->country ?? ''), $serviceCountry) === 0;
+                                                });
+                                                if ($citiesForCountry->count() === 1) {
+                                                    $serviceCity = trim((string) ($citiesForCountry->first()->name ?? ''));
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="restaurant">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4728,16 +4808,42 @@
                                                                     echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '" data-adult-price="' . htmlspecialchars((string)$mrPrice) . '">' . htmlspecialchars($mrName) . '</option>';
                                                                 }
                                                             }
-                                                            
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
-                                                                // Check if restaurant has country field directly
-                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+
+                                                            // Multi-city destination is often a CSV ("Singapore, Indonesia") — match any country
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $allRestaurantsList = collect($restaurants ?? []);
+                                                            $filteredRestaurants = $allRestaurantsList->filter(function ($restaurant) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all restaurants
-                                                                return empty($tourCountry);
+                                                                $restaurantCountry = trim((string) ($restaurant->country ?? ''));
+                                                                if ($restaurantCountry === '') {
+                                                                    return true;
+                                                                }
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if (strcasecmp($restaurantCountry, (string) $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
                                                             });
+
+                                                            // Keep the booked restaurant visible even if country filter missed it
+                                                            $selectedRestaurantMaster = null;
+                                                            if ($restaurantName && !$multiRestaurantSelected) {
+                                                                $selectedRestaurantMaster = $allRestaurantsList->first(function ($r) use ($restaurantName, $payload) {
+                                                                    $rid = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                                    if ($rid !== null && $rid !== '' && (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $rid) {
+                                                                        return true;
+                                                                    }
+                                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                                });
+                                                                if ($selectedRestaurantMaster && !$filteredRestaurants->contains(function ($r) use ($selectedRestaurantMaster) {
+                                                                    return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) ($selectedRestaurantMaster->restaurant_id ?? $selectedRestaurantMaster->id ?? '');
+                                                                })) {
+                                                                    $filteredRestaurants = $filteredRestaurants->push($selectedRestaurantMaster)->values();
+                                                                }
+                                                            }
                                                         @endphp
                                                         @foreach($filteredRestaurants as $restaurant)
                                                             <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name && !$multiRestaurantSelected ? 'selected' : '' }} 
@@ -4753,7 +4859,11 @@
                                                             </option>
                                                         @endforeach
                                                         @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName) && !$multiRestaurantSelected)
-                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                            <option value="{{ $restaurantName }}" selected
+                                                                data-restaurant-id="{{ $payload['restaurantId'] ?? $payload['restaurant_id'] ?? ($selectedRestaurantMaster->restaurant_id ?? '') }}"
+                                                                @if($selectedRestaurantMaster) data-restaurant-data="{{ json_encode($selectedRestaurantMaster) }}" @endif>
+                                                                {{ $restaurantName }}
+                                                            </option>
                                                         @endif
                                                     </select>
                                                 </div>
@@ -8346,7 +8456,7 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                 </label>
-                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 36px; font-size: 0.8rem;">
+                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
                             </div>
                             <div class="col-md-6 col-lg-2">
                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
@@ -12692,6 +12802,36 @@
         });
     }
     // -------- End Global Payment Gate --------
+
+    /**
+     * Resolve city + country from a modal city <select> (data-country on the option).
+     * Multi-city tours must NOT use #user_country CSV as the order country.
+     */
+    window.resolveModalCityGeo = function(citySelectId) {
+        const el = document.getElementById(citySelectId);
+        if (!el) return { city: '', country: '' };
+        const city = (el.value || '').toString().trim();
+        let country = '';
+        try {
+            const opt = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+            if (opt) {
+                country = (opt.getAttribute('data-country') || opt.dataset.country || '').toString().trim();
+            }
+        } catch (e) { /* ignore */ }
+        return { city: city, country: country };
+    };
+
+    /**
+     * Prefer modal city country; reject CSV / blank; fall back to hotel/attraction record country.
+     */
+    window.resolveServiceOrderCountry = function(preferredCountry, fallbackCountry) {
+        const clean = function(v) {
+            const s = (v == null ? '' : String(v)).trim();
+            if (!s || s.indexOf(',') !== -1) return '';
+            return s;
+        };
+        return clean(preferredCountry) || clean(fallbackCountry) || '';
+    };
     
     // Service addition functions
     function addHotelService() {
@@ -13918,15 +14058,41 @@
     // Transport Modal Functions
     function showTransportSelectionModal(tourId, country, startDate, endDate, transportType = 'entry_port') {
         console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate, transportType });
+
+        // Multi-city: use the active city plan stay range (e.g. Bali 19–20, not overall tour 16–…)
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        try {
+            const mode = typeof getCurrentCityMode === 'function' ? getCurrentCityMode() : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+            }
+        } catch (e) { /* ignore */ }
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
         document.getElementById('modal_transport_type').value = transportType;
         // City field removed
-        document.getElementById('modal_transport_start_date').value = startDate;
-        document.getElementById('modal_transport_end_date').value = endDate;
-        // Pickup date is now hardcoded and readonly in the HTML
+        document.getElementById('modal_transport_start_date').value = effectiveStartDate;
+        document.getElementById('modal_transport_end_date').value = effectiveEndDate;
+
+        // Arrival defaults to city start; departure defaults to city end; editable within stay dates
+        const pickupDateInput = document.getElementById('modal_transport_pickup_date');
+        if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+            pickupDateInput.min = effectiveStartDate;
+            pickupDateInput.max = effectiveEndDate;
+            pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+            pickupDateInput.readOnly = false;
+            pickupDateInput.disabled = false;
+        }
         
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
@@ -13972,6 +14138,14 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
+            // Re-apply stay dates after modal init (in case anything reset the field)
+            if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+                pickupDateInput.min = effectiveStartDate;
+                pickupDateInput.max = effectiveEndDate;
+                if (!pickupDateInput.value || pickupDateInput.value < effectiveStartDate || pickupDateInput.value > effectiveEndDate) {
+                    pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+                }
+            }
             // Set default pickup time to 09:00 AM using the new inputs
             const timeInput = document.getElementById('modal_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
@@ -17116,8 +17290,19 @@
         
         // Get tour details
         const tourId = document.getElementById('modal_transport_tour_id').value;
-        const country = document.getElementById('modal_transport_country').value;
-        const city = document.getElementById('modal_transport_city').value;
+        const transportCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_entryport_transport_city')
+            : { city: '', country: '' };
+        const city = transportCityGeo.city
+            || (document.getElementById('modal_transport_city') ? document.getElementById('modal_transport_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transportCityGeo.country || vehicleData.country || (document.getElementById('modal_transport_country') ? document.getElementById('modal_transport_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transportCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('modal_transport_start_date').value;
         const endDate = document.getElementById('modal_transport_end_date').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
@@ -17570,8 +17755,19 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const localCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_local_transfer_city')
+            : { city: '', country: '' };
+        const city = localCityGeo.city
+            || (document.getElementById('local_transfer_city') ? document.getElementById('local_transfer_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                localCityGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (localCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('local_transfer_start_date').value;
         const endDate = document.getElementById('local_transfer_end_date').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
@@ -17717,7 +17913,18 @@
         
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const attractionCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_attraction_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                attractionCityGeo.country || (attractionData && attractionData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (attractionCityGeo.country || '');
+        const attractionCity = attractionCityGeo.city
+            || (attractionData && (attractionData.location || attractionData.city))
+            || '';
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -17763,6 +17970,9 @@
             seniorCount: 0,
             AttractionId: parseInt(attractionId),
             AttractionName: attractionData.name || "",
+            AttractionCity: attractionCity || null,
+            city: attractionCity || null,
+            country: country || null,
             ticketId: parseInt(ticketId),
             ticketName: ticketData.name || "",
             ticket_details: {
@@ -19982,8 +20192,21 @@
         const selectedHotelOption = hotelSelect.options[hotelSelect.selectedIndex];
         const hotelData = selectedHotelOption ? JSON.parse(selectedHotelOption.getAttribute('data-hotel') || '{}') : {};
         
-        // Get country from tour form (fallback if hotel location is not available)
-        const country = document.getElementById('user_country') ? document.getElementById('user_country').value : '';
+        // Multi-city: use selected modal city country (NOT the tour destination CSV)
+        const hotelCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_city_select')
+            : { city: '', country: '' };
+        const serviceCity = hotelCityGeo.city
+            || hotelData.city
+            || hotelData.location
+            || '';
+        const serviceCountry = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                hotelCityGeo.country || hotelData.country,
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (hotelCityGeo.country || hotelData.country || '');
+        const country = serviceCountry;
         
         // Get selected room and bed data
         const roomType = document.getElementById('room_type');
@@ -20160,12 +20383,16 @@
                 hotel_name: hotelData.name || "Hotel",
                 checkInTime: checkInTime,
                 checkOutTime: checkOutTime,
-                location: hotelData.location || hotelData.city || country || null,
+                location: hotelData.location || hotelData.city || serviceCity || null,
+                city: hotelData.city || serviceCity || null,
+                country: serviceCountry || null,
                 image: hotelData.master_image || hotelData.image || "",
                 cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut],
-            transfer_options: null
+            transfer_options: null,
+            city: serviceCity || hotelData.city || hotelData.location || null,
+            country: serviceCountry || null
         };
 
         // Supplement + Remarks (from hotel modal)
@@ -20683,18 +20910,24 @@
         console.log('Guide data:', guideData);
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
         
         // Get city from guide modal selection or fallback to tour city
         const citySelect = document.getElementById('modal_guide_city_select');
-        let city = '';
-        if (citySelect && citySelect.value) {
-            city = citySelect.value;
-        } else {
+        const guideCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_guide_city_select')
+            : { city: '', country: '' };
+        let city = guideCityGeo.city || '';
+        if (!city) {
             // Fallback to tour city if available
             const tourCity = '{{ $tour->city ?? "" }}';
             city = tourCity || '';
         }
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                guideCityGeo.country || (guideData && guideData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (guideCityGeo.country || '');
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -20791,6 +21024,8 @@
             agent_id: agentId,
             remarks: guideRemarks,
             supplement: guideSupplement,
+            city: city || null,
+            country: country || null,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
@@ -23316,7 +23551,18 @@
         };
         
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const restaurantCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_restaurant_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                restaurantCityGeo.country || (restaurantData && restaurantData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (restaurantCityGeo.country || '');
+        const restaurantCity = restaurantCityGeo.city
+            || (restaurantData && (restaurantData.city || restaurantData.location))
+            || '';
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -23372,7 +23618,9 @@
             dmc_id: dmcUser.userId || "",
             bookingType: "enquiry",
             remarks: restaurantRemarks,
-            supplement: restaurantSupplement
+            supplement: restaurantSupplement,
+            city: restaurantCity || null,
+            country: country || null
         }];
         
         if (isMultiRestaurant && bookingData[0]) {
@@ -23663,6 +23911,23 @@
             match = document.createElement('option');
             match.value = normalizeCityText(cityValue);
             match.textContent = match.value;
+            // Copy country from the active multi-city segment (or single city) so order geo is correct
+            try {
+                let countryAttr = '';
+                const mode = getCurrentCityMode();
+                if (mode === 'multi') {
+                    const bundle = document.getElementById('segmentServicesBundle');
+                    const seg = bundle ? bundle.closest('.segment') : null;
+                    const citySel = seg ? seg.querySelector('.city-select') : null;
+                    const segOpt = citySel && citySel.selectedOptions ? citySel.selectedOptions[0] : null;
+                    countryAttr = segOpt ? (segOpt.getAttribute('data-country') || '') : '';
+                } else {
+                    const sc = document.getElementById('single_city');
+                    const scOpt = sc && sc.selectedOptions ? sc.selectedOptions[0] : null;
+                    countryAttr = scOpt ? (scOpt.getAttribute('data-country') || '') : '';
+                }
+                if (countryAttr) match.setAttribute('data-country', countryAttr);
+            } catch (e) { /* ignore */ }
             selectEl.appendChild(match);
         }
 
@@ -25120,6 +25385,64 @@
     }
 
     // Functions to load meals and dish types for restaurant edit form
+    function restoreSavedRestaurantMealDish(bookingId) {
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
+        const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
+        if (mealTypeSelect && currentMealType) {
+            const hasMeal = Array.from(mealTypeSelect.options || []).some(o => o.value === currentMealType);
+            if (!hasMeal) {
+                const opt = document.createElement('option');
+                opt.value = currentMealType;
+                opt.textContent = currentMealType;
+                opt.selected = true;
+                mealTypeSelect.appendChild(opt);
+            } else {
+                mealTypeSelect.value = currentMealType;
+            }
+        }
+        if (dishTypeSelect && currentDishType) {
+            const hasDish = Array.from(dishTypeSelect.options || []).some(o => o.value === currentDishType);
+            if (!hasDish) {
+                const opt = document.createElement('option');
+                opt.value = currentDishType;
+                opt.textContent = currentDishType;
+                opt.selected = true;
+                dishTypeSelect.appendChild(opt);
+            } else {
+                dishTypeSelect.value = currentDishType;
+            }
+        }
+    }
+
+    function resolveRestaurantIdForEdit(selectedOption) {
+        if (!selectedOption) return '';
+        let restaurantId = selectedOption.getAttribute('data-restaurant-id') || '';
+        if (restaurantId) return restaurantId;
+
+        const name = (selectedOption.value || '').toString().trim();
+        if (!name) return '';
+
+        // Fall back to master restaurants list loaded on the page
+        try {
+            window.__editformRestaurants = window.__editformRestaurants || @json($restaurants ?? []);
+            const match = (window.__editformRestaurants || []).find(function (r) {
+                return String(r.name || '').toLowerCase() === name.toLowerCase();
+            });
+            if (match) {
+                restaurantId = String(match.restaurant_id || match.id || '');
+                if (restaurantId) {
+                    selectedOption.setAttribute('data-restaurant-id', restaurantId);
+                    try {
+                        selectedOption.setAttribute('data-restaurant-data', JSON.stringify(match));
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return restaurantId;
+    }
+
     function loadRestaurantMealsForEdit(bookingId) {
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
         const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
@@ -25134,12 +25457,10 @@
         const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
         const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
         
-        // Clear dependent dropdowns
-        mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
-        dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
-        
         const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) {
+            mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+            if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
             return;
         }
         
@@ -25150,6 +25471,10 @@
             handleMultiRestaurantSelectedForEdit(bookingId, selectedValue);
             return;
         }
+        
+        // Clear dependent dropdowns only after we know a restaurant is selected
+        mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+        if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
         
         // Show transport section for normal restaurants
         const transportSection = document.getElementById(`restaurant_transport_section_${bookingId}`);
@@ -25166,7 +25491,7 @@
         
         // Try to get restaurant data from data attribute
         const restaurantDataStr = selectedOption.getAttribute('data-restaurant-data');
-        const restaurantId = selectedOption.getAttribute('data-restaurant-id');
+        let restaurantId = resolveRestaurantIdForEdit(selectedOption);
         
         if (restaurantDataStr) {
             try {
@@ -25180,6 +25505,9 @@
                     }
                     return;
                 }
+                if (!restaurantId) {
+                    restaurantId = String(restaurantData.restaurant_id || restaurantData.id || '');
+                }
             } catch (error) {
                 console.error('Error parsing restaurant data:', error);
             }
@@ -25188,7 +25516,11 @@
         // Try to fetch meals from API
         if (restaurantId) {
             fetchMealsForRestaurantEdit(restaurantId, mealTypeSelect, bookingId, currentMealType, currentDishType);
+            return;
         }
+
+        // No restaurant id available — keep saved meal/dish visible instead of empty placeholders
+        restoreSavedRestaurantMealDish(bookingId);
     }
     
     function populateMealTypesForEdit(mealTypeSelect, meals, currentMealType = '') {
@@ -25236,13 +25568,14 @@
             const dmcId = document.getElementById('dmc_id')?.value;
             if (!dmcId) {
                 console.error('DMC ID not found');
+                if (bookingId) restoreSavedRestaurantMealDish(bookingId);
                 return;
             }
             
             const response = await fetch(`{{ route('api.restaurant.details') }}?restaurantId=${restaurantId}&dmc_id=${dmcId}`);
             const data = await response.json();
             
-            if (data.success && data.meals && Array.isArray(data.meals)) {
+            if (data.success && data.meals && Array.isArray(data.meals) && data.meals.length > 0) {
                 // Convert API format to expected format
                 const meals = data.meals.map(meal => ({
                     meal_id: meal.meal_id,
@@ -25255,12 +25588,22 @@
                     price: meal.price
                 }));
                 populateMealTypesForEdit(mealTypeSelect, meals, currentMealType);
+                // Ensure saved dish is restored if dish loader didn't select it
+                if (bookingId && currentDishType) {
+                    const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+                    if (dishTypeSelect && !dishTypeSelect.value) {
+                        restoreSavedRestaurantMealDish(bookingId);
+                    }
+                }
                 if (bookingId && typeof updateRestaurantPriceForEdit === 'function') {
                     updateRestaurantPriceForEdit(bookingId);
                 }
+            } else if (bookingId) {
+                restoreSavedRestaurantMealDish(bookingId);
             }
         } catch (error) {
             console.error('Error fetching meals for restaurant:', error);
+            if (bookingId) restoreSavedRestaurantMealDish(bookingId);
         }
     }
     
@@ -25680,6 +26023,13 @@
                 if (!dishTypeSelect.value && currentDishType) {
                     dishTypeSelect.value = dishTypeMatch[1];
                 }
+            } else if (currentDishType) {
+                // Saved booking may only have meal period text ("Breakfast") — restore dish from hidden field
+                const dishOption = document.createElement('option');
+                dishOption.value = currentDishType;
+                dishOption.textContent = currentDishType;
+                dishOption.selected = true;
+                dishTypeSelect.appendChild(dishOption);
             }
             return;
         }
@@ -27834,9 +28184,12 @@
             const mcMaster = document.getElementById('multiCityMasterField');
             const agencyCol = document.getElementById('agencyCol');
             const agentCol = document.getElementById('agentCol');
+            const discountCol = document.getElementById('discountAmountCol');
             if (mc) mc.classList.toggle('d-none', !isMulti);
             if (sc) sc.classList.toggle('d-none', isMulti);
             if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
+            // Discount amount is single-city only
+            if (discountCol) discountCol.classList.toggle('d-none', isMulti);
 
             // No stretching needed: in multi-city we show master cities in the 6-col slot.
 
@@ -27907,8 +28260,24 @@
         }
 
         function buildSegmentOptions(masterCities) {
+            const mc = document.getElementById('multi_cities');
+            const countryByCity = {};
+            try {
+                if (mc) {
+                    Array.from(mc.options || []).forEach(function (opt) {
+                        const name = (opt.value || '').toString().trim();
+                        const country = (opt.getAttribute('data-country') || '').toString().trim();
+                        if (name) countryByCity[name] = country;
+                    });
+                }
+            } catch (e) { /* ignore */ }
             return ['<option value="">Select city...</option>']
-                .concat(masterCities.map(c => `<option value="${String(c).replace(/"/g, '&quot;')}">${String(c)}</option>`))
+                .concat(masterCities.map(function (c) {
+                    const name = String(c);
+                    const country = countryByCity[name] || countryByCity[name.trim()] || '';
+                    const countryAttr = country ? ` data-country="${String(country).replace(/"/g, '&quot;')}"` : '';
+                    return `<option value="${name.replace(/"/g, '&quot;')}"${countryAttr}>${name}</option>`;
+                }))
                 .join('');
         }
 
@@ -28358,25 +28727,58 @@
             } catch (e) { /* ignore */ }
         }
 
-        function applyServiceDateFilter(segStart, segEnd, segCity) {
+        function applyServiceDateFilter(segStart, segEnd, segCity, segCountry) {
             if (!segStart || !segEnd) return;
             try {
                 const wantCity = normalizeCityValue(segCity || '').toLowerCase();
+                const wantCountry = (segCountry || '').toString().trim().toLowerCase();
                 const segS = normalizeDateToISO(segStart);
                 const segE = normalizeDateToISO(segEnd);
                 if (!segS || !segE) return;
 
-                // Single-date services
+                const serviceMatchesSegmentGeo = function (el) {
+                    const cAttr = normalizeCityValue(el.getAttribute('data-service-city') || '').toLowerCase();
+                    const countryAttr = (el.getAttribute('data-service-country') || '').toString().trim().toLowerCase();
+                    // No geo on the service card (legacy rows) → allow date-only
+                    if (!cAttr && !countryAttr) return null;
+                    if (wantCity && cAttr) {
+                        return cAttr === wantCity;
+                    }
+                    if (wantCountry && countryAttr) {
+                        return countryAttr === wantCountry;
+                    }
+                    // Service has geo but segment geo unknown → don't force-hide
+                    if (!wantCity && !wantCountry) return true;
+                    // Service geo cannot match this segment (e.g. Singapore under Bali)
+                    return false;
+                };
+
+                const applyGeoAwareVisibility = function (el, dateOk) {
+                    const geoOk = serviceMatchesSegmentGeo(el);
+                    if (geoOk === false) {
+                        // Wrong city/country for this stay — never show here
+                        el.classList.toggle('d-none', true);
+                        return;
+                    }
+                    if (geoOk === true) {
+                        // Correct city/country — show on this stay (date is secondary)
+                        el.classList.toggle('d-none', false);
+                        return;
+                    }
+                    // Legacy: no geo attrs → date range only
+                    el.classList.toggle('d-none', !dateOk);
+                };
+
+                // Single-date services (restaurants, attractions, guides, transfers)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date]').forEach(function (el) {
                     const d = (el.getAttribute('data-service-date') || '').trim();
-                    if (!d) return; // if unknown date, keep visible
+                    if (!d) return;
                     const di = normalizeDateToISO(d);
                     if (!di) return;
-                    const ok = di >= segS && di <= segE;
-                    el.classList.toggle('d-none', !ok);
+                    applyGeoAwareVisibility(el, di >= segS && di <= segE);
                 });
 
-                // Range services (hotels): show if overlaps the segment range
+                // Range services (hotels)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-start][data-service-end]').forEach(function (el) {
                     const s = (el.getAttribute('data-service-start') || '').trim();
                     const e = (el.getAttribute('data-service-end') || '').trim();
@@ -28384,13 +28786,7 @@
                     const si = normalizeDateToISO(s);
                     const ei = normalizeDateToISO(e);
                     if (!si || !ei) return;
-                    const ok = si <= segE && ei >= segS;
-                    let cityOk = true;
-                    const cAttr = (el.getAttribute('data-service-city') || '').trim();
-                    if (wantCity && cAttr) {
-                        cityOk = normalizeCityValue(cAttr).toLowerCase() === wantCity;
-                    }
-                    el.classList.toggle('d-none', !(ok && cityOk));
+                    applyGeoAwareVisibility(el, si <= segE && ei >= segS);
                 });
             } catch (e) { /* ignore */ }
         }
@@ -28497,7 +28893,14 @@
 
             // Filter services to segment date range (e.g. 26–30 Apr shows only services in that range)
             clearServiceDateFilter();
-            applyServiceDateFilter(start, end, citySel.value);
+            applyServiceDateFilter(
+                start,
+                end,
+                citySel.value,
+                (citySel.selectedOptions && citySel.selectedOptions[0])
+                    ? (citySel.selectedOptions[0].getAttribute('data-country') || '')
+                    : ''
+            );
 
             applySegmentStayDateBadges(start, end);
 
