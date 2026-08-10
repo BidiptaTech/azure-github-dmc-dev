@@ -116,6 +116,82 @@ class ZoneController extends Controller
     }
 
     /**
+     * If zone_id is present in hotel/attraction/restaurant zone_assignments
+     * (for the zone's dmc_id when set), return a block message; otherwise null.
+     */
+    private function getZoneMappedDeleteBlockMessage(Zone $zone): ?string
+    {
+        $zoneId = $zone->zone_id ?? null;
+        if ($zoneId === null || $zoneId === '') {
+            return null;
+        }
+
+        $zoneType = trim((string) ($zone->zone_type ?? ''));
+        $zoneDmcId = $this->normalizeZoneDmcId($zone->dmc_id);
+        $zoneIdStr = (string) $zoneId;
+
+        $models = match ($zoneType) {
+            'Hotel' => Hotel::whereNotNull('zone_assignments')->get(),
+            'Attraction' => Attraction::whereNotNull('zone_assignments')->get(),
+            'Restaurant' => Restaurant::whereNotNull('zone_assignments')->get(),
+            default => collect(),
+        };
+
+        if ($models->isEmpty()) {
+            return null;
+        }
+
+        $mappedDmcId = null;
+        foreach ($models as $model) {
+            // When zone belongs to a DMC, only check products under that DMC.
+            if ($zoneDmcId) {
+                $modelDmcIds = (array) ($model->dmc_id ?? []);
+                $belongsToZoneDmc = in_array($zoneDmcId, $modelDmcIds, true)
+                    || in_array((string) $zoneDmcId, $modelDmcIds, true)
+                    || in_array((int) $zoneDmcId, array_map('intval', $modelDmcIds), true);
+                if (!$belongsToZoneDmc) {
+                    continue;
+                }
+            }
+
+            foreach ((array) ($model->zone_assignments ?? []) as $assignment) {
+                if (!is_array($assignment)) {
+                    continue;
+                }
+                $assignmentZoneId = isset($assignment['zone_id']) ? (string) $assignment['zone_id'] : '';
+                if ($assignmentZoneId === '' || $assignmentZoneId !== $zoneIdStr) {
+                    continue;
+                }
+
+                $assignmentDmcId = isset($assignment['dmc_id']) ? (int) $assignment['dmc_id'] : 0;
+                if ($zoneDmcId && $assignmentDmcId > 0 && $assignmentDmcId !== $zoneDmcId) {
+                    continue;
+                }
+
+                $mappedDmcId = $zoneDmcId ?: ($assignmentDmcId > 0 ? $assignmentDmcId : null);
+                break 2;
+            }
+        }
+
+        if (!$mappedDmcId) {
+            return null;
+        }
+
+        $dmcUser = User::where('role_id', 11)
+            ->where('dmcId', $mappedDmcId)
+            ->first();
+        $dmcName = $dmcUser
+            ? trim((string) ($dmcUser->name ?? $dmcUser->company_name ?? ''))
+            : '';
+
+        if ($dmcName === '') {
+            $dmcName = 'DMC #' . $mappedDmcId;
+        }
+
+        return 'This zone is mapped by DMC "' . $dmcName . '"';
+    }
+
+    /**
      * Country names from the master DMC profile (comma-separated on user.country).
      */
     private function getMasterDmcCountryNamesForDmc(int $dmcId): array
@@ -543,6 +619,53 @@ class ZoneController extends Controller
     }
 
     /**
+     * AJAX: whether the zone can be deleted (admin mapping check).
+     */
+    public function checkDelete($id)
+    {
+        try {
+            $zoneId = Crypt::decrypt($id);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'can_delete' => false,
+                'message' => 'Invalid zone reference.',
+            ], 400);
+        }
+
+        $zone = Zone::where('zone_id', $zoneId)->first();
+        if (!$zone) {
+            return response()->json([
+                'can_delete' => false,
+                'message' => 'Zone not found.',
+            ], 404);
+        }
+
+        $authUser = Auth::user();
+        if (!$this->canManageZone($authUser, $zone)) {
+            return response()->json([
+                'can_delete' => false,
+                'message' => 'You are not authorized to delete this zone.',
+            ], 403);
+        }
+
+        $isAdminUser = (int) ($authUser->userId ?? 0) === 1 || (int) ($authUser->role_id ?? 0) === 1;
+        if ($isAdminUser) {
+            $mappedMessage = $this->getZoneMappedDeleteBlockMessage($zone);
+            if ($mappedMessage) {
+                return response()->json([
+                    'can_delete' => false,
+                    'message' => $mappedMessage,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'can_delete' => true,
+            'message' => null,
+        ]);
+    }
+
+    /**
      * Remove the specified zone from storage.
      */
     public function destroy($id)
@@ -556,6 +679,17 @@ class ZoneController extends Controller
         if (!$this->canManageZone(Auth::user(), $zone)) {
             return redirect()->route('zones.index')
                 ->with('error', 'You are not authorized to delete this zone');
+        }
+
+        // Admin / userId=1: block delete when this zone is still mapped on products.
+        $authUser = Auth::user();
+        $isAdminUser = (int) ($authUser->userId ?? 0) === 1 || (int) ($authUser->role_id ?? 0) === 1;
+        if ($isAdminUser) {
+            $mappedMessage = $this->getZoneMappedDeleteBlockMessage($zone);
+            if ($mappedMessage) {
+                return redirect()->route('zones.index')
+                    ->with('error', $mappedMessage);
+            }
         }
 
         // Remove assignments for the DMC performing the delete (this is what user expects).
