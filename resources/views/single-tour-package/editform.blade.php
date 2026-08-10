@@ -1437,7 +1437,7 @@
                                 @php
                                     $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
                                 @endphp
-                                <div class="col-md-2" id="discountAmountCol">
+                                <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
                                     </label>
@@ -8456,7 +8456,7 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                 </label>
-                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 36px; font-size: 0.8rem;">
+                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
                             </div>
                             <div class="col-md-6 col-lg-2">
                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
@@ -14058,15 +14058,41 @@
     // Transport Modal Functions
     function showTransportSelectionModal(tourId, country, startDate, endDate, transportType = 'entry_port') {
         console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate, transportType });
+
+        // Multi-city: use the active city plan stay range (e.g. Bali 19–20, not overall tour 16–…)
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        try {
+            const mode = typeof getCurrentCityMode === 'function' ? getCurrentCityMode() : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+            }
+        } catch (e) { /* ignore */ }
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
         document.getElementById('modal_transport_type').value = transportType;
         // City field removed
-        document.getElementById('modal_transport_start_date').value = startDate;
-        document.getElementById('modal_transport_end_date').value = endDate;
-        // Pickup date is now hardcoded and readonly in the HTML
+        document.getElementById('modal_transport_start_date').value = effectiveStartDate;
+        document.getElementById('modal_transport_end_date').value = effectiveEndDate;
+
+        // Arrival defaults to city start; departure defaults to city end; editable within stay dates
+        const pickupDateInput = document.getElementById('modal_transport_pickup_date');
+        if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+            pickupDateInput.min = effectiveStartDate;
+            pickupDateInput.max = effectiveEndDate;
+            pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+            pickupDateInput.readOnly = false;
+            pickupDateInput.disabled = false;
+        }
         
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
@@ -14112,6 +14138,14 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
+            // Re-apply stay dates after modal init (in case anything reset the field)
+            if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+                pickupDateInput.min = effectiveStartDate;
+                pickupDateInput.max = effectiveEndDate;
+                if (!pickupDateInput.value || pickupDateInput.value < effectiveStartDate || pickupDateInput.value > effectiveEndDate) {
+                    pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+                }
+            }
             // Set default pickup time to 09:00 AM using the new inputs
             const timeInput = document.getElementById('modal_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
@@ -28150,9 +28184,12 @@
             const mcMaster = document.getElementById('multiCityMasterField');
             const agencyCol = document.getElementById('agencyCol');
             const agentCol = document.getElementById('agentCol');
+            const discountCol = document.getElementById('discountAmountCol');
             if (mc) mc.classList.toggle('d-none', !isMulti);
             if (sc) sc.classList.toggle('d-none', isMulti);
             if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
+            // Discount amount is single-city only
+            if (discountCol) discountCol.classList.toggle('d-none', isMulti);
 
             // No stretching needed: in multi-city we show master cities in the 6-col slot.
 

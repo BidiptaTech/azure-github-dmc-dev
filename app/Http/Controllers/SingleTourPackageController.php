@@ -4210,6 +4210,11 @@ class SingleTourPackageController extends Controller
 
         $requestCountry = trim((string) $request->input('country', ''));
         $requestCurrency = strtoupper(trim((string) $request->input('currency', '')));
+        $requestCity = trim((string) $request->input('city', ''));
+        if ($requestCity !== '') {
+            // Strip display form "Bali (Indonesia)" → "Bali"
+            $requestCity = trim((string) preg_replace('/\s*\([^)]*\)\s*$/', '', $requestCity));
+        }
         if ($this->isInvalidOrderCountry($requestCountry)) {
             $requestCountry = '';
         }
@@ -4220,6 +4225,9 @@ class SingleTourPackageController extends Controller
         }
         if ($requestCurrency !== '' && empty($payload['currency'])) {
             $payload['currency'] = $requestCurrency;
+        }
+        if ($requestCity !== '' && empty($payload['city'])) {
+            $payload['city'] = $requestCity;
         }
 
         $geo = $this->resolveOrderGeoFromServicePayload($payload, $fallbackDestination);
@@ -4279,6 +4287,7 @@ class SingleTourPackageController extends Controller
             'entry_port_data' => 'nullable|string',
             'exit_port_data' => 'nullable|string',
             'country' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
             'currency' => 'nullable|string|max:10',
         ]);
 
@@ -4289,6 +4298,7 @@ class SingleTourPackageController extends Controller
             $agentId = $request->agent_id;
             $orderGeo = $this->resolveOrderCountryCurrency($request, $tourId);
             $orderCountry = $orderGeo['country'];
+            $orderCity = $orderGeo['city'];
             $orderCurrency = $orderGeo['currency'];
                                     
             // This initial booking ID is not used since we generate unique IDs for each service
@@ -4514,6 +4524,7 @@ class SingleTourPackageController extends Controller
                                         'data' => [$enhancedHotelData], // Store hotel data as array
                                         'type' => $type,
                                         'country' => $hotelGeo['country'] ?? $orderCountry,
+                                        'city' => $hotelGeo['city'] ?? $orderCity,
                                         'currency' => $hotelGeo['currency'] ?? $orderCurrency,
                                         'status' => 1,
                                         'bookingType' => 'enquiry',
@@ -4606,6 +4617,8 @@ class SingleTourPackageController extends Controller
                                 
                                 // Generate new booking ID for each attraction
                                 // $newAttractionBookingId = $this->getNextBookingId();
+
+                                [$attraction, $attractionGeo] = $this->applyOrderGeoToServiceRow($attraction, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newAttractionBookingId,
@@ -4613,8 +4626,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$attraction], // Store attraction data as array
                                     'type' => $type,
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $attractionGeo['country'] ?? $orderCountry,
+                                    'city' => $attractionGeo['city'] ?? $orderCity,
+                                    'currency' => $attractionGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $attraction['remarks'] ?? null,
@@ -4686,6 +4700,8 @@ class SingleTourPackageController extends Controller
                                 
                                 // Generate new booking ID for each restaurant
                                 // $newRestaurantBookingId = $this->getNextBookingId();
+
+                                [$restaurant, $restaurantGeo] = $this->applyOrderGeoToServiceRow($restaurant, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newRestaurantBookingId,
@@ -4693,8 +4709,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$restaurant], // Store restaurant data as array
                                     'type' => $type,
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $restaurantGeo['country'] ?? $orderCountry,
+                                    'city' => $restaurantGeo['city'] ?? $orderCity,
+                                    'currency' => $restaurantGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $restaurant['remarks'] ?? null,
@@ -4731,6 +4748,8 @@ class SingleTourPackageController extends Controller
                                 ]);
                                 // Generate new booking ID for each guide
                                 // $newGuideBookingId = $this->getNextBookingId();
+
+                                [$guide, $guideGeo] = $this->applyOrderGeoToServiceRow($guide, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newGuideBookingId,
@@ -4738,8 +4757,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$guide], // Store guide data as array
                                     'type' => $type,
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $guideGeo['country'] ?? $orderCountry,
+                                    'city' => $guideGeo['city'] ?? $orderCity,
+                                    'currency' => $guideGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                     'remarks' => $guide['remarks'] ?? null,
@@ -4805,6 +4825,8 @@ class SingleTourPackageController extends Controller
                                 
                                 // Generate new booking ID for each transport
                                 // $newTransportBookingId = $this->getNextBookingId();
+
+                                [$transport, $transportGeo] = $this->applyOrderGeoToServiceRow($transport, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newTransportBookingId,
@@ -4812,8 +4834,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $transportGeo['country'] ?? $orderCountry,
+                                    'city' => $transportGeo['city'] ?? $orderCity,
+                                    'currency' => $transportGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
@@ -4878,6 +4901,8 @@ class SingleTourPackageController extends Controller
                                 
                                 // Generate new booking ID for each port transport
                                 // $newPortBookingId = $this->getNextBookingId();
+
+                                [$transport, $portGeo] = $this->applyOrderGeoToServiceRow($transport, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newPortBookingId,
@@ -4885,8 +4910,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $portGeo['country'] ?? $orderCountry,
+                                    'city' => $portGeo['city'] ?? $orderCity,
+                                    'currency' => $portGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                     'remarks' => $transport['remarks'] ?? null,
@@ -4912,6 +4938,8 @@ class SingleTourPackageController extends Controller
                             foreach ($decodedData as $service) {
                                 // Generate new booking ID for each other service
                                 // $newServiceBookingId = $this->getNextBookingId();
+
+                                [$service, $serviceGeo] = $this->applyOrderGeoToServiceRow($service, $request, $tourId);
                                 
                                 $order = Order::create([
                                     // 'booking_id' => $newServiceBookingId,
@@ -4919,8 +4947,9 @@ class SingleTourPackageController extends Controller
                                     'tour_id' => $tourId,
                                     'data' => [$service], // Store service data as array
                                     'type' => $type,
-                                    'country' => $orderCountry,
-                                    'currency' => $orderCurrency,
+                                    'country' => $serviceGeo['country'] ?? $orderCountry,
+                                    'city' => $serviceGeo['city'] ?? $orderCity,
+                                    'currency' => $serviceGeo['currency'] ?? $orderCurrency,
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                 ]);
@@ -5096,6 +5125,7 @@ class SingleTourPackageController extends Controller
             'data' => [$bookingData],
             'type' => 'hotel',
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
@@ -5188,6 +5218,7 @@ class SingleTourPackageController extends Controller
             'data' => $bookingData,
             'type' => 'guide',
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => $commission,
@@ -5274,6 +5305,7 @@ class SingleTourPackageController extends Controller
             'data' => $bookingData,
             'type' => 'restaurant',
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
@@ -5351,6 +5383,7 @@ class SingleTourPackageController extends Controller
             'data' => $bookingData,
             'type' => 'attraction',
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
@@ -5451,6 +5484,7 @@ class SingleTourPackageController extends Controller
             'data' => $transportData,
             'type' => $request->input('type'),
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,
@@ -5538,6 +5572,7 @@ class SingleTourPackageController extends Controller
             'data' => $transportData,
             'type' => $orderType,
             'country' => $orderGeo['country'] ?? null,
+            'city' => $orderGeo['city'] ?? null,
             'currency' => $orderGeo['currency'] ?? null,
             'bookingType' => $bookingType,
             'discount' => 0,

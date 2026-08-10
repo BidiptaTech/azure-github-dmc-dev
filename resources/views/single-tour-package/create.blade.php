@@ -6027,6 +6027,9 @@
                             if (payload.country) {
                                 fd.append('country', payload.country);
                             }
+                            if (payload.city) {
+                                fd.append('city', payload.city);
+                            }
                             if (payload.currency) {
                                 fd.append('currency', payload.currency);
                             }
@@ -6220,6 +6223,7 @@
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
                                         total_price: 0,
                                         country: seg.segCountry || '',
+                                        city: String(seg.cityLabel || '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
                                         currency: seg.segCurrency || ''
                                     });
 
@@ -6373,6 +6377,30 @@
                             const singleOrderCurrency = (typeof getTourCurrency === 'function')
                                 ? getTourCurrency()
                                 : (document.getElementById('tour_package_currency')?.value || '');
+                            let singleOrderCity = (typeof cityName !== 'undefined' && cityName) ? cityName : '';
+                            if (!singleOrderCity) {
+                                const cityEl = document.getElementById('single_city');
+                                if (cityEl) {
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                            const d2 = $(cityEl).select2('data');
+                                            if (d2 && d2.length && d2[0] && d2[0].text) {
+                                                singleOrderCity = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                            }
+                                        }
+                                    } catch (eCity) { /* ignore */ }
+                                    if (!singleOrderCity) {
+                                        const v = String(cityEl.value || '').trim();
+                                        if (v && !/^\d+$/.test(v)) {
+                                            singleOrderCity = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        } else if (cityEl.selectedIndex >= 0) {
+                                            const opt = cityEl.options[cityEl.selectedIndex];
+                                            const t = opt ? String(opt.textContent || '').trim() : '';
+                                            if (t) singleOrderCity = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        }
+                                    }
+                                }
+                            }
 
                             const result = await postServiceOrders({
                                 tour_id: tourId,
@@ -6385,6 +6413,7 @@
                                 exit_port_data: exitPortData,
                                 total_price: totalPrice,
                                 country: singleOrderCountry,
+                                city: singleOrderCity,
                                 currency: singleOrderCurrency
                             });
 
