@@ -475,10 +475,16 @@
                                     </a>
 
                                     @php
+                                        $authUser = auth()->user();
+                                        $isAdminUser = (int) ($authUser->userId ?? 0) === 1 || (int) ($authUser->role_id ?? 0) === 1;
                                         $zoneOwnerDmcId = is_array($zone->dmc_id)
                                             ? (int) ($zone->dmc_id[0] ?? 0)
                                             : (int) ($zone->dmc_id ?? 0);
-                                        $canManageThisZone = !empty($dmcId) && $zoneOwnerDmcId > 0 && (int) $zoneOwnerDmcId === (int) $dmcId;
+                                        // Admin (userId/role 1): manage master zones (no dmc_id).
+                                        // DMC users: manage only their own DMC zones.
+                                        $canManageThisZone = $isAdminUser
+                                            ? ($zoneOwnerDmcId === 0)
+                                            : (!empty($dmcId) && $zoneOwnerDmcId > 0 && (int) $zoneOwnerDmcId === (int) $dmcId);
                                     @endphp
                                     <!-- Edit -->
                                     @if($canManageThisZone)
@@ -497,7 +503,8 @@
                                                 class="btn btn-danger btn-sm rounded-circle d-flex justify-content-center align-items-center btn-delete-zone"
                                                 style="width: 28px; height: 28px; padding: 0;" title="Delete"
                                                 data-zone-name="{{ $zone->zone_name }}"
-                                                data-zone-type="{{ strtolower($zone->zone_type ?? 'items') }}">
+                                                data-zone-type="{{ strtolower($zone->zone_type ?? 'items') }}"
+                                                data-check-url="{{ route('zones.check-delete', Crypt::encrypt($zone->zone_id)) }}">
                                             <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                         </button>
                                     </form>
@@ -570,37 +577,86 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    const isAdminUser = @json((int) (auth()->user()->userId ?? 0) === 1 || (int) (auth()->user()->role_id ?? 0) === 1);
+
+    @if(session('error'))
+    Swal.fire({
+        title: 'Warning',
+        text: @json(session('error')),
+        icon: 'warning',
+        confirmButtonColor: '#f0ad4e',
+        confirmButtonText: 'OK'
+    });
+    @endif
+
     document.querySelectorAll('.btn-delete-zone').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const form = this.closest('.zone-delete-form');
             const zoneName = this.getAttribute('data-zone-name') || 'this zone';
             const zoneType = this.getAttribute('data-zone-type') || 'items';
+            const checkUrl = this.getAttribute('data-check-url') || '';
 
-            Swal.fire({
-                title: 'Delete Zone?',
-                html: '<p class="mb-2">Are you sure you want to delete <strong>' + escapeHtml(zoneName) + '</strong>?</p>' +
-                      '<p class="text-muted small mb-0"><i class="ri-information-line me-1"></i>Note: This will also remove this zone assignment from all related ' +
-                      escapeHtml(zoneType) + ' for your <code>DMC</code>.</p>',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="ri-delete-bin-line me-1"></i> Yes, delete it',
-                cancelButtonText: 'Cancel',
-                reverseButtons: true,
-                focusCancel: true,
-                customClass: {
-                    popup: 'swal2-zone-delete',
-                    confirmButton: 'px-4',
-                    cancelButton: 'px-4'
+            const openConfirmDelete = function () {
+                let html = '<p class="mb-2">Are you sure you want to delete <strong>' + escapeHtml(zoneName) + '</strong>?</p>';
+                if (!isAdminUser) {
+                    html += '<p class="text-muted small mb-0"><i class="ri-information-line me-1"></i>Note: This will also remove this zone assignment from all related ' +
+                        escapeHtml(zoneType) + ' for your <code>DMC</code>.</p>';
                 }
-            }).then(function(result) {
-                if (result.isConfirmed && form) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-                    form.submit();
-                }
-            });
+
+                Swal.fire({
+                    title: 'Delete Zone?',
+                    html: html,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="ri-delete-bin-line me-1"></i> Yes, delete it',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    customClass: {
+                        popup: 'swal2-zone-delete',
+                        confirmButton: 'px-4',
+                        cancelButton: 'px-4'
+                    }
+                }).then(function(result) {
+                    if (result.isConfirmed && form) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                        form.submit();
+                    }
+                });
+            };
+
+            // Admin: pre-check if zone is mapped before showing delete confirm.
+            if (isAdminUser && checkUrl) {
+                btn.disabled = true;
+                fetch(checkUrl, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        btn.disabled = false;
+                        if (data && data.can_delete === false) {
+                            Swal.fire({
+                                title: 'Warning',
+                                text: data.message || 'This zone cannot be deleted.',
+                                icon: 'warning',
+                                confirmButtonColor: '#f0ad4e',
+                                confirmButtonText: 'OK'
+                            });
+                            return;
+                        }
+                        openConfirmDelete();
+                    })
+                    .catch(function () {
+                        btn.disabled = false;
+                        openConfirmDelete();
+                    });
+                return;
+            }
+
+            openConfirmDelete();
         });
     });
 

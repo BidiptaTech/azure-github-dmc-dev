@@ -536,6 +536,7 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        Route::get('/zones/{id}/check-delete', [ZoneController::class, 'checkDelete'])->name('zones.check-delete');
         
         // Default Value Routes (DMC Product Configuration)
         Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
