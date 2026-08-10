@@ -836,7 +836,255 @@ class UserController extends Controller
             }
         }
 
-        return view('users.users',compact('users'));
+        // Travclicks admins: main list shows only Travclicks roles + Master DMC.
+        // Clicking a Master DMC opens a modal with that Master's DMC / MDMC / other nested users.
+        $masterDmcTeams = collect();
+        $collapseToTravclicksAndMasterDmc = in_array($authRoleId, [1, 2], true);
+        if ($collapseToTravclicksAndMasterDmc) {
+            $users = collect($users)->values();
+            $travclicksRoleIds = Role::query()
+                ->where(function ($q) {
+                    $q->where('user_type', 1)
+                        ->orWhere('name', 'like', '%Travclicks%');
+                })
+                ->pluck('role_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $masterDmcRoleId = 10;
+            $allVisibleUsers = $users;
+            $excludedFromMasterTeam = [10, 19]; // never nest other Master DMCs
+
+            $masterDmcTeams = $allVisibleUsers
+                ->filter(fn ($u) => (int) ($u->role_id ?? 0) === $masterDmcRoleId)
+                ->mapWithKeys(function ($mdmc) use ($allVisibleUsers, $excludedFromMasterTeam) {
+                    $masterId = (int) $mdmc->userId;
+
+                    // Only users created by this Master DMC (recursive created_by tree).
+                    $teamById = collect();
+                    $creatorIds = collect([$masterId]);
+                    $guard = 0;
+                    do {
+                        $level = $allVisibleUsers->filter(function ($u) use ($creatorIds, $masterId, $excludedFromMasterTeam) {
+                            $roleId = (int) ($u->role_id ?? 0);
+                            if ((int) ($u->userId ?? 0) === $masterId) {
+                                return false;
+                            }
+                            if (in_array($roleId, $excludedFromMasterTeam, true)) {
+                                return false;
+                            }
+                            return $creatorIds->contains((int) ($u->created_by ?? 0));
+                        });
+
+                        $creatorIds = collect();
+                        foreach ($level as $u) {
+                            $id = (int) $u->userId;
+                            if (!$teamById->has($id)) {
+                                $teamById->put($id, $u);
+                                $creatorIds->push($id);
+                            }
+                        }
+                        $guard++;
+                    } while ($creatorIds->isNotEmpty() && $guard < 20);
+
+                    return [$masterId => $teamById->sortBy('userId')->values()];
+                });
+
+            $users = $allVisibleUsers
+                ->filter(function ($u) use ($travclicksRoleIds, $masterDmcRoleId) {
+                    $roleId = (int) ($u->role_id ?? 0);
+                    return $roleId === $masterDmcRoleId || in_array($roleId, $travclicksRoleIds, true);
+                })
+                ->sortBy('userId')
+                ->values();
+        }
+
+        return view('users.users', compact('users', 'masterDmcTeams', 'collapseToTravclicksAndMasterDmc'));
+    }
+
+    /**
+     * Return all users (DMC + nested roles) created under a Master DMC for the users-list modal.
+     * Only includes the clicked Master's hierarchy — never other Master DMCs.
+     * Payload includes the same settings/booking fields as the main users table.
+     */
+    public function masterDmcTeam($masterDmcId)
+    {
+        if (!hasPermission('view users')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $masterDmcId = (int) $masterDmcId;
+        $master = User::with('role')->where('userId', $masterDmcId)->where('role_id', 10)->first();
+        if (!$master) {
+            return response()->json(['success' => false, 'message' => 'Master DMC not found'], 404);
+        }
+
+        $excludedRoleIds = [10, 19]; // Master Dmc, Virtual Master Dmc
+        $settingsRoleIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        $dmcRoleIds = [11, 20];
+        $authRoleId = (int) ($this->auth_user->role_id ?? 0);
+        $authUserId = (int) ($this->auth_user->userId ?? 0);
+        $authUserIsPro = (int) ($this->auth_user->is_pro ?? 0);
+        $authUserType = (int) ($this->auth_user->user_type ?? 0);
+        $isMasterDmcViewer = $authRoleId === 10;
+        // Travclicks admins (role 1/2) may manage nested settings from this modal.
+        $canEditSettings = $isMasterDmcViewer || in_array($authRoleId, [1, 2], true);
+        $canEditUsers = hasPermission('edit users');
+        $canDeleteUsers = hasPermission('delete users');
+        // Always expose Auto Login in this modal (same audience as collapsed Travclicks list).
+        $showAutoLogin = true;
+
+        $teamById = collect();
+        $creatorIds = collect([$masterDmcId]);
+        $guard = 0;
+
+        do {
+            $newUsers = User::with('role')
+                ->whereIn('created_by', $creatorIds->all())
+                ->where('userId', '!=', $masterDmcId)
+                ->whereNotIn('role_id', $excludedRoleIds)
+                ->get();
+
+            $creatorIds = collect();
+            foreach ($newUsers as $u) {
+                $id = (int) $u->userId;
+                if ($teamById->has($id)) {
+                    continue;
+                }
+                $teamById->put($id, $u);
+                $creatorIds->push($id);
+            }
+            $guard++;
+        } while ($creatorIds->isNotEmpty() && $guard < 20);
+
+        $team = $teamById
+            ->sortBy('userId')
+            ->values()
+            ->map(function ($u) use (
+                $settingsRoleIds,
+                $dmcRoleIds,
+                $authRoleId,
+                $authUserId,
+                $authUserIsPro,
+                $isMasterDmcViewer,
+                $canEditSettings,
+                $canEditUsers,
+                $canDeleteUsers,
+                $showAutoLogin
+            ) {
+                $rowRoleId = (int) ($u->role_id ?? 0);
+                $showSettingsForThisRow = in_array($rowRoleId, $settingsRoleIds, true)
+                    || ($authRoleId === 10 && $rowRoleId === 11)
+                    // In modal, also surface settings for DMC rows to Travclicks admins.
+                    || (in_array($authRoleId, [1, 2], true) && in_array($rowRoleId, $dmcRoleIds, true));
+                $showThirdPartyForThisRow = in_array($rowRoleId, $dmcRoleIds, true)
+                    && strtolower((string) ($u->thirdparty ?? 'no')) === 'yes';
+                $canToggleThirdPartyForThisRow = $showThirdPartyForThisRow
+                    && $isMasterDmcViewer
+                    && (int) ($u->master_dmc_id ?? 0) === $authUserId;
+                $showSettingsCellForThisRow = $showSettingsForThisRow || $showThirdPartyForThisRow;
+                $thirdPartyEnabled = strtolower((string) ($u->thirdparty_enabled ?? 'no')) === 'yes';
+
+                $showBookingTypeForThisRow = ($authRoleId === 1 && $rowRoleId === 10)
+                    || ($authRoleId === 10 && $rowRoleId === 11)
+                    // Travclicks admins managing DMC users inside Master DMC modal.
+                    || (in_array($authRoleId, [1, 2], true) && $rowRoleId === 11);
+
+                $bookingOptionsForRow = [
+                    1 => 'Lite Form',
+                    2 => 'Pro Form',
+                    3 => 'Both',
+                ];
+                $selectedBookingTypeForRow = (int) ($u->is_pro ?? 1);
+                $bookingTypeLockedForRow = false;
+
+                if ($authRoleId === 10 && $rowRoleId === 11) {
+                    if ($authUserIsPro === 1) {
+                        $bookingOptionsForRow = [1 => 'Lite Form'];
+                        $selectedBookingTypeForRow = 1;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 2) {
+                        $bookingOptionsForRow = [2 => 'Pro Form'];
+                        $selectedBookingTypeForRow = 2;
+                        $bookingTypeLockedForRow = true;
+                    } elseif ($authUserIsPro === 3) {
+                        $bookingOptionsForRow = [
+                            1 => 'Lite Form',
+                            2 => 'Pro Form',
+                            3 => 'Both',
+                        ];
+                        $selectedBookingTypeForRow = 3;
+                    }
+                } elseif (!in_array($selectedBookingTypeForRow, [1, 2, 3], true)) {
+                    $selectedBookingTypeForRow = 1;
+                }
+
+                $userIsActive = (int) ($u->is_active ?? 1) === 1;
+                $autoCancelDate = $u->auto_cancel_date;
+                $aiResponse = strtoupper((string) ($u->ai_response ?? ''));
+
+                return [
+                    'userId' => (int) ($u->userId ?? 0),
+                    'name' => (string) ($u->name ?? ''),
+                    'company_name' => (string) ($u->company_name ?? 'N/A'),
+                    'email' => (string) ($u->email ?? ''),
+                    'phone' => (string) ($u->phone ?? ''),
+                    'user_country' => (string) ($u->user_country ?? 'N/A'),
+                    'city' => (string) ($u->city ?? 'N/A'),
+                    'role' => (string) (optional($u->role)->name ?? 'No Role'),
+                    'role_id' => $rowRoleId,
+                    'user_type' => (string) ($u->getUserTypeName() ?? 'Unknown'),
+                    'is_active' => $userIsActive,
+                    'zone_on' => (int) ($u->zone_on ?? 0) === 1,
+                    'price_hide' => (int) ($u->price_hide ?? 0) === 1,
+                    'email_on' => (int) ($u->email_on ?? 0) === 1,
+                    'auto_cancel_date' => $autoCancelDate === null ? null : (int) $autoCancelDate,
+                    'ai_response' => $aiResponse,
+                    'thirdparty' => strtolower((string) ($u->thirdparty ?? 'no')),
+                    'thirdparty_enabled' => $thirdPartyEnabled,
+                    'master_dmc_id' => (int) ($u->master_dmc_id ?? 0),
+                    'is_pro' => (int) ($u->is_pro ?? 1),
+                    'show_settings_cell' => $showSettingsCellForThisRow,
+                    'show_settings_controls' => $showSettingsForThisRow,
+                    'can_edit_settings' => $canEditSettings && $showSettingsForThisRow,
+                    'show_third_party' => $showThirdPartyForThisRow,
+                    'can_toggle_third_party' => $canToggleThirdPartyForThisRow,
+                    'show_booking_type' => $showBookingTypeForThisRow,
+                    'booking_options' => $bookingOptionsForRow,
+                    'selected_booking_type' => $selectedBookingTypeForRow,
+                    'booking_type_locked' => $bookingTypeLockedForRow,
+                    'can_edit' => $canEditUsers,
+                    'can_delete' => $canDeleteUsers,
+                    'show_auto_login' => $showAutoLogin,
+                    'edit_url' => $canEditUsers
+                        ? route('users.edit', Crypt::encrypt($u->userId))
+                        : null,
+                    'destroy_url' => $canDeleteUsers
+                        ? route('users.destroy', $u->userId)
+                        : null,
+                    'login_url' => route('admin.loginAsUser', $u->userId),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'master' => [
+                'userId' => (int) $master->userId,
+                'name' => (string) $master->name,
+                'role' => (string) (optional($master->role)->name ?? 'Master Dmc'),
+            ],
+            'meta' => [
+                'show_settings_column' => true,
+                'show_booking_type_column' => true,
+                'show_action_column' => $canEditUsers || $canDeleteUsers,
+                'show_auto_login_column' => $showAutoLogin,
+                'auth_user_id' => $authUserId,
+            ],
+            'team' => $team,
+        ]);
     }
     
     /*
@@ -2888,7 +3136,9 @@ class UserController extends Controller
         $targetRoleId = (int) ($targetUser->role_id ?? 0);
 
         $allowed = ($authRoleId === 1 && $targetRoleId === 10)
-            || ($authRoleId === 10 && $targetRoleId === 11);
+            || ($authRoleId === 10 && $targetRoleId === 11)
+            // Travclicks admins managing DMC booking type from Master DMC team modal
+            || (in_array($authRoleId, [1, 2], true) && $targetRoleId === 11);
 
         if (! $allowed) {
             return response()->json([
