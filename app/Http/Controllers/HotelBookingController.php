@@ -1222,7 +1222,9 @@ class HotelBookingController extends Controller
                         'reference_id' => $hotelOrder->reference_id ?? null,
                         'actual_due_date' => $hotelOrder->actual_due_date ?? null,
                         'display_due_date' => $hotelOrder->display_due_date ?? null,
-                        'approval_file' => $hotelOrder->approval_file ?? null
+                        'approval_file' => $hotelOrder->approval_file ?? null,
+                        // online | offline | null → UI shows Online/Offline Order
+                        'order_type' => $hotelOrder->order_type ?? null,
                     ]
                 ]
             ]);
