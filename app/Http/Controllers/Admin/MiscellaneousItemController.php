@@ -17,7 +17,7 @@ class MiscellaneousItemController extends Controller
     {
         $items = MiscellaneousItem::withCount('prices')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->get();
         
         return view('admin.miscellaneous.index', compact('items'));
     }
