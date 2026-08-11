@@ -546,6 +546,15 @@
             ? '<span class="svc-status-pill is-approved">Approved</span>'
             : '<span class="svc-status-pill">Pending approval</span>';
 
+        var orderTypeRaw = String(hotelBooking.orderType || hotelBooking.order_type || '').trim().toLowerCase();
+        var isOnlineOrder = orderTypeRaw === 'online';
+        var orderTypeLabel = isOnlineOrder ? 'Online Order' : 'Offline Order';
+        var orderTypeBadgeClass = isOnlineOrder ? 'bg-success' : 'bg-secondary';
+        var orderTypeIcon = isOnlineOrder ? 'ri-global-line' : 'ri-store-2-line';
+        var orderTypeBadge = '<span class="badge ' + orderTypeBadgeClass + '" style="font-size:0.7rem;font-weight:600;padding:0.35em 0.65em;letter-spacing:0.02em;" title="' + orderTypeLabel + '">' +
+            '<i class="' + orderTypeIcon + ' me-1"></i>' + orderTypeLabel +
+            '</span>';
+
         var thumb = hotelBooking.image
             ? '<img src="' + w.escapeServiceHtml(hotelBooking.image) + '" alt="' + name + '" class="svc-thumb">'
             : '<div class="svc-thumb svc-thumb-fallback"><i class="ri-hotel-line"></i></div>';
@@ -603,9 +612,10 @@
                         thumb +
                         '<div style="min-width:0;">' +
                             '<h6 class="svc-title">' + name + '</h6>' +
-                            '<p class="svc-subtitle"><i class="ri-map-pin-line me-1"></i>' + location +
+                            '<p class="svc-subtitle mb-1"><i class="ri-map-pin-line me-1"></i>' + location +
                             (hotelBooking.country ? ' · ' + w.escapeServiceHtml(hotelBooking.country) : '') +
                             '</p>' +
+                            '<div class="d-flex align-items-center flex-wrap gap-1">' + orderTypeBadge + '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div class="text-end">' +

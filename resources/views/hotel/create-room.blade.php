@@ -1111,8 +1111,8 @@
                                 <td>
                                     @php
                                         $canEditBaseRoom = (string) $room->created_by === (string) ($effective_room_owner_id ?? $auth_user->userId);
-                                        $baseRoomOn = filter_var($room->base_room, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                                        $baseRoomOn = $baseRoomOn === null ? (!empty($room->base_room) && (string) $room->base_room !== '0') : $baseRoomOn;
+                                        // base_room may be stored as 0/1 or decimal strings like "0.00"/"1.00"
+                                        $baseRoomOn = ((float) $room->base_room) > 0;
                                         $isActiveBaseRoom = $canEditBaseRoom && $baseRoomOn;
                                     @endphp
                                     <div class="form-check form-switch d-flex align-items-center base-room-switch-wrap{{ $isActiveBaseRoom ? ' is-base-room-locked' : '' }}"
@@ -1708,7 +1708,7 @@ $(document).ready(function() {
             });
             
             // Try both numeric and boolean comparison
-            baseRoom = currentHotelRooms.find(room => room.base_room === 1 || room.base_room === true || room.base_room === "1");
+            baseRoom = currentHotelRooms.find(room => Number(room.base_room) > 0);
         }
         
         const hasBaseRoom = baseRoom !== null;
@@ -2232,12 +2232,21 @@ $(document).ready(function() {
 
 <script>
     $(document).ready(function() {
+    let baseRoomUpdateInProgress = false;
+
     function isForeignBaseRoomToggle($toggle) {
-        return String($toggle.data('foreign-room') || '0') === '1';
+        return String($toggle.attr('data-foreign-room') || '0') === '1';
     }
 
     function isBaseRoomOn($toggle) {
-        return String($toggle.data('room-base') || '0') === '1' || $toggle.prop('checked');
+        // Use attr() (not data()) so values stay in sync after DOM updates
+        return String($toggle.attr('data-room-base') || '0') === '1';
+    }
+
+    function setRoomBaseAttr($toggle, isOn) {
+        const value = isOn ? '1' : '0';
+        $toggle.attr('data-room-base', value);
+        $toggle.data('room-base', value);
     }
 
     const BASE_ROOM_LOCKED_MSG = 'This is the base room. It cannot be turned off — select another room as base to switch.';
@@ -2249,6 +2258,10 @@ $(document).ready(function() {
     }
 
     function applyBaseRoomLockState() {
+        if (baseRoomUpdateInProgress) {
+            return;
+        }
+
         const groups = {};
 
         $('.toggle-base-room').each(function() {
@@ -2256,7 +2269,7 @@ $(document).ready(function() {
             if (isForeignBaseRoomToggle($toggle)) {
                 return;
             }
-            const ownerKey = String($toggle.closest('tr').data('created-by') || 'self');
+            const ownerKey = String($toggle.closest('tr').attr('data-created-by') || 'self');
             if (!groups[ownerKey]) {
                 groups[ownerKey] = [];
             }
@@ -2276,7 +2289,7 @@ $(document).ready(function() {
                 const isActive = $active && $active[0] === $toggle[0];
 
                 $toggle.prop('checked', isActive);
-                $toggle.attr('data-room-base', isActive ? '1' : '0');
+                setRoomBaseAttr($toggle, isActive);
                 setBaseRoomLabel($toggle, isActive);
 
                 if (isActive) {
@@ -2308,7 +2321,7 @@ $(document).ready(function() {
     $(document).on('change', '.toggle-base-room', function() {
         const $toggle = $(this);
 
-        if ($toggle.prop('disabled') || isForeignBaseRoomToggle($toggle)) {
+        if ($toggle.prop('disabled') || isForeignBaseRoomToggle($toggle) || baseRoomUpdateInProgress) {
             return false;
         }
 
@@ -2317,9 +2330,23 @@ $(document).ready(function() {
             return false;
         }
 
-        const roomId = $toggle.data('room-id');
+        const roomId = $toggle.attr('data-room-id');
         const $label = $toggle.siblings('label');
         const extraHtml = $label.find('small').length ? $label.find('small').prop('outerHTML') : '';
+        const ownerKey = String($toggle.closest('tr').attr('data-created-by') || 'self');
+
+        // Optimistically mark this room as the base so DataTables redraws don't revert UI
+        baseRoomUpdateInProgress = true;
+        $('.toggle-base-room').each(function() {
+            const $other = $(this);
+            if (isForeignBaseRoomToggle($other)) {
+                return;
+            }
+            if (String($other.closest('tr').attr('data-created-by') || 'self') !== ownerKey) {
+                return;
+            }
+            setRoomBaseAttr($other, $other[0] === $toggle[0]);
+        });
 
         $label.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
 
@@ -2332,6 +2359,7 @@ $(document).ready(function() {
                 _token: '{{ csrf_token() }}'
             },
             success: function(response) {
+                baseRoomUpdateInProgress = false;
                 if (response.success) {
                     window.location.reload();
                     return;
@@ -2340,16 +2368,14 @@ $(document).ready(function() {
                 applyBaseRoomLockState();
                 $label.html('<i class="fas fa-times-circle text-danger"></i> Error' + (extraHtml ? ' ' + extraHtml : ''));
                 setTimeout(function() {
-                    setBaseRoomLabel($toggle, $toggle.prop('checked'));
+                    setBaseRoomLabel($toggle, isBaseRoomOn($toggle));
                 }, 2000);
                 console.error('Failed to update base room status:', response.message);
             },
             error: function(xhr) {
-                applyBaseRoomLockState();
-                $label.html('<i class="fas fa-times-circle text-danger"></i> Error' + (extraHtml ? ' ' + extraHtml : ''));
-                setTimeout(function() {
-                    setBaseRoomLabel($toggle, $toggle.prop('checked'));
-                }, 2000);
+                baseRoomUpdateInProgress = false;
+                // Revert optimistic attrs from server-rendered state via reload attrs if present
+                window.location.reload();
                 console.error('Failed to update base room status:', xhr.responseJSON?.message || xhr.responseText);
             }
         });
