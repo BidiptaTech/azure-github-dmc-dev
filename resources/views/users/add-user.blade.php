@@ -312,7 +312,7 @@
                                     <select class="form-select" id="user_country" name="user_country">
                                         <option value>Choose a country...</option>
                                         @foreach($country as $c)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
+                                            <option value="{{ $c->name }}" {{ old('user_country', $dmcLocationPrefill['user_country'] ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -338,7 +338,7 @@
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <input type="text" class="form-control @error('address') is-invalid @enderror" id="address"
-                                        name="address" placeholder="Enter Address" required>
+                                        name="address" placeholder="Enter Address" value="{{ old('address', $dmcLocationPrefill['address'] ?? '') }}" required>
                                     @error('address')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -400,9 +400,12 @@
                             <label for="inputCountryCode" class="form-label"><strong> Country Code</strong><span
                                     style="color: red; font-weight: bold;">*</span></label>
                             <select class="form-select" id="inputCountryCode" name="code" required>
-                                <option selected disabled value>Choose...</option>
+                                <option disabled value>Choose...</option>
+                                @php
+                                    $selectedCountryCode = old('code', $dmcLocationPrefill['country_code'] ?? '65');
+                                @endphp
                                 @foreach($countryCodes as $key => $value)
-                                <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
+                                <option value="{{ $key }}" {{ (string) $key === (string) $selectedCountryCode ? 'selected' : '' }}>{{ $value }}</option>
                                 @endforeach
                             </select>
                             @error('code')
@@ -1078,6 +1081,9 @@
 <!-- Add this script after your existing validation scripts -->
 <script>
     $(document).ready(function() {
+        const dmcLocationPrefill = @json($dmcLocationPrefill ?? []);
+        let isInitialLocationPrefill = !!(dmcLocationPrefill.user_country || dmcLocationPrefill.city || dmcLocationPrefill.country_code);
+
         // Initialize Select2 for User Country dropdown
         $('#user_country').select2({
             placeholder: "Search and Select Country",
@@ -1102,6 +1108,9 @@
         // Country selection change handler
         $('#user_country').on('change', function() {
             const selectedCountry = $(this).val();
+            const preferredCity = isInitialLocationPrefill ? (dmcLocationPrefill.city || null) : null;
+            const keepPrefillCountryCode = isInitialLocationPrefill && dmcLocationPrefill.country_code;
+
             if (selectedCountry) {
                 // Show loading state for cities
                 $('#city').html('<option>Loading cities...</option>').trigger('change');
@@ -1121,37 +1130,50 @@
                                 return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
                             });
                             $.each(cities, function(key, city) {
-                                $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
+                                var selected = (preferredCity && city.name === preferredCity) ? 'selected' : '';
+                                $('#city').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
                             });
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
                         // Trigger change to refresh Select2
                         $('#city').trigger('change');
+                        isInitialLocationPrefill = false;
                     },
                     error: function() {
                         $('#city').html('<option disabled value>Error loading cities</option>').trigger('change');
+                        isInitialLocationPrefill = false;
                     }
                 });
                 
-                // Fetch country code for the selected country
-                $.ajax({
-                    url: "{{ route('get.country.code') }}",
-                    type: "GET",
-                    data: { country: selectedCountry },
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.success && response.country_code) {
-                            // Find and select the country code option
-                            $('#inputCountryCode').val(response.country_code).trigger('change');
+                // Fetch country code for the selected country (skip overwrite during DMC prefill)
+                if (!keepPrefillCountryCode) {
+                    $.ajax({
+                        url: "{{ route('get.country.code') }}",
+                        type: "GET",
+                        data: { country: selectedCountry },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success && response.country_code) {
+                                // Find and select the country code option
+                                $('#inputCountryCode').val(response.country_code).trigger('change');
+                            }
                         }
-                    }
-                });
+                    });
+                } else if (dmcLocationPrefill.country_code) {
+                    $('#inputCountryCode').val(dmcLocationPrefill.country_code).trigger('change');
+                }
             } else {
                 // Reset cities dropdown if no country selected
                 $('#city').html('<option selected disabled value>Select country first...</option>').trigger('change');
+                isInitialLocationPrefill = false;
             }
         });
+
+        // Prefill from DMC location on page load (fields remain editable)
+        if ($('#user_country').val()) {
+            $('#user_country').trigger('change');
+        }
 
         // ----- Currency auto-fill based on the selected (assigned) country -----
         // Note: currency depends on the "Country Name" field(s), NOT on "User Country".
