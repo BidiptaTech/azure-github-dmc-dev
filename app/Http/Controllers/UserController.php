@@ -1102,7 +1102,20 @@ class UserController extends Controller
         $ipAddress = request()->ip();
         $usercountryCode = CommonHelper::getCountryInfo($ipAddress);
         $user_countryCode = $usercountryCode['country_code'];
-        $countryCodes = User::countryCodes();
+        $countryCodes = Country::query()
+            ->where('is_active', 1)
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->orderBy('name')
+            ->get(['name', 'country_code'])
+            ->mapWithKeys(function ($country) {
+                $code = ltrim(trim((string) $country->country_code), '+');
+                if ($code === '') {
+                    return [];
+                }
+                return [$code => $country->name . ' (' . $code . ')'];
+            })
+            ->toArray();
         $authUserType =  $this->auth_user->user_type; 
 
         $userTypes = array_filter(User::getUserTypes(), function($key) use ($authUserType) {
