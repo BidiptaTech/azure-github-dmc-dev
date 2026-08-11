@@ -87,6 +87,7 @@
                                         'booking' => $booking,
                                         'currency' => $currency,
                                         'orderCountry' => $orderCountry,
+                                        'orderType' => $serviceOrder->order_type ?? null,
                                         'index' => $index,
                                     ])
                                 @elseif($serviceKey === 'attraction')
