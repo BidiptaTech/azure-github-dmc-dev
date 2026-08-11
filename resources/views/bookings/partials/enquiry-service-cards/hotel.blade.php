@@ -63,7 +63,10 @@
             @endif
             <div>
                 <p class="svc-title">{{ $hotelName }}</p>
-                <p class="svc-subtitle">Enquiry {{ $index + 1 }} • {{ ucfirst($booking['bookingType'] ?? 'Standard') }}</p>
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                    <p class="svc-subtitle mb-0">Enquiry {{ $index + 1 }} • {{ ucfirst($booking['bookingType'] ?? 'Standard') }}</p>
+                    @include('bookings.partials.order-type-badge', ['orderType' => $orderType ?? null, 'size' => 'sm'])
+                </div>
             </div>
         </div>
         <div class="svc-price">{{ $currency }} {{ number_format($grandTotal, 2) }}</div>

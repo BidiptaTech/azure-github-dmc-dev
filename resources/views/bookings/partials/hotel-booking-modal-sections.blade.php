@@ -94,9 +94,9 @@
                             </div>
                             <div class="svc-dl-row">
                                 <span class="svc-dl-label">Room Rate</span>
-                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($bedUnit, 2) }}/night</span>
+                                <span class="svc-dl-value svc-amount">{{ $currency }} {{ number_format($bedUnit, 2) }}</span>
                             </div>
-                            @if($hotelNightsModal > 0)
+                            <!-- @if($hotelNightsModal > 0)
                             <div class="svc-dl-row full">
                                 <span class="svc-dl-label">Room Calc</span>
                                 <span class="svc-dl-value">
@@ -105,7 +105,7 @@
                                         · Lodging <span class="svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($displayLodging, 2) }}</span>
                                     @endif
                                 </span>
-                            </div>
+                            </div> -->
                             @elseif($bedUnit > 0)
                             <div class="svc-dl-row">
                                 <span class="svc-dl-label">Amount</span>
