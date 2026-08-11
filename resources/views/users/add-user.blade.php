@@ -267,6 +267,22 @@
                                         name="licence_no" placeholder="Enter TA License No">
                                 </div>
                             </div>
+                            <!-- Third Party (DMC only) — values must be string enum: yes|no -->
+                            <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="thirdparty" class="form-label">
+                                        <strong>Third Party DMC</strong>
+                                    </label>
+                                    @php $oldThirdParty = strtolower((string) old('thirdparty', 'no')) === 'yes' ? 'yes' : 'no'; @endphp
+                                    <select class="form-select" id="thirdparty" name="thirdparty">
+                                        <option value="no" @selected($oldThirdParty === 'no')>No</option>
+                                        <option value="yes" @selected($oldThirdParty === 'yes')>Yes</option>
+                                    </select>
+                                    @error('thirdparty')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
                         @if(auth()->user()->user_type == 1 || auth()->user()->user_type == 3 || auth()->user()->user_type == 2)
                             <!-- Single Country Select-->
                             <div class="col-md-4 mb-3" id="country_name" style="display: none;">
@@ -550,6 +566,8 @@
     var markuptypes = document.getElementById('markuptypes');
     var mastercountryContainer = document.getElementById('mastercountryContainer');
     var currency_container = document.getElementById('currency_container');
+    var thirdparty_container = document.getElementById('thirdparty_container');
+    var thirdparty = document.getElementById('thirdparty');
 
     function resetHiddenFieldValues() {
         document.querySelectorAll(
@@ -582,6 +600,14 @@
         if (markuptypes) markuptypes.style.display = 'none';
         if (mastercountryContainer) mastercountryContainer.style.display = 'none';
         if (currency_container) currency_container.style.display = 'none';
+        if (thirdparty_container) thirdparty_container.style.display = 'none';
+        // Preserve string enum (yes|no) across role toggles; do not coerce to boolean/number
+        const preservedThirdParty = thirdparty
+            ? (String(thirdparty.value || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+            : 'no';
+        if (thirdparty) {
+            thirdparty.disabled = true; // avoid submitting when not a DMC role
+        }
 
         resetHiddenFieldValues(); // Reset input fields
         if (user_code_container) user_code_container.style.display = 'block';
@@ -603,6 +629,11 @@
             if (company_reg_no_container) company_reg_no_container.style.display = 'block';
             if (licence_no_container) licence_no_container.style.display = 'block';
             if (currency_container) currency_container.style.display = 'flex';
+            if (thirdparty_container) thirdparty_container.style.display = 'block';
+            if (thirdparty) {
+                thirdparty.disabled = false;
+                thirdparty.value = preservedThirdParty;
+            }
         } else if (userRole === 4) {
             if (inputSalespersonContainerAdmin) inputSalespersonContainerAdmin.style.display = 'block';
         } else if ([3, 24, 25, 26, 27].includes(userRole)) {
@@ -630,7 +661,10 @@
                     countrySelect.empty();
                     countrySelect.append('<option selected disabled>Choose...</option>');
                     if (response.countries.length > 0) {
-                        $.each(response.countries, function (key, value) {
+                        var countries = response.countries.slice().sort(function(a, b) {
+                            return String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+                        });
+                        $.each(countries, function (key, value) {
                             countrySelect.append(`<option value="${value}">${value}</option>`);
                         });
 
@@ -1083,7 +1117,10 @@
                         $('#city').html('<option selected disabled value>Select city...</option>');
                         
                         if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
+                            var cities = response.cities.slice().sort(function(a, b) {
+                                return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+                            });
+                            $.each(cities, function(key, city) {
                                 $('#city').append('<option value="' + city.name + '">' + city.name + '</option>');
                             });
                         } else {
@@ -1173,3 +1210,4 @@
     Intl.DateTimeFormat().resolvedOptions().timeZone;
 </script>
 @endsection
+

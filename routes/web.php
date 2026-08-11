@@ -536,10 +536,11 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        Route::get('/zones/{id}/check-delete', [ZoneController::class, 'checkDelete'])->name('zones.check-delete');
         
         // Default Value Routes (DMC Product Configuration)
-        Route::resource('default-values', DefaultValueController::class);
         Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
+        Route::resource('default-values', DefaultValueController::class);
         
         // Tax Management Routes (DMC Only)
         Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
@@ -599,6 +600,7 @@ Route::get('/clear', function () {
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
         Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
+        Route::post('users/update-thirdparty-enabled', [UserController::class, 'updateThirdPartyEnabled'])->name('users.update.thirdparty-enabled');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
@@ -1118,6 +1120,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
         Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
+        Route::get('/users/master-dmc/{masterDmcId}/team', [UserController::class, 'masterDmcTeam'])->name('users.master-dmc.team');
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries'])->name('get-countries');
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry'])->name('get-markup');

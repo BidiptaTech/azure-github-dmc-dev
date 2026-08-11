@@ -62,6 +62,38 @@
         border-color: #696cff !important;
         box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
+
+    /* Multi-select: keep full width when empty / cleared */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--default .select2-selection--multiple {
+        min-height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple,
+    .select2-container--default.select2-container--open .select2-selection--multiple {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #696cff !important;
+        border: none !important;
+        color: #fff !important;
+        border-radius: 0.25rem !important;
+        padding: 2px 8px !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #fff !important;
+        margin-right: 4px !important;
+    }
     
     /* Invalid field styling */
     .form-control.is-invalid, .form-select.is-invalid {
@@ -285,6 +317,23 @@
                             <input type="text" class="form-control" id="licence_no" name="licence_no" value="{{ $users->licence_no ?? '' }}" placeholder="Enter TA License No">
                         </div>
                     </div>
+
+                    <!-- Third Party (DMC only) — values must be string enum: yes|no -->
+                    <div class="col-md-4 mb-3" id="thirdparty_container" style="display: none;">
+                        <div class="mb-3">
+                            <label for="thirdparty" class="form-label"><strong>Third Party DMC</strong></label>
+                            @php
+                                $currentThirdParty = strtolower((string) old('thirdparty', $users->thirdparty ?? 'no')) === 'yes' ? 'yes' : 'no';
+                            @endphp
+                            <select class="form-select" id="thirdparty" name="thirdparty">
+                                <option value="no" @selected($currentThirdParty === 'no')>No</option>
+                                <option value="yes" @selected($currentThirdParty === 'yes')>Yes</option>
+                            </select>
+                            @error('thirdparty')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
                 </div>
 
                 <!-- DMC-Level Settings (Group Pax & Markup) -->
@@ -465,10 +514,11 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <script>
     $(document).ready(function() {
-        // Initialize select2
+        // Initialize select2 (width:100% prevents collapse when all countries are cleared)
         $('.select2').select2({
             placeholder: "Choose countries...",
-            allowClear: true
+            allowClear: true,
+            width: '100%'
         });
 
         // Initialize Select2 for User Country dropdown
@@ -690,6 +740,7 @@
                 user_code_container: $('#user_code_container'),
                 company_reg_no_container: $('#company_reg_no_container'),
                 licence_no_container: $('#licence_no_container'),
+                thirdparty_container: $('#thirdparty_container'),
                 inputSalespersonContainerAdmin: $('#inputSalespersonContainerAdmin'),
                 markuptypes: $('#markuptypes'),
                 dmc_settings_section: $('#dmc_settings_section'),
@@ -699,6 +750,15 @@
             // Hide all containers
             Object.values(containers).forEach(container => container.hide());
             containers.user_code_container.show();
+
+            const $thirdparty = $('#thirdparty');
+            // Preserve string enum (yes|no) across visibility toggles; do not coerce to boolean/number
+            const preservedThirdParty = $thirdparty.length
+                ? (String($thirdparty.val() || 'no').toLowerCase() === 'yes' ? 'yes' : 'no')
+                : 'no';
+            if ($thirdparty.length) {
+                $thirdparty.prop('disabled', true); // avoid submitting when not a DMC role
+            }
 
             // Show relevant containers based on role
             if (userRole >= 5 && userRole <= 9) {
@@ -720,8 +780,13 @@
                 containers.company_name.show();
                 containers.company_reg_no_container.show();
                 containers.licence_no_container.show();
+                containers.thirdparty_container.show();
                 containers.dmc_settings_section.show();
                 containers.dmc_only_attr_flight_markup.show();
+                if ($thirdparty.length) {
+                    $thirdparty.prop('disabled', false);
+                    $thirdparty.val(preservedThirdParty);
+                }
             } else if (userRole === 4) {
                 containers.inputSalespersonContainerAdmin.show();
             } else if ([3, 24, 25, 26, 27].includes(userRole)) {

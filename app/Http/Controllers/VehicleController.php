@@ -323,11 +323,20 @@ class VehicleController extends Controller
         }
         $authuser = auth()->user();
         $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
-        $resolvedDmcCountry = null;
-        if ($resolvedDmcId) {
-            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        $masterDmcCountryNames = $resolvedDmcId
+            ? $this->getMasterDmcCountryNamesForDmc((int) $resolvedDmcId)
+            : [];
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!empty($masterDmcCountryNames) && !in_array((int) $authuser->role_id, [1, 2, 3, 20, 23], true)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
         }
-        $selectedCountry = $resolvedDmcCountry ?: $authuser->country;
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $selectedCountry = old('country', $masterDmcCountryNames[0] ?? null);
+        if (!$selectedCountry && $countries->isNotEmpty()) {
+            $selectedCountry = $countries->first()->name;
+        }
         $cities = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
@@ -372,12 +381,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
-        // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
     }
 
     public function fetchDrivers(Request $request)
@@ -409,8 +417,23 @@ class VehicleController extends Controller
 
     public function fetchCities(Request $request)
     {
-        $country = User::where('userId', $request->country_name)->first()->country;
-        $cities = City::where('country', $country)->get();
+        $dmcUser = User::where('userId', $request->country_name)->first();
+        if (!$dmcUser) {
+            return response()->json([]);
+        }
+
+        $countries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+        if (empty($countries) && !empty($dmcUser->country)) {
+            $countries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        $cities = !empty($countries)
+            ? City::whereIn('country', $countries)->orderBy('name')->get()
+            : collect();
+
         return response()->json($cities);
     }
     /*
@@ -522,13 +545,15 @@ class VehicleController extends Controller
                     'cost_per_km_10_to_25' => $request->input('cost_per_km_10_to_25') ?? 0,
                     'cost_per_km_above_25' => $request->input('cost_per_km_above_25') ?? 0,
                     'cost_per_hour' => $request->input('cost_per_hour') ?? 0,
-                    'cancel_cost' => $request->input('cancel_cost') ?? 0,
+                    'cancel_cost' => $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0,
                     'base_cost_price' => $request->input('base_cost_price') ?? 0,
                     'per_km_below_10_cost_price' => $request->input('per_km_below_10_cost_price') ?? 0,
                     'per_km_10_to_25_cost_price' => $request->input('per_km_10_to_25_cost_price') ?? 0,
                     'per_km_above_25_cost_price' => $request->input('per_km_above_25_cost_price') ?? 0,
                     'per_hour_cost_price' => $request->input('per_hour_cost_price') ?? 0,
-                    'cancel_cost_price' => $request->input('cancel_cost_price') ?? 0,
+                    'cancel_cost_price' => $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0,
+                    'cancellation_cost' => $request->input('cancellation_cost') ?? 0,
+                    'cancellation_sell' => $request->input('cancellation_sell') ?? 0,
                     'night_base_price' => $request->input('night_base_price') ?? 0,
                     'night_cost_per_km_below_10' => $request->input('night_cost_per_km_below_10') ?? 0,
                     'night_cost_per_km_10_to_25' => $request->input('night_cost_per_km_10_to_25') ?? 0,
@@ -602,13 +627,15 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
         $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
         $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
         $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
             
         // Night charges for sharable
         $vehicle->night_base_price = $request->input('night_base_price');
@@ -711,7 +738,11 @@ class VehicleController extends Controller
             $fallbackDmcCountry = $dmcCountryParts[0] ?? '';
         }
 
-        $selectedCountry = $vehicle->country ?: $fallbackDmcCountry;
+        $selectedCountry = (\Schema::hasColumn('vehicles', 'country') ? $vehicle->country : null) ?: null;
+        if (!$selectedCountry && !empty($vehicle->city)) {
+            $selectedCountry = City::where('name', $vehicle->city)->value('country');
+        }
+        $selectedCountry = $selectedCountry ?: $fallbackDmcCountry;
         if (!$selectedCountry && !empty($masterDmcCountryNames)) {
             $selectedCountry = $masterDmcCountryNames[0];
         }
@@ -886,26 +917,26 @@ class VehicleController extends Controller
                 // 'cost_per_km_10_to_25' => 'required|numeric',
                 // 'cost_per_km_above_25' => 'required|numeric',
                 'cost_per_hour' => 'required|numeric',
-                'cancel_cost' => 'required|numeric',
+                'cancellation_cost' => 'required|numeric',
+                'cancellation_sell' => 'required|numeric',
                 'base_cost_price' => 'required|numeric',
                 // 'per_km_below_10_cost_price' => 'required|numeric',
                 // 'per_km_10_to_25_cost_price' => 'required|numeric',
                 // 'per_km_above_25_cost_price' => 'required|numeric',
                 'per_hour_cost_price' => 'required|numeric',
-                'cancel_cost_price' => 'required|numeric',
                 // Regular Night Pricing
                 'night_base_price' => 'required|numeric',
                 // 'night_cost_per_km_below_10' => 'required|numeric',
                 // 'night_cost_per_km_10_to_25' => 'required|numeric',
                 // 'night_cost_per_km_above_25' => 'required|numeric',
                 'night_cost_per_hour' => 'required|numeric',
-                'night_cancel_cost' => 'required|numeric',
+                'night_cancel_cost' => 'nullable|numeric',
                 'night_base_cost_price' => 'required|numeric',
                 // 'night_per_km_below_10_cost_price' => 'required|numeric',
                 // 'night_per_km_10_to_25_cost_price' => 'required|numeric',
                 // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
-                'night_cancel_cost_price' => 'required|numeric',
+                'night_cancel_cost_price' => 'nullable|numeric',
             ],[
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
@@ -953,7 +984,9 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
-        $vehicle->country = $request->input('country');
+        if (\Schema::hasColumn('vehicles', 'country')) {
+            $vehicle->country = $request->input('country');
+        }
         $vehicle->city = $request->city_name;
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
@@ -969,7 +1002,9 @@ class VehicleController extends Controller
             $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
         }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
         if ($request->has('per_km_below_10_cost_price')) {
             $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price') ?? 0;
@@ -981,7 +1016,7 @@ class VehicleController extends Controller
             $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price') ?? 0;
         }
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
 
         // Regular Night Pricing
         $vehicle->night_base_price = $request->input('night_base_price')?? 0;
@@ -1047,12 +1082,24 @@ class VehicleController extends Controller
             'vehicle_id' => 'required|exists:vehicles,vehicle_id',
             'private_prices' => 'required|array',
             'shared_prices' => 'required|array',
+            'private_cost_prices' => 'nullable|array',
+            'shared_cost_prices' => 'nullable|array',
+            'global_private_profit_type' => 'nullable|in:percentage,flat',
+            'global_private_profit_amount' => 'nullable|numeric|min:0',
+            'global_shared_profit_type' => 'nullable|in:percentage,flat',
+            'global_shared_profit_amount' => 'nullable|numeric|min:0',
             'mapping_type' => 'required|string',
         ]);
 
         $vehicleId = $request->vehicle_id;
         $privatePrices = $request->private_prices;
         $sharedPrices = $request->shared_prices;
+        $privateCostPrices = $request->private_cost_prices ?? [];
+        $sharedCostPrices = $request->shared_cost_prices ?? [];
+        $privateProfitType = $request->input('global_private_profit_type', 'percentage');
+        $privateProfitAmount = $request->input('global_private_profit_amount', 0);
+        $sharedProfitType = $request->input('global_shared_profit_type', 'percentage');
+        $sharedProfitAmount = $request->input('global_shared_profit_amount', 0);
         $mappingType = $request->mapping_type;
         
         // Set zone types based on mapping type
@@ -1095,6 +1142,8 @@ class VehicleController extends Controller
         foreach ($privatePrices as $fromZoneId => $toZones) {
             foreach ($toZones as $toZoneId => $privatePrice) {
                 $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
+                $privateCostPrice = $privateCostPrices[$fromZoneId][$toZoneId] ?? $privatePrice;
+                $sharedCostPrice = $sharedCostPrices[$fromZoneId][$toZoneId] ?? $sharedPrice;
                 $this->upsertVehicleZoneMapping(
                     $vehicleId,
                     (string) $fromZoneId,
@@ -1102,7 +1151,13 @@ class VehicleController extends Controller
                     $fromZoneType,
                     $toZoneType,
                     $privatePrice,
-                    $sharedPrice
+                    $sharedPrice,
+                    $privateCostPrice,
+                    $sharedCostPrice,
+                    $privateProfitType,
+                    $privateProfitAmount,
+                    $sharedProfitType,
+                    $sharedProfitAmount
                 );
             }
         }
@@ -1185,8 +1240,14 @@ class VehicleController extends Controller
 
         $fromIdx = $columnIndex(['from_zone_id', 'from zone id']);
         $toIdx = $columnIndex(['to_zone_id', 'to zone id']);
-        $privateIdx = $columnIndex(['private_price', 'private price']);
-        $sharedIdx = $columnIndex(['shared_price', 'shared price']);
+        $privateIdx = $columnIndex(['private_price', 'private price', 'private sell price']);
+        $sharedIdx = $columnIndex(['shared_price', 'shared price', 'shared sell price']);
+        $privateCostIdx = $columnIndex(['private_cost_price', 'private cost price']);
+        $sharedCostIdx = $columnIndex(['shared_cost_price', 'shared cost price']);
+        $privateProfitTypeIdx = $columnIndex(['private_profit_type', 'private profit type']);
+        $privateProfitAmountIdx = $columnIndex(['private_profit_amount', 'private profit amount']);
+        $sharedProfitTypeIdx = $columnIndex(['shared_profit_type', 'shared profit type']);
+        $sharedProfitAmountIdx = $columnIndex(['shared_profit_amount', 'shared profit amount']);
 
         if ($fromIdx === null || $toIdx === null || $privateIdx === null || $sharedIdx === null) {
             return redirect()->route('vehicle.edit', [
@@ -1236,6 +1297,24 @@ class VehicleController extends Controller
 
             $privatePrice = is_numeric($row[$privateIdx] ?? null) ? (float) $row[$privateIdx] : 0;
             $sharedPrice = is_numeric($row[$sharedIdx] ?? null) ? (float) $row[$sharedIdx] : 0;
+            $privateCostPrice = ($privateCostIdx !== null && is_numeric($row[$privateCostIdx] ?? null))
+                ? (float) $row[$privateCostIdx]
+                : $privatePrice;
+            $sharedCostPrice = ($sharedCostIdx !== null && is_numeric($row[$sharedCostIdx] ?? null))
+                ? (float) $row[$sharedCostIdx]
+                : $sharedPrice;
+            $privateProfitType = ($privateProfitTypeIdx !== null)
+                ? strtolower(trim((string) ($row[$privateProfitTypeIdx] ?? 'percentage')))
+                : 'percentage';
+            $sharedProfitType = ($sharedProfitTypeIdx !== null)
+                ? strtolower(trim((string) ($row[$sharedProfitTypeIdx] ?? 'percentage')))
+                : 'percentage';
+            $privateProfitAmount = ($privateProfitAmountIdx !== null && is_numeric($row[$privateProfitAmountIdx] ?? null))
+                ? (float) $row[$privateProfitAmountIdx]
+                : 0;
+            $sharedProfitAmount = ($sharedProfitAmountIdx !== null && is_numeric($row[$sharedProfitAmountIdx] ?? null))
+                ? (float) $row[$sharedProfitAmountIdx]
+                : 0;
 
             $this->upsertVehicleZoneMapping(
                 $vehicleId,
@@ -1244,7 +1323,13 @@ class VehicleController extends Controller
                 $fromZoneType,
                 $toZoneType,
                 $privatePrice,
-                $sharedPrice
+                $sharedPrice,
+                $privateCostPrice,
+                $sharedCostPrice,
+                $privateProfitType,
+                $privateProfitAmount,
+                $sharedProfitType,
+                $sharedProfitAmount
             );
             $updated++;
         }
@@ -1470,7 +1555,13 @@ class VehicleController extends Controller
             $toName,
             $toZoneType,
             (float) ($mapping->private_price ?? 0),
+            (float) ($mapping->private_cost_price ?? $mapping->private_price ?? 0),
+            (string) ($mapping->private_profit_type ?? 'percentage'),
+            (float) ($mapping->private_profit_amount ?? 0),
             (float) ($mapping->shared_price ?? 0),
+            (float) ($mapping->shared_cost_price ?? $mapping->shared_price ?? 0),
+            (string) ($mapping->shared_profit_type ?? 'percentage'),
+            (float) ($mapping->shared_profit_amount ?? 0),
         ];
     }
 
@@ -1530,8 +1621,34 @@ class VehicleController extends Controller
         string $fromZoneType,
         string $toZoneType,
         $privatePrice,
-        $sharedPrice
+        $sharedPrice,
+        $privateCostPrice = null,
+        $sharedCostPrice = null,
+        $privateProfitType = 'percentage',
+        $privateProfitAmount = 0,
+        $sharedProfitType = 'percentage',
+        $sharedProfitAmount = 0
     ): void {
+        $privateCostPrice = $privateCostPrice ?? $privatePrice;
+        $sharedCostPrice = $sharedCostPrice ?? $sharedPrice;
+        $privateProfitType = in_array($privateProfitType, ['percentage', 'flat'], true) ? $privateProfitType : 'percentage';
+        $sharedProfitType = in_array($sharedProfitType, ['percentage', 'flat'], true) ? $sharedProfitType : 'percentage';
+        $privateProfitAmount = is_numeric($privateProfitAmount) ? (float) $privateProfitAmount : 0;
+        $sharedProfitAmount = is_numeric($sharedProfitAmount) ? (float) $sharedProfitAmount : 0;
+
+        $payload = [
+            'from_zone_type' => $fromZoneType,
+            'to_zone_type' => $toZoneType,
+            'private_price' => $privatePrice,
+            'private_cost_price' => $privateCostPrice,
+            'private_profit_type' => $privateProfitType,
+            'private_profit_amount' => $privateProfitAmount,
+            'shared_price' => $sharedPrice,
+            'shared_cost_price' => $sharedCostPrice,
+            'shared_profit_type' => $sharedProfitType,
+            'shared_profit_amount' => $sharedProfitAmount,
+        ];
+
         $mapping = VehicleZoneMapping::withTrashed()
             ->where('vehicle_id', $vehicleId)
             ->where('from_zone_id', $fromZoneId)
@@ -1542,40 +1659,27 @@ class VehicleController extends Controller
             if ($mapping->trashed()) {
                 $mapping->forceDelete();
 
-                $newMapping = VehicleZoneMapping::create([
+                $newMapping = VehicleZoneMapping::create(array_merge([
                     'vehicle_id' => $vehicleId,
                     'from_zone_id' => $fromZoneId,
                     'to_zone_id' => $toZoneId,
-                    'from_zone_type' => $fromZoneType,
-                    'to_zone_type' => $toZoneType,
-                    'private_price' => $privatePrice,
-                    'shared_price' => $sharedPrice,
-                ]);
+                ], $payload));
 
                 if (empty($newMapping->mapping_id)) {
                     $newMapping->update(['mapping_id' => (string) $newMapping->id]);
                 }
             } else {
-                $mapping->update([
-                    'private_price' => $privatePrice,
-                    'shared_price' => $sharedPrice,
-                    'from_zone_type' => $fromZoneType,
-                    'to_zone_type' => $toZoneType,
-                ]);
+                $mapping->update($payload);
             }
 
             return;
         }
 
-        $newMapping = VehicleZoneMapping::create([
+        $newMapping = VehicleZoneMapping::create(array_merge([
             'vehicle_id' => $vehicleId,
             'from_zone_id' => $fromZoneId,
             'to_zone_id' => $toZoneId,
-            'from_zone_type' => $fromZoneType,
-            'to_zone_type' => $toZoneType,
-            'private_price' => $privatePrice,
-            'shared_price' => $sharedPrice,
-        ]);
+        ], $payload));
 
         if (empty($newMapping->mapping_id)) {
             $newMapping->update(['mapping_id' => (string) $newMapping->id]);
@@ -1654,7 +1758,13 @@ class VehicleController extends Controller
                         'from_zone_type' => $fromZoneType,
                         'to_zone_type' => $toZoneType,
                         'private_price' => 0,
-                        'shared_price' => 0
+                        'private_cost_price' => 0,
+                        'private_profit_type' => 'percentage',
+                        'private_profit_amount' => 0,
+                        'shared_price' => 0,
+                        'shared_cost_price' => 0,
+                        'shared_profit_type' => 'percentage',
+                        'shared_profit_amount' => 0,
                     ]);
                     if (empty($mapping->mapping_id)) {
                         $mapping->update(['mapping_id' => (string) $mapping->id]);
@@ -1682,7 +1792,13 @@ class VehicleController extends Controller
                 'from_zone_type' => $fromZoneType,
                 'to_zone_type' => $toZoneType,
                 'private_price' => 0,
-                'shared_price' => 0
+                'private_cost_price' => 0,
+                'private_profit_type' => 'percentage',
+                'private_profit_amount' => 0,
+                'shared_price' => 0,
+                'shared_cost_price' => 0,
+                'shared_profit_type' => 'percentage',
+                'shared_profit_amount' => 0,
             ]);
             if (empty($mapping->mapping_id)) {
                 $mapping->update(['mapping_id' => (string) $mapping->id]);
@@ -1780,7 +1896,13 @@ class VehicleController extends Controller
             'success' => true,
             'mapping_id' => $mapping->mapping_id,
             'private_price' => $mapping->private_price,
-            'shared_price' => $mapping->shared_price
+            'private_cost_price' => $mapping->private_cost_price ?? $mapping->private_price,
+            'private_profit_type' => $mapping->private_profit_type ?? 'percentage',
+            'private_profit_amount' => $mapping->private_profit_amount ?? 0,
+            'shared_price' => $mapping->shared_price,
+            'shared_cost_price' => $mapping->shared_cost_price ?? $mapping->shared_price,
+            'shared_profit_type' => $mapping->shared_profit_type ?? 'percentage',
+            'shared_profit_amount' => $mapping->shared_profit_amount ?? 0,
         ]);
     }
 

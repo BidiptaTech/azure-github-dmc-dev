@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
+use App\Models\EmailsSetup;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use App\Models\Invoice;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Config;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -234,7 +236,7 @@ class CommonHelper
 
     /**
      * Upload JSON to Azure only (same file_storage setting as image_path).
-     * Skips local and S3 — returns master_value null when storage is not azure.
+     * Skips local and S3 â€” returns master_value null when storage is not azure.
      */
     public static function json_path(string $name, string $jsonContent, string $fileName, string $container = 'aiuploads'): array
     {
@@ -1529,6 +1531,10 @@ class CommonHelper
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
+
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
             // Determine which template to use based on the type
             $template = 'mails.' . $type;
             if (!view()->exists($template)) {
@@ -1599,6 +1605,9 @@ class CommonHelper
                 return 'Hotel email is not set or invalid';
             }
 
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
             $escapedBody = nl2br(e($body));
             $safeSubject = e($subject);
 
@@ -1638,6 +1647,80 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
     }
 
+    /**
+     * Apply SMTP/from settings from emails_setup for the given (or current) DMC.
+     * Returns the setup row when found, otherwise null.
+     */
+    public static function applyEmailsSetupMailConfig($dmcId = null): ?EmailsSetup
+    {
+        try {
+            if (empty($dmcId)) {
+                $user = Auth::user();
+                $dmcId = $user ? self::getDmcId($user) : null;
+                if ($user && (int) $user->role_id === 1) {
+                    $dmcId = 1;
+                }
+            }
+
+            if (empty($dmcId)) {
+                return null;
+            }
+
+            $setup = EmailsSetup::where('dmcId', $dmcId)->first();
+            if (!$setup || empty($setup->SMTP_Host)) {
+                return $setup;
+            }
+
+            self::applyRuntimeMailConfig([
+                'host' => $setup->SMTP_Host,
+                'port' => $setup->SMTP_Port,
+                'encryption' => $setup->SMTP_Encrypt,
+                'username' => $setup->SMTP_User,
+                'password' => $setup->SMTP_Pass,
+                'from_email' => $setup->From_Email,
+                'from_name' => $setup->From_Name,
+            ]);
+
+            return $setup;
+        } catch (\Exception $e) {
+            Log::warning('Failed to apply emails_setup mail config', [
+                'dmcId' => $dmcId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Override Laravel SMTP mailer config at runtime and purge cached mailer.
+     */
+    public static function applyRuntimeMailConfig(array $config): void
+    {
+        $encryption = strtolower((string) ($config['encryption'] ?? 'tls'));
+        if ($encryption === 'none' || $encryption === '') {
+            $encryption = null;
+        }
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp.transport', 'smtp');
+        Config::set('mail.mailers.smtp.host', $config['host'] ?? null);
+        Config::set('mail.mailers.smtp.port', (int) ($config['port'] ?? 587));
+        Config::set('mail.mailers.smtp.encryption', $encryption);
+        Config::set('mail.mailers.smtp.username', $config['username'] ?? null);
+        Config::set('mail.mailers.smtp.password', $config['password'] ?? null);
+
+        if (!empty($config['from_email'])) {
+            Config::set('mail.from.address', $config['from_email']);
+            Config::set('mail.from.name', $config['from_name'] ?? config('app.name'));
+        }
+
+        try {
+            app('mail.manager')->purge('smtp');
+        } catch (\Throwable $e) {
+            // Mail manager may not be bound in some contexts.
+        }
+    }
+
     public static function getDmcId($auth_user){
         if($auth_user->agent_id){
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
@@ -1666,7 +1749,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
         elseif($auth_user->userId){
             $user = $auth_user;
-            if($user->role_id == 11){
+            if($user->role_id == 11 || $user->role_id == 20){
                 return $user->userId;
             }
             elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
@@ -1686,6 +1769,629 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
         return null;
+    }
+
+
+    /**
+     * Country used for multi-country tour visibility.
+     * Prefer user_country, else first CSV segment of country.
+     * For sales staff, fall back to their parent DMC country.
+     */
+    public static function resolveUserOperatingCountry($user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $pickFirst = static function (?string $raw): ?string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return null;
+            }
+            $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+            $first = trim((string) ($parts[0] ?? ''));
+            return $first !== '' ? $first : null;
+        };
+
+        $country = $pickFirst($user->user_country ?? null)
+            ?: $pickFirst($user->country ?? null);
+
+        if ($country) {
+            return $country;
+        }
+
+        // Sales / ops: inherit DMC country (e.g. India DMC â†’ India)
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+        if ($dmcId && (int) $dmcId !== (int) ($user->userId ?? 0)) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            if ($dmcUser) {
+                return $pickFirst($dmcUser->user_country ?? null)
+                    ?: $pickFirst($dmcUser->country ?? null);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Child DMC ids under the same Master DMC as $dmcId (includes $dmcId).
+     */
+    public static function getSiblingDmcIds($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [$dmcId];
+        }
+
+        $masterDmcId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterDmcId <= 0 && (int) ($dmcUser->role_id ?? 0) === 10) {
+            $masterDmcId = $dmcId;
+        }
+
+        if ($masterDmcId <= 0) {
+            $visited = [];
+            $candidateId = (int) ($dmcUser->created_by ?? 0);
+            $safety = 0;
+            while ($candidateId > 0 && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 10) {
+                    $masterDmcId = (int) $candidate->userId;
+                    break;
+                }
+                $candidateId = (int) ($candidate->created_by ?? 0);
+                $safety++;
+            }
+        }
+
+        if ($masterDmcId <= 0) {
+            return [$dmcId];
+        }
+
+        $ids = User::where('master_dmc_id', $masterDmcId)
+            ->where('role_id', 11)
+            ->pluck('userId')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!in_array($dmcId, $ids, true)) {
+            $ids[] = $dmcId;
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Match tours.destination CSV (e.g. "Singapore, Malaysia, India") to one country.
+     */
+    public static function whereDestinationContainsCountry($query, string $country, string $column = 'destination')
+    {
+        $country = trim($country);
+        if ($country === '') {
+            return $query;
+        }
+
+        $needle = mb_strtolower($country);
+
+        return $query->whereRaw(
+            "EXISTS (
+                SELECT 1
+                FROM unnest(
+                    string_to_array(
+                        regexp_replace(LOWER(COALESCE({$column}, '')), '\\s*,\\s*', ',', 'g'),
+                        ','
+                    )
+                ) AS dest(name)
+                WHERE TRIM(dest.name) = ?
+            )",
+            [$needle]
+        );
+    }
+
+    /**
+     * Master multi-country access:
+     * - Always show tours for the user's own DMC
+     * - Also show sibling-DMC tours when destination includes this DMC/user country
+     *   Example: Singapore DMC sales creates "Singapore, Malaysia, India"
+     *            â†’ India DMC (and India sales) can see that tour
+     */
+    public static function applyTourDmcCountryAccess($query, $dmcId, $user = null, string $dmcColumn = 'tours.dmc_id', string $destinationColumn = 'tours.destination')
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return $query;
+        }
+
+        $user = $user ?: Auth::user();
+        $siblingIds = self::getSiblingDmcIds($dmcId);
+        $country = self::resolveUserOperatingCountry($user);
+
+        // No siblings / no country â†’ classic own-DMC filter
+        if (count($siblingIds) <= 1 || !$country) {
+            return $query->where($dmcColumn, $dmcId);
+        }
+
+        return $query->where(function ($q) use ($dmcId, $siblingIds, $country, $dmcColumn, $destinationColumn) {
+            $q->where($dmcColumn, $dmcId)
+                ->orWhere(function ($q2) use ($siblingIds, $country, $dmcColumn, $destinationColumn) {
+                    $q2->whereIn($dmcColumn, $siblingIds);
+                    self::whereDestinationContainsCountry($q2, $country, $destinationColumn);
+                });
+        });
+    }
+
+    /**
+     * Parse tour destination CSV into ordered unique country names.
+     */
+    public static function parseTourDestinationCountries(?string $destination): array
+    {
+        $destination = trim((string) $destination);
+        if ($destination === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $countries = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $name) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $name;
+            }
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Resolve which country a booking/service belongs to (multi-country itinerary).
+     * Prefer order.country, then JSON country, then city→country map, then single tour country.
+     *
+     * @param  object|array  $booking
+     * @param  array<int, string>  $tourCountries
+     * @param  array<string, string>  $cityCountryMap  lowercase city name => country
+     */
+    public static function resolveBookingServiceCountry($booking, array $tourCountries = [], array $cityCountryMap = []): string
+    {
+        $booking = is_array($booking) ? (object) $booking : $booking;
+
+        $candidates = [];
+
+        $orderCountry = trim((string) ($booking->country ?? ''));
+        if ($orderCountry !== '') {
+            $candidates[] = $orderCountry;
+        }
+
+        $data = $booking->data_decoded ?? null;
+        if ($data === null && isset($booking->data)) {
+            $raw = $booking->data;
+            $data = is_string($raw) ? json_decode($raw, true) : $raw;
+        }
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+        if (is_array($data) && isset($data[0])) {
+            $row = $data[0];
+            if (is_object($row)) {
+                $row = (array) $row;
+            }
+            if (is_array($row)) {
+                $jsonCountry = trim((string) ($row['country'] ?? ''));
+                if ($jsonCountry !== '') {
+                    $candidates[] = $jsonCountry;
+                }
+                $hotelCountry = trim((string) (data_get($row, 'hotelDetails.country') ?? ''));
+                if ($hotelCountry !== '') {
+                    $candidates[] = $hotelCountry;
+                }
+
+                $cityCandidates = [
+                    $row['city'] ?? null,
+                    data_get($row, 'hotelDetails.city'),
+                    data_get($row, 'hotelDetails.location'),
+                    $booking->hotel_location ?? null,
+                    $booking->hotel_name ?? null,
+                ];
+                foreach ($cityCandidates as $cityRaw) {
+                    $city = trim((string) $cityRaw);
+                    if ($city === '') {
+                        continue;
+                    }
+                    // Strip stay-range suffix: "Singapore [2026-08-01→2026-08-03]"
+                    if (preg_match('/^(.+?)\s*\[/', $city, $m)) {
+                        $city = trim($m[1]);
+                    }
+                    $key = mb_strtolower($city);
+                    if (isset($cityCountryMap[$key]) && $cityCountryMap[$key] !== '') {
+                        $candidates[] = $cityCountryMap[$key];
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $matched = self::matchTourCountryName($candidate, $tourCountries);
+            if ($matched !== null) {
+                return $matched;
+            }
+        }
+
+        if (count($tourCountries) === 1) {
+            return $tourCountries[0];
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return 'Other';
+    }
+
+    /**
+     * Match a free-text country against tour destination country list (case-insensitive).
+     *
+     * @param  array<int, string>  $tourCountries
+     */
+    public static function matchTourCountryName(string $candidate, array $tourCountries): ?string
+    {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            return null;
+        }
+
+        foreach ($tourCountries as $country) {
+            if (strcasecmp($country, $candidate) === 0) {
+                return $country;
+            }
+        }
+
+        // CSV mistakenly stored on order (e.g. whole destination)
+        if (str_contains($candidate, ',')) {
+            $parts = preg_split('/\s*,\s*/', $candidate) ?: [];
+            foreach ($parts as $part) {
+                $matched = self::matchTourCountryName(trim((string) $part), $tourCountries);
+                if ($matched !== null) {
+                    return $matched;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Country visibility for Services column / service modals on booking lists.
+     *
+     * Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no):
+     * only that DMC's own country/countries are visible.
+     * Master DMC, normal DMC, and enabled third-party: all tour countries.
+     *
+     * @return array{restricted: bool, countries: array<int, string>}
+     */
+    public static function resolveServiceCountryViewScope($user = null): array
+    {
+        $user = $user ?: Auth::user();
+        $empty = ['restricted' => false, 'countries' => []];
+        if (!$user) {
+            return $empty;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = (int) $user->userId;
+        }
+        if (!$dmcId) {
+            return $empty;
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return $empty;
+        }
+
+        $isThirdParty = strtolower(trim((string) ($dmcUser->thirdparty ?? 'no'))) === 'yes';
+        $isEnabled = strtolower(trim((string) ($dmcUser->thirdparty_enabled ?? 'no'))) === 'yes';
+        if (!$isThirdParty || $isEnabled) {
+            return $empty;
+        }
+
+        $countries = [];
+        foreach (preg_split('/\s*,\s*/', (string) ($dmcUser->country ?? '')) ?: [] as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $countries[] = $name;
+            }
+        }
+
+        $operating = self::resolveUserOperatingCountry($user);
+        if ($operating) {
+            $already = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $operating) === 0) {
+                    $already = true;
+                    break;
+                }
+            }
+            if (!$already) {
+                array_unshift($countries, $operating);
+            }
+        }
+
+        if (empty($countries)) {
+            return $empty;
+        }
+
+        return [
+            'restricted' => true,
+            'countries' => array_values(array_unique($countries)),
+        ];
+    }
+
+    /**
+     * Countries available as Services tabs for a tour, honouring third-party scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array<int, string>
+     */
+    public static function resolveTourServiceTabCountries(?string $destination, $orders = null, array $scope = []): array
+    {
+        $fromDestination = self::parseTourDestinationCountries($destination);
+        $fromOrders = [];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            $name = trim((string) ($order->country ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $matched = self::matchTourCountryName($name, $fromDestination) ?? $name;
+            $exists = false;
+            foreach ($fromOrders as $existing) {
+                if (strcasecmp($existing, $matched) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $fromOrders[] = $matched;
+            }
+        }
+
+        // Prefer destination order; append any order-only countries at the end
+        $countries = $fromDestination;
+        foreach ($fromOrders as $orderCountry) {
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $orderCountry) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $orderCountry;
+            }
+        }
+
+        if (!empty($scope['restricted']) && !empty($scope['countries'])) {
+            $allowed = $scope['countries'];
+            $countries = array_values(array_filter($countries, function ($country) use ($allowed) {
+                foreach ($allowed as $allowedCountry) {
+                    if (strcasecmp((string) $country, (string) $allowedCountry) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Whether a resolved booking country is visible under the viewer's scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     */
+    public static function isServiceCountryAllowed(string $country, array $scope = []): bool
+    {
+        if (empty($scope['restricted']) || empty($scope['countries'])) {
+            return true;
+        }
+
+        foreach ($scope['countries'] as $allowed) {
+            if (strcasecmp(trim($country), trim((string) $allowed)) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build Services-column data for booking list pages (country tabs + counts).
+     *
+     * @param  object  $tour
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array{
+     *   orders: \Illuminate\Support\Collection,
+     *   svc: array<string, int>,
+     *   serviceData: array<string, array<int, object>>,
+     *   tabCountries: array<int, string>,
+     *   svcByCountry: array<string, array<string, int>>,
+     *   orderCountryMap: array<string, string>
+     * }
+     */
+    public static function buildTourServiceCellData($tour, array $scope = [], string $bookingType = 'enquiry'): array
+    {
+        $serviceTypes = [
+            'hotel', 'attraction', 'restaurant', 'guide',
+            'entry_port', 'exit_port', 'travel_hourly', 'travel_point',
+            'local_transport', 'miscellaneous',
+        ];
+
+        $orders = collect($tour->booking ?? []);
+        $bookingType = strtolower(trim($bookingType));
+
+        if ($orders->isEmpty()) {
+            $query = Order::where('tour_id', $tour->tour_id);
+            if ($bookingType !== '') {
+                $query->where('bookingType', $bookingType);
+            }
+            if ($bookingType === 'booking') {
+                $query->whereNull('deleted_at');
+            }
+            $orders = $query->get();
+        } else {
+            $orders = $orders->filter(function ($order) use ($bookingType) {
+                if ($bookingType === 'booking' && !empty($order->deleted_at)) {
+                    return false;
+                }
+                $type = strtolower(trim((string) ($order->bookingType ?? '')));
+                if ($bookingType === '') {
+                    return true;
+                }
+                return $type === '' || $type === $bookingType;
+            })->values();
+        }
+
+        $tourCountries = self::parseTourDestinationCountries($tour->destination ?? null);
+        $isPro = (int) ($tour->is_pro ?? 0) === 1;
+
+        $svc = array_fill_keys($serviceTypes, 0);
+        $serviceData = [];
+        $orderCountryMap = [];
+
+        foreach ($orders as $order) {
+            $type = (string) ($order->type ?? '');
+            if (!in_array($type, $serviceTypes, true)) {
+                continue;
+            }
+            if ($type === 'miscellaneous' && !$isPro) {
+                continue;
+            }
+
+            $resolved = self::resolveBookingServiceCountry($order, $tourCountries, []);
+            if ($resolved === '' || $resolved === 'Other') {
+                $resolved = $tourCountries[0] ?? 'Other';
+            }
+            $canonical = self::matchTourCountryName($resolved, $tourCountries) ?? $resolved;
+            if (!self::isServiceCountryAllowed($canonical, $scope)) {
+                continue;
+            }
+
+            $svc[$type]++;
+            if (!isset($serviceData[$type])) {
+                $serviceData[$type] = [];
+            }
+            $serviceData[$type][] = $order;
+
+            $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+            $orderCountryMap[$mapKey] = $canonical;
+            $order->resolved_service_country = $canonical;
+        }
+
+        $tabCountries = self::resolveTourServiceTabCountries(
+            $tour->destination ?? null,
+            collect($orders)->filter(function ($order) use ($orderCountryMap) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                return isset($orderCountryMap[$mapKey]);
+            }),
+            $scope
+        );
+
+        // Ensure every scoped order country appears as a tab
+        foreach ($orderCountryMap as $country) {
+            $exists = false;
+            foreach ($tabCountries as $existing) {
+                if (strcasecmp((string) $existing, (string) $country) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists && self::isServiceCountryAllowed($country, $scope)) {
+                $tabCountries[] = $country;
+            }
+        }
+
+        if (empty($tabCountries) && !empty($scope['restricted']) && !empty($scope['countries'])) {
+            $tabCountries = array_values($scope['countries']);
+        }
+
+        $svcByCountry = [];
+        foreach ($tabCountries as $country) {
+            $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+        }
+
+        foreach ($serviceData as $type => $typeOrders) {
+            foreach ($typeOrders as $order) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                $country = $orderCountryMap[$mapKey]
+                    ?? ($order->resolved_service_country ?? ($tabCountries[0] ?? 'Other'));
+                if (!isset($svcByCountry[$country])) {
+                    $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+                    $tabCountries[] = $country;
+                }
+                $svcByCountry[$country][$type]++;
+            }
+        }
+
+        return [
+            'orders' => $orders,
+            'svc' => $svc,
+            'serviceData' => $serviceData,
+            'tabCountries' => array_values($tabCountries),
+            'svcByCountry' => $svcByCountry,
+            'orderCountryMap' => $orderCountryMap,
+        ];
+    }
+
+    /**
+     * Resolve which Services-tab country an order belongs to.
+     *
+     * @param  array<string, string>  $orderCountryMap
+     */
+    public static function resolveOrderServiceTabCountry($order, array $orderCountryMap = [], array $tabCountries = []): string
+    {
+        $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+        if (isset($orderCountryMap[$mapKey]) && $orderCountryMap[$mapKey] !== '') {
+            return $orderCountryMap[$mapKey];
+        }
+
+        $fromAttr = trim((string) ($order->resolved_service_country ?? $order->country ?? ''));
+        if ($fromAttr !== '') {
+            return self::matchTourCountryName($fromAttr, $tabCountries) ?? $fromAttr;
+        }
+
+        return $tabCountries[0] ?? 'Other';
     }
 
     /**
@@ -1912,7 +2618,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     * Merge every present list field (cc, cc_list, etc.) â€” empty arrays are skipped.
      *
      * @param  array<string, mixed>  $context
      * @param  list<string>  $keys
@@ -2136,6 +2842,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         array $ccEmails = [],
         array $bccEmails = []
     ): void {
+        // Use DMC-specific SMTP from emails_setup (not .env)
+        self::applyEmailsSetupMailConfig();
+
         if ($emailUuid !== null && $emailUuid !== '') {
             $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
             $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
@@ -2415,7 +3124,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
             $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
@@ -2485,7 +3194,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
             self::sendHtmlEmail(
@@ -2710,7 +3419,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: $selectedDmcName;
-            $subject = 'Destination not supported — '.$requestedCountry.' — '.$dmcName;
+            $subject = 'Destination not supported â€” '.$requestedCountry.' â€” '.$dmcName;
             $html = view('email.unsupported-destination-country', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -2792,7 +3501,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
-            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
+            $subject = 'Missing travel details â€” please check and resubmit â€” '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -3159,7 +3868,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "🌍 You've Been Invited to Partner with {$dmcName} on Travclicks";
+            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
 
             // Render the email template
             try {
@@ -3287,7 +3996,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "💰 Price Negotiation Submitted - Tour {$tourDisplayId}";
+            $subject = "ðŸ’° Price Negotiation Submitted - Tour {$tourDisplayId}";
 
             // Render the email template
             try {
@@ -3741,6 +4450,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $tourPrices = self::calculateTourPrices($tourId);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
+        // Native country/currency totals from orders.country + orders.currency
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
         
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
@@ -3820,6 +4531,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'travelDetails' => $travelDetails,
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
+                'countryQuotationGroups' => $countryQuotationGroups,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
@@ -3865,6 +4577,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'travelDetails' => $travelDetails,
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
+                    'countryQuotationGroups' => $countryQuotationGroups,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'exclusions' => $exclusions,
@@ -4135,6 +4848,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         // Calculate tour prices
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
         
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
@@ -4211,6 +4925,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'travelDetails' => $travelDetails,
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
+            'countryQuotationGroups' => $countryQuotationGroups,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
@@ -4241,6 +4956,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'double_sharing' => 0,
                 'triple_sharing' => 0,
                 'baby_cot_sharing' => 0,
+                'other_services_single' => 0,
+                'other_services_double' => 0,
+                'country_sharing' => [],
+                'hotel_price_options' => [],
                 'segregated' => [
                     'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
                     'attraction' => ['single' => 0, 'double' => 0],
@@ -4293,7 +5012,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $otherServiceSingle = 0.0;
         $otherServiceDouble = 0.0;
         // Track child-specific pricing component across attraction/restaurant services
-        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
+
+        // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
+        $countryOtherBuckets = []; // key => ['country','currency','single','double']
+        $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
         
         // Segregated prices by service type
         $segregatedPrices = [
@@ -4363,6 +5086,32 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 continue;
             }
 
+            $orderCountry = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $orderCurrency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($orderCountry === '') {
+                $orderCountry = $orderCurrency !== '' ? $orderCurrency : 'Other';
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = $fallbackCurrency;
+            }
+            $orderCurrency = strtoupper($orderCurrency);
+            $countryPriceKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
+            if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                $countryOtherBuckets[$countryPriceKey] = [
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                ];
+            }
+            $trackCountryOther = function (float $single, float $double) use (&$countryOtherBuckets, $countryPriceKey): void {
+                if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                    return;
+                }
+                $countryOtherBuckets[$countryPriceKey]['single'] += $single;
+                $countryOtherBuckets[$countryPriceKey]['double'] += $double;
+            };
+
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
             $babyCotPrice = null;
@@ -4422,6 +5171,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'hotel_name' => $hotelName,
                             'date_range' => $rangeLabel,
                             'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
+                            'country' => $orderCountry,
+                            'currency' => $orderCurrency,
                         ];
                     }
                     
@@ -4889,7 +5640,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         }
                         // Single/double/triple prices come from the room's own pricing data
                         // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
-                        // of this specific order. So fill each slot from ANY order — first non-null wins.
+                        // of this specific order. So fill each slot from ANY order â€” first non-null wins.
                         if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
                             $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
                         }
@@ -4924,8 +5675,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         // Handle attraction and restaurant
                         //
                         // Per-pax resolution priority (per-adult unit price):
-                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  ← user override
-                        //   2. Derived from the booking's own totalPrice                ← what the user actually saved
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
+                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
                         //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
                         //
                         // The booking's totalPrice is authoritative because it represents what the user
@@ -4938,7 +5689,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
 
-                            // (1) Explicit JSON per-pax (user override) — highest priority
+                            // (1) Explicit JSON per-pax (user override) â€” highest priority
                             $jsonAdultPrice = null;
                             $jsonChildPrice = null;
                             if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
@@ -4952,7 +5703,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $jsonChildPrice = floatval($item['child_price']);
                             }
 
-                            // (3) Catalog defaults — used only as a last resort
+                            // (3) Catalog defaults â€” used only as a last resort
                             $catalogAdultPrice = null;
                             $catalogChildPrice = null;
                             if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
@@ -5016,8 +5767,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 $childUnitPrice = 0;
                             }
 
-                            // Adult per pax → main totals + segregated (with hotel and other services).
-                            // Child per pax → child_sharing only (never mixed into single/double).
+                            // Adult per pax â†’ main totals + segregated (with hotel and other services).
+                            // Child per pax â†’ child_sharing only (never mixed into single/double).
                             $singleSharing = 0;
                             if ($adultCount >= 1) {
                                 if ($adultUnitPrice > 0) {
@@ -5048,6 +5799,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle entry_port and exit_port
@@ -5068,6 +5820,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
@@ -5088,6 +5841,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
@@ -5105,6 +5859,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
                         // Default calculation for other service types
@@ -5128,6 +5883,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
                             }
                         }
 
@@ -5197,7 +5953,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
         }
         
-        // Add merged hotel buckets once (prevents 3× multiplication when same hotel/date has multiple orders)
+        // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
         $hotelSingle = 0.0;
         $hotelDouble = 0.0;
         $hotelTriple = 0.0;
@@ -5232,7 +5988,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         // Final per-head totals (supplements excluded).
         // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
-        // that don't depend on room occupancy — a guest in a triple room still consumes the
+        // that don't depend on room occupancy â€” a guest in a triple room still consumes the
         // same attractions/meals as anyone else, so the same per-pax other-services cost
         // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
         $totalSingleSharing = $hotelSingle + $otherServiceSingle;
@@ -5250,9 +6006,106 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'hotel_name' => $meta['hotel_name'] ?? null,
                 'date_range' => $meta['date_range'] ?? null,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
+                'country' => $meta['country'] ?? null,
+                'currency' => $meta['currency'] ?? null,
                 'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
                 'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
                 'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
+            ];
+        }
+
+        // Country-wise single/double/triple (same formula as overall, native currency per country)
+        $countryHotelBuckets = [];
+        foreach ($hotelBuckets as $hotelKey => $bucket) {
+            if (!is_array($bucket)) continue;
+            $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $cName = trim((string) ($meta['country'] ?? ''));
+            $cCurr = strtoupper(trim((string) ($meta['currency'] ?? $fallbackCurrency)));
+            if ($cName === '') {
+                $cName = $cCurr !== '' ? $cCurr : 'Other';
+            }
+            if ($cCurr === '') {
+                $cCurr = $fallbackCurrency;
+            }
+            $ck = mb_strtolower($cName) . '|' . $cCurr;
+            if (!isset($countryHotelBuckets[$ck])) {
+                $countryHotelBuckets[$ck] = [
+                    'country' => $cName,
+                    'currency' => $cCurr,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                    'triple' => 0.0,
+                ];
+            }
+            $countryHotelBuckets[$ck]['single'] += (float) ($bucket['single'] ?? 0);
+            $countryHotelBuckets[$ck]['double'] += (float) ($bucket['double'] ?? 0);
+            $countryHotelBuckets[$ck]['triple'] += (float) ($bucket['triple'] ?? 0);
+        }
+
+        $allCountryKeys = array_values(array_unique(array_merge(
+            array_keys($countryHotelBuckets),
+            array_keys($countryOtherBuckets)
+        )));
+
+        $preferredCountryOrder = [];
+        $destinationRaw = (string) ($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferredCountryOrder[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        usort($allCountryKeys, function ($a, $b) use ($preferredCountryOrder, $countryHotelBuckets, $countryOtherBuckets) {
+            $aCountry = $countryHotelBuckets[$a]['country'] ?? ($countryOtherBuckets[$a]['country'] ?? $a);
+            $bCountry = $countryHotelBuckets[$b]['country'] ?? ($countryOtherBuckets[$b]['country'] ?? $b);
+            $aPos = array_key_exists(mb_strtolower($aCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($aCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            $bPos = array_key_exists(mb_strtolower($bCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($bCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a, $b);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        $countrySharing = [];
+        foreach ($allCountryKeys as $ck) {
+            $hotelRow = $countryHotelBuckets[$ck] ?? [
+                'country' => $countryOtherBuckets[$ck]['country'] ?? 'Other',
+                'currency' => $countryOtherBuckets[$ck]['currency'] ?? $fallbackCurrency,
+                'single' => 0.0,
+                'double' => 0.0,
+                'triple' => 0.0,
+            ];
+            $otherRow = $countryOtherBuckets[$ck] ?? [
+                'single' => 0.0,
+                'double' => 0.0,
+            ];
+
+            $cHotelSingle = (float) $hotelRow['single'] * $hotelFactor;
+            $cHotelDouble = (float) $hotelRow['double'] * $hotelFactor;
+            $cHotelTriple = (float) $hotelRow['triple'] * $hotelFactor;
+            $cOtherSingle = (float) $otherRow['single'] * $otherFactor;
+            $cOtherDouble = (float) $otherRow['double'] * $otherFactor;
+
+            $countrySharing[] = [
+                'key' => $ck,
+                'country' => $hotelRow['country'],
+                'currency' => strtoupper((string) $hotelRow['currency']),
+                'hotel_single' => ceil($cHotelSingle),
+                'hotel_double' => ceil($cHotelDouble),
+                'hotel_triple' => ceil($cHotelTriple),
+                'other_services_single' => ceil($cOtherSingle),
+                'other_services_double' => ceil($cOtherDouble),
+                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
+                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
+                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
             ];
         }
 
@@ -5308,6 +6161,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Other services per-head total (non-hotel, non-supplement)
             'other_services_single' => ceil($otherServiceSingle),
             'other_services_double' => ceil($otherServiceDouble),
+            // Country + currency wise single/double/triple (native amounts)
+            'country_sharing'      => $countrySharing,
             // Supplements (hotel + other services marked supplement=true)
             'supplements'          => $supplementsFormatted,
             'supplyments'          => $supplementsFormatted,
@@ -6053,6 +6908,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'type' => $serviceType,
             'title' => $title,
             'subtitle' => $location,
+            'country' => (function () use ($order, $item) {
+                $country = '';
+                if (is_object($order) && !empty($order->country)) {
+                    $country = trim((string) $order->country);
+                }
+                if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                    $country = trim($item['country']);
+                }
+                if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                    $country = trim($item['hotelDetails']['country']);
+                }
+                return $country !== '' ? $country : null;
+            })(),
+            'currency' => self::resolveOrderDisplayCurrency(
+                $order,
+                (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+            ),
             'time' => $time,
             'pax' => $pax,
             'adult_count' => (is_numeric($adultCountStd) && (float)$adultCountStd > 0) ? (int)$adultCountStd : null,
@@ -6081,19 +6953,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     protected static function serviceIcon($type)
     {
         $map = [
-            'hotel' => '🏨',
-            'guide' => '👤',
-            'restaurant' => '🍽️',
-            'attraction' => '🎯',
-            'entry_port' => '✈️',
-            'exit_port' => '🛫',
-            'travel_point' => '🚐',
-            'travel_hourly' => '🚗',
-            'local_transport' => '🚕',
+            'hotel' => 'ðŸ¨',
+            'guide' => 'ðŸ‘¤',
+            'restaurant' => 'ðŸ½ï¸',
+            'attraction' => 'ðŸŽ¯',
+            'entry_port' => 'âœˆï¸',
+            'exit_port' => 'ðŸ›«',
+            'travel_point' => 'ðŸš',
+            'travel_hourly' => 'ðŸš—',
+            'local_transport' => 'ðŸš•',
         ];
 
         $key = strtolower($type ?? '');
-        return $map[$key] ?? '🧭';
+        return $map[$key] ?? 'ðŸ§­';
     }
 
     protected static function friendlyLabel($value, $fallback = 'N/A')
@@ -6107,6 +6979,139 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return $value;
+    }
+
+    /**
+     * Group booked order totals by orders.country + orders.currency (native amounts, no FX).
+     * Used by quotation PDF so Singapore shows SGD and Indonesia shows IDR clearly.
+     *
+     * @param  \Illuminate\Support\Collection|array  $orders
+     * @return array<int, array{key:string,country:string,currency:string,hotel_total:float,other_total:float,total:float,order_count:int}>
+     */
+    protected static function buildCountryQuotationGroups($orders, $tour = null): array
+    {
+        $isPro = (int) (is_object($tour) ? ($tour->is_pro ?? 0) : 0);
+        $fallbackCurrency = (is_object($tour) && !empty($tour->currency))
+            ? strtoupper(trim((string) $tour->currency))
+            : 'SGD';
+
+        $groups = [];
+        foreach ($orders as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $country = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($country === '') {
+                $country = $currency !== '' ? $currency : 'Other';
+            }
+            if ($currency === '') {
+                $currency = $fallbackCurrency;
+            }
+
+            $amount = self::extractOrderGrossAmount($order, $isPro);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $key = mb_strtolower($country) . '|' . strtoupper($currency);
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'currency' => strtoupper($currency),
+                    'hotel_total' => 0.0,
+                    'other_total' => 0.0,
+                    'total' => 0.0,
+                    'order_count' => 0,
+                ];
+            }
+
+            $type = strtolower(str_replace(' ', '_', (string) ($order->type ?? '')));
+            if ($type === 'hotel') {
+                $groups[$key]['hotel_total'] += $amount;
+            } else {
+                $groups[$key]['other_total'] += $amount;
+            }
+            $groups[$key]['total'] += $amount;
+            $groups[$key]['order_count']++;
+        }
+
+        // Prefer tour destination order
+        $preferred = [];
+        $destinationRaw = is_object($tour) ? (string) ($tour->destination ?? '') : '';
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferred[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        $list = array_values($groups);
+        usort($list, function ($a, $b) use ($preferred) {
+            $aKey = mb_strtolower($a['country']);
+            $bKey = mb_strtolower($b['country']);
+            $aPos = array_key_exists($aKey, $preferred) ? array_search($aKey, array_keys($preferred), true) : PHP_INT_MAX;
+            $bPos = array_key_exists($bKey, $preferred) ? array_search($bKey, array_keys($preferred), true) : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a['country'] . $a['currency'], $b['country'] . $b['currency']);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        return $list;
+    }
+
+    /**
+     * Sum native sell amount for one order (same rules as negotiation gross).
+     */
+    protected static function extractOrderGrossAmount($order, int $isPro = 0): float
+    {
+        $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        $items = isset($data[0]) ? $data : [$data];
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 
     /**
@@ -6278,6 +7283,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'option_number' => $hotelIndex++,
                     'hotel_name' => $hotelName,
                     'hotel_category' => $hotelCategory,
+                    'country' => (function () use ($order, $item) {
+                        $country = '';
+                        if (is_object($order) && !empty($order->country)) {
+                            $country = trim((string) $order->country);
+                        }
+                        if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                            $country = trim($item['country']);
+                        }
+                        if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                            $country = trim($item['hotelDetails']['country']);
+                        }
+                        return $country !== '' ? $country : null;
+                    })(),
+                    'currency' => self::resolveOrderDisplayCurrency(
+                        $order,
+                        (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+                    ),
                     // Keep raw rooms payload so email template can extract beds[*].head_count
                     'rooms' => is_array($rooms) ? $rooms : [],
                     'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),
@@ -6672,7 +7694,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -6723,6 +7745,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             if ($paymentType !== null && $paymentType !== '') {
                 $entryExtra['payment_type'] = (string) $paymentType;
+            }
+            if (!empty($offers)) {
+                if (is_array($offers)) {
+                    // Store full negotiation offers list (one or more country/currency rows)
+                    $entryExtra['offers'] = array_values($offers);
+                } elseif (is_string($offers)) {
+                    $decodedOffers = json_decode($offers, true);
+                    $entryExtra['offers'] = is_array($decodedOffers) ? array_values($decodedOffers) : $offers;
+                } else {
+                    $entryExtra['offers'] = $offers;
+                }
+            }
+            if ($confirmCurrency !== null && $confirmCurrency !== '') {
+                $entryExtra['confirm_currency'] = strtoupper(trim((string) $confirmCurrency));
             }
 
             if ($fromIsNull) {
@@ -6797,9 +7833,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param string|null           $selectedCurrency
      * @param \Carbon\Carbon|string|null $paymentDate
      * @param string|null           $paymentType
+     * @param array|string|null     $offers  full negotiation offers list (country/currency/amount/etc.)
+     * @param string|null           $confirmCurrency  currency selected when confirming tour
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -6812,7 +7850,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType, $offers, $confirmCurrency);
     }
 
     /**
@@ -7121,6 +8159,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Build currency conversion map keyed by invoice base currency.
+     * Prefers negotiated / final display amount (incl. third-party negotiation_details).
      *
      * @return array<string, float>
      */
@@ -7136,21 +8175,36 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
         $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
-        $gstAmount = $invoice->gst_amount ?? 0;
-        $finalPrice = $baseAmount + $gstAmount;
-        $outstandingBalance = $invoice->outstanding_balance ?? 0;
+        $gstAmount = (float) ($invoice->gst_amount ?? 0);
+        $finalPrice = (float) $baseAmount + $gstAmount;
+        $outstandingBalance = (float) ($invoice->outstanding_balance ?? 0);
 
-        $amountInBase = $shouldShowTax ? (float) $outstandingBalance : (float) $finalPrice;
-        $conversion = [$baseCurrency => $amountInBase];
+        $amountInBase = $shouldShowTax && $outstandingBalance > 0
+            ? (float) $outstandingBalance
+            : (float) $finalPrice;
+        $amountCurrency = $baseCurrency;
 
-        if ($selectedCurrency !== $baseCurrency) {
-            $converted = CurrencyHelper::convertAmount($amountInBase, $baseCurrency, $selectedCurrency);
-            if ($converted !== null) {
-                $conversion[$selectedCurrency] = $converted;
-            }
+        if (self::isInvoiceThirdPartyEnabled($invoice)) {
+            $neg = self::sumNegotiationDetailsInCurrency($invoice, $selectedCurrency, $baseCurrency);
+            $summary = self::buildThirdPartyInvoiceSummary($invoice, $neg, $selectedCurrency, $baseCurrency);
+            $amountInSelected = $shouldShowTax
+                ? max(0, (float) $summary['outstandingBalance'])
+                : (float) $summary['finalPrice'];
+
+            return self::buildInvoiceCurrencyConversionFromAmount(
+                $amountInSelected,
+                $selectedCurrency,
+                $baseCurrency,
+                $selectedCurrency
+            );
         }
 
-        return $conversion;
+        return self::buildInvoiceCurrencyConversionFromAmount(
+            $amountInBase,
+            $amountCurrency,
+            $baseCurrency,
+            $selectedCurrency
+        );
     }
 
     /**
@@ -7250,6 +8304,923 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         return number_format(round($value, $decimals), $decimals);
+    }
+
+    /**
+     * Whether the invoice DMC has third-party multi-country currency display enabled.
+     */
+    public static function isInvoiceThirdPartyEnabled(Invoice $invoice): bool
+    {
+        $invoice->loadMissing(['dmc', 'tour']);
+        $dmc = $invoice->dmc;
+        if (!$dmc && $invoice->dmc_id) {
+            $dmc = User::where('userId', $invoice->dmc_id)->first();
+        }
+        if (!$dmc && $invoice->tour) {
+            $dmcId = $invoice->tour->dmcId ?? $invoice->tour->dmc_id ?? null;
+            if ($dmcId) {
+                $dmc = User::where('userId', $dmcId)->first();
+            }
+        }
+
+        $flag = strtolower(trim((string) ($dmc->thirdparty_enabled ?? 'no')));
+
+        return in_array($flag, ['yes', '1', 'true'], true);
+    }
+
+    /**
+     * Detect multi-country / multi-city booking from tour orders (and invoice item geo).
+     *
+     * @return array{is_multi: bool, countries: list<string>, cities: list<string>, currencies: list<string>}
+     */
+    public static function detectInvoiceMultiGeo(Invoice $invoice): array
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        $countries = [];
+        $cities = [];
+        $currencies = [];
+
+        if ($invoice->tour_id) {
+            $orders = Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+            $base = self::resolveInvoiceBaseCurrency($invoice);
+            foreach ($orders as $order) {
+                $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (!is_array($payload)) {
+                    continue;
+                }
+                $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+                foreach ($bookings as $booking) {
+                    if (!is_array($booking)) {
+                        continue;
+                    }
+                    $geo = self::extractInvoiceItemGeo($order, $booking, $base);
+                    if ($geo['country'] !== '') {
+                        $countries[mb_strtolower($geo['country'])] = $geo['country'];
+                    }
+                    if ($geo['city'] !== '') {
+                        $cities[mb_strtolower($geo['city'])] = $geo['city'];
+                    }
+                    if ($geo['currency'] !== '') {
+                        $currencies[strtoupper($geo['currency'])] = strtoupper($geo['currency']);
+                    }
+                }
+            }
+        }
+
+        if ($invoice->items) {
+            foreach ($invoice->items as $item) {
+                $sd = is_string($item->service_details ?? null)
+                    ? (json_decode($item->service_details, true) ?: [])
+                    : ($item->service_details ?? []);
+                if (!is_array($sd)) {
+                    continue;
+                }
+                $c = trim((string) ($sd['country'] ?? ''));
+                $city = trim((string) ($sd['city'] ?? ''));
+                $cur = strtoupper(trim((string) ($sd['currency'] ?? '')));
+                if ($c !== '') {
+                    $countries[mb_strtolower($c)] = $c;
+                }
+                if ($city !== '') {
+                    $cities[mb_strtolower($city)] = $city;
+                }
+                if ($cur !== '') {
+                    $currencies[$cur] = $cur;
+                }
+            }
+        }
+
+        $countryList = array_values($countries);
+        $cityList = array_values($cities);
+        $currencyList = array_values($currencies);
+
+        return [
+            'is_multi' => count($countryList) > 1 || count($cityList) > 1 || count($currencyList) > 1,
+            'countries' => $countryList,
+            'cities' => $cityList,
+            'currencies' => $currencyList,
+        ];
+    }
+
+    /**
+     * Build a currency conversion map from a display amount already expressed in $amountCurrency.
+     * Used so the conversion box matches Final Price / Outstanding shown on the invoice.
+     *
+     * @return array<string, float>
+     */
+    public static function buildInvoiceCurrencyConversionFromAmount(
+        float $amount,
+        string $amountCurrency,
+        string $baseCurrency,
+        string $selectedCurrency
+    ): array {
+        $amountCurrency = strtoupper(trim($amountCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $amountCurrency;
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $baseCurrency;
+
+        $conversion = [];
+
+        $inBase = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $baseCurrency, $baseCurrency);
+        $conversion[$baseCurrency] = $inBase;
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $inSelected = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $selectedCurrency, $baseCurrency);
+            $conversion[$selectedCurrency] = $inSelected;
+        }
+
+        return $conversion;
+    }
+
+    /**
+     * Extract country / city / currency for an invoice line from order + booking JSON.
+     *
+     * @param  \App\Models\Order|object|null  $order
+     * @param  array<string, mixed>  $booking
+     * @return array{country: string, city: string, currency: string}
+     */
+    public static function extractInvoiceItemGeo($order, array $booking = [], ?string $fallbackCurrency = null): array
+    {
+        $fallbackCurrency = strtoupper(trim((string) ($fallbackCurrency ?: 'SGD'))) ?: 'SGD';
+        $country = '';
+        $city = '';
+
+        if (is_object($order)) {
+            $country = trim((string) ($order->country ?? ''));
+        }
+
+        if ($country === '' && !empty($booking['country']) && is_string($booking['country'])) {
+            $country = trim($booking['country']);
+        }
+
+        $cityCandidates = [
+            $booking['city'] ?? null,
+            $booking['hotelDetails']['city'] ?? null,
+            $booking['AttractionCity'] ?? null,
+            $booking['city_name'] ?? null,
+        ];
+        foreach ($cityCandidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                $city = trim(explode(',', $candidate)[0]);
+                break;
+            }
+        }
+
+        if ($city === '') {
+            $location = $booking['hotelDetails']['location'] ?? ($booking['location'] ?? null);
+            if (is_string($location) && trim($location) !== '') {
+                $city = trim(explode(',', $location)[0]);
+            }
+        }
+
+        $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+        if ($currency === $fallbackCurrency && !empty($booking['currency']) && is_string($booking['currency'])) {
+            $currency = strtoupper(trim($booking['currency'])) ?: $currency;
+        }
+
+        return [
+            'country' => $country,
+            'city' => $city,
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * Resolve native currency stored on an invoice item (service_details).
+     */
+    public static function resolveInvoiceItemCurrency($item, string $fallbackCurrency): string
+    {
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        $sd = [];
+        if (is_object($item)) {
+            $sd = is_string($item->service_details ?? null)
+                ? (json_decode($item->service_details, true) ?: [])
+                : ($item->service_details ?? []);
+        } elseif (is_array($item)) {
+            $sd = $item['service_details'] ?? $item;
+        }
+
+        if (!is_array($sd)) {
+            return $fallbackCurrency;
+        }
+
+        $raw = trim((string) ($sd['currency'] ?? ''));
+        if ($raw === '') {
+            return $fallbackCurrency;
+        }
+
+        return strtoupper($raw);
+    }
+
+    /**
+     * Format a line amount that lives in the booking's own currency for third-party invoices.
+     * Same currency as selected → plain number; otherwise "AMT CUR (CONV SELECTED)".
+     */
+    public static function formatInvoiceItemPrice($amount, ?string $itemCurrency, string $selectedCurrency, string $baseCurrency): string
+    {
+        if (!is_numeric($amount)) {
+            return '0.00';
+        }
+
+        $amt = (float) $amount;
+        $itemCurrency = strtoupper(trim((string) ($itemCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $itemCurrency;
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+
+        if ($itemCurrency === $selectedCurrency) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $itemCurrency, $selectedCurrency);
+        if ($converted === null) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency
+            . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
+    }
+
+    /**
+     * Convert an amount from item/native currency into the selected display currency.
+     */
+    public static function convertInvoiceAmountToSelected($amount, ?string $fromCurrency, string $selectedCurrency, string $baseCurrency): float
+    {
+        $amt = is_numeric($amount) ? (float) $amount : 0.0;
+        $from = strtoupper(trim((string) ($fromCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $to = strtoupper(trim($selectedCurrency)) ?: $from;
+
+        if ($from === $to) {
+            return $amt;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $from, $to);
+
+        return $converted !== null ? (float) $converted : $amt;
+    }
+
+    /**
+     * Group invoice items by country + city for third-party multi-country display.
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     * @return list<array{key: string, country: string, city: string, currency: string, items: \Illuminate\Support\Collection}>
+     */
+    public static function groupInvoiceItemsByGeo($items, string $fallbackCurrency = 'SGD'): array
+    {
+        $collection = $items instanceof \Illuminate\Support\Collection
+            ? $items
+            : collect($items);
+
+        $groups = [];
+        foreach ($collection as $item) {
+            $sd = is_object($item)
+                ? (is_string($item->service_details ?? null) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []))
+                : [];
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+
+            $country = trim((string) ($sd['country'] ?? ''));
+            $city = trim((string) ($sd['city'] ?? ''));
+            $currency = strtoupper(trim((string) ($sd['currency'] ?? $fallbackCurrency))) ?: $fallbackCurrency;
+            $key = mb_strtolower($country . '|' . $city . '|' . $currency);
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'city' => $city,
+                    'currency' => $currency,
+                    'items' => collect(),
+                ];
+            }
+            $groups[$key]['items']->push($item);
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * Section title: "Hotel Service(India, Kolkata)" when third-party geo is present.
+     */
+    public static function invoiceServiceSectionTitle(string $singular, string $plural, array $geoGroup, bool $isThirdParty): string
+    {
+        if (!$isThirdParty) {
+            return $plural;
+        }
+
+        $parts = array_values(array_filter([
+            trim((string) ($geoGroup['country'] ?? '')),
+            trim((string) ($geoGroup['city'] ?? '')),
+        ], static fn ($v) => $v !== ''));
+
+        if ($parts === []) {
+            return $plural;
+        }
+
+        return $singular . '(' . implode(', ', $parts) . ')';
+    }
+
+    /**
+     * Latest enquiry_comments negotiation_details rows for a tour.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function getInvoiceNegotiationDetails(Invoice $invoice): array
+    {
+        $enquiry = \App\Models\Enquiry::where('tour_id', $invoice->tour_id)
+            ->whereNotNull('negotiation_details')
+            ->orderByDesc('enquiry_id')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$enquiry) {
+            return [];
+        }
+
+        $raw = $enquiry->negotiation_details;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            if ($currency === '') {
+                continue;
+            }
+            $rows[] = [
+                'country' => trim((string) ($row['country'] ?? '')),
+                'currency' => $currency,
+                'amount' => (float) ($row['amount'] ?? 0),
+                'actual_amount' => (float) ($row['actual_amount'] ?? ($row['gross'] ?? ($row['amount'] ?? 0))),
+                'gross' => (float) ($row['gross'] ?? ($row['actual_amount'] ?? ($row['amount'] ?? 0))),
+                'target_currency' => strtoupper(trim((string) ($row['target_currency'] ?? ''))),
+                'conversion_rate' => (float) ($row['conversion_rate'] ?? 0),
+                'converted_amount' => isset($row['converted_amount']) ? (float) $row['converted_amount'] : null,
+                'converted_actual_amount' => isset($row['converted_actual_amount']) ? (float) $row['converted_actual_amount'] : null,
+                'converted_gross' => isset($row['converted_gross']) ? (float) $row['converted_gross'] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Convert one negotiation_details row field into selected currency.
+     * Prefer stored converted_* / conversion_rate (same as Add Payment modal).
+     */
+    public static function convertNegotiationRowAmountToSelected(
+        array $row,
+        float $nativeAmount,
+        ?float $storedConverted,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): float {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? $baseCurrency)));
+        $targetCurrency = strtoupper(trim((string) ($row['target_currency'] ?? '')));
+        $rate = (float) ($row['conversion_rate'] ?? 0);
+
+        // Already stored in selected / target currency at confirm time.
+        if ($storedConverted !== null) {
+            if ($targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+                return (float) $storedConverted;
+            }
+            if ($targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency === $baseCurrency) {
+                return (float) $storedConverted;
+            }
+            // Stored converted is in target; convert target → selected if needed.
+            if ($targetCurrency !== '' && $targetCurrency !== $selectedCurrency) {
+                return self::convertInvoiceAmountToSelected($storedConverted, $targetCurrency, $selectedCurrency, $baseCurrency);
+            }
+        }
+
+        if ($fromCurrency === $selectedCurrency) {
+            return (float) $nativeAmount;
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+            return round(max(0, $nativeAmount) * $rate, 2);
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency !== $baseCurrency) {
+            $inBase = round(max(0, $nativeAmount) * $rate, 2);
+
+            return self::convertInvoiceAmountToSelected($inBase, $baseCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return self::convertInvoiceAmountToSelected($nativeAmount, $fromCurrency, $selectedCurrency, $baseCurrency);
+    }
+
+    /**
+     * Sum negotiation_details into selected currency (payment-modal aligned).
+     *
+     * @return array{actual: float, negotiated: float, discount: float, rows: list<array<string, mixed>>}
+     */
+    public static function sumNegotiationDetailsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): array
+    {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $details = self::getInvoiceNegotiationDetails($invoice);
+        $rows = [];
+        $actual = 0.0;
+        $negotiated = 0.0;
+
+        if ($details !== []) {
+            foreach ($details as $row) {
+                $actualSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['actual_amount'],
+                    $row['converted_actual_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $negSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['amount'],
+                    $row['converted_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $discountSel = $actualSel - $negSel;
+                $actual += $actualSel;
+                $negotiated += $negSel;
+                $rows[] = array_merge($row, [
+                    'actual_selected' => $actualSel,
+                    'negotiated_selected' => $negSel,
+                    'discount' => (float) $row['actual_amount'] - (float) $row['amount'],
+                    'discount_selected' => $discountSel,
+                ]);
+            }
+
+            // Match Add Payment modal: ceil country totals into tour/display currency.
+            $actual = (float) ceil($actual);
+            $negotiated = (float) ceil($negotiated);
+
+            return [
+                'actual' => $actual,
+                'negotiated' => $negotiated,
+                'discount' => $actual - $negotiated,
+                'rows' => $rows,
+            ];
+        }
+
+        $fallbackActual = self::sumInvoiceItemsInSelectedCurrency($invoice->items ?? [], $selectedCurrency, $baseCurrency);
+        $fallbackNeg = (float) ($invoice->getNegotiatedAmount() ?? 0);
+        $fallbackNegSelected = $fallbackNeg > 0
+            ? self::convertInvoiceAmountToSelected($fallbackNeg, $baseCurrency, $selectedCurrency, $baseCurrency)
+            : $fallbackActual;
+        $fallbackActual = (float) ceil($fallbackActual);
+        $fallbackNegSelected = (float) ceil($fallbackNegSelected);
+
+        return [
+            'actual' => $fallbackActual,
+            'negotiated' => $fallbackNegSelected,
+            'discount' => $fallbackActual - $fallbackNegSelected,
+            'rows' => [],
+        ];
+    }
+
+    /**
+     * Recalculate VAT/GST on Last Negotiated Amount (same TaxHelper path as Add Payment).
+     *
+     * @return array{total_tax: float, breakdown: array<string, float>}
+     */
+    public static function calculateInvoiceTaxOnNegotiatedAmount(Invoice $invoice, float $negotiatedAmount): array
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        if (!$tour) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        if (!in_array($tourStatus, $statusesWithTax, true)) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $base = (float) ceil(max(0, $negotiatedAmount));
+        $persons = (int) (($tour->adult ?? 0) + ($tour->child ?? 0));
+        $days = TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        $taxResult = TaxHelper::calculateTourTaxes($base, $tour->taxes, $persons, $days);
+
+        return [
+            'total_tax' => (float) ($taxResult['total_tax'] ?? 0),
+            'breakdown' => $taxResult['breakdown'] ?? [],
+        ];
+    }
+
+    /**
+     * Resolve tour currency used when payment_details.amount was stored.
+     */
+    public static function resolveTourPaymentCurrency(Invoice $invoice, string $fallbackCurrency): string
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        if (!$tour) {
+            return $fallbackCurrency;
+        }
+
+        foreach ([
+            $tour->enquiry_currency ?? null,
+            $tour->user_currency ?? null,
+            $tour->currency ?? null,
+        ] as $candidate) {
+            $code = strtoupper(trim((string) $candidate));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallbackCurrency;
+    }
+
+    /**
+     * Sum active tour payments into a target currency.
+     * Always respects payment_details.currency (e.g. USD paid → convert to selected IDR).
+     *
+     * - original_amount + currency = what the client paid
+     * - amount = tour-currency equivalent only when it differs from original (converted at payment time)
+     */
+    public static function sumTourPaymentsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): float
+    {
+        $invoice->loadMissing(['tour']);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+        $tour = $invoice->tour;
+        $tourCurrency = self::resolveTourPaymentCurrency($invoice, $baseCurrency);
+
+        $raw = $tour->payment_details ?? null;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+
+        if (!is_array($raw) || $raw === []) {
+            return self::convertInvoiceAmountToSelected(
+                (float) ($invoice->payment_received ?? 0),
+                $tourCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        $total = 0.0;
+        foreach ($raw as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+            if (!isset($payment['status']) || (int) $payment['status'] !== 1) {
+                continue;
+            }
+
+            $payCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+            $amountField = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
+            $hasOriginal = array_key_exists('original_amount', $payment)
+                && $payment['original_amount'] !== null
+                && $payment['original_amount'] !== '';
+            $originalAmount = $hasOriginal ? (float) $payment['original_amount'] : null;
+            $exchangeRate = (float) ($payment['exchange_rate'] ?? 0);
+
+            // amount was converted into tour currency at payment time
+            $amountIsTourConverted = $payCurrency !== ''
+                && $payCurrency !== $tourCurrency
+                && $originalAmount !== null
+                && abs($amountField - $originalAmount) > 0.009
+                && ($exchangeRate > 0 && abs($exchangeRate - 1.0) > 0.0000001);
+
+            // Selected = tour currency and we have a real tour-currency amount → use it
+            if ($selectedCurrency === $tourCurrency && $amountField > 0 && (
+                $amountIsTourConverted
+                || $payCurrency === ''
+                || $payCurrency === $tourCurrency
+            )) {
+                $total += $amountField;
+                continue;
+            }
+
+            // Otherwise always convert from the currency the client paid in
+            $fromCurrency = $payCurrency !== '' ? $payCurrency : $tourCurrency;
+            $fromAmount = $originalAmount !== null ? $originalAmount : $amountField;
+
+            if ($fromCurrency === $selectedCurrency) {
+                $total += $fromAmount;
+                continue;
+            }
+
+            $total += self::convertInvoiceAmountToSelected(
+                $fromAmount,
+                $fromCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        return $total;
+    }
+
+    /**
+     * Build third-party invoice summary totals aligned with Add Payment modal.
+     *
+     * @return array{
+     *   actualAmount: float,
+     *   negotiatedAmount: float,
+     *   baseAmount: float,
+     *   discount: float,
+     *   gstAmount: float,
+     *   taxBreakdown: array<string, float>,
+     *   finalPrice: float,
+     *   paymentReceived: float,
+     *   outstandingBalance: float
+     * }
+     */
+    public static function buildThirdPartyInvoiceSummary(
+        Invoice $invoice,
+        array $thirdPartyNegotiation,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): array {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+
+        $actualAmount = (float) ($thirdPartyNegotiation['actual'] ?? 0);
+        $negotiatedAmount = (float) ($thirdPartyNegotiation['negotiated'] ?? 0);
+        $discount = $actualAmount - $negotiatedAmount;
+
+        $tax = self::calculateInvoiceTaxOnNegotiatedAmount($invoice, $negotiatedAmount);
+        $gstAmount = (float) ($tax['total_tax'] ?? 0);
+        $taxBreakdown = $tax['breakdown'] ?? [];
+
+        // Never treat payment_received as DMC base currency — use payment_details currencies.
+        $paymentReceived = self::sumTourPaymentsInCurrency($invoice, $selectedCurrency, $baseCurrency);
+
+        $finalPrice = $negotiatedAmount + $gstAmount;
+        $outstandingBalance = $finalPrice - $paymentReceived;
+
+        return [
+            'actualAmount' => $actualAmount,
+            'negotiatedAmount' => $negotiatedAmount,
+            'baseAmount' => $negotiatedAmount,
+            'discount' => $discount,
+            'gstAmount' => $gstAmount,
+            'taxBreakdown' => $taxBreakdown,
+            'finalPrice' => $finalPrice,
+            'paymentReceived' => $paymentReceived,
+            'outstandingBalance' => $outstandingBalance,
+        ];
+    }
+
+    /**
+     * Sum invoice item totals converted into selected currency (third-party mode).
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     */
+    public static function sumInvoiceItemsInSelectedCurrency($items, string $selectedCurrency, string $baseCurrency): float
+    {
+        $total = 0.0;
+        $collection = $items instanceof \Illuminate\Support\Collection ? $items : collect($items);
+        foreach ($collection as $item) {
+            $itemCurrency = self::resolveInvoiceItemCurrency($item, $baseCurrency);
+            $amount = is_object($item) ? (float) ($item->total_price ?? 0) : (float) ($item['total_price'] ?? 0);
+            $total += self::convertInvoiceAmountToSelected($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Backfill country/city/currency onto invoice items from live tour orders (existing invoices).
+     */
+    public static function enrichInvoiceItemsWithOrderGeo(Invoice $invoice): void
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        if (!$invoice->tour_id || !$invoice->items || $invoice->items->isEmpty()) {
+            return;
+        }
+
+        $orders = \App\Models\Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        $baseCurrency = self::resolveInvoiceBaseCurrency($invoice);
+        $pool = [];
+        foreach ($orders as $order) {
+            $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($payload)) {
+                continue;
+            }
+            $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+            foreach ($bookings as $booking) {
+                if (!is_array($booking)) {
+                    continue;
+                }
+                $geo = self::extractInvoiceItemGeo($order, $booking, $baseCurrency);
+                $nameHints = array_filter([
+                    $booking['hotelDetails']['hotel_name'] ?? null,
+                    $booking['AttractionName'] ?? null,
+                    $booking['restaurantName'] ?? null,
+                    $booking['guide_name'] ?? null,
+                    $booking['itemName'] ?? ($booking['item_name'] ?? null),
+                    $booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null),
+                ]);
+                $pool[] = [
+                    'type' => (string) ($order->type ?? ''),
+                    'geo' => $geo,
+                    'hints' => array_map(static fn ($h) => mb_strtolower(trim((string) $h)), $nameHints),
+                ];
+            }
+        }
+
+        foreach ($invoice->items as $item) {
+            $sd = is_string($item->service_details) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []);
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+            if (!empty($sd['currency']) && (!empty($sd['country']) || !empty($sd['city']))) {
+                continue;
+            }
+
+            $type = (string) ($item->item_type ?? '');
+            $desc = mb_strtolower(trim((string) ($item->description ?? '')));
+            $matched = null;
+            foreach ($pool as $entry) {
+                if ($entry['type'] !== $type && !($type === 'local_transport' && $entry['type'] === 'local_transfer')) {
+                    continue;
+                }
+                foreach ($entry['hints'] as $hint) {
+                    if ($hint !== '' && ($desc === $hint || str_contains($desc, $hint) || str_contains($hint, $desc))) {
+                        $matched = $entry['geo'];
+                        break 2;
+                    }
+                }
+                if ($matched === null && $entry['type'] === $type) {
+                    $matched = $entry['geo'];
+                }
+            }
+
+            if ($matched === null) {
+                continue;
+            }
+
+            $sd['country'] = $sd['country'] ?? $matched['country'];
+            $sd['city'] = $sd['city'] ?? $matched['city'];
+            $sd['currency'] = $sd['currency'] ?? $matched['currency'];
+            $item->service_details = $sd;
+        }
+    }
+
+    /**
+     * Display currency for a single order row (all service modals).
+     * Always prefer this order's orders.currency / orders.country for its tour_id + booking_id.
+     * Do not force the DMC/page currency when the order has its own country/currency.
+     *
+     * @param  \App\Models\Order|object|array|null  $order
+     */
+    public static function resolveOrderDisplayCurrency($order, ?string $fallback = null): string
+    {
+        $fallback = strtoupper(trim((string) ($fallback ?: 'SGD'))) ?: 'SGD';
+        if ($order === null) {
+            return $fallback;
+        }
+
+        $rawCurrency = null;
+        $countryName = '';
+        $payload = null;
+
+        if (is_object($order)) {
+            $rawCurrency = isset($order->currency) ? trim((string) $order->currency) : '';
+            $countryName = isset($order->country) ? trim((string) $order->country) : '';
+            $payload = $order->data ?? null;
+        } elseif (is_array($order)) {
+            $rawCurrency = isset($order['currency']) ? trim((string) $order['currency']) : '';
+            $countryName = isset($order['country']) ? trim((string) $order['country']) : '';
+            $payload = $order['data'] ?? $order;
+        }
+
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            $payload = is_array($decoded) ? $decoded : null;
+        }
+        if (is_array($payload)) {
+            $first = (isset($payload[0]) && is_array($payload[0])) ? $payload[0] : $payload;
+            if ($rawCurrency === '' && is_array($first)) {
+                foreach (['currency', 'currency_code'] as $key) {
+                    if (!empty($first[$key]) && is_string($first[$key])) {
+                        $rawCurrency = trim($first[$key]);
+                        break;
+                    }
+                }
+            }
+            if ($countryName === '' && is_array($first) && !empty($first['country']) && is_string($first['country'])) {
+                $countryName = trim($first['country']);
+            }
+        }
+
+        // Broad display allow-list (not limited to payment currencies)
+        $displayCodes = array_values(array_unique(array_merge(
+            self::getPaymentAvailableCurrencies(),
+            [
+                'SGD', 'USD', 'EUR', 'GBP', 'INR', 'IDR', 'VND', 'THB', 'MYR', 'AUD', 'AED',
+                'PHP', 'JPY', 'CNY', 'HKD', 'KRW', 'TWD', 'NZD', 'CAD', 'CHF', 'SAR', 'QAR',
+                'BDT', 'LKR', 'PKR', 'NPR', 'MMK', 'KHR', 'LAK', 'BND',
+            ]
+        )));
+
+        $toCode = static function (?string $raw) use ($displayCodes): string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return '';
+            }
+            $upper = strtoupper($raw);
+            if (strlen($upper) === 3 && ctype_alpha($upper)) {
+                return $upper;
+            }
+
+            return CurrencyHelper::normalizeCurrencyToCode($raw, $displayCodes, '');
+        };
+
+        // 1) orders.currency column (this booking_id row)
+        $code = $toCode($rawCurrency);
+        if ($code !== '') {
+            return $code;
+        }
+
+        // 2) orders.country → countries.currency
+        if ($countryName !== '') {
+            $country = Country::query()
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($countryName)])
+                ->first(['name', 'currency']);
+            $code = $toCode($country->currency ?? null);
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * Human-readable meal plan label from hotel rooms/beds JSON.
+     * Prefer selectedMeals[].type, then mealTypes entries (string or {type}).
+     *
+     * @param  array|null  $rooms
+     */
+    public static function resolveHotelMealPlanLabel($rooms): string
+    {
+        if (!is_array($rooms) || count($rooms) === 0) {
+            return 'Room Only';
+        }
+
+        $firstRoom = $rooms[0] ?? null;
+        if (!is_array($firstRoom)) {
+            return 'Room Only';
+        }
+
+        $beds = $firstRoom['beds'] ?? null;
+        if (!is_array($beds) || count($beds) === 0) {
+            return 'Room Only';
+        }
+
+        $firstBed = $beds[0] ?? null;
+        if (!is_array($firstBed)) {
+            return 'Room Only';
+        }
+
+        $selected = $firstBed['selectedMeals'] ?? null;
+        if (is_array($selected) && count($selected) > 0) {
+            $labels = [];
+            foreach ($selected as $meal) {
+                if (is_string($meal) && trim($meal) !== '') {
+                    $labels[] = trim($meal);
+                } elseif (is_array($meal) && !empty($meal['type'])) {
+                    $labels[] = trim((string) $meal['type']);
+                }
+            }
+            if (count($labels) > 0) {
+                return implode(', ', $labels);
+            }
+        }
+
+        $mealTypes = $firstBed['mealTypes'] ?? null;
+        if (is_array($mealTypes) && count($mealTypes) > 0) {
+            $first = reset($mealTypes);
+            if (is_string($first) && trim($first) !== '') {
+                return trim($first);
+            }
+            if (is_array($first) && !empty($first['type'])) {
+                return trim((string) $first['type']);
+            }
+        }
+
+        return 'Room Only';
     }
 
     // Get DMC Dynamic Currency

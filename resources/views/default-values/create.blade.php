@@ -5,19 +5,22 @@
 @push('css')
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 <style>
-    .default-value-service-select + .select2-container--default .select2-selection--single {
+    .default-value-service-select + .select2-container--default .select2-selection--single,
+    #city + .select2-container--default .select2-selection--single {
         height: 38px !important;
         border: 1px solid #d9dee3 !important;
         border-radius: 0.375rem !important;
         display: flex !important;
         align-items: center !important;
     }
-    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__rendered {
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__rendered,
+    #city + .select2-container--default .select2-selection--single .select2-selection__rendered {
         line-height: 36px !important;
         padding-left: 0.75rem !important;
         color: #697a8d !important;
     }
-    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__arrow {
+    .default-value-service-select + .select2-container--default .select2-selection--single .select2-selection__arrow,
+    #city + .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 36px !important;
     }
     .select2-container--default.select2-container--focus .select2-selection--single,
@@ -33,7 +36,6 @@
         <span class="text-muted fw-light">Default Values /</span> Add New
     </h4>
 
-    <!-- Display validation errors -->
     @if($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <strong>Validation Error!</strong>
@@ -58,41 +60,71 @@
             <h5>Add Default Value</h5>
         </div>
         <div class="card-body">
+            <div class="alert alert-info mb-4">
+                <i class="ri-information-line me-2"></i>
+                Set one default per <strong>service type + country + city</strong> (e.g. Hotel for Singapore, Hotel for Batam).
+                Once a type is saved for a city, you cannot add another for that same city — use Edit instead.
+            </div>
+
             <form action="{{ route('default-values.store') }}" method="POST" id="defaultValueForm">
                 @csrf
 
                 <div class="row">
-                    <!-- Service Type -->
+                    <div class="col-md-6 mb-3">
+                        <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
+                        <select name="country" id="country" class="form-select @error('country') is-invalid @enderror" required>
+                            <option value="">Select Country</option>
+                            @foreach($countries as $country)
+                                <option value="{{ $country->name }}" {{ old('country') == $country->name ? 'selected' : '' }}>
+                                    {{ $country->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('country')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                        <select name="city" id="city" class="form-select @error('city') is-invalid @enderror" data-placeholder="Search and select a city" required>
+                            <option value="">Select City</option>
+                        </select>
+                        @error('city')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="name" class="form-label">Service Type <span class="text-danger">*</span></label>
                         <select name="name" id="name" class="form-select @error('name') is-invalid @enderror" required>
                             <option value="">Select Service Type</option>
                             @foreach($availableTypes as $type)
-                                <option value="{{ $type }}" {{ old('name') == $type ? 'selected' : '' }}>
-                                    @if($type == 'hotel')
-                                        Hotel
-                                    @elseif($type == 'restaurant')
-                                        Restaurant
-                                    @elseif($type == 'attraction')
-                                        Attraction
-                                    @elseif($type == 'car_private')
-                                        Car (Private)
-                                    @elseif($type == 'car_shared')
-                                        Car (Shared)
-                                    @elseif($type == 'port')
-                                        Port
-                                    @elseif($type == 'guide')
-                                        Guide
-                                    @endif
+                                @php
+                                    $typeLabels = [
+                                        'hotel' => 'Hotel',
+                                        'restaurant' => 'Restaurant',
+                                        'attraction' => 'Attraction',
+                                        'car_private' => 'Car (Private)',
+                                        'car_shared' => 'Car (Shared)',
+                                        'port' => 'Port',
+                                        'guide' => 'Guide',
+                                    ];
+                                    $typeLabel = $typeLabels[$type] ?? ucfirst(str_replace('_', ' ', $type));
+                                @endphp
+                                <option value="{{ $type }}" data-label="{{ $typeLabel }}" {{ old('name') == $type ? 'selected' : '' }}>
+                                    {{ $typeLabel }}
                                 </option>
                             @endforeach
                         </select>
+                        <small class="text-muted" id="typeHint"></small>
                         @error('name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    <!-- Status -->
                     <div class="col-md-6 mb-3">
                         <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
                         <select name="status" id="status" class="form-select @error('status') is-invalid @enderror" required>
@@ -105,117 +137,14 @@
                     </div>
                 </div>
 
-                <!-- Service Selection (dynamically shown based on service type) -->
                 <div class="row">
-                    <!-- Hotel -->
-                    <div class="col-md-12 mb-3 service-select" id="hotel-select" style="display: none;">
-                        <label for="hotel_service_id" class="form-label">Select Hotel <span class="text-danger">*</span></label>
-                        <select name="service_id_hotel" id="hotel_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a hotel">
-                            <option value="">Select Hotel</option>
-                            @foreach($hotels as $hotel)
-                                <option value="{{ $hotel->hotel_unique_id }}" {{ old('service_id') == $hotel->hotel_unique_id ? 'selected' : '' }}>
-                                    {{ $hotel->name }}
-                                </option>
-                            @endforeach
+                    <div class="col-md-12 mb-3">
+                        <label for="service_select" class="form-label">Select Service <span class="text-danger">*</span></label>
+                        <select id="service_select" class="form-select default-value-service-select" data-placeholder="Search and select a service" disabled>
+                            <option value="">Select country, city and service type first</option>
                         </select>
+                        <input type="hidden" name="service_id" id="service_id" value="{{ old('service_id') }}">
                     </div>
-
-                    <!-- Restaurant -->
-                    <div class="col-md-12 mb-3 service-select" id="restaurant-select" style="display: none;">
-                        <label for="restaurant_service_id" class="form-label">Select Restaurant <span class="text-danger">*</span></label>
-                        <select name="service_id_restaurant" id="restaurant_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a restaurant">
-                            <option value="">Select Restaurant</option>
-                            @foreach($restaurants as $restaurant)
-                                <option value="{{ $restaurant->restaurant_id }}" {{ old('service_id') == $restaurant->restaurant_id ? 'selected' : '' }}>
-                                    {{ $restaurant->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Attraction -->
-                    <div class="col-md-12 mb-3 service-select" id="attraction-select" style="display: none;">
-                        <label for="attraction_service_id" class="form-label">Select Attraction <span class="text-danger">*</span></label>
-                        <select name="service_id_attraction" id="attraction_service_id" class="form-select default-value-service-select" data-placeholder="Search and select an attraction">
-                            <option value="">Select Attraction</option>
-                            @foreach($attractions as $attraction)
-                                <option value="{{ $attraction->attraction_id }}" {{ old('service_id') == $attraction->attraction_id ? 'selected' : '' }}>
-                                    {{ $attraction->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Car Private -->
-                    <div class="col-md-12 mb-3 service-select" id="car_private-select" style="display: none;">
-                        <label for="car_private_service_id" class="form-label">Select Car (Private) <span class="text-danger">*</span></label>
-                        <select name="service_id_car_private" id="car_private_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a car (private)">
-                            <option value="">Select Car (Private)</option>
-                            @foreach($privateVehicles as $vehicle)
-                                @php
-                                    $sharableLabel = match($vehicle->sharable) {
-                                        1 => 'Private',
-                                        2 => 'Shared',
-                                        3 => 'Both',
-                                        default => 'Unknown'
-                                    };
-                                @endphp
-                                <option value="{{ $vehicle->vehicle_id }}" {{ old('service_id') == $vehicle->vehicle_id ? 'selected' : '' }}>
-                                    {{ $vehicle->vehicle_name }} ({{ ucfirst($vehicle->vehicle_type) }} - {{ $sharableLabel }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Car Shared -->
-                    <div class="col-md-12 mb-3 service-select" id="car_shared-select" style="display: none;">
-                        <label for="car_shared_service_id" class="form-label">Select Car (Shared) <span class="text-danger">*</span></label>
-                        <select name="service_id_car_shared" id="car_shared_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a car (shared)">
-                            <option value="">Select Car (Shared)</option>
-                            @foreach($sharedVehicles as $vehicle)
-                                @php
-                                    $sharableLabel = match($vehicle->sharable) {
-                                        1 => 'Private',
-                                        2 => 'Shared',
-                                        3 => 'Both',
-                                        default => 'Unknown'
-                                    };
-                                @endphp
-                                <option value="{{ $vehicle->vehicle_id }}" {{ old('service_id') == $vehicle->vehicle_id ? 'selected' : '' }}>
-                                    {{ $vehicle->vehicle_name }} ({{ ucfirst($vehicle->vehicle_type) }} - {{ $sharableLabel }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Port -->
-                    <div class="col-md-12 mb-3 service-select" id="port-select" style="display: none;">
-                        <label for="port_service_id" class="form-label">Select Port <span class="text-danger">*</span></label>
-                        <select name="service_id_port" id="port_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a port">
-                            <option value="">Select Port</option>
-                            @foreach($ports as $port)
-                                <option value="{{ $port->port_id }}" {{ old('service_id') == $port->port_id ? 'selected' : '' }}>
-                                    {{ $port->port_name }}{{ $port->country ? ' - ' . $port->country : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Guide -->
-                    <div class="col-md-12 mb-3 service-select" id="guide-select" style="display: none;">
-                        <label for="guide_service_id" class="form-label">Select Guide <span class="text-danger">*</span></label>
-                        <select name="service_id_guide" id="guide_service_id" class="form-select default-value-service-select" data-placeholder="Search and select a guide">
-                            <option value="">Select Guide</option>
-                            @foreach($guides as $guide)
-                                <option value="{{ $guide->guide_id }}" {{ old('service_id') == $guide->guide_id ? 'selected' : '' }}>
-                                    {{ $guide->name }}{{ $guide->email ? ' - ' . $guide->email : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Hidden field for actual service_id -->
-                    <input type="hidden" name="service_id" id="service_id" value="{{ old('service_id') }}">
                 </div>
 
                 <div class="mt-4">
@@ -235,91 +164,172 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    const $nameSelect = $('#name');
-    const $serviceSelects = $('.service-select');
-    const $serviceIdInput = $('#service_id');
+    const citiesByCountry = @json($citiesByCountry ?? []);
+    const existingDefaults = @json($existingDefaults ?? []);
+    const getServicesUrl = @json(route('default-values.get-services'));
+    const oldCity = @json(old('city', ''));
+    const oldServiceId = @json(old('service_id', ''));
 
-    function initServiceSelect2(selectElement) {
-        const $el = $(selectElement);
-        if (!$el.length) return;
-        if ($el.data('select2')) {
-            $el.select2('destroy');
+    const $country = $('#country');
+    const $city = $('#city');
+    const $name = $('#name');
+    const $serviceSelect = $('#service_select');
+    const $serviceId = $('#service_id');
+    const $typeHint = $('#typeHint');
+
+    function initSelect2() {
+        if ($serviceSelect.data('select2')) {
+            $serviceSelect.select2('destroy');
         }
-        $el.select2({
-            placeholder: $el.data('placeholder') || 'Search and select',
+        $serviceSelect.select2({
+            placeholder: $serviceSelect.data('placeholder') || 'Search and select',
             allowClear: true,
             width: '100%'
         });
     }
 
-    function destroyServiceSelect2(selectElement) {
-        const $el = $(selectElement);
-        if ($el.length && $el.data('select2')) {
-            $el.select2('destroy');
+    function initCitySelect2(preferredCity) {
+        if ($city.data('select2')) {
+            $city.select2('destroy');
+        }
+        $city.select2({
+            placeholder: $city.data('placeholder') || 'Search and select a city',
+            allowClear: true,
+            width: '100%'
+        });
+        if (preferredCity) {
+            $city.val(preferredCity).trigger('change.select2');
         }
     }
 
-    function toggleServiceSelect() {
-        const selectedType = $nameSelect.val();
+    function populateCities(selectedCountry, preferredCity) {
+        $city.empty().append('<option value="">Select City</option>');
+        const list = citiesByCountry[selectedCountry] || [];
+        list.forEach(function(c) {
+            const opt = $('<option></option>').val(c.name).text(c.name);
+            if (preferredCity && preferredCity === c.name) {
+                opt.prop('selected', true);
+            }
+            $city.append(opt);
+        });
+        initCitySelect2(preferredCity || '');
+    }
 
-        $serviceSelects.each(function() {
-            $(this).hide();
-            const selectElement = this.querySelector('select');
-            if (selectElement) {
-                selectElement.removeAttribute('required');
-                destroyServiceSelect2(selectElement);
+    function isTypeTaken(type, country, city) {
+        return existingDefaults.some(function(row) {
+            return row.name === type
+                && String(row.country || '') === String(country || '')
+                && String(row.city || '') === String(city || '');
+        });
+    }
+
+    function refreshTypeOptions() {
+        const country = $country.val();
+        const city = $city.val();
+        $name.find('option').each(function() {
+            const $opt = $(this);
+            const type = $opt.val();
+            if (!type) return;
+            const taken = country && city && isTypeTaken(type, country, city);
+            $opt.prop('disabled', !!taken);
+            if (taken && $opt.is(':selected')) {
+                $name.val('');
             }
         });
-
-        if (selectedType) {
-            const $targetSelect = $('#' + selectedType + '-select');
-            if ($targetSelect.length) {
-                $targetSelect.show();
-                const selectElement = $targetSelect.find('select')[0];
-                if (selectElement) {
-                    selectElement.setAttribute('required', 'required');
-                    initServiceSelect2(selectElement);
-                    const savedId = $serviceIdInput.val();
-                    if (savedId) {
-                        $(selectElement).val(savedId).trigger('change.select2');
-                    }
-                }
-            }
+        if (country && city) {
+            $typeHint.text('Types already set for ' + city + ' are disabled.');
+        } else {
+            $typeHint.text('Select country and city to see which types are still available.');
         }
     }
 
-    function updateServiceId() {
-        const selectedType = $nameSelect.val();
-        if (!selectedType) {
-            $serviceIdInput.val('');
+    function loadServices() {
+        const type = $name.val();
+        const country = $country.val();
+        const city = $city.val();
+        $serviceId.val('');
+
+        if (!type || !country || !city) {
+            $serviceSelect.prop('disabled', true).empty()
+                .append('<option value="">Select country, city and service type first</option>');
+            initSelect2();
             return;
         }
-        const $selectElement = $('#' + selectedType + '-select').find('select');
-        if ($selectElement.length) {
-            $serviceIdInput.val($selectElement.val() || '');
+
+        if (isTypeTaken(type, country, city)) {
+            $serviceSelect.prop('disabled', true).empty()
+                .append('<option value="">Already configured for this city — edit existing</option>');
+            initSelect2();
+            return;
         }
+
+        $serviceSelect.prop('disabled', true).empty()
+            .append('<option value="">Loading...</option>');
+        initSelect2();
+
+        $.get(getServicesUrl, { type: type, country: country, city: city })
+            .done(function(services) {
+                $serviceSelect.empty().append('<option value="">Select Service</option>');
+                (services || []).forEach(function(s) {
+                    const opt = $('<option></option>').val(s.id).text(s.name);
+                    if (oldServiceId && String(oldServiceId) === String(s.id)) {
+                        opt.prop('selected', true);
+                        $serviceId.val(s.id);
+                    }
+                    $serviceSelect.append(opt);
+                });
+                if (!services || !services.length) {
+                    $serviceSelect.append('<option value="" disabled>No matching products for this city</option>');
+                }
+                $serviceSelect.prop('disabled', false);
+                initSelect2();
+            })
+            .fail(function() {
+                $serviceSelect.empty().append('<option value="">Failed to load services</option>');
+                initSelect2();
+            });
     }
 
-    $nameSelect.on('change', function() {
-        $serviceIdInput.val('');
-        toggleServiceSelect();
-        updateServiceId();
+    $country.on('change', function() {
+        populateCities($country.val(), '');
+        refreshTypeOptions();
+        loadServices();
     });
 
-    $(document).on('change select2:select select2:clear', '.default-value-service-select', updateServiceId);
+    $city.on('change', function() {
+        refreshTypeOptions();
+        loadServices();
+    });
 
-    toggleServiceSelect();
-    if ($nameSelect.val()) {
-        updateServiceId();
+    $name.on('change', loadServices);
+
+    $serviceSelect.on('change select2:select select2:clear', function() {
+        $serviceId.val($serviceSelect.val() || '');
+    });
+
+    // Init from old input / first load
+    if ($country.val()) {
+        populateCities($country.val(), oldCity);
+    } else {
+        initCitySelect2('');
     }
+    refreshTypeOptions();
+    loadServices();
+    initSelect2();
 
     $('#defaultValueForm').on('submit', function(e) {
-        if (!$nameSelect.val()) {
+        if (!$country.val() || !$city.val() || !$name.val()) {
             e.preventDefault();
-            alert('Please select a service type.');
+            alert('Please select country, city and service type.');
             return false;
         }
-        if (!$serviceIdInput.val()) {
+        if (isTypeTaken($name.val(), $country.val(), $city.val())) {
+            e.preventDefault();
+            alert('This service type is already set for the selected city.');
+            return false;
+        }
+        $serviceId.val($serviceSelect.val() || '');
+        if (!$serviceId.val()) {
             e.preventDefault();
             alert('Please select a service.');
             return false;
@@ -329,4 +339,3 @@ $(document).ready(function() {
 </script>
 @endpush
 @endsection
-

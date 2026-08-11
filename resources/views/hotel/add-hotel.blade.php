@@ -59,7 +59,37 @@
         width: 60%;
     }
 
+    .hotel-save-loader {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hotel-save-loader.active {
+        display: flex;
+    }
+
+    .hotel-save-loader__box {
+        background: #fff;
+        border-radius: 0.5rem;
+        padding: 1.25rem 1.5rem;
+        min-width: 180px;
+        text-align: center;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    }
+
 </style>
+
+<div id="hotelSaveLoader" class="hotel-save-loader" aria-live="polite" aria-busy="false">
+    <div class="hotel-save-loader__box">
+        <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
+        <div class="fw-semibold">Saving hotel...</div>
+    </div>
+</div>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -257,27 +287,27 @@
                             <select name="hotel_segment" id="segment" class="form-control" required>
                                 <option value="">Select Ownership</option>
                                 <!-- <option value="0">Third Party</option> -->
-                                <option value="1">Budget/Economy Hotels</option>
-                                <option value="2">Mid-Range Hotels</option>
-                                <option value="3">Luxury Hotels</option>
-                                <option value="4">Boutique Hotels</option>
-                                <option value="5">Resort Hotels</option>
-                                <option value="6">Business Hotels</option>
-                                <option value="7">Airport Hotels</option>
-                                <option value="8">Extended Stay Hotels</option>
-                                <option value="9">Family Hotels</option>
-                                <option value="10">Romantic / Getaway Hotels</option>
-                                <option value="11">Adventure Hotels</option>
-                                <option value="12">Wellness / Spa Hotels</option>
-                                <option value="13">Eco-Friendly / Sustainable Hotels</option>
-                                <option value="14">Extended Stay / Serviced Apartments</option>
-                                <option value="15">Conference & Convention Hotels</option>
-                                <option value="16">Casino Hotels</option>
-                                <option value="17">Cultural / Heritage Hotels</option>
-                                <option value="18">Religious or Pilgrimage Hotels</option>
-                                <option value="19">Medical or Wellness Tourism Hotels</option>
+                                <option value="1" {{ old('hotel_segment') == '1' ? 'selected' : '' }}>Budget/Economy Hotels</option>
+                                <option value="2" {{ old('hotel_segment') == '2' ? 'selected' : '' }}>Mid-Range Hotels</option>
+                                <option value="3" {{ old('hotel_segment') == '3' ? 'selected' : '' }}>Luxury Hotels</option>
+                                <option value="4" {{ old('hotel_segment') == '4' ? 'selected' : '' }}>Boutique Hotels</option>
+                                <option value="5" {{ old('hotel_segment') == '5' ? 'selected' : '' }}>Resort Hotels</option>
+                                <option value="6" {{ old('hotel_segment') == '6' ? 'selected' : '' }}>Business Hotels</option>
+                                <option value="7" {{ old('hotel_segment') == '7' ? 'selected' : '' }}>Airport Hotels</option>
+                                <option value="8" {{ old('hotel_segment') == '8' ? 'selected' : '' }}>Extended Stay Hotels</option>
+                                <option value="9" {{ old('hotel_segment') == '9' ? 'selected' : '' }}>Family Hotels</option>
+                                <option value="10" {{ old('hotel_segment') == '10' ? 'selected' : '' }}>Romantic / Getaway Hotels</option>
+                                <option value="11" {{ old('hotel_segment') == '11' ? 'selected' : '' }}>Adventure Hotels</option>
+                                <option value="12" {{ old('hotel_segment') == '12' ? 'selected' : '' }}>Wellness / Spa Hotels</option>
+                                <option value="13" {{ old('hotel_segment') == '13' ? 'selected' : '' }}>Eco-Friendly / Sustainable Hotels</option>
+                                <option value="14" {{ old('hotel_segment') == '14' ? 'selected' : '' }}>Extended Stay / Serviced Apartments</option>
+                                <option value="15" {{ old('hotel_segment') == '15' ? 'selected' : '' }}>Conference & Convention Hotels</option>
+                                <option value="16" {{ old('hotel_segment') == '16' ? 'selected' : '' }}>Casino Hotels</option>
+                                <option value="17" {{ old('hotel_segment') == '17' ? 'selected' : '' }}>Cultural / Heritage Hotels</option>
+                                <option value="18" {{ old('hotel_segment') == '18' ? 'selected' : '' }}>Religious or Pilgrimage Hotels</option>
+                                <option value="19" {{ old('hotel_segment') == '19' ? 'selected' : '' }}>Medical or Wellness Tourism Hotels</option>
                             </select>
-                            @error('hotel_ownership')
+                            @error('hotel_segment')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
@@ -333,7 +363,7 @@
                                 <select class="form-control" id="country" name="country" required>
                                     <option value="">Select Country</option>
                                     @foreach($country as $c)
-                                        <option value="{{ $c->name }}">
+                                        <option value="{{ $c->name }}" {{ old('country') == $c->name ? 'selected' : '' }}>
                                             {{ $c->name }}
                                         </option>
                                     @endforeach
@@ -357,7 +387,8 @@
 
                         <!-- State -->
                         <div class="mb-3 col-md-4">
-                            <label for="state" class="form-label"><strong>State/Provision</strong>
+                            <label for="state" class="form-label"><strong>State/Province</strong>
+                                <span class="text-muted small">(Optional)</span>
                             </label>
                             <input type="text" class="form-control" id="state" name="state" placeholder="Enter State" value="{{ old('state') }}">
                             @error('state')
@@ -370,7 +401,7 @@
                             <label for="pincode" class="form-label"><strong>Postal Code</strong>
                                 <span style="color: red; font-weight: bold;">*</span>
                             </label>
-                            <input type="test" class="form-control" id="pincode" name="pincode"
+                            <input type="text" class="form-control" id="pincode" name="pincode"
                                    placeholder="Enter Postal Code" required
                                    oninput="validatePincode(this)"
                                    value="{{ old('pincode') }}">
@@ -449,13 +480,14 @@
                                 </sup>
                             </label>
                             <select name="weekend_days[]" id="weekend_days" class="form-control" multiple required>
-                                <option value="Saturday">Saturday</option>
-                                <option value="Sunday">Sunday</option>
-                                <option value="Friday">Friday</option>
-                                <option value="Thursday">Thursday</option>
-                                <option value="Wednesday">Wednesday</option>
-                                <option value="Tuesday">Tuesday</option>
-                                <option value="Monday">Monday</option>
+                                @php $oldWeekends = old('weekend_days', []); @endphp
+                                <option value="Saturday" {{ in_array('Saturday', $oldWeekends) ? 'selected' : '' }}>Saturday</option>
+                                <option value="Sunday" {{ in_array('Sunday', $oldWeekends) ? 'selected' : '' }}>Sunday</option>
+                                <option value="Friday" {{ in_array('Friday', $oldWeekends) ? 'selected' : '' }}>Friday</option>
+                                <option value="Thursday" {{ in_array('Thursday', $oldWeekends) ? 'selected' : '' }}>Thursday</option>
+                                <option value="Wednesday" {{ in_array('Wednesday', $oldWeekends) ? 'selected' : '' }}>Wednesday</option>
+                                <option value="Tuesday" {{ in_array('Tuesday', $oldWeekends) ? 'selected' : '' }}>Tuesday</option>
+                                <option value="Monday" {{ in_array('Monday', $oldWeekends) ? 'selected' : '' }}>Monday</option>
                             </select>
                             <small class="form-text text-muted">Select the weekend days (use Ctrl or Cmd to select
                                 multiple
@@ -646,16 +678,21 @@
 
                         <div class="row col-md-12">
                             <!-- Master image -->
-                            <div class="mt-3 mb-3 col-md-4">
+                            <div class="mt-3 mb-3 col-md-4" id="master-image-field-wrap">
                                 <div>
                                     <label for="master_image" class="form-label"><strong>Master
                                             Image</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <div id="master-drop-area" class="form-control"
                                         style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                         Drag & Drop your files here or click to upload.
-                                        <input type="file" id="master_image" name="master_image" style="display: none;"
-                                            required>
+                                        {{-- No HTML required — validate on Save so we can show a clear message --}}
+                                        <input type="file" id="master_image" name="master_image" accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                                     </div>
+                                    <small class="text-muted d-block mt-1">Accepted: JPEG, PNG, WEBP, GIF. Maximum size: <strong>5 MB</strong>.</small>
+                                    <div id="master-image-error" class="text-danger mt-1" style="display:none;">Please upload master image.</div>
+                                    @error('master_image')
+                                        <div class="text-danger mt-1 master-image-server-error">{{ $message }}</div>
+                                    @enderror
                                 </div>
                                 <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                     style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
@@ -666,28 +703,39 @@
                             <div class="mt-3 mb-3 col-md-8">
                                 <div>
                                     <label for="images" class="form-label"><strong>Additional
-                                            Images</strong></label>
+                                            Images</strong> <span class="text-muted small">(Optional)</span></label>
                                     <div id="drop-area" class="form-control"
                                         style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                         Drag & Drop your files here or click to upload.
-                                        <input type="file" id="images" name="images[]" multiple style="display: none;">
+                                        {{-- Picker only (no name) — files are synced into all_images[] below --}}
+                                        <input type="file" id="images" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display: none;">
                                     </div>
+                                    <small class="text-muted d-block mt-1">Optional gallery images. Large images are auto-compressed. Max <strong>5 MB</strong> per file after compression.</small>
+                                    <div id="additional-images-error" class="text-danger mt-1" style="display:none;"></div>
+                                    @error('all_images')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                    @error('all_images.*')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
 
                                     <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
                                         style="max-width: 100%; overflow-x: auto; white-space: nowrap;">
                                     </div>
                                 </div>
-                                <input type="file" name="all_images[]" id="all-images" style="display: none;">
+                                {{-- Must include multiple or only 1 file is submitted --}}
+                                <input type="file" name="all_images[]" id="all-images" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display: none;">
 
                             </div>
                         </div>
 
-                        <div class="col-md-12 mb-3">
+                        <div class="col-md-12 mb-3" id="description-field-wrap">
                             <label for="description" class="form-label"><strong>Hotel Description</strong><span
                                     style="color: red;">*</span></label>
-                            <textarea id="summernote" name="description" class="form-control" rows="10">{{ old('description') }}</textarea required>
+                            <textarea id="summernote" name="description" class="form-control @error('description') is-invalid @enderror" rows="10">{{ old('description') }}</textarea>
+                            <div id="description-client-error" class="text-danger mt-1" style="display:none;">Hotel description is mandatory.</div>
                         @error('description')
-                            <div class="text-danger mt-1">{{ $message }}</div>
+                            <div class="text-danger mt-1 description-server-error">{{ $message }}</div>
                         @enderror
                         </div>
 
@@ -695,7 +743,7 @@
                     <div class="form-check form-switch" style = "padding-left: 3.450em;">
                         <label for="hotel_status" class="form-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
                         <input type="hidden" name="hotel_status" value="0">
-                        <input class="form-check-input" name="hotel_status" type="checkbox" id="hotel_status" value="1" required>
+                        <input class="form-check-input" name="hotel_status" type="checkbox" id="hotel_status" value="1" {{ old('hotel_status', '1') == '1' ? 'checked' : '' }}>
                         <label class="form-check-label"></label>
                         @error('hotel_status')
                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -704,7 +752,13 @@
 
                     <!-- Submit Button -->
                     <div class="d-flex align-items-center gap-3">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" id="hotelSaveBtn" class="btn btn-primary px-4">
+                            <span class="hotel-save-btn-text">Save</span>
+                            <span class="hotel-save-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -1477,22 +1531,117 @@
         handleFiles(e.dataTransfer.files);
     });
 
-    function handleFiles(newFiles) {
-        // Append new files to the list
-        files = [...files, ...Array.from(newFiles)];
+    const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB after compression
+
+    function compressHotelImage(file, quality = 0.8, maxWidth = 1920, maxHeight = 1080) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = function () {
+                let { width, height } = img;
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                if (height > maxHeight) {
+                    width = (width * maxHeight) / height;
+                    height = maxHeight;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                const outType = (file.type === 'image/png' || file.type === 'image/webp') ? file.type : 'image/jpeg';
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('Compression failed'));
+                        return;
+                    }
+                    const name = outType === 'image/jpeg' && !/\.jpe?g$/i.test(file.name)
+                        ? file.name.replace(/\.\w+$/, '.jpg')
+                        : file.name;
+                    resolve(new File([blob], name, { type: outType, lastModified: Date.now() }));
+                }, outType, quality);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    async function compressUntilUnderLimit(file) {
+        if (file.size <= MAX_IMAGE_BYTES) {
+            return file;
+        }
+        let quality = 0.8;
+        let compressed = await compressHotelImage(file, quality, 1600, 1200);
+        while (compressed.size > MAX_IMAGE_BYTES && quality > 0.4) {
+            quality -= 0.15;
+            compressed = await compressHotelImage(file, quality, 1280, 960);
+        }
+        return compressed;
+    }
+
+    function syncAllImagesInput() {
+        if (!allImagesInput) return;
+        const dt = new DataTransfer();
+        files.forEach((file) => dt.items.add(file));
+        allImagesInput.files = dt.files;
+    }
+
+    async function handleFiles(newFiles) {
+        const errEl = document.getElementById('additional-images-error');
+        const rejected = [];
+        const accepted = [];
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.innerHTML = '<div class="alert alert-info py-2 px-3 mb-0"><i class="fas fa-spinner fa-spin"></i> Preparing images...</div>';
+        fileList.appendChild(loadingDiv);
+
+        for (const file of Array.from(newFiles || [])) {
+            if (!file.type.startsWith('image/')) {
+                rejected.push(`${file.name} is not a valid image file.`);
+                continue;
+            }
+            // Hard reject extremely large originals (>25MB) before trying compression
+            if (file.size > 25 * 1024 * 1024) {
+                rejected.push(`${file.name} is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please use an image under 25 MB.`);
+                continue;
+            }
+            try {
+                const prepared = await compressUntilUnderLimit(file);
+                if (prepared.size > MAX_IMAGE_BYTES) {
+                    rejected.push(`${file.name} could not be compressed under 5 MB. Please use a smaller image.`);
+                    continue;
+                }
+                accepted.push(prepared);
+            } catch (e) {
+                rejected.push(`Could not process ${file.name}. Please try another image.`);
+            }
+        }
+
+        loadingDiv.remove();
+
+        if (errEl) {
+            if (rejected.length) {
+                errEl.style.display = 'block';
+                errEl.textContent = rejected.join(' ');
+            } else {
+                errEl.style.display = 'none';
+                errEl.textContent = '';
+            }
+        }
+
+        files = [...files, ...accepted];
         updateFileList();
+        // Reset picker so the same file can be chosen again if needed
+        if (fileInput) fileInput.value = '';
     }
 
     function updateFileList() {
-        // Clear file list display
         fileList.innerHTML = '';
-        const dataTransfer = new DataTransfer();
-
-        // Decide how many files to display based on `showAllImages`
         const visibleFiles = showAllImages ? files : files.slice(0, MAX_VISIBLE_IMAGES);
 
-        visibleFiles.forEach((file, index) => {
-            // Create a wrapper for the image and delete button
+        visibleFiles.forEach((file) => {
             const imageWrapper = document.createElement('div');
             imageWrapper.style.position = 'relative';
             imageWrapper.style.display = 'inline-block';
@@ -1500,15 +1649,14 @@
             imageWrapper.style.width = '100px';
             imageWrapper.style.height = '100px';
 
-            // Create an image element for preview
             const img = document.createElement('img');
-            img.src = URL.createObjectURL(file); // Create an object URL for the file
+            img.src = URL.createObjectURL(file);
             img.style.width = '100%';
             img.style.height = '100%';
             img.style.objectFit = 'cover';
 
-            // Create a delete button
             const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
             deleteButton.textContent = '×';
             deleteButton.style.position = 'absolute';
             deleteButton.style.top = '2px';
@@ -1522,31 +1670,22 @@
             deleteButton.style.height = '20px';
             deleteButton.style.fontSize = '12px';
             deleteButton.style.lineHeight = '16px';
-
-            // Remove file and update list on delete
-            deleteButton.addEventListener('click', () => {
+            deleteButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const fileIndex = files.indexOf(file);
-                if (fileIndex > -1) {
-                    files.splice(fileIndex, 1);
-                }
+                if (fileIndex > -1) files.splice(fileIndex, 1);
                 updateFileList();
             });
 
-            // Append image and delete button to the wrapper
             imageWrapper.appendChild(img);
             imageWrapper.appendChild(deleteButton);
             fileList.appendChild(imageWrapper);
-
-            // Add the file to the DataTransfer object
-            dataTransfer.items.add(file);
         });
 
-        // Add all files to the hidden input `all-images`
-        const hiddenDataTransfer = new DataTransfer();
-        files.forEach(file => hiddenDataTransfer.items.add(file));
-        allImagesInput.files = hiddenDataTransfer.files;
+        // Always sync ALL selected files into the submit input
+        syncAllImagesInput();
 
-        // Add a "More Images" badge if there are more files and not showing all images
         if (!showAllImages && files.length > MAX_VISIBLE_IMAGES) {
             const moreBadge = document.createElement('div');
             moreBadge.textContent = `+${files.length - MAX_VISIBLE_IMAGES} more`;
@@ -1558,17 +1697,25 @@
             moreBadge.style.textAlign = 'center';
             moreBadge.style.fontSize = '14px';
             moreBadge.style.cursor = 'pointer';
-
-            // Add click event to show all images
             moreBadge.addEventListener('click', () => {
                 showAllImages = true;
-                updateFileList(); // Re-render with all images
+                updateFileList();
             });
-
             fileList.appendChild(moreBadge);
         }
+
+        const sizeInfo = document.createElement('div');
+        sizeInfo.className = 'w-100';
+        const totalMb = (files.reduce((t, f) => t + f.size, 0) / (1024 * 1024)).toFixed(1);
+        sizeInfo.innerHTML = files.length
+            ? `<small class="text-muted">${files.length} image(s) ready · ${totalMb} MB total</small>`
+            : '';
+        if (files.length) fileList.appendChild(sizeInfo);
     }
-    
+
+    // Expose for submit handler
+    window.syncHotelAllImagesInput = syncAllImagesInput;
+    window.getHotelAdditionalFiles = () => files;
 
 </script>
 <!-- Master Image drop down -->
@@ -1603,25 +1750,79 @@
         masterHandleFiles(masterFileInput.files);
     });
 
-    // Process and display files
-    function masterHandleFiles(files) {
-        Array.from(files).forEach(file => {
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    // If an image already exists, remove it before adding the new one
-                    if (masterFileCounter > 0) {
-                        masterPreviewContainer.innerHTML = ''; // Clear the existing preview
-                        masterFileCounter = 0; // Reset the file counter
-                    }
-                    masterFileCounter++;
-                    masterImagePreview(e.target.result);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                alert(`${file.name} is not a valid image file.`);
+    // Process and display files (compress large master images so they still save)
+    async function masterHandleFiles(selectedFiles) {
+        const maxBytes = 5 * 1024 * 1024; // 5 MB
+        const errEl = document.getElementById('master-image-error');
+        const file = selectedFiles && selectedFiles[0] ? selectedFiles[0] : null;
+        if (!file) {
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            if (errEl) {
+                errEl.style.display = 'block';
+                errEl.textContent = `${file.name} is not a valid image file. Please upload JPEG, PNG, WEBP or GIF.`;
             }
-        });
+            masterFileInput.value = '';
+            return;
+        }
+
+        if (file.size > 25 * 1024 * 1024) {
+            if (errEl) {
+                errEl.style.display = 'block';
+                errEl.textContent = `Master image is ${(file.size / (1024 * 1024)).toFixed(1)} MB. Please use an image under 25 MB.`;
+            }
+            masterFileInput.value = '';
+            return;
+        }
+
+        let finalFile = file;
+        try {
+            if (typeof compressUntilUnderLimit === 'function') {
+                finalFile = await compressUntilUnderLimit(file);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        if (finalFile.size > maxBytes) {
+            if (errEl) {
+                errEl.style.display = 'block';
+                errEl.textContent = `Master image could not be compressed under 5 MB. Please use a smaller image.`;
+            }
+            masterFileInput.value = '';
+            return;
+        }
+
+        if (errEl) {
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+        }
+        if (masterDropArea) {
+            masterDropArea.style.borderColor = '#007bff';
+            masterDropArea.style.backgroundColor = 'white';
+        }
+
+        // Put compressed file back into the real input used for submit
+        try {
+            const dt = new DataTransfer();
+            dt.items.add(finalFile);
+            masterFileInput.files = dt.files;
+        } catch (e) {
+            console.warn('Could not assign compressed master file', e);
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (masterFileCounter > 0) {
+                masterPreviewContainer.innerHTML = '';
+                masterFileCounter = 0;
+            }
+            masterFileCounter++;
+            masterImagePreview(e.target.result);
+        };
+        reader.readAsDataURL(finalFile);
     }
 
     // Add image preview with limited visibility and a "more" badge
@@ -1737,5 +1938,166 @@
             chargeTypeSpan.textContent = '';
         }
     }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const hotelForm = document.getElementById('hotelForm');
+    const saveBtn = document.getElementById('hotelSaveBtn');
+    const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+    const oldCountry = @json(old('country'));
+    const oldLocation = @json(old('location'));
+    const focusField = @json(session('focus_field'));
+
+    function stripHtml(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html || '';
+        return (tmp.textContent || tmp.innerText || '').replace(/\u00a0/g, ' ').trim();
+    }
+
+    function focusDescription() {
+        const wrap = document.getElementById('description-field-wrap');
+        if (wrap) {
+            wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        try {
+            if (window.jQuery && $('#summernote').length) {
+                $('#summernote').summernote('focus');
+            }
+        } catch (e) {}
+        const err = document.getElementById('description-client-error');
+        if (err) err.style.display = 'block';
+        const note = document.querySelector('#description-field-wrap .note-editor');
+        if (note) {
+            note.style.borderColor = '#dc3545';
+        }
+    }
+
+    function focusMasterImage(message) {
+        const wrap = document.getElementById('master-image-field-wrap');
+        const drop = document.getElementById('master-drop-area');
+        const masterErr = document.getElementById('master-image-error');
+        if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (drop) {
+            drop.style.borderColor = '#dc3545';
+            drop.style.backgroundColor = '#fff5f5';
+        }
+        if (masterErr) {
+            masterErr.style.display = 'block';
+            masterErr.textContent = message || 'Please upload master image.';
+        }
+    }
+
+    // Only after Save validation redirect — never on first page load
+    if (focusField === 'description' || document.querySelector('#description-field-wrap .description-server-error')) {
+        setTimeout(focusDescription, 400);
+    }
+    if (focusField === 'master_image' || document.querySelector('#master-image-field-wrap .master-image-server-error')) {
+        setTimeout(() => focusMasterImage(), 400);
+    }
+    if (focusField === 'all_images') {
+        const drop = document.getElementById('drop-area');
+        if (drop) {
+            setTimeout(() => drop.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+        }
+    }
+
+    // Restore country / city after validation failure
+    if (oldCountry) {
+        const countryEl = document.getElementById('country');
+        if (countryEl && !countryEl.value) {
+            countryEl.value = oldCountry;
+        }
+        // Trigger city load if select2/country change handlers exist
+        setTimeout(function () {
+            if (window.jQuery) {
+                $('#country').val(oldCountry).trigger('change');
+                const trySelectCity = function (attempts) {
+                    if (!oldLocation || attempts <= 0) return;
+                    const citySelect = $('#citySelect');
+                    if (citySelect.find('option[value="' + oldLocation.replace(/"/g, '\\"') + '"]').length) {
+                        citySelect.val(oldLocation).trigger('change');
+                    } else {
+                        setTimeout(() => trySelectCity(attempts - 1), 400);
+                    }
+                };
+                setTimeout(() => trySelectCity(15), 600);
+            }
+        }, 300);
+    }
+
+    if (!hotelForm || !saveBtn) return;
+
+    hotelForm.addEventListener('submit', function (e) {
+        // Sync Summernote into textarea
+        try {
+            if (window.jQuery && $('#summernote').length) {
+                $('#summernote').val($('#summernote').summernote('code'));
+            }
+        } catch (err) {}
+
+        const descVal = document.getElementById('summernote') ? document.getElementById('summernote').value : '';
+        if (!stripHtml(descVal)) {
+            e.preventDefault();
+            focusDescription();
+            return false;
+        }
+        const descErr = document.getElementById('description-client-error');
+        if (descErr) descErr.style.display = 'none';
+
+        // Master image — only validate on Save (same pattern as description)
+        const masterInput = document.getElementById('master_image');
+        const masterErr = document.getElementById('master-image-error');
+        const hasMasterFile = masterInput && masterInput.files && masterInput.files.length > 0;
+        const hasMasterPreview = typeof masterFileCounter !== 'undefined' && masterFileCounter > 0;
+        if (!hasMasterFile && !hasMasterPreview) {
+            e.preventDefault();
+            focusMasterImage('Please upload master image.');
+            return false;
+        }
+        if (hasMasterFile) {
+            const f = masterInput.files[0];
+            if (f.size > MAX_IMAGE_BYTES) {
+                e.preventDefault();
+                focusMasterImage(`Master image is ${(f.size / (1024 * 1024)).toFixed(1)} MB. Maximum allowed size is 5 MB. Please compress the image and try again.`);
+                return false;
+            }
+        }
+        if (masterErr) masterErr.style.display = 'none';
+        const masterDrop = document.getElementById('master-drop-area');
+        if (masterDrop) {
+            masterDrop.style.borderColor = '#007bff';
+            masterDrop.style.backgroundColor = '';
+        }
+
+        // Ensure additional images are attached to the form input before submit
+        if (typeof window.syncHotelAllImagesInput === 'function') {
+            window.syncHotelAllImagesInput();
+        }
+        const additionalFiles = typeof window.getHotelAdditionalFiles === 'function'
+            ? window.getHotelAdditionalFiles()
+            : (typeof files !== 'undefined' ? files : []);
+        if (additionalFiles.length) {
+            const oversized = additionalFiles.filter(f => f.size > MAX_IMAGE_BYTES);
+            if (oversized.length) {
+                e.preventDefault();
+                const addErr = document.getElementById('additional-images-error');
+                if (addErr) {
+                    addErr.style.display = 'block';
+                    addErr.textContent = oversized.map(f => `${f.name} exceeds 5 MB.`).join(' ') + ' Please remove or use smaller images.';
+                }
+                document.getElementById('drop-area')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+        }
+
+        // Loading state
+        saveBtn.disabled = true;
+        const textEl = saveBtn.querySelector('.hotel-save-btn-text');
+        const loadingEl = saveBtn.querySelector('.hotel-save-btn-loading');
+        if (textEl) textEl.classList.add('d-none');
+        if (loadingEl) loadingEl.classList.remove('d-none');
+    });
+});
 </script>
 @endsection

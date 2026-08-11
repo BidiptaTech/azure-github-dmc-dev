@@ -45,7 +45,7 @@
                 </a>
             </h5>
             <form id="attractionForm" method="POST" action="{{ route('attraction.store') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <div id="attractionDetailsContainer">
@@ -409,13 +409,20 @@
 
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
-                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                            <span class="js-submit-loader-btn-text">Save</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
             </form>
         </div>
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>

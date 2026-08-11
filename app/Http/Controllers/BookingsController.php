@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
 use App\Helpers\CountryHelper;
+use App\Helpers\CurrencyHelper;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\Enquiry;
@@ -200,6 +201,398 @@ class BookingsController extends Controller
     }
 
     /**
+     * Attach orders and per-country negotiation totals (native currency, no conversion).
+     * Groups order amounts by country/currency so the modal can show one offer field per country.
+     */
+    private function hydrateTourNegotiationCurrencyData($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
+        $ordersByTour = Order::query()
+            ->whereIn('tour_id', $tourIds)
+            ->get(['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'])
+            ->groupBy('tour_id');
+
+        $destinationNames = [];
+        foreach ($items as $tour) {
+            foreach ($this->parseDestinationCountryNames($tour->destination ?? null) as $name) {
+                $destinationNames[mb_strtolower($name)] = $name;
+            }
+        }
+
+        foreach ($ordersByTour->flatten(1) as $order) {
+            if (is_string($order->country ?? null) && trim($order->country) !== '') {
+                $name = trim($order->country);
+                $destinationNames[mb_strtolower($name)] = $name;
+            }
+        }
+
+        $allowedCodes = CommonHelper::getPaymentAvailableCurrencies();
+        $countriesByName = empty($destinationNames)
+            ? collect()
+            : Country::query()
+                ->whereIn(DB::raw('LOWER(name)'), array_keys($destinationNames))
+                ->get(['id', 'name', 'currency'])
+                ->keyBy(fn (Country $country) => mb_strtolower(trim($country->name)));
+
+        foreach ($items as $tour) {
+            $tourOrders = $ordersByTour->get($tour->tour_id, collect());
+            $tour->setRelation('booking', $tourOrders);
+
+            $groups = [];
+            foreach ($tourOrders as $order) {
+                if (! in_array((int) ($order->status ?? 0), [1, 3], true)) {
+                    continue;
+                }
+
+                $amount = $this->extractOrderNegotiationAmount($order, (int) ($tour->is_pro ?? 0));
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $countryName = is_string($order->country ?? null) && trim($order->country) !== ''
+                    ? trim($order->country)
+                    : null;
+
+                $currency = CurrencyHelper::normalizeCurrencyToCode(
+                    is_string($order->currency ?? null) ? $order->currency : null,
+                    $allowedCodes,
+                    ''
+                );
+                if ($currency === '' && $countryName) {
+                    $country = $countriesByName->get(mb_strtolower($countryName));
+                    $currency = CurrencyHelper::normalizeCurrencyToCode(
+                        $country?->currency ?? null,
+                        $allowedCodes,
+                        ''
+                    );
+                    if (! $countryName && $country) {
+                        $countryName = $country->name;
+                    }
+                }
+                if ($currency === '') {
+                    $currency = 'SGD';
+                }
+                if (! $countryName) {
+                    $countryName = $currency;
+                }
+
+                $key = mb_strtolower($countryName) . '|' . $currency;
+                if (! isset($groups[$key])) {
+                    $groups[$key] = [
+                        'key' => $key,
+                        'country' => $countryName,
+                        'currency' => $currency,
+                        'gross' => 0.0,
+                        'order_count' => 0,
+                        'sell_total' => 0.0,
+                        'cost_total' => 0.0,
+                        'services' => [],
+                    ];
+                }
+                $groups[$key]['gross'] += $amount;
+                $groups[$key]['order_count']++;
+
+                foreach ($this->extractOrderNegotiationServiceRows($order, (int) ($tour->is_pro ?? 0)) as $serviceRow) {
+                    $serviceKey = mb_strtolower(trim((string) ($serviceRow['service'] ?? '')));
+                    if ($serviceKey === '') {
+                        $serviceKey = 'service-' . count($groups[$key]['services']);
+                    }
+
+                    if (! isset($groups[$key]['services'][$serviceKey])) {
+                        $groups[$key]['services'][$serviceKey] = [
+                            'service' => $serviceRow['service'],
+                            'type' => $serviceRow['type'] ?? ($order->type ?? ''),
+                            'sell' => 0.0,
+                            'cost' => 0.0,
+                            'count' => 0,
+                        ];
+                    }
+
+                    $groups[$key]['services'][$serviceKey]['sell'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['cost'] += (float) ($serviceRow['cost'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['count'] += 1;
+                    $groups[$key]['sell_total'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['cost_total'] += (float) ($serviceRow['cost'] ?? 0);
+                }
+            }
+
+            // Apply tour markup/discount per country bucket (percentage on each; flat on first only).
+            $markupType = $tour->markup_type ?? null;
+            $markupRaw = (float) ($tour->getAttributes()['markup_amount'] ?? $tour->markup_amount ?? 0);
+            $markupOn = ((int) ($tour->markup ?? 0) === 1)
+                && $markupRaw > 0
+                && in_array($markupType, ['percentage', 'flat'], true);
+
+            $discountType = $tour->discount_type ?? null;
+            $discountRaw = (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0);
+
+            $index = 0;
+            $countryGroups = [];
+            foreach ($groups as $group) {
+                $gross = (float) ceil($group['gross']);
+                $markupMoney = 0.0;
+                if ($markupOn) {
+                    if ($markupType === 'percentage') {
+                        $markupMoney = $gross * $markupRaw / 100;
+                    } elseif ($index === 0) {
+                        $markupMoney = $markupRaw;
+                    }
+                }
+
+                $discountMoney = 0.0;
+                $discountBase = $gross + $markupMoney;
+                if ($discountType === 'percentage' && $discountRaw > 0) {
+                    $discountMoney = $discountBase * $discountRaw / 100;
+                } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0 && $index === 0) {
+                    $discountMoney = $discountRaw;
+                }
+
+                $payable = max(0, ceil($gross + $markupMoney - $discountMoney));
+                $serviceRows = [];
+                foreach ($group['services'] as $service) {
+                    $sell = round((float) ($service['sell'] ?? 0), 2);
+                    $cost = round((float) ($service['cost'] ?? 0), 2);
+                    $profit = round($sell - $cost, 2);
+                    $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
+                    $serviceRows[] = [
+                        'service' => $service['service'] ?? 'Service',
+                        'type' => $service['type'] ?? '',
+                        'sell' => $sell,
+                        'cost' => $cost,
+                        'profit' => $profit,
+                        'margin' => $margin,
+                        'count' => (int) ($service['count'] ?? 1),
+                    ];
+                }
+
+                $sellTotal = round((float) ($group['sell_total'] ?? 0), 2);
+                $costTotal = round((float) ($group['cost_total'] ?? 0), 2);
+                $profitTotal = round($sellTotal - $costTotal, 2);
+
+                $countryGroups[] = [
+                    'key' => $group['key'],
+                    'country' => $group['country'],
+                    'currency' => $group['currency'],
+                    'gross' => $gross,
+                    'markup' => round($markupMoney, 2),
+                    'discount' => round($discountMoney, 2),
+                    'payable' => $payable,
+                    'order_count' => $group['order_count'],
+                    'sell_total' => $sellTotal,
+                    'cost_total' => $costTotal,
+                    'profit_total' => $profitTotal,
+                    'margin_total' => $sellTotal > 0 ? round(($profitTotal / $sellTotal) * 100, 2) : 0.0,
+                    'services' => $serviceRows,
+                    'markup_type' => $markupType,
+                    'markup_raw' => $markupRaw,
+                    'discount_type' => $discountType,
+                    'discount_raw' => $discountRaw,
+                ];
+                $index++;
+            }
+
+            $tour->negotiation_country_groups = $countryGroups;
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseDestinationCountryNames(?string $destination): array
+    {
+        if (! is_string($destination) || trim($destination) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $names = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * Extract a single order's contribution to tour gross (mirrors blade / CommonHelper logic).
+     */
+    private function extractOrderNegotiationAmount(Order $order, int $isPro = 0): float
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (! is_array($data)) {
+            return 0.0;
+        }
+
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+
+        foreach ($data as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
+    }
+
+    /**
+     * Build service-wise sell/cost rows for country negotiation profit visibility.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractOrderNegotiationServiceRows(Order $order, int $isPro = 0): array
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $rows = [];
+        $orderType = (string) ($order->type ?? '');
+
+        foreach (array_values($data) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $baseSell = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferSell = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferSell = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferSell = (float) ($item['transfer_options']['cost'] ?? 0);
+                }
+            }
+
+            $guideSell = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $guideValue = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                $guideSell = (float) $guideValue;
+            }
+
+            $sell = $baseSell + $transferSell + $guideSell;
+            if ($sell <= 0) {
+                continue;
+            }
+
+            // Cost must come only from frozen orders.cost_price (applied after loop).
+            $rows[] = [
+                'service' => $this->resolveNegotiationServiceName($orderType, $item, $index + 1),
+                'type' => $orderType,
+                'sell' => round($sell, 2),
+                'cost' => 0.0,
+            ];
+        }
+
+        // Historical / safe cost from orders.cost_price JSON only (never live master prices).
+        $stored = \App\Helpers\OrderCostPriceHelper::storedCostPrice($order);
+        $storedCost = is_array($stored) && isset($stored['total_cost']) && is_numeric($stored['total_cost'])
+            ? round((float) $stored['total_cost'], 2)
+            : 0.0;
+
+        if ($storedCost > 0) {
+            if (count($rows) === 1) {
+                $rows[0]['cost'] = $storedCost;
+            } elseif (count($rows) === 0) {
+                $sellFallback = $this->extractOrderNegotiationAmount($order, $isPro);
+                if ($sellFallback > 0) {
+                    $firstItem = is_array($data[0] ?? null) ? $data[0] : (is_array($data) ? $data : []);
+                    $rows[] = [
+                        'service' => $this->resolveNegotiationServiceName($orderType, $firstItem, 1),
+                        'type' => $orderType,
+                        'sell' => round($sellFallback, 2),
+                        'cost' => $storedCost,
+                    ];
+                }
+            } else {
+                $sellSum = array_sum(array_column($rows, 'sell'));
+                if ($sellSum > 0) {
+                    foreach ($rows as $i => $row) {
+                        $rows[$i]['cost'] = round($storedCost * ((float) $row['sell'] / $sellSum), 2);
+                    }
+                } else {
+                    $rows[0]['cost'] = $storedCost;
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    private function extractNegotiationNumberByKeys(array $source, array $keys): float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            $value = $source[$key];
+            if (is_numeric($value)) {
+                return (float) $value;
+            }
+        }
+
+        return 0.0;
+    }
+
+    private function resolveNegotiationServiceName(string $orderType, array $item, int $position): string
+    {
+        $fallback = ucfirst(str_replace('_', ' ', $orderType ?: 'service')) . ' ' . $position;
+
+        $name = match ($orderType) {
+            'hotel' => trim((string) ($item['hotelDetails']['hotel_name'] ?? $item['hotel_name'] ?? $fallback)),
+            'attraction' => trim((string) ($item['AttractionName'] ?? $item['attraction_name'] ?? $fallback)),
+            'restaurant' => trim((string) ($item['restaurantName'] ?? $item['restaurant_name'] ?? $item['restaurantDetails']['restaurant_name'] ?? $fallback)),
+            'guide' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $fallback)),
+            'entry_port', 'exit_port' => trim((string) ($item['port_name'] ?? $item['portName'] ?? $item['vehicles_name'] ?? $fallback)),
+            'travel_hourly', 'travel_point', 'local_transport' => trim((string) ($item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['travel_type'] ?? $fallback)),
+            'miscellaneous' => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $fallback)),
+            default => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $item['hotel_name'] ?? $item['vehicles_name'] ?? $fallback)),
+        };
+
+        return $name !== '' ? $name : $fallback;
+    }
+
+    /**
      * Display New Enquiries (tour_status = 'New Enquiry')
      */
     public function newEnquiries()
@@ -249,6 +642,7 @@ class BookingsController extends Controller
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
 
             foreach ($tours as $t) {
                 $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
@@ -268,7 +662,6 @@ class BookingsController extends Controller
                     ]);
                 }
         }
-
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
@@ -285,7 +678,7 @@ class BookingsController extends Controller
 
         if($dmc_id){
             $tours = Tour::where('tour_status', 'New Enquiry')
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -326,6 +719,7 @@ class BookingsController extends Controller
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
 
             foreach ($tours as $t) {
                 $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
@@ -356,7 +750,8 @@ class BookingsController extends Controller
         $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency', 'serviceCountryScope'));
     }
 
     public function agentNegotiation(Request $request)
@@ -364,10 +759,20 @@ class BookingsController extends Controller
         $validated = $request->validate([
             'tour_id' => 'required|integer|exists:tours,tour_id',
             'action' => 'required|in:negotiate,cancel,confirm',
-            'amount' => 'required_if:action,negotiate|numeric|min:0.01',
             'comment' => 'nullable|string|max:1000',
+            'offers' => 'required_if:action,negotiate|array|min:1',
+            'offers.*.country' => 'required_with:offers|string|max:255',
+            'offers.*.currency' => 'required_with:offers|string|max:10',
+            'offers.*.amount' => 'required_with:offers|numeric|min:0.01',
+            'offers.*.actual_amount' => 'required_with:offers|numeric|min:0',
+            'offers.*.gross' => 'nullable|numeric|min:0',
+            // Legacy single-amount fields kept optional for older clients.
+            'amount' => 'nullable|numeric|min:0.01',
+            'currency' => 'required_if:action,confirm|nullable|string|max:10',
         ], [
-            'amount.required_if' => 'Please enter a negotiation amount.',
+            'offers.required_if' => 'Please enter a negotiation amount for each country.',
+            'offers.*.amount.required_with' => 'Please enter a negotiation amount for each country.',
+            'currency.required_if' => 'Please select a currency before confirming the tour.',
         ]);
 
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
@@ -384,38 +789,28 @@ class BookingsController extends Controller
             ->first();
 
         if ($action === 'negotiate') {
-            $grossAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
-            $tourDiscount = max(0, (float) ($tour->discount_amount ?? 0));
-            $netBase = max(0, $grossAmount - $tourDiscount);
+            $offers = array_values(array_map(function ($offer) {
+                return [
+                    'country' => trim((string) ($offer['country'] ?? '')),
+                    'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                    'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                    'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                    'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                ];
+            }, $validated['offers'] ?? []));
 
-            $actualAmount = (float) $request->input('actual_amount', 0);
-            if ($actualAmount <= 0) {
-                $actualAmount = $netBase;
+            $primary = $offers[0] ?? null;
+            $amountOffered = (float) ($primary['amount'] ?? 0);
+            $actualAmount = (float) ($primary['actual_amount'] ?? 0);
+            $grossAtNegotiation = (float) ($primary['gross'] ?? 0);
+            if ($grossAtNegotiation <= 0) {
+                $grossAtNegotiation = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
             }
-            $amountOffered = (float) $validated['amount'];
-
-            if ($actualAmount > 0 && $amountOffered > $actualAmount) {
-                return back()
-                    ->withErrors(['amount' => 'Negotiated amount cannot exceed the current amount.'])
-                    ->withInput();
-            }
-
-            // Include soft-deleted records: enquiry_id is unique, so soft-deleted rows still occupy their ID
-            // $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
-            // $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            // while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
-            //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
-            // }
-
-            // Gross at negotiation time (same calc as the negotiation list) so later-added
-            // services can be detected and added on top of this agreed amount.
-            $grossAtNegotiation = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
 
             $enquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
                 'dmcId' => $tour->dmc_id,
-                // 'enquiry_id' => $newEnquiryId,
                 'sender_id' => $tour->agent_id ?? 0,
                 'sender_type' => 'agent',
                 'receiver_id' => $latestEnquiry->sender_id ?? 0,
@@ -425,6 +820,7 @@ class BookingsController extends Controller
                 'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
                 'gross_amount' => $grossAtNegotiation,
                 'comment' => $validated['comment'] ?? '',
+                'negotiation_details' => $offers,
             ]);
             $enquiry->refresh();
             if ($enquiry && $activeEnquiry && $activeEnquiry->id !== $enquiry->id) {
@@ -468,8 +864,85 @@ class BookingsController extends Controller
         }
 
         if ($action === 'confirm') {
+            $confirmCurrency = strtoupper(trim((string) ($validated['currency'] ?? '')));
+            if ($confirmCurrency === '') {
+                return back()
+                    ->withErrors(['currency' => 'Please select a currency before confirming the tour.'])
+                    ->withInput();
+            }
+
+            $offerRows = [];
+            if (! empty($validated['offers']) && is_array($validated['offers'])) {
+                $offerRows = array_values(array_map(function ($offer) {
+                    return [
+                        'country' => trim((string) ($offer['country'] ?? '')),
+                        'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                        'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                        'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                        'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                    ];
+                }, $validated['offers']));
+            } elseif (is_array($activeEnquiry?->negotiation_details) && ! empty($activeEnquiry->negotiation_details)) {
+                $offerRows = $activeEnquiry->negotiation_details;
+            } elseif (is_array($latestEnquiry?->negotiation_details) && ! empty($latestEnquiry->negotiation_details)) {
+                $offerRows = $latestEnquiry->negotiation_details;
+            }
+
+            $converted = $this->convertNegotiationOffersToCurrency($offerRows, $confirmCurrency);
+            if ($converted['error'] !== null) {
+                return back()
+                    ->withErrors(['currency' => $converted['error']])
+                    ->withInput();
+            }
+
+            $convertedNegotiated = (float) ($converted['negotiated_amount'] ?? 0);
+            $convertedActual = (float) ($converted['actual_amount'] ?? 0);
+            $convertedGross = (float) ($converted['gross_amount'] ?? 0);
+            $convertedDetails = $converted['negotiation_details'];
+
+            // Fallback if payable/gross were missing on older offer rows.
+            if ($convertedActual <= 0) {
+                $convertedActual = $convertedNegotiated;
+            }
+            if ($convertedGross <= 0) {
+                $convertedGross = $convertedActual > 0 ? $convertedActual : $convertedNegotiated;
+            }
+
+            $enquiryPayload = [
+                'status' => 2,
+                'currency' => $confirmCurrency,
+                'comment' => $validated['comment'] ?? null,
+                'gross_amount' => $convertedGross,
+                'negotiation_details' => $convertedDetails,
+                'amount' => $convertedNegotiated,
+                'actual_amount' => $convertedActual,
+            ];
+
             if ($activeEnquiry) {
-                $activeEnquiry->update(['status' => 2]);
+                $enquiryPayload['comment'] = $validated['comment'] ?? $activeEnquiry->comment;
+                $activeEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $activeEnquiry->fresh();
+            } elseif ($latestEnquiry) {
+                $enquiryPayload['comment'] = $validated['comment'] ?? $latestEnquiry->comment;
+                $latestEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $latestEnquiry->fresh();
+            } else {
+                $confirmedEnquiry = Enquiry::create([
+                    'tour_id' => $tour->tour_id,
+                    'status' => 2,
+                    'dmcId' => $tour->dmc_id,
+                    'sender_id' => $tour->agent_id ?? ($currentUser->userId ?? 0),
+                    'sender_type' => 'agent',
+                    'receiver_id' => 0,
+                    'receiver_type' => 'OM',
+                    'current_position' => 'OM',
+                    'amount' => $convertedNegotiated,
+                    'actual_amount' => $convertedActual,
+                    'gross_amount' => $convertedGross,
+                    'comment' => $validated['comment'] ?? '',
+                    'currency' => $confirmCurrency,
+                    'negotiation_details' => $convertedDetails,
+                ]);
             }
 
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
@@ -477,24 +950,29 @@ class BookingsController extends Controller
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
-                // Actual amount at confirmation (from active enquiry or orders total)
-                $actualAmount = $activeEnquiry?->actual_amount ?? 0;
-                if (empty($actualAmount) || $actualAmount <= 0) {
-                    $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+                $actualAmount = (float) ($confirmedEnquiry?->actual_amount ?? $convertedActual);
+                $amount = (float) ($confirmedEnquiry?->amount ?? $convertedNegotiated);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $convertedActual > 0
+                        ? $convertedActual
+                        : ($convertedNegotiated > 0 ? $convertedNegotiated : $this->calculateOrdersTotalAmount($tour->tour_id));
                 }
-                $amount = $activeEnquiry?->amount ?? $actualAmount;
+                if ($amount <= 0) {
+                    $amount = $convertedNegotiated > 0 ? $convertedNegotiated : $actualAmount;
+                }
 
-                // Track status change (e.g. New Enquiry / Prospect / Tentative -> Confirmed)
                 \App\Helpers\CommonHelper::appendTourStatusTrackById(
                     (int) $tour->tour_id,
                     $oldStatus,
                     'Confirmed',
                     null,
                     $amount,
-                    $activeEnquiry?->comment ?? null,
+                    $validated['comment'] ?? ($confirmedEnquiry?->comment ?? null),
                     $actualAmount,
                     $changedByName,
-                    $changedByUserId
+                    $changedByUserId,
+                    offers: $offerRows,
+                    confirmCurrency: $confirmCurrency
                 );
 
                 $tour->update(['tour_status' => 'Confirmed']);
@@ -518,6 +996,107 @@ class BookingsController extends Controller
         }
 
         return back()->with('error', 'Unsupported action requested.');
+    }
+
+    /**
+     * Convert each country's negotiated / payable / gross amounts into the selected currency,
+     * attach conversion_rate + date_of_conversion on every row, and return the summed totals.
+     *
+     * @param  array<int, array<string, mixed>>  $offers
+     * @return array{
+     *     negotiated_amount: float,
+     *     actual_amount: float,
+     *     gross_amount: float,
+     *     negotiation_details: array<int, array<string, mixed>>,
+     *     error: string|null
+     * }
+     */
+    private function convertNegotiationOffersToCurrency(array $offers, string $targetCurrency): array
+    {
+        $targetCurrency = strtoupper(trim($targetCurrency));
+        $conversionDate = now()->toDateTimeString();
+        $enriched = [];
+        $convertedNegotiatedTotal = 0.0;
+        $convertedActualTotal = 0.0;
+        $convertedGrossTotal = 0.0;
+        $rateCache = [];
+
+        $emptyError = static function (string $error) {
+            return [
+                'negotiated_amount' => 0.0,
+                'actual_amount' => 0.0,
+                'gross_amount' => 0.0,
+                'negotiation_details' => [],
+                'error' => $error,
+            ];
+        };
+
+        if ($targetCurrency === '') {
+            return $emptyError('Please select a currency before confirming the tour.');
+        }
+
+        if (empty($offers)) {
+            return $emptyError('No negotiated country amounts were found to convert.');
+        }
+
+        foreach ($offers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+
+            $fromCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+            $country = trim((string) ($offer['country'] ?? ''));
+            $amount = round((float) ($offer['amount'] ?? 0), 2);
+            $actualAmount = round((float) ($offer['actual_amount'] ?? 0), 2);
+            $gross = round((float) ($offer['gross'] ?? 0), 2);
+
+            if ($fromCurrency === '' || $amount <= 0) {
+                return $emptyError('Each country must have a valid negotiated amount and currency before confirmation.');
+            }
+
+            if (! array_key_exists($fromCurrency, $rateCache)) {
+                $rate = CurrencyHelper::getExchangeRate($fromCurrency, $targetCurrency);
+                if ($rate === null || $rate <= 0) {
+                    return $emptyError('Unable to fetch exchange rate from ' . $fromCurrency . ' to ' . $targetCurrency . '.');
+                }
+                $rateCache[$fromCurrency] = (float) $rate;
+            }
+
+            $conversionRate = $rateCache[$fromCurrency];
+            $convertedAmount = round($amount * $conversionRate, 2);
+            $convertedActual = round(max(0, $actualAmount) * $conversionRate, 2);
+            $convertedGross = round(max(0, $gross) * $conversionRate, 2);
+
+            $convertedNegotiatedTotal += $convertedAmount;
+            $convertedActualTotal += $convertedActual;
+            $convertedGrossTotal += $convertedGross;
+
+            $enriched[] = [
+                'country' => $country !== '' ? $country : $fromCurrency,
+                'currency' => $fromCurrency,
+                'amount' => $amount,
+                'actual_amount' => $actualAmount,
+                'gross' => $gross,
+                'conversion_rate' => round($conversionRate, 8),
+                'date_of_conversion' => $conversionDate,
+                'converted_amount' => $convertedAmount,
+                'converted_actual_amount' => $convertedActual,
+                'converted_gross' => $convertedGross,
+                'target_currency' => $targetCurrency,
+            ];
+        }
+
+        if (empty($enriched)) {
+            return $emptyError('No negotiated country amounts were found to convert.');
+        }
+
+        return [
+            'negotiated_amount' => round($convertedNegotiatedTotal, 2),
+            'actual_amount' => round($convertedActualTotal, 2),
+            'gross_amount' => round($convertedGrossTotal, 2),
+            'negotiation_details' => $enriched,
+            'error' => null,
+        ];
     }
 
     private function calculateOrdersTotalAmount(int $tourId): float
@@ -651,7 +1230,7 @@ class BookingsController extends Controller
     //                 'enquiry_comments.created_at as enquiry_comment_created_at',
     //                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
     //             ])
-    //             ->where('tours.dmc_id', $dmc_id)
+    //             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
     //             ->orderBy('tours.created_at', 'desc')
     //             ->paginate(15);
 
@@ -722,6 +1301,7 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
             $this->formatToursDisplayId($tours);
         }
         
@@ -792,16 +1372,18 @@ class BookingsController extends Controller
                     'dmc_user.company_code as dmc_company_code',
                     'created_by_user.user_code as created_by_user_code',
                 ])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
             $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
             $this->formatToursDisplayId($tours);
         }
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency', 'serviceCountryScope'));
     }
 
     /**
@@ -936,7 +1518,7 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1076,10 +1658,29 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -1240,7 +1841,7 @@ class BookingsController extends Controller
                 $query->where('tours.tour_status', 'Definite');
                     // ->orWhereDate('tours.updated_at', $today);
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1378,9 +1979,28 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
-        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -1465,7 +2085,7 @@ class BookingsController extends Controller
                 }
             ])
                 ->whereIn('tour_status', ['Actual', 'Complete'])
-                ->where('tours.dmc_id', $dmc_id)
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
                 ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1606,10 +2226,29 @@ class BookingsController extends Controller
             foreach ($tourIds as $tid) {
                 $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
             }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
         }
 
         $this->hydrateDestinationCreatedAt($tours);
-        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory'));
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -1686,7 +2325,7 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -1838,7 +2477,7 @@ class BookingsController extends Controller
                     $query->orWhereIn('tours.tour_id', $refundTourIds);
                 }
             })
-            ->where('tours.dmc_id', $dmc_id)
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
@@ -2165,14 +2804,33 @@ class BookingsController extends Controller
      */
     public function getBookingStats()
     {
+        $user = Auth::user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        if (!$dmc_id && $user && (int) ($user->role_id ?? 0) === 11) {
+            $dmc_id = $user->userId;
+        }
+
+        $countStatus = function ($status) use ($dmc_id, $user) {
+            $query = Tour::query();
+            if (is_array($status)) {
+                $query->whereIn('tour_status', $status);
+            } else {
+                $query->where('tour_status', $status);
+            }
+            if ($dmc_id) {
+                CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
+            }
+            return $query->count();
+        };
+
         $stats = [
-            'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
-            'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
-            'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
-            'definite' => Tour::where('tour_status', 'Definite')->count(),
-            'actual' => Tour::where('tour_status', 'Actual')->count(),
-            'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),
+            'new_enquiries' => $countStatus('New Enquiry'),
+            'follow_ups' => $countStatus('Prospect'),
+            'tentative' => $countStatus('Tentative'),
+            'confirmed' => $countStatus('Confirmed'),
+            'definite' => $countStatus('Definite'),
+            'actual' => $countStatus('Actual'),
+            'cancelled' => $countStatus('Cancelled'),
         ];
 
         return response()->json($stats);

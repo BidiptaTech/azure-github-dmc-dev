@@ -375,6 +375,9 @@
         </div>
     </div>
 
+
+    @include('invoices.pdf.partials.multi-geo-thirdparty-notice')
+
     <!-- Service Description -->
     <div class="section-title">Description</div>
     
@@ -717,8 +720,9 @@
 @endphp
 
     @if($hotelItems->count() > 0)
+    @foreach($groupItemsByGeo($hotelItems) as $geoGroup)
     <!-- Hotel Services Table -->
-    <div class="section-title">Hotel Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Hotel Service', 'Hotel Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -728,12 +732,12 @@
                 <th>Check-out</th>
                 <th>Nights</th>
                 <th>Pax / Qty</th>
-                <th>Unit Price / Rate (Per Night) ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price / Rate (Per Night){{ $priceColumnSuffix() }}</th>
+                <th>Total{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($hotelItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $hotelName = $serviceDetails['hotel_name'] ?? ($item->description ?? '');
@@ -786,8 +790,8 @@
                 <td>{{ $checkOutDisplay }}</td>
                 <td>{{ $noOfDays }}</td>
                 <td>{{ $totalPax }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @php
                 $childWithBed = $serviceDetails['child_with_bed'] ?? null;
@@ -799,8 +803,8 @@
                 <td colspan="2"></td>
                 <td>{{ $noOfDays }}</td>
                 <td>{{ $childWithBed['children'] ?? 0 }}</td>
-                <td class="text-right">{{ $formatPrice($childWithBed['price'] ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($childWithBed['total_cost'] ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($childWithBed['price'] ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($childWithBed['total_cost'] ?? 0, $item) }}</td>
             </tr>
             @endif
             @if($childWithoutBed)
@@ -809,19 +813,21 @@
                 <td colspan="2"></td>
                 <td>{{ $noOfDays }}</td>
                 <td>{{ $childWithoutBed['children'] ?? 0 }}</td>
-                <td class="text-right">{{ $formatPrice($childWithoutBed['price'] ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($childWithoutBed['total_cost'] ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($childWithoutBed['price'] ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($childWithoutBed['total_cost'] ?? 0, $item) }}</td>
             </tr>
             @endif
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($entryPortItems->count() > 0)
+    @foreach($groupItemsByGeo($entryPortItems) as $geoGroup)
     <!-- Arrival Services Table -->
-    <div class="section-title">{{ $isPro ? 'Arrival with guide' : 'Arrival Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Arrival with guide' : 'Arrival Service', $isPro ? 'Arrival with guide' : 'Arrival Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -833,12 +839,12 @@
                 @if($isPro)<th>Guide</th>@endif
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($entryPortItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $entryGuideName = $serviceDetails['guide_name'] ?? '';
@@ -889,18 +895,20 @@
                 @if($isPro)<td>{{ $entryGuideDisplay }}</td>@endif
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($entryPrices['total']) }}</td>
-                <td class="text-right">{{ $formatPrice($entryPrices['total']) }}</td>
+                <td class="text-right">{{ $formatPrice($entryPrices['total'], $item) }}</td>
+                <td class="text-right">{{ $formatPrice($entryPrices['total'], $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($attractionItems->count() > 0)
+    @foreach($groupItemsByGeo($attractionItems) as $geoGroup)
     <!-- Attraction Services Table -->
-    <div class="section-title">Attraction Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Attraction Service', 'Attraction Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -917,12 +925,12 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($attractionItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -967,18 +975,20 @@
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
-                <td class="text-right">{{ $formatPrice($grandTotal) }}</td>
-                <td class="text-right">{{ $formatPrice($grandTotal) }}</td>
+                <td class="text-right">{{ $formatPrice($grandTotal, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($grandTotal, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($restaurantItems->count() > 0)
+    @foreach($groupItemsByGeo($restaurantItems) as $geoGroup)
     <!-- Restaurant Services Table -->
-    <div class="section-title">{{ $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Restaurant with guide and transfer' : 'Restaurant Service', $isPro ? 'Restaurant with guide and transfer' : 'Restaurant Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -994,12 +1004,12 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($restaurantItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $visitDate = $serviceDetails['booking_date'] ?? '';
@@ -1038,18 +1048,20 @@
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
-                <td class="text-right">{{ $formatPrice($grandTotal) }}</td>
-                <td class="text-right">{{ $formatPrice($grandTotal) }}</td>
+                <td class="text-right">{{ $formatPrice($grandTotal, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($grandTotal, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($guideItems->count() > 0)
+    @foreach($groupItemsByGeo($guideItems) as $geoGroup)
     <!-- Guide Services Table -->
-    <div class="section-title">Guide Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Guide Service', 'Guide Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1060,12 +1072,12 @@
                 <th>Adults</th>
                 <th>Children</th>
                 <th>Infants</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($guideItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1085,18 +1097,20 @@
                 <td>{{ $item->quantity_adults ?? 0 }}</td>
                 <td>{{ $item->quantity_children ?? 0 }}</td>
                 <td>{{ $item->quantity_infants ?? 0 }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($travelPointItems->count() > 0)
+    @foreach($groupItemsByGeo($travelPointItems) as $geoGroup)
     <!-- Travel Point Services Table -->
-    <div class="section-title">Point to Point Transfer Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Point to Point Transfer', 'Point to Point Transfer Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1106,12 +1120,12 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($travelPointItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1153,18 +1167,20 @@
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($travelHourlyItems->count() > 0)
+    @foreach($groupItemsByGeo($travelHourlyItems) as $geoGroup)
     <!-- Travel Hourly Services Table -->
-    <div class="section-title">Hourly Tour Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Hourly Tour Service', 'Hourly Tour Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1173,12 +1189,12 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($travelHourlyItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1219,18 +1235,20 @@
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($localTransportItems->count() > 0)
+    @foreach($groupItemsByGeo($localTransportItems) as $geoGroup)
     <!-- Local Transport Services Table -->
-    <div class="section-title">Local Transport Services</div>
+    <div class="section-title">{{ $serviceSectionTitle('Local Transport', 'Local Transport Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1240,12 +1258,12 @@
                 <th>Vehicle Name</th>
                 <th>Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($localTransportItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $pickupDate = $serviceDetails['pickup_date'] ?? '';
@@ -1287,18 +1305,20 @@
                 <td>{{ $serviceDetails['vehicle_name'] ?? '' }}</td>
                 <td>{{ $pickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($exitPortItems->count() > 0)
+    @foreach($groupItemsByGeo($exitPortItems) as $geoGroup)
     <!-- Departure Services Table -->
-    <div class="section-title">{{ $isPro ? 'Departure with guide' : 'Departure Services' }}</div>
+    <div class="section-title">{{ $serviceSectionTitle($isPro ? 'Departure with guide' : 'Departure Service', $isPro ? 'Departure with guide' : 'Departure Services', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1310,12 +1330,12 @@
                 @if($isPro)<th>Guide</th>@endif
                 <th>Exit Pickup Date</th>
                 <th>Total Persons</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($exitPortItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
                 $exitGuideName = $serviceDetails['guide_name'] ?? '';
@@ -1366,18 +1386,20 @@
                 @if($isPro)<td>{{ $exitGuideDisplay }}</td>@endif
                 <td>{{ $exitPickupDateDisplay }}</td>
                 <td>{{ $totalPersons }}</td>
-                <td class="text-right">{{ $formatPrice($exitPrices['total']) }}</td>
-                <td class="text-right">{{ $formatPrice($exitPrices['total']) }}</td>
+                <td class="text-right">{{ $formatPrice($exitPrices['total'], $item) }}</td>
+                <td class="text-right">{{ $formatPrice($exitPrices['total'], $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($isPro && $miscellaneousItems->count() > 0)
+    @foreach($groupItemsByGeo($miscellaneousItems) as $geoGroup)
     <!-- Miscellaneous Section (Pro tours only) -->
-    <div class="section-title">Miscellaneous</div>
+    <div class="section-title">{{ $serviceSectionTitle('Miscellaneous', 'Miscellaneous', $geoGroup) }}</div>
     <div style="page-break-inside: avoid;">
     <table style="margin-bottom: 20px;">
         <thead>
@@ -1386,12 +1408,12 @@
                 <th>Description</th>
                 <th>Booking Date</th>
                 <th>Total Pax</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($miscellaneousItems as $item)
+            @foreach($geoGroup['items'] as $item)
             @php
                 $miscDetails = $item->service_details ?? [];
                 $miscBookingDate = $miscDetails['booking_date'] ?? '';
@@ -1410,13 +1432,14 @@
                 <td>{{ $item->description ?? '' }}</td>
                 <td>{{ $miscBookingDateDisplay }}</td>
                 <td>{{ $miscTotalPax }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     </div>
+    @endforeach
     @endif
 
     @if($otherItems->count() > 0)
@@ -1427,8 +1450,8 @@
                 <th>Service Name</th>
                 <th>Description</th>
                 <th>Total Pax</th>
-                <th>Unit Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
-                <th>Total Price ({{ $baseCurrency }}@if($selectedCurrency !== $baseCurrency) / {{ $selectedCurrency }}@endif)</th>
+                <th>Unit Price{{ $priceColumnSuffix() }}</th>
+                <th>Total Price{{ $priceColumnSuffix() }}</th>
             </tr>
         </thead>
         <tbody>
@@ -1437,8 +1460,8 @@
                 <td>{{ ucfirst($item->item_type ?? 'Service') }}</td>
                 <td>{{ $item->description ?? '' }}</td>
                 <td>{{ ($item->quantity_adults ?? 0) + ($item->quantity_children ?? 0) + ($item->quantity_infants ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0) }}</td>
-                <td class="text-right">{{ $formatPrice($item->total_price ?? 0) }}</td>
+                <td class="text-right">{{ $formatPrice($item->unit_price ?? 0, $item) }}</td>
+                <td class="text-right">{{ $formatPrice($item->total_price ?? 0, $item) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -1515,90 +1538,36 @@
                 $finalPrice = $baseAmount + $gstAmount;
                 
                 // Get payment information
-                $paymentReceived = $invoice->payment_received ?? 0;
+                $paymentReceived = $invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0);
                 $outstandingBalance = $invoice->outstanding_balance ?? $finalPrice;
+
+                if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+                    $tpSummary = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+                        $invoice,
+                        $thirdPartyNegotiation,
+                        $selectedCurrency,
+                        $baseCurrency
+                    );
+                    $actualAmount = $tpSummary['actualAmount'];
+                    $negotiatedAmount = $tpSummary['negotiatedAmount'];
+                    $baseAmount = $tpSummary['baseAmount'];
+                    $discount = $tpSummary['discount'];
+                    $gstAmount = $tpSummary['gstAmount'];
+                    $taxBreakdown = $tpSummary['taxBreakdown'];
+                    $finalPrice = $tpSummary['finalPrice'];
+                    $paymentReceived = $tpSummary['paymentReceived'];
+                    $outstandingBalance = $tpSummary['outstandingBalance'];
+                } else {
+                    $outstandingBalance = (float) $finalPrice - (float) $paymentReceived;
+                }
+
             @endphp
-            <tr>
-                <td colspan="7" class="text-right"><strong>Total (Actual Amount):</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($actualAmount) }}</strong></td>
-            </tr>
-            @if($negotiatedAmount !== null)
-            <tr style="background-color: #e7f3ff;">
-                <td colspan="7" class="text-right"><strong>Last Negotiated Amount:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($negotiatedAmount) }}</strong></td>
-            </tr>
-            @if($discount > 0)
-            <tr style="background-color: #d4edda;">
-                <td colspan="7" class="text-right"><strong>Discount:</strong></td>
-                <td class="text-right"><strong>-{{ $formatPrice($discount) }}</strong></td>
-            </tr>
-            @elseif($discount < 0)
-            <tr style="background-color: #fff3cd;">
-                <td colspan="7" class="text-right"><strong>Additional Charges:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice(abs($discount)) }}</strong></td>
-            </tr>
-            @endif
-            @endif
-            
-            @if($shouldShowTax && $gstAmount > 0)
-            <!-- Tax Breakdown -->
-            @if(!empty($taxBreakdown))
-                @foreach($taxBreakdown as $taxName => $taxValue)
-                <tr style="background-color: #fff3cd;">
-                    <td colspan="7" class="text-right"><strong>{{ $taxName }}:</strong></td>
-                    <td class="text-right"><strong>{{ $formatPrice($taxValue) }}</strong></td>
-                </tr>
-                @endforeach
-            @else
-            <tr style="background-color: #fff3cd;">
-                <td colspan="7" class="text-right"><strong>Total Vat / GST Tax:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($gstAmount) }}</strong></td>
-            </tr>
-            @endif
-            @endif
-            
-            <tr style="background-color: #d4edda;">
-                <td colspan="7" class="text-right"><strong>Final Price:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($finalPrice) }}</strong></td>
-            </tr>
-            
-            @if($shouldShowTax)
-            <!-- Payment Information -->
-            <tr style="background-color: #d1ecf1;">
-                <td colspan="7" class="text-right"><strong>Payment Received:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($paymentReceived) }}</strong></td>
-            </tr>
-            <tr style="background-color: #f8d7da;">
-                <td colspan="7" class="text-right"><strong>Outstanding Balance:</strong></td>
-                <td class="text-right"><strong>{{ $formatPrice($outstandingBalance) }}</strong></td>
-            </tr>
-            @endif
+                        @include('invoices.pdf.partials.negotiation-summary-rows', ['summaryColspan' => 7])
+
         </tfoot>
     </table>
-@if($showCurrencyConversion)
-    <!-- Currency Conversion (shown when a non-base currency is selected) -->
-    <div class="currency-section">
-        <table class="currency-table">
-            <thead>
-                <tr>
-                    <th colspan="{{ count($currencyConversion) }}" class="text-center">Currency Conversion</th>
-                </tr>
-                <tr>
-                    @foreach(array_keys($currencyConversion) as $curr)
-                    <th>{{ $curr }}</th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    @foreach($currencyConversion as $curr => $amount)
-                    <td>{{ number_format(round($amount)) }}</td>
-                    @endforeach
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    @endif
+@include('invoices.pdf.partials.currency-conversion-box')
+
 
     <div style="clear: both;"></div>
 
@@ -1611,14 +1580,13 @@
         
         $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
         $taxBreakdown = $notes['tax_breakdown'] ?? [];
-        $gstAmount = $invoice->gst_amount ?? 0;
+        $gstAmount = $gstAmount ?? ($invoice->gst_amount ?? 0);
         $serviceCharge = $invoice->service_charge ?? 0;
         $touristTax = $invoice->tourist_tax ?? 0;
-        $paymentReceived = $invoice->payment_received ?? 0;
-        $outstandingBalance = $invoice->outstanding_balance ?? 0;
-        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
-        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
-        $finalPrice = $baseAmount + $gstAmount;
+        $paymentReceived = $paymentReceived ?? ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
+        $baseAmount = $baseAmount ?? ($notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0)));
+        $finalPrice = $finalPrice ?? ($baseAmount + $gstAmount);
+        $outstandingBalance = $outstandingBalance ?? ((float) $finalPrice - (float) $paymentReceived);
     @endphp
     @if($shouldShowTax)
     <div class="payment-summary">
@@ -1858,7 +1826,7 @@
 
     <!-- Footer Note -->
     <div class="footer-note">
-        <strong>*The base currency applied is the destination's local currency. Any alternate currency displayed is for reference purposes only and is subject to exchange rate fluctuations at the time of payment.</strong>
+        <strong>*Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
     </div>
 
 </body>

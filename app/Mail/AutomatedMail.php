@@ -85,6 +85,14 @@ class AutomatedMail extends Mailable
 
     public function build()
     {
+        // Prefer DMC emails_setup SMTP over .env for every send.
+        $setup = \App\Helpers\CommonHelper::applyEmailsSetupMailConfig();
+
+        if (empty($this->fromEmail) && $setup && !empty($setup->From_Email)) {
+            $this->fromEmail = $setup->From_Email;
+            $this->fromName = $setup->From_Name ?: $this->fromName;
+        }
+
         $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
 
         if ($this->fromEmail && filter_var($this->fromEmail, FILTER_VALIDATE_EMAIL)) {

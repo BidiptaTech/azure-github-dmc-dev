@@ -153,9 +153,35 @@ class TourController extends Controller
         ])->orderBy('created_at', 'desc');
         
         // Step 3: Apply role-specific filters
+        // Own agent tree OR sibling-DMC multi-country tours that include this user's/DMC country
+        // (e.g. Singapore DMC creates "Singapore, Malaysia, India" → India DMC can see it).
         if ($agent_ids !== null && $agent_ids->isNotEmpty()) {
-            // Filter by agent IDs if we have a list
-            $query->whereIn('agent_id', $agent_ids);
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+
+            $query->where(function ($q) use ($agent_ids, $country, $siblingDmcIds) {
+                $q->whereIn('agent_id', $agent_ids);
+                if ($country && count($siblingDmcIds) > 1) {
+                    $q->orWhere(function ($q2) use ($country, $siblingDmcIds) {
+                        $q2->whereIn('dmc_id', $siblingDmcIds);
+                        CommonHelper::whereDestinationContainsCountry($q2, $country, 'destination');
+                    });
+                }
+            });
+        } elseif ($agent_ids !== null && $agent_ids->isEmpty()) {
+            // Keep empty agent list behavior: no agent tours, but still allow multi-country sibling tours
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+            if ($country && count($siblingDmcIds) > 1) {
+                $query->where(function ($q) use ($country, $siblingDmcIds) {
+                    $q->whereIn('dmc_id', $siblingDmcIds);
+                    CommonHelper::whereDestinationContainsCountry($q, $country, 'destination');
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
         
         // Apply additional role-specific filtering
@@ -750,18 +776,20 @@ class TourController extends Controller
         $tour->payment_details = json_encode($paymentDetails);
         $tour->save();
         
-        // Create success message with currency information
-        $successMessage = 'Payment of ' . number_format($baseAmount, 2) . ' ' . $baseCurrency;
-        if ($selectedCurrency !== $baseCurrency) {
-            $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
-        }
-        $successMessage .= ' has been successfully added to Tour #' . $tourId;
+        // Create success message from the amount the user actually paid (selected currency).
+        // Do not show base-currency conversion in the success toast — that confuses operators.
+        $paidCurrency = strtoupper(trim((string) $selectedCurrency));
+        $paidAmountFormatted = number_format($originalAmount, 2);
+        $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.';
         
         // Check if request is AJAX and return JSON response
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
+                'payment_currency' => $paidCurrency,
+                'payment_amount' => $originalAmount,
+                'payment_amount_formatted' => $paidAmountFormatted,
                 'payment_index' => $paymentIndex,
                 'verified' => (bool) ($request->boolean('auto_verify')),
             ]);

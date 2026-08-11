@@ -15,7 +15,11 @@
                     <h4 class="fw-bold mb-0">
                         <i class="ri-file-list-3-line me-2 text-primary"></i>{{ $isEdit ? 'Edit Package Definition' : 'Create Package Definition' }}
                     </h4>
-                    <x-currency-price-note :currency="$currency ?? null" />
+                    <x-currency-price-note
+                        :country="old('destination', $isEdit ? ($package->destination ?? null) : null)"
+                        :watch-country="true"
+                        country-select-id="country-select"
+                    />
                 </div>
                 <p class="text-muted mb-0">
                     {{ $isEdit ? 'Update package definition services and pricing' : 'Define package services without day-wise itinerary' }}
@@ -128,14 +132,18 @@
                                             <div class="col-md-6">
                                                 <label class="form-label">Main Image <span class="text-danger">*</span></label>
                                                 <input type="file" id="main_image" name="main_image" accept="image/*" class="d-none">
+                                                <input type="hidden" name="remove_main_image" id="remove_main_image" value="0">
                                                 <div id="main-image-drop-area" class="form-control package-basic-dropzone">
                                                     <span class="package-basic-dropzone-text">Drop image or click to browse</span>
                                                 </div>
                                                 <small class="text-danger d-none" id="main-image-required-msg">Main image is required.</small>
                                                 @if($isEdit && !empty($package->main_image))
-                                                    <div class="small text-muted mt-2">Current main image</div>
-                                                    <div class="mb-1">
-                                                        <img src="{{ $package->main_image }}" alt="Current main image" class="rounded-2 package-basic-thumb">
+                                                    <div class="small text-muted mt-2" id="current-main-image-label">Current main image</div>
+                                                    <div class="mb-1" id="current-main-image-wrap">
+                                                        <div class="package-image-preview">
+                                                            <img src="{{ $package->main_image }}" alt="Current main image" class="rounded-2 package-basic-thumb">
+                                                            <button type="button" class="package-image-remove" id="remove-existing-main-image" title="Remove image" aria-label="Remove image">&times;</button>
+                                                        </div>
                                                     </div>
                                                 @endif
                                                 <div id="main-image-preview-container" class="mt-2"></div>
@@ -147,12 +155,16 @@
                                                     <input type="file" id="gallery_images" name="gallery_images[]" accept="image/*" multiple style="display: none;">
                                                 </div>
                                                 @if($isEdit && !empty($package->gallery_images) && is_array($package->gallery_images) && count($package->gallery_images))
-                                                    <div class="small text-muted mt-2">Current gallery</div>
-                                                    <div class="mb-1">
+                                                    <div class="small text-muted mt-2" id="current-gallery-label">Current gallery</div>
+                                                    <div class="mb-1" id="current-gallery-wrap">
                                                         @foreach($package->gallery_images as $img)
-                                                            <img src="{{ $img }}" alt="Gallery image" class="rounded-2 package-basic-thumb me-2 mb-2">
+                                                            <div class="package-image-preview package-existing-gallery-item" data-image-url="{{ $img }}">
+                                                                <img src="{{ $img }}" alt="Gallery image" class="rounded-2 package-basic-thumb">
+                                                                <button type="button" class="package-image-remove package-remove-existing-gallery" title="Remove image" aria-label="Remove image">&times;</button>
+                                                            </div>
                                                         @endforeach
                                                     </div>
+                                                    <div id="removed-gallery-images-inputs"></div>
                                                 @endif
                                                 <div id="gallery-preview-container" class="mt-2"></div>
                                             </div>
@@ -919,6 +931,7 @@ $(document).ready(function() {
     const fetchRestaurantTransferPricingUrl = '{{ route("fetch-restaurant-transfer-pricing") }}';
     const restaurantMealsUrlTemplate = '{{ route("restaurant-meals", ["restaurantId" => "__RESTAURANT_ID__"]) }}';
     const hasExistingMainImage = @json($isEdit && !empty($package->main_image));
+    let existingMainImagePresent = !!hasExistingMainImage;
     const isEditMode = @json($isEdit);
 
     $('#country-select').select2();
@@ -3995,7 +4008,7 @@ $(document).ready(function() {
         persistTransferStateForActivePlan();
         const mainImageInput = form.querySelector('#main_image');
         const hasSelectedMainImage = mainImageInput && mainImageInput.files && mainImageInput.files.length;
-        if (!hasExistingMainImage && !hasSelectedMainImage) {
+        if (!existingMainImagePresent && !hasSelectedMainImage) {
             $('#main-image-required-msg').removeClass('d-none');
             alert('Please upload a main image before creating the package definition.');
             const basicAccordion = document.getElementById('collapseBasicDetails');
@@ -4150,6 +4163,19 @@ $(document).ready(function() {
     });
 
     // Main image preview
+    function clearMainImageSelection() {
+        const input = $('#main_image')[0];
+        if (input) input.value = '';
+        $('#main-image-preview-container').empty();
+    }
+    function renderMainImagePreview(dataUrl) {
+        $('#main-image-preview-container').html(
+            '<div class="package-image-preview">' +
+                '<img src="' + dataUrl + '" alt="Main image preview" class="package-basic-thumb rounded-2">' +
+                '<button type="button" class="package-image-remove" id="remove-main-image-preview" title="Remove image" aria-label="Remove image">&times;</button>' +
+            '</div>'
+        );
+    }
     $('#main-image-drop-area').on('click', function() {
         $('#main_image')[0].click();
     });
@@ -4157,16 +4183,35 @@ $(document).ready(function() {
         $('#main-image-required-msg').addClass('d-none');
         const f = this.files[0];
         if (f && f.type.startsWith('image/')) {
+            $('#remove_main_image').val('0');
             const reader = new FileReader();
             reader.onload = function(ev) {
-                $('#main-image-preview-container').html('<img src="' + ev.target.result + '" style="max-height:100px;border-radius:8px;">');
+                renderMainImagePreview(ev.target.result);
             };
             reader.readAsDataURL(f);
+        } else {
+            clearMainImageSelection();
+        }
+    });
+    $(document).on('click', '#remove-main-image-preview', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        clearMainImageSelection();
+        $('#main-image-required-msg').toggleClass('d-none', !!existingMainImagePresent);
+    });
+    $(document).on('click', '#remove-existing-main-image', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        existingMainImagePresent = false;
+        $('#remove_main_image').val('1');
+        $('#current-main-image-wrap, #current-main-image-label').remove();
+        if (!$('#main_image')[0].files.length) {
+            $('#main-image-required-msg').removeClass('d-none');
         }
     });
     // Gallery (simple): avoid recursive click bubbling from hidden input
     $('#gallery-drop-area').on('click', function(e) {
-        if ($(e.target).is('#gallery_images')) return;
+        if ($(e.target).is('#gallery_images') || $(e.target).closest('.package-image-remove').length) return;
         $('#gallery_images')[0].click();
     });
     $('#gallery_images').on('click', function(e) {
@@ -4199,25 +4244,57 @@ $(document).ready(function() {
             return false;
         }
     }
+    let galleryPreviewToken = 0;
     function renderGalleryPreview(files) {
         const previewContainer = $('#gallery-preview-container');
         previewContainer.empty();
+        const token = ++galleryPreviewToken;
         const imageFiles = Array.from(files || []).filter(function(file) {
             return file && file.type && file.type.startsWith('image/');
         });
 
         if (!imageFiles.length) return;
 
-        imageFiles.forEach(function(file) {
+        imageFiles.forEach(function(file, index) {
             const reader = new FileReader();
             reader.onload = function(ev) {
+                if (token !== galleryPreviewToken) return;
                 previewContainer.append(
-                    '<img src="' + ev.target.result + '" style="max-height:100px;border-radius:8px;margin:0 8px 8px 0;" alt="Gallery image preview">'
+                    '<div class="package-image-preview" data-gallery-index="' + index + '">' +
+                        '<img src="' + ev.target.result + '" alt="Gallery image preview" class="package-basic-thumb rounded-2">' +
+                        '<button type="button" class="package-image-remove package-remove-gallery-preview" data-gallery-index="' + index + '" title="Remove image" aria-label="Remove image">&times;</button>' +
+                    '</div>'
                 );
             };
             reader.readAsDataURL(file);
         });
     }
+    function removeGalleryFileAt(index) {
+        gallerySelectedFiles = gallerySelectedFiles.filter(function(_, i) { return i !== index; });
+        syncGalleryInputFiles(gallerySelectedFiles);
+        renderGalleryPreview(gallerySelectedFiles);
+    }
+    $(document).on('click', '.package-remove-gallery-preview', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const index = parseInt($(this).attr('data-gallery-index'), 10);
+        if (!Number.isNaN(index)) removeGalleryFileAt(index);
+    });
+    $(document).on('click', '.package-remove-existing-gallery', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const wrap = $(this).closest('.package-existing-gallery-item');
+        const url = wrap.data('image-url') || '';
+        if (url) {
+            $('#removed-gallery-images-inputs').append(
+                '<input type="hidden" name="remove_gallery_images[]" value="' + String(url).replace(/"/g, '&quot;') + '">'
+            );
+        }
+        wrap.remove();
+        if (!$('#current-gallery-wrap .package-existing-gallery-item').length) {
+            $('#current-gallery-label, #current-gallery-wrap').remove();
+        }
+    });
     $('#gallery_images').on('change', function() {
         gallerySelectedFiles = mergeGalleryFiles(gallerySelectedFiles, this.files);
         syncGalleryInputFiles(gallerySelectedFiles);
@@ -4253,6 +4330,7 @@ $(document).ready(function() {
     updateDefinitionSubmitButton();
 });
 </script>
+@include('components.currency-price-note-dmc-script')
 @endsection
 
 @section('css')
@@ -4374,6 +4452,43 @@ $(document).ready(function() {
     max-height: 100px;
     width: auto;
     vertical-align: top;
+    display: block;
+}
+.package-image-preview {
+    position: relative;
+    display: inline-block;
+    margin: 0 8px 8px 0;
+    vertical-align: top;
+    line-height: 0;
+}
+.package-image-preview img {
+    max-height: 100px;
+    width: auto;
+    border-radius: 8px;
+    display: block;
+}
+.package-image-remove {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #dc3545;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    z-index: 2;
+}
+.package-image-remove:hover {
+    background: #b02a37;
+    color: #fff;
 }
 /* Country + City use Select2 — match native inputs (42px) */
 .package-basic-fields .select2-container {
@@ -5115,7 +5230,8 @@ $(document).ready(function() {
 .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 40px; padding-right: 32px; }
 .select2-container--default .select2-selection--single .select2-selection__arrow { height: 40px; }
 .gallery-drop-active { border-color: #0056b3 !important; background-color: rgba(0, 123, 255, 0.05); }
-#gallery-preview-container img { max-height: 100px !important; width: auto !important; border-radius: 8px; margin: 0 8px 8px 0; display: inline-block; vertical-align: top; }
+#gallery-preview-container .package-image-preview img,
+#main-image-preview-container .package-image-preview img { max-height: 100px !important; width: auto !important; border-radius: 8px; display: block; }
 /* Two per row: same width and height for every input/select in the row */
 .two-col-row .col-md-6 .form-control,
 .two-col-row .col-md-6 .form-select { width: 100%; min-height: 42px; }

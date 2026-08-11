@@ -3,6 +3,9 @@
 @php use Illuminate\Support\Facades\Crypt; @endphp
 
 @section('css')
+@php $assetBase = rtrim(config('app.url'), '/'); @endphp
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.css" />
+<link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css" />
 <!-- SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <style>
@@ -200,16 +203,114 @@
         color: #dc2626;
     }
 
-    /* Pagination spacing */
-    .pagination-wrap {
-        padding: 0 1.25rem 1.25rem;
+    /* DataTables controls */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info {
+        color: #64748b;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    .dataTables_wrapper .dataTables_length label,
+    .dataTables_wrapper .dataTables_filter label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        width: 100%;
+    }
+
+    .dataTables_wrapper .dataTables_length {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        width: auto;
+        min-width: 80px;
+        padding: 0.32rem 0.55rem;
+    }
+
+    .dataTables_wrapper .dataTables_filter {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        text-align: right;
+    }
+
+    .dataTables_wrapper .dataTables_filter label {
+        justify-content: flex-end;
+    }
+
+    .dataTables_wrapper .dataTables_length select,
+    .dataTables_wrapper .dataTables_filter input {
+        border: 1px solid #dbe3ee;
+        border-radius: 10px;
+        padding: 0.35rem 0.6rem;
+        font-size: 12.5px;
+        outline: none;
+        box-shadow: none;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        width: 260px;
+        max-width: 100%;
+    }
+
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .misc-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .misc-infinite-footer .misc-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .misc-infinite-footer.is-loading .misc-scroll-loader {
+        display: inline-flex;
+    }
+
+    .misc-infinite-footer .misc-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .misc-infinite-footer.is-end .misc-scroll-end {
+        display: block;
+    }
+
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     @media (max-width: 768px) {
         .page-header { padding: 0.9rem 1rem; }
         .page-title { font-size: 1.2rem; }
         .table-shell { padding: 0.85rem 1rem 1rem; }
-        .pagination-wrap { padding: 0 1rem 1rem; }
     }
 </style>
 @endsection
@@ -245,7 +346,7 @@
             @else
                 <div class="table-shell">
                 <div class="table-responsive">
-                    <table class="table table-hover table-bordered table-premium">
+                    <table class="datatables-basic table table-hover table-bordered table-premium" id="miscItemsTable">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -302,10 +403,13 @@
                         </tbody>
                     </table>
                 </div>
+                <div id="miscInfiniteFooter" class="misc-infinite-footer">
+                    <div class="misc-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more items…</span>
+                    </div>
+                    <div class="misc-scroll-end">All items loaded</div>
                 </div>
-                
-                <div class="pagination-wrap">
-                    {{ $items->links() }}
                 </div>
             @endif
         </div>
@@ -317,6 +421,76 @@
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 <script>
+$(document).ready(function() {
+    if (!$('#miscItemsTable').length) return;
+
+    var miscBatchSize = 25;
+    var miscTable = $('#miscItemsTable').DataTable({
+        responsive: false,
+        autoWidth: false,
+        dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search...",
+        },
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        pageLength: miscBatchSize,
+        paging: true,
+        pagingType: 'simple_numbers',
+        columnDefs: [
+            { orderable: false, targets: [1, 6] }
+        ]
+    });
+
+    var $infiniteFooter = $('#miscInfiniteFooter');
+    var miscInfiniteLoading = false;
+    var miscInfiniteGuard = false;
+
+    function updateMiscInfiniteFooter() {
+        var info = miscTable.page.info();
+        var allVisible = info.recordsDisplay <= info.length;
+        $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+        $infiniteFooter.removeClass('is-loading');
+        miscInfiniteLoading = false;
+    }
+
+    function loadMoreMiscIfNeeded() {
+        if (miscInfiniteLoading) return;
+        var info = miscTable.page.info();
+        if (info.recordsDisplay <= info.length) {
+            updateMiscInfiniteFooter();
+            return;
+        }
+        var scrollBottom = $(window).scrollTop() + $(window).height();
+        if (scrollBottom < $(document).height() - 120) return;
+        miscInfiniteLoading = true;
+        $infiniteFooter.addClass('is-loading').removeClass('is-end');
+        setTimeout(function() {
+            var currentInfo = miscTable.page.info();
+            miscTable.page.len(Math.min(currentInfo.length + miscBatchSize, currentInfo.recordsDisplay)).draw(false);
+            updateMiscInfiniteFooter();
+        }, 150);
+    }
+
+    miscTable.on('length.dt', function(e, settings, len) {
+        miscBatchSize = len;
+        updateMiscInfiniteFooter();
+    });
+    miscTable.on('search.dt', function() {
+        if (miscInfiniteGuard) return;
+        miscInfiniteGuard = true;
+        miscTable.page.len(miscBatchSize).draw(false);
+        miscInfiniteGuard = false;
+        updateMiscInfiniteFooter();
+    });
+    miscTable.on('draw.dt', function() {
+        if (!miscInfiniteGuard) updateMiscInfiniteFooter();
+    });
+    $(window).on('scroll.miscInfinite resize.miscInfinite', loadMoreMiscIfNeeded);
+    updateMiscInfiniteFooter();
+    loadMoreMiscIfNeeded();
+});
+
 window.deleteMiscItem = function(deleteUrl, itemName) {
     Swal.fire({
         title: 'Delete Item?',

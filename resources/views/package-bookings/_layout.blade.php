@@ -136,12 +136,38 @@
                         </div>
                     </div>
                 </div>
+                @php
+                    $pkgTravelDateYmd = function ($booking) {
+                        $td = is_array($booking->travel_dates ?? null)
+                            ? ($booking->travel_dates ?? [])
+                            : (is_string($booking->travel_dates ?? null) ? (json_decode($booking->travel_dates, true) ?: []) : []);
+                        $rawIn = $td['check_in'] ?? $td['check_in_date'] ?? $td['start_date'] ?? $td['startDate'] ?? null;
+                        try {
+                            return $rawIn ? \Carbon\Carbon::parse($rawIn)->toDateString() : null;
+                        } catch (\Throwable $e) {
+                            return null;
+                        }
+                    };
+                    $pkgCheckInToday = $bookings->filter(function ($b) use ($pkgTravelDateYmd) {
+                        return $pkgTravelDateYmd($b) === now()->toDateString();
+                    })->count();
+                    $pkgCheckInThisMonth = $bookings->filter(function ($b) use ($pkgTravelDateYmd) {
+                        $d = $pkgTravelDateYmd($b);
+                        if (!$d) return false;
+                        try {
+                            $c = \Carbon\Carbon::parse($d);
+                            return $c->year === now()->year && $c->month === now()->month;
+                        } catch (\Throwable $e) {
+                            return false;
+                        }
+                    })->count();
+                @endphp
                 <div class="col-12 col-md-4">
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-calendar-line text-white"></i></div>
                         <div class="min-w-0">
-                            <span class="stat-value d-block lh-1">{{ $bookings->where('created_at', '>=', now()->today())->count() }}</span>
-                            <span class="stat-label text-muted">Today</span>
+                            <span class="stat-value d-block lh-1">{{ $pkgCheckInToday }}</span>
+                            <span class="stat-label text-muted">Check-in Today</span>
                         </div>
                     </div>
                 </div>
@@ -149,8 +175,8 @@
                     <div class="new-enq-stat-item d-flex align-items-center gap-2 px-3 py-2 rounded bg-white border shadow-sm h-100">
                         <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-time-line text-white"></i></div>
                         <div class="min-w-0">
-                            <span class="stat-value d-block lh-1">{{ $bookings->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->count() }}</span>
-                            <span class="stat-label text-muted">{{ date('F') }}</span>
+                            <span class="stat-value d-block lh-1">{{ $pkgCheckInThisMonth }}</span>
+                            <span class="stat-label text-muted">{{ date('F') }} Check-ins</span>
                         </div>
                     </div>
                 </div>
@@ -183,11 +209,22 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    @php
+                        $pkgToday = \Carbon\Carbon::today();
+                        $pkgDateMin = $pkgToday->copy()->subYear()->toDateString();
+                        $pkgDateMax = $pkgToday->copy()->addYear()->toDateString();
+                        $pkgDefaultStart = $pkgToday->toDateString();
+                        $pkgDefaultEnd = $pkgToday->copy()->addDays(30)->toDateString();
+                    @endphp
+                    <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter"
+                           min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
+                           value="{{ $pkgDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter"
+                           min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
+                           value="{{ $pkgDefaultEnd }}">
                 </div>
                 @if(!empty($showBookingStatusColumn))
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -451,6 +488,42 @@
             $('#packageBookingsTable').DataTable().destroy();
         }
 
+        // Date range filter by package check-in / check-out (YYYY-MM-DD)
+        // Register BEFORE DataTable init so the first draw applies today → today+30 default.
+        if (!window.__pkgBookingDateSearchRegistered) {
+            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                if (!settings.nTable || settings.nTable.id !== 'packageBookingsTable') return true;
+
+                const start = document.getElementById('pkgStartDateFilter')?.value || '';
+                const end = document.getElementById('pkgEndDateFilter')?.value || '';
+                if (!start && !end) return true;
+
+                const api = new $.fn.dataTable.Api(settings);
+                const rowNode = api.row(dataIndex).node();
+                const checkIn = (rowNode?.getAttribute('data-check-in') || '').trim();
+                const checkOut = (rowNode?.getAttribute('data-check-out') || checkIn || '').trim();
+                if (!checkIn && !checkOut) return false;
+
+                const tourStart = checkIn || checkOut;
+                const tourEnd = checkOut || checkIn;
+
+                // Overlap: booking [tourStart, tourEnd] intersects filter [start, end]
+                if (start && tourEnd && tourEnd < start) return false;
+                if (end && tourStart && tourStart > end) return false;
+                return true;
+            });
+            window.__pkgBookingDateSearchRegistered = true;
+        }
+
+        function renumberPackageBookingRows(api) {
+            if (!api) return;
+            const info = api.page.info();
+            let n = (info.start || 0) + 1;
+            api.column(0, { page: 'current', search: 'applied', order: 'applied' }).nodes().each(function (cell) {
+                cell.innerHTML = String(n++);
+            });
+        }
+
         pkgTable = $('#packageBookingsTable').DataTable({
             dom: 'lrtip',
             responsive: true,
@@ -468,7 +541,10 @@
                 { searchable: false, targets: @json($__pkgNoOrder) }
             ],
             pageLength: 10,
-            lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]]
+            lengthMenu: [[10,25,50,100,-1],[10,25,50,100,"All"]],
+            drawCallback: function () {
+                renumberPackageBookingRows(this.api());
+            }
         });
 
         // Ensure columns are aligned (especially when scrollX is off)
@@ -476,43 +552,76 @@
             try { pkgTable.columns.adjust(); } catch (e) {}
         }, 50);
 
-        $(window).on('resize.pkgTable', function () {
+        $(window).off('resize.pkgTable').on('resize.pkgTable', function () {
             if (!pkgTable) return;
             try { pkgTable.columns.adjust(); } catch (e) {}
         });
 
         // External search
-        $('#pkgSearchInput').on('input', function () {
+        $('#pkgSearchInput').off('input.pkgFilter').on('input.pkgFilter', function () {
             pkgTable.search(this.value || '').draw();
         });
 
         // Agent filter (column index 4 after removing travel dates)
-        $('#pkgAgentFilter').on('change', function () {
+        $('#pkgAgentFilter').off('change.pkgFilter').on('change.pkgFilter', function () {
             const v = this.value || '';
             // Agent cell contains name + company on separate lines; use substring match.
             pkgTable.column(4).search(v, false, true).draw();
         });
 
-        // Date range filter by data-created-at (YYYY-MM-DD)
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'packageBookingsTable') return true;
+        function getPkgDateBounds() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const pad = (n) => String(n).padStart(2, '0');
+            const toYmd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const minDate = new Date(today);
+            minDate.setFullYear(minDate.getFullYear() - 1);
+            const maxDate = new Date(today);
+            maxDate.setFullYear(maxDate.getFullYear() + 1);
+            const endPlus30 = new Date(today);
+            endPlus30.setDate(endPlus30.getDate() + 30);
+            return {
+                todayStr: toYmd(today),
+                minStr: toYmd(minDate),
+                maxStr: toYmd(maxDate),
+                endPlus30Str: toYmd(endPlus30),
+            };
+        }
 
-            const start = document.getElementById('pkgStartDateFilter')?.value || '';
-            const end = document.getElementById('pkgEndDateFilter')?.value || '';
-            if (!start && !end) return true;
+        function clampPkgDateInput(input, minStr, maxStr) {
+            if (!input || !input.value) return;
+            if (minStr && input.value < minStr) input.value = minStr;
+            if (maxStr && input.value > maxStr) input.value = maxStr;
+        }
 
-            const rowNode = pkgTable.row(dataIndex).node();
-            const createdAt = rowNode?.getAttribute('data-created-at') || '';
-            if (!createdAt) return false;
+        function syncPkgCheckoutMinDate() {
+            const bounds = getPkgDateBounds();
+            const sd = document.getElementById('pkgStartDateFilter');
+            const ed = document.getElementById('pkgEndDateFilter');
+            if (!sd || !ed) return;
 
-            if (start && createdAt < start) return false;
-            if (end && createdAt > end) return false;
-            return true;
+            sd.setAttribute('min', bounds.minStr);
+            sd.setAttribute('max', bounds.maxStr);
+            clampPkgDateInput(sd, bounds.minStr, bounds.maxStr);
+
+            const endMin = sd.value && sd.value > bounds.minStr ? sd.value : bounds.minStr;
+            ed.setAttribute('min', endMin);
+            ed.setAttribute('max', bounds.maxStr);
+            if (ed.value && ed.value < endMin) {
+                ed.value = endMin;
+            }
+            clampPkgDateInput(ed, endMin, bounds.maxStr);
+        }
+
+        syncPkgCheckoutMinDate();
+
+        $('#pkgStartDateFilter, #pkgEndDateFilter').off('change.pkgFilter input.pkgFilter').on('change.pkgFilter input.pkgFilter', function () {
+            syncPkgCheckoutMinDate();
+            if (pkgTable) pkgTable.draw();
         });
 
-        $('#pkgStartDateFilter, #pkgEndDateFilter').on('change', function () {
-            pkgTable.draw();
-        });
+        // Apply default today → today+30 date filter + renumber (# starts at 1)
+        pkgTable.draw();
 
         @if(!empty($showBookingStatusColumn))
         $('#pkgBookingStatusFilter').on('change', function () {
@@ -597,11 +706,49 @@
         if (s) s.value = '';
         if (a) a.value = '';
         if (st) st.value = '';
-        if (sd) sd.value = '{{ now()->startOfMonth()->toDateString() }}';
-        if (ed) ed.value = '{{ now()->toDateString() }}';
+
+        // Reset date range to today → today + 30 days (within ±1 year bounds)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const pad = (n) => String(n).padStart(2, '0');
+        const toYmd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const minDate = new Date(today);
+        minDate.setFullYear(minDate.getFullYear() - 1);
+        const maxDate = new Date(today);
+        maxDate.setFullYear(maxDate.getFullYear() + 1);
+        const endPlus30 = new Date(today);
+        endPlus30.setDate(endPlus30.getDate() + 30);
+        const todayStr = toYmd(today);
+        const minStr = toYmd(minDate);
+        const maxStr = toYmd(maxDate);
+        const endPlus30Str = toYmd(endPlus30);
+
+        if (sd) {
+            sd.setAttribute('min', minStr);
+            sd.setAttribute('max', maxStr);
+            sd.value = todayStr;
+        }
+        if (ed) {
+            ed.setAttribute('min', todayStr);
+            ed.setAttribute('max', maxStr);
+            ed.value = endPlus30Str;
+        }
+
         if (pkgTable) {
             pkgTable.search('').columns().search('');
             pkgTable.draw();
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Filters Reset!',
+                text: 'All filters have been cleared successfully.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false,
+                position: 'top-end',
+                toast: true
+            });
         }
     }
 

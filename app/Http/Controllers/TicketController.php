@@ -276,7 +276,11 @@ class TicketController extends Controller
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
-        return view('tickets.edit-ticket', compact('ticket'));
+
+        // Needed for currency-price-note on the edit ticket page
+        $auth_user = Auth::user();
+
+        return view('tickets.edit-ticket', compact('ticket', 'auth_user'));
     }
 
     /**

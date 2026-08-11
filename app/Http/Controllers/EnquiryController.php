@@ -100,13 +100,41 @@ class EnquiryController extends Controller
         $request->validate([
             'enquiry_id' => 'nullable|integer',
             'tour_id' => 'nullable|integer|exists:tours,tour_id',
-            'price' => 'required|numeric|min:0',
-            'comment' => 'required|string|max:1000',
+            'price' => 'nullable|numeric|min:0',
+            'comment' => 'nullable|string|max:1000',
             'actual_amount' => 'nullable|numeric|min:0',
+            'offers' => 'nullable|array|min:1',
+            'offers.*.country' => 'required_with:offers|string|max:255',
+            'offers.*.currency' => 'required_with:offers|string|max:10',
+            'offers.*.amount' => 'required_with:offers|numeric|min:0.01',
+            'offers.*.actual_amount' => 'required_with:offers|numeric|min:0',
+            'offers.*.gross' => 'nullable|numeric|min:0',
         ]);
 
         if (! $request->filled('enquiry_id') && ! $request->filled('tour_id')) {
             return back()->with('error', 'Enquiry or tour reference is required.');
+        }
+
+        $offers = [];
+        if ($request->filled('offers') && is_array($request->input('offers'))) {
+            $offers = array_values(array_map(function ($offer) {
+                return [
+                    'country' => trim((string) ($offer['country'] ?? '')),
+                    'currency' => strtoupper(trim((string) ($offer['currency'] ?? ''))),
+                    'amount' => round((float) ($offer['amount'] ?? 0), 2),
+                    'actual_amount' => round((float) ($offer['actual_amount'] ?? 0), 2),
+                    'gross' => round((float) ($offer['gross'] ?? 0), 2),
+                ];
+            }, $request->input('offers')));
+        }
+
+        $primaryOffer = $offers[0] ?? null;
+        $price = $primaryOffer
+            ? (float) $primaryOffer['amount']
+            : (float) $request->input('price', 0);
+
+        if ($price <= 0) {
+            return back()->withErrors(['price' => 'Please enter a counter price for each country.'])->withInput();
         }
 
         $currentUser = auth()->user();
@@ -131,18 +159,14 @@ class EnquiryController extends Controller
         }
 
         if (! $currentEnquiry && $tour) {
-            // $lastEnquiryId = Enquiry::withTrashed()->max('enquiry_id') ?? 1;
-            // $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            // while (Enquiry::withTrashed()->where('enquiry_id', $newEnquiryId)->exists()) {
-            //     $newEnquiryId = CommonHelper::createId($newEnquiryId);
-            // }
-            $actualForRow = (float) ($request->input('actual_amount', 0));
+            $actualForRow = $primaryOffer
+                ? (float) $primaryOffer['actual_amount']
+                : (float) ($request->input('actual_amount', 0));
 
             $currentEnquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
                 'dmcId' => $tour->dmc_id,
-                // 'enquiry_id' => $newEnquiryId,
                 'sender_id' => $currentUser->userId,
                 'sender_type' => 'OM',
                 'receiver_id' => 0,
@@ -152,6 +176,7 @@ class EnquiryController extends Controller
                 'actual_amount' => $actualForRow,
                 'gross_amount' => \App\Helpers\CommonHelper::calculateTourGrossAmount($tour),
                 'comment' => '',
+                'negotiation_details' => $offers ?: null,
             ]);
             $currentEnquiry->refresh();
         }
@@ -168,31 +193,27 @@ class EnquiryController extends Controller
         // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
         $amount = $currentEnquiry->amount ?? 0;
         $comment = $request->comment ?? '';
-        $actualAmount = $request->price ?? 0;
+        $actualAmount = $price;
 
-        // if($currentUser->role_id == 125){
-        //     $currentEnquiry->sender_id = $currentUser->userId;
-        //     $currentEnquiry->sender_type = 'AOM';
-        //     $currentEnquiry->receiver_id = $tour->agent_id;
-        //     $currentEnquiry->receiver_type = 'Agent';
-        //     $currentEnquiry->current_position = 'Agent';
-        //     $currentEnquiry->actual_amount = $currentEnquiry->actual_amount ?? 0;
-        //     $currentEnquiry->amount = $request->price;
-        //     $currentEnquiry->comment = $request->comment;
-        // }
-        // else{
-            $currentEnquiry->sender_id = $currentUser->userId;
-            $currentEnquiry->sender_type = 'OM';
-            $currentEnquiry->receiver_id = 0;
-            $currentEnquiry->receiver_type = '';
-            $currentEnquiry->current_position = '';
-            $currentEnquiry->actual_amount = $currentEnquiry->actual_amount ?? 0;
-            // Reset the gross baseline to the current gross for this negotiation round so that
-            // services added afterwards are added on top of this newly agreed amount.
+        $currentEnquiry->sender_id = $currentUser->userId;
+        $currentEnquiry->sender_type = 'OM';
+        $currentEnquiry->receiver_id = 0;
+        $currentEnquiry->receiver_type = '';
+        $currentEnquiry->current_position = '';
+        $currentEnquiry->actual_amount = $currentEnquiry->actual_amount ?? 0;
+        // Reset the gross baseline to the current gross for this negotiation round so that
+        // services added afterwards are added on top of this newly agreed amount.
+        if ($primaryOffer && (float) ($primaryOffer['gross'] ?? 0) > 0) {
+            $currentEnquiry->gross_amount = (float) $primaryOffer['gross'];
+        } else {
             $currentEnquiry->gross_amount = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
-            $currentEnquiry->amount = $request->price;
-            $currentEnquiry->comment = $request->comment;
-        // }
+        }
+        $currentEnquiry->amount = $price;
+        $currentEnquiry->comment = $request->comment;
+        if (!empty($offers)) {
+            $currentEnquiry->negotiation_details = $offers;
+        }
+
         $tourStatus = Tour::where('tour_id', $currentEnquiry->tour_id)->value('tour_status');
         $oldStatus = $tourStatus;
         $newStatus = $tourStatus;
@@ -210,7 +231,8 @@ class EnquiryController extends Controller
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
@@ -228,7 +250,8 @@ class EnquiryController extends Controller
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
 
             Tour::where('tour_id', $currentEnquiry->tour_id)->update([
@@ -243,11 +266,12 @@ class EnquiryController extends Controller
                 $tourStatus,
                 $tourStatus,
                 null,
-                $amount,    
+                $amount,
                 $comment,
                 $actualAmount,
                 $changedByName,
-                $changedByUserId
+                $changedByUserId,
+                offers: $offers
             );
             $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }
@@ -258,7 +282,7 @@ class EnquiryController extends Controller
                 try {
                     // Get the actual amount (original price) and negotiated amount
                     $actualAmount = $currentEnquiry->actual_amount ?? 0;
-                    $negotiatedAmount = $request->price;
+                    $negotiatedAmount = $price;
                     
                     $negotiationData = [
                         'tour' => $tour,
@@ -268,6 +292,7 @@ class EnquiryController extends Controller
                         'previous_negotiated_amount' => null, // DMC doesn't have previous offers in this flow
                         'comment' => $request->comment,
                         'currency' => '$', // You can customize this
+                        'offers' => $offers,
                     ];
                     
                     $emailResult = CommonHelper::sendNegotiationEmail(

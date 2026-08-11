@@ -888,7 +888,7 @@
                                 <div class="row g-2">
                                     <div class="col-md-6">
                                         <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
+                                            <i class="ri-map-pin-add-line me-1"></i>Select 
                                         </label>
                                         <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
                                         <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
@@ -1406,26 +1406,20 @@
                                         <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
+
+                                        <button type="button" class="btn btn-outline-secondary" id="clearHotelFormBtn" onclick="clearHotelForm()" title="Reset hotel form fields" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-eraser-line me-1"></i>Clear
+                                        </button>
                                     </div>
                                 </div>
                                 
                                 
-                                <div id="nightSelectionSummary">
-                            <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                                    </div>
-                                </div>
+                                <div id="nightSelectionSummary"></div>
                             </div>
                             </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
-                            <div id="selectedHotels">
-                                <div class="alert alert-info d-flex align-items-center">
-                                    <i class="ri-information-line me-2"></i>
-                                    <span>No hotels selected yet. Choose your hotels above.</span>
-                                </div>
-                            </div>
+                            <div id="selectedHotels"></div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -6062,6 +6056,9 @@
                             if (payload.country) {
                                 fd.append('country', payload.country);
                             }
+                            if (payload.city) {
+                                fd.append('city', payload.city);
+                            }
                             if (payload.currency) {
                                 fd.append('currency', payload.currency);
                             }
@@ -6255,6 +6252,7 @@
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
                                         total_price: 0,
                                         country: seg.segCountry || '',
+                                        city: String(seg.cityLabel || '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
                                         currency: seg.segCurrency || ''
                                     });
 
@@ -6408,6 +6406,30 @@
                             const singleOrderCurrency = (typeof getTourCurrency === 'function')
                                 ? getTourCurrency()
                                 : (document.getElementById('tour_package_currency')?.value || '');
+                            let singleOrderCity = (typeof cityName !== 'undefined' && cityName) ? cityName : '';
+                            if (!singleOrderCity) {
+                                const cityEl = document.getElementById('single_city');
+                                if (cityEl) {
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                            const d2 = $(cityEl).select2('data');
+                                            if (d2 && d2.length && d2[0] && d2[0].text) {
+                                                singleOrderCity = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                            }
+                                        }
+                                    } catch (eCity) { /* ignore */ }
+                                    if (!singleOrderCity) {
+                                        const v = String(cityEl.value || '').trim();
+                                        if (v && !/^\d+$/.test(v)) {
+                                            singleOrderCity = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        } else if (cityEl.selectedIndex >= 0) {
+                                            const opt = cityEl.options[cityEl.selectedIndex];
+                                            const t = opt ? String(opt.textContent || '').trim() : '';
+                                            if (t) singleOrderCity = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        }
+                                    }
+                                }
+                            }
 
                             const result = await postServiceOrders({
                                 tour_id: tourId,
@@ -6420,6 +6442,7 @@
                                 exit_port_data: exitPortData,
                                 total_price: totalPrice,
                                 country: singleOrderCountry,
+                                city: singleOrderCity,
                                 currency: singleOrderCurrency
                             });
 
@@ -6554,7 +6577,7 @@
                             <div class="p-3">
                                 <h6 class="text-warning fw-bold mb-3">
                                     <i class="ri-service-line me-2"></i>Selected Services
-                                </h6>
+                                </h6> 
                                 
                                 @if($hotels->count() > 0)
                                 <div class="service-item mb-3">
@@ -7037,7 +7060,7 @@
             return p;
         };
 
-        // Service city dropdowns (single-city mode: default from main tour city; stays editable)
+        // Service city dropdowns (single-city mode: locked to main tour city; multi-city: editable per segment)
         window.SERVICE_CITY_SELECTORS = [
             '#hotelCitySelect',
             '#modal_local_transfer_city',
@@ -7059,9 +7082,71 @@
                     const $dd = $(this);
                     if (!$dd.length) return;
                     $dd.prop('disabled', ro);
-                    // If Select2 is attached, it will reflect disabled state automatically.
                 });
             });
+        };
+
+        window.refreshServiceCitySelect2 = function ($dd, placeholder, readonly) {
+            if (!$dd || !$dd.length) return;
+            try {
+                if ($dd.hasClass('select2-hidden-accessible')) {
+                    $dd.select2('destroy');
+                }
+            } catch (e) { /* ignore */ }
+            $dd.select2({
+                placeholder: placeholder || 'Select city...',
+                allowClear: !readonly,
+                width: '100%'
+            });
+            $dd.prop('disabled', !!readonly);
+        };
+
+        /** Single-city: service city fields show only the main tour city and cannot be changed. */
+        window.applySingleCityLockToServiceDropdowns = function (cityMeta) {
+            if (typeof window.isSingleCityMode !== 'function' || !window.isSingleCityMode()) {
+                return;
+            }
+            const meta = cityMeta || (typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {});
+            const cityName = (meta.text || window.getSingleCityName() || meta.value || '').trim();
+            if (!cityName) {
+                return;
+            }
+            const cityValue = cityName;
+            const cityId = meta.id ? String(meta.id) : '';
+
+            window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+                $(sel).each(function () {
+                    const $dd = $(this);
+                    if (!$dd.length) return;
+
+                    const prevVal = String($dd.val() || '');
+                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
+                    $dd.html(
+                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
+                        cityName.replace(/</g, '&lt;') + '</option>'
+                    );
+                    $dd.val(cityValue);
+                    $dd.prop('disabled', true);
+                    window.refreshServiceCitySelect2($dd, cityName, true);
+
+                    if (prevVal !== cityValue) {
+                        $dd.trigger('change');
+                    }
+                });
+            });
+            window.setServiceCityReadonly(true);
+        };
+
+        /** Multi-city: restore editable service city lists from country. */
+        window.releaseServiceCityDropdownsForMultiCity = function () {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                return;
+            }
+            window.setServiceCityReadonly(false);
+            const country = $('#user_country').val();
+            if (country && typeof window.populateAllCityDropdowns === 'function') {
+                window.populateAllCityDropdowns(country);
+            }
         };
 
         window.getSingleCityName = function () {
@@ -7108,6 +7193,12 @@
         };
 
         window.syncAllServiceCities = function (cityName) {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                if (typeof window.applySingleCityLockToServiceDropdowns === 'function') {
+                    window.applySingleCityLockToServiceDropdowns();
+                }
+                return;
+            }
             if (!cityName || !String(cityName).trim()) return;
 
             const needle = String(cityName).trim();
@@ -7192,15 +7283,17 @@
             }
         };
 
-        // Single-city mode: default tour city onto service city fields only (editable; never lock/disabled).
+        // Single-city mode: lock all service city fields to the main tour city (top selector only is editable).
         window.syncSingleCityToAllServices = function () {
             if (!window.isSingleCityMode()) {
                 return;
             }
-            const city = window.getSingleCityName();
+            const meta = typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {};
+            const city = meta.text || window.getSingleCityName() || meta.value;
             if (city) {
-                window.syncAllServiceCities(city);
+                window.applySingleCityLockToServiceDropdowns(meta);
             } else {
+                window.setServiceCityReadonly(false);
                 window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                     $(sel).each(function () {
                         $(this).val('').trigger('change');
@@ -7408,12 +7501,12 @@
                 if (!$hint.length || !$bundle.length) return;
 
                 if (!multi) {
-                    if (typeof window.setServiceCityReadonly === 'function') {
-                        window.setServiceCityReadonly(false);
-                    }
                     clearMultiSegmentStayContext();
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
                     if (typeof window.generateNightSelection === 'function') {
                         window.generateNightSelection();
                     }
@@ -7430,7 +7523,9 @@
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
                 } else {
-                    if (typeof window.setServiceCityReadonly === 'function') {
+                    if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                        window.releaseServiceCityDropdownsForMultiCity();
+                    } else if (typeof window.setServiceCityReadonly === 'function') {
                         window.setServiceCityReadonly(false);
                     }
                     clearMultiSegmentStayContext();
@@ -7467,12 +7562,16 @@
             function setCityMode(mode) {
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
-
-                // Single-city inputs shown/hidden
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
-
-                // main travel_dates MUST stay visible in both modes (main range constraint)
-                // so do nothing here; segments validate against #start_date/#end_date.
+                $('#travel_dates').closest('.col-md-3, .col-12, .col-sm-4').removeClass('d-none');
+                if (!isMulti) {
+                    ensureServicesBundleAtHome();
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
+                } else if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                    window.releaseServiceCityDropdownsForMultiCity();
+                }
                 refreshGlobalServicesVisibility();
             }
 
@@ -7563,7 +7662,80 @@
                 } catch (e) { /* ignore */ }
             }
 
+            function ensureServicesBundleAtHome() {
+                $('.segment-services-frozen').remove();
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                    $bundle.removeClass('d-none').show();
+                }
+            }
+
+            function refreshAllOnCityModeSwitch() {
+                ensureServicesBundleAtHome();
+
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                try {
+                    if (typeof selectedHotels !== 'undefined') selectedHotels = [];
+                    if (typeof selectedAttractions !== 'undefined') selectedAttractions = [];
+                    if (typeof selectedRestaurants !== 'undefined') selectedRestaurants = [];
+                    if (typeof selectedGuides !== 'undefined') selectedGuides = [];
+                    if (typeof hotelData !== 'undefined') hotelData = [];
+                    if (typeof lastSelectedHotelId !== 'undefined') lastSelectedHotelId = null;
+                    const sd = document.getElementById('start_date')?.value || '';
+                    const ed = document.getElementById('end_date')?.value || '';
+                    if (sd && ed && typeof moment !== 'undefined') {
+                        if (typeof tourStartDate !== 'undefined') tourStartDate = sd;
+                        if (typeof tourEndDate !== 'undefined') tourEndDate = ed;
+                        if (typeof tourNights !== 'undefined') tourNights = moment(ed).diff(moment(sd), 'days');
+                    }
+                } catch (e) { /* ignore */ }
+
+                ['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '[]';
+                });
+
+                const selectedHotelsEl = document.getElementById('selectedHotels');
+                if (selectedHotelsEl) selectedHotelsEl.innerHTML = '';
+                const ns = document.getElementById('nightSelection');
+                if (ns) ns.innerHTML = '';
+                const tdEl = document.getElementById('tourDates');
+                const hnEl = document.getElementById('hotelNights');
+                if (tdEl) tdEl.textContent = '';
+                if (hnEl) hnEl.textContent = '0 Nights Selected';
+
+                if (typeof window.resetServicesBundleFormControls === 'function') {
+                    window.resetServicesBundleFormControls();
+                }
+                if (typeof window.renderHotelAccordionHeader === 'function') {
+                    window.renderHotelAccordionHeader();
+                }
+                if (typeof displaySelectedHotels === 'function') {
+                    displaySelectedHotels();
+                }
+                if (typeof updateBookingsSummary === 'function') {
+                    updateBookingsSummary();
+                }
+                if (typeof updatePackageTotalPriceDisplay === 'function') {
+                    updatePackageTotalPriceDisplay();
+                }
+                if (typeof generateDailyServices === 'function') {
+                    generateDailyServices();
+                }
+            }
+
             function clearCityModeUIState() {
+                ensureServicesBundleAtHome();
+
                 if ($('#multi_cities').length) {
                     $('#multi_cities').val(null).trigger('change');
                 }
@@ -7573,30 +7745,33 @@
                 if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
 
                 clearMultiSegmentStayContext();
-
-                const $bundle = $('#segmentServicesBundle');
-                const $home = $('#servicesAccordionHome');
-                if ($bundle.length && $home.length) {
-                    $home.after($bundle);
-                }
-
+                ensureServicesBundleAtHome();
                 $('.service-grid').empty();
             }
 
             function resetTourPackageCityMode(mode) {
-                // Full reset of Tour Package Configuration when switching city mode
-                clearTourPackageHeaderFields();
-                clearCityModeUIState();
+                if ($('#single_city').length) {
+                    $('#single_city').val(null).trigger('change');
+                }
+                if ($('#multi_cities').length) {
+                    $('#multi_cities').val(null).trigger('change');
+                }
 
-                if (mode === 'multi') {
-                    // Switching to multi: clear single-city selection
-                    if ($('#single_city').length) {
-                        $('#single_city').val(null).trigger('change');
-                    }
-                } else {
-                    refreshGlobalServicesVisibility();
+                clearCityModeUIState();
+                refreshAllOnCityModeSwitch();
+                refreshGlobalServicesVisibility();
+
+                if (typeof window.generateNightSelection === 'function') {
+                    window.generateNightSelection();
+                }
+                if (typeof window.updateNightDisplay === 'function') {
+                    window.updateNightDisplay();
+                }
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
                 }
             }
 
@@ -7731,9 +7906,9 @@
                     </div>
                 </div>`;
 
-                $('#segmentsWrapper').append(segmentHTML);
+                $('#segmentsWrapper').prepend(segmentHTML);
 
-                const $newCitySelect = $('#segmentsWrapper .segment:last .city-select');
+                const $newCitySelect = $('#segmentsWrapper .segment:first .city-select');
                 rebuildSegmentCityOptions($newCitySelect);
 
                 // Disable dates outside main tour range
@@ -7746,9 +7921,8 @@
                 if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
                     delete window.__segmentServiceState[rmKey];
                 }
-                const $bundle = $('#segmentServicesBundle');
-                if ($bundle.length && $seg.find('#segmentServicesBundle').length) {
-                    $('#servicesAccordionHome').after($bundle);
+                if ($seg.find('#segmentServicesBundle').length) {
+                    ensureServicesBundleAtHome();
                     clearMultiSegmentStayContext();
                 }
                 $seg.remove();
@@ -10734,6 +10908,31 @@
         }
 
         // Function to clear all selected services when country changes
+        window.resetServicesBundleFormControls = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) return;
+            root.querySelectorAll('input:not([type="file"]), select, textarea').forEach(function (el) {
+                if (!el || el.id === 'start_date' || el.id === 'end_date') return;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = false;
+                } else {
+                    el.value = '';
+                }
+            });
+            root.querySelectorAll('[id$="_total_price"]').forEach(function (el) {
+                if (el.tagName === 'INPUT') el.value = '0';
+            });
+            root.querySelectorAll('[id$="_TotalPrice"], [id$="_total_price_display"]').forEach(function (el) {
+                if (el.tagName === 'SPAN' || el.tagName === 'DIV') {
+                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+                }
+            });
+            const hotelHeader = document.getElementById('hotelHeaderDetails');
+            if (hotelHeader) hotelHeader.innerHTML = '';
+            const hotelTotal = document.getElementById('hotelTotalPrice');
+            if (hotelTotal) hotelTotal.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+        };
+
         window.clearAllSelectedServices = function() {
             console.log('🔄 Clearing all selected services due to country change...');
             
@@ -13626,6 +13825,21 @@
         window.loadRestaurantsForCity = function(day, cityName, index) {
             const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
             const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
+            if (!restaurantSelect) return;
+
+            function refreshRestaurantSelect2(placeholder, disabled) {
+                restaurantSelect.disabled = !!disabled;
+                if (typeof jQuery !== 'undefined') {
+                    const $r = jQuery(restaurantSelect);
+                    if ($r.hasClass('select2-hidden-accessible')) {
+                        try { $r.select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                        window.reinitializeSelect2(restaurantSelect.id, placeholder || 'Search Restaurant');
+                    }
+                    $r.prop('disabled', !!disabled);
+                }
+            }
             
             function prependMultiRestaurantOptions(selectEl) {
                 const list = window.multiRestaurants || [];
@@ -13644,7 +13858,8 @@
             if (cityName) {
                 restaurantSelect.disabled = false;
                 restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
-                cityMessage.style.display = 'none';
+                if (cityMessage) cityMessage.style.display = 'none';
+                refreshRestaurantSelect2('Loading restaurants...', false);
                 
                 const currentDmcId = '{{ $finalDmcId }}';
                 
@@ -13659,7 +13874,7 @@
                                 option.value = restaurant.restaurant_id;
                                 option.textContent = restaurant.name;
                                 option.dataset.city = restaurant.city;
-                                option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
+                                option.dataset.mealTypes = JSON.stringify(normalizeRestaurantMealTypes(restaurant.meal_types || []));
                                 restaurantSelect.appendChild(option);
                             });
                         } else {
@@ -13669,6 +13884,7 @@
                         }
                         
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                         
                         const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                         if (transferRequired && transferRequired.value === 'Yes') {
@@ -13682,12 +13898,12 @@
                         prependMultiRestaurantOptions(restaurantSelect);
                         restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                     });
             } else {
-                restaurantSelect.disabled = false;
-                restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
-                prependMultiRestaurantOptions(restaurantSelect);
-                cityMessage.style.display = 'block';
+                restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+                if (cityMessage) cityMessage.style.display = 'block';
+                refreshRestaurantSelect2('Select city first', true);
             }
         }
         
@@ -14349,18 +14565,29 @@
 
             // Wait for all dependencies to load
         $(document).ready(function() {
-            // Date Range Picker Initialization - only if not locked
             const travelDatesField = $('#travel_dates');
-            if (travelDatesField.attr('data-locked') !== 'true') {
-                travelDatesField.daterangepicker({
+
+            window.reinitializeTravelDatePicker = function () {
+                const $field = $('#travel_dates');
+                if (!$field.length || $field.attr('data-locked') === 'true') return;
+                try {
+                    const drp = $field.data('daterangepicker');
+                    if (drp && typeof drp.remove === 'function') drp.remove();
+                } catch (e) { /* ignore */ }
+                $field.daterangepicker({
                     opens: 'left',
                     autoUpdateInput: false,
-                    minDate: moment(),
-                    locale: {
-                        format: 'MMM DD, YYYY',
-                        cancelLabel: 'Clear'
+                    minDate: moment().add(1, 'days'),
+                    locale: { format: 'MMM DD, YYYY', cancelLabel: 'Clear' }
+                });
+                $field.off('show.daterangepicker.travelFix').on('show.daterangepicker.travelFix', function (ev, picker) {
+                    if (picker && picker.container) {
+                        picker.container.css('z-index', 10050);
                     }
                 });
+            };
+            if (travelDatesField.length && travelDatesField.attr('data-locked') !== 'true') {
+                window.reinitializeTravelDatePicker();
             }
 
             // Function to check which services will be removed (without actually removing them)
@@ -14968,12 +15195,7 @@
                 summaryHTML += '</div>';
                 document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
             } else {
-                document.getElementById('nightSelectionSummary').innerHTML = `
-                    <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                    </div>
-                `;
+                document.getElementById('nightSelectionSummary').innerHTML = '';
             }
         }
 
@@ -15305,9 +15527,21 @@
             
             if (!hotelId) {
                 // Clear dropdowns if no hotel selected
-                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                if (roomTypeSelect) {
+                    roomTypeSelect.disabled = false;
+                    roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+                }
+                if (bedTypeSelect) {
+                    bedTypeSelect.disabled = false;
+                    bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+                }
+                if (mealPlanSelect) {
+                    mealPlanSelect.disabled = false;
+                    mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+                }
                 return;
             }
             
@@ -15319,6 +15553,20 @@
             }
             
             console.log('Selected hotel data:', selectedHotel);
+
+            // Always re-enable dependent selects (Clear Form may have left them disabled)
+            if (roomTypeSelect) {
+                roomTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+            }
+            if (bedTypeSelect) {
+                bedTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+            }
+            if (mealPlanSelect) {
+                mealPlanSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+            }
             
             // Get current user's DMC ID for room filtering
             const currentDmcId = '{{ $finalDmcId }}';
@@ -17723,12 +17971,7 @@
             const container = document.getElementById('selectedHotels');
             
             if (selectedHotels.length === 0) {
-                container.innerHTML = `
-                    <div class="alert d-flex align-items-center" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <span style="color: #495057; font-size: 0.85rem;">No hotels selected yet. Choose your hotels above.</span>
-                    </div>
-                `;
+                container.innerHTML = '';
             } else {
                 let hotelsHtml = '';
                 const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
@@ -17979,10 +18222,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -18145,9 +18387,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, 0)" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18295,10 +18542,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -18464,9 +18710,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, 0)" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18925,9 +19176,14 @@
                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                                         </div>
                                                     </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                    <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, 1)" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                    </button>
                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                         <i class="ri-refresh-line"></i>
                                                     </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19007,6 +19263,14 @@
                                                             <i class="ri-chat-quote-line me-1"></i>Remarks
                                                         </label>
                                                         <textarea class="form-control" name="day${day}_attraction_1_remarks" id="day${day}_attraction_1_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row mt-3">
+                                                    <div class="col-12 d-flex justify-content-end">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, 1)" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                            <i class="ri-eraser-line me-1"></i>Clear Form
+                                                        </button>
                                                     </div>
                                                 </div>
                                                 
@@ -19268,9 +19532,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_1_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, 1)" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19602,9 +19871,14 @@
                                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                                                         </div>
                                                                     </div>
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                    <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, 1)" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                                    </button>
                                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                         <i class="ri-refresh-line"></i>
                                                                     </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19718,10 +19992,10 @@
                                             <label class="form-label fw-semibold">
                                                 <i class="ri-building-line me-1"></i>City
                                             </label>
-                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0)">
+                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                                 <option value="">Select City</option>
                                             </select>
-                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_1">Please select a city first.</small>
+                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_0">Please select a city first.</small>
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -20079,9 +20353,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -21388,9 +21667,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, ${newIndex})" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -21491,6 +21775,14 @@
                                             <textarea class="form-control" name="day${day}_attraction_${newIndex}_remarks" id="day${day}_attraction_${newIndex}_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
                                         </div>
                                     </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-12 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, ${newIndex})" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                <i class="ri-eraser-line me-1"></i>Clear Form
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div><!-- /offline panel -->
                     </div>
                 </div>
@@ -21576,25 +21868,7 @@
                                     mealTypes = [];
                                 }
                             }
-                            
-                            // Ensure each meal type has required properties
-                            mealTypes = mealTypes.map(mt => {
-                                return {
-                                    type: mt.type || '',
-                                    label: mt.label || mt.type || '',
-                                    open_time: mt.open_time || '',
-                                    close_time: mt.close_time || ''
-                                };
-                            });
-                            
-                            // If no meal types defined, add default ones
-                            if (mealTypes.length === 0) {
-                                mealTypes = [
-                                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00:00', close_time: '10:00:00' },
-                                    { type: 'lunch', label: 'Lunch', open_time: '12:00:00', close_time: '15:00:00' },
-                                    { type: 'dinner', label: 'Dinner', open_time: '18:00:00', close_time: '22:00:00' }
-                                ];
-                            }
+                            mealTypes = normalizeRestaurantMealTypes(mealTypes);
                             
                             option.dataset.mealTypes = JSON.stringify(mealTypes);
                             selectElement.appendChild(option);
@@ -21646,7 +21920,7 @@
             
             // Get meal types from selected restaurant
             const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-            if (!restaurantSelect) {image.png
+            if (!restaurantSelect) {
                 console.error('Restaurant select not found:', 'day' + day + '_restaurant_' + index);
                 return;
             }
@@ -21663,66 +21937,114 @@
             loadDishesForRestaurant(day, restaurantId, index);
         };
         
+        const DEFAULT_RESTAURANT_MEAL_TIMES = {
+            breakfast: { open: '07:00', close: '10:00' },
+            lunch: { open: '12:00', close: '15:00' },
+            dinner: { open: '18:00', close: '22:00' }
+        };
+
+        function normalizeRestaurantMealTypeKey(type, label) {
+            const key = String(type || label || '').toLowerCase().trim();
+            if (!key || key === 'null' || key === 'undefined') return '';
+            if (key.includes('breakfast') || key === 'bf') return 'breakfast';
+            if (key.includes('lunch')) return 'lunch';
+            if (key.includes('dinner')) return 'dinner';
+            return key;
+        }
+
+        function getMealPeriodFromRestaurantType(type, label) {
+            const map = { breakfast: '1', lunch: '2', dinner: '3' };
+            return map[normalizeRestaurantMealTypeKey(type, label)] || '';
+        }
+
+        function normalizeRestaurantMealTypes(mealTypes) {
+            const normalized = (Array.isArray(mealTypes) ? mealTypes : []).map(function(mt) {
+                const typeKey = normalizeRestaurantMealTypeKey(mt.type, mt.label);
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {};
+                return {
+                    type: typeKey || (mt.type || mt.label || ''),
+                    label: mt.label || mt.type || typeKey || '',
+                    open_time: (mt.open_time || defaults.open || '').toString().trim(),
+                    close_time: (mt.close_time || defaults.close || '').toString().trim()
+                };
+            }).filter(function(mt) { return mt.type || mt.label; });
+
+            if (normalized.length === 0) {
+                return [
+                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00', close_time: '10:00' },
+                    { type: 'lunch', label: 'Lunch', open_time: '12:00', close_time: '15:00' },
+                    { type: 'dinner', label: 'Dinner', open_time: '18:00', close_time: '22:00' }
+                ];
+            }
+
+            return normalized;
+        }
+
+        function getRestaurantMealOptionTimes(option, mealTypeValue) {
+            if (!option) return { open: '', close: '' };
+            let openTime = (option.dataset.openTime || option.getAttribute('data-open-time') || '').trim();
+            let closeTime = (option.dataset.closeTime || option.getAttribute('data-close-time') || '').trim();
+            if ((!openTime || !closeTime) && mealTypeValue) {
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[normalizeRestaurantMealTypeKey(mealTypeValue, option.textContent)] || {};
+                openTime = openTime || defaults.open || '';
+                closeTime = closeTime || defaults.close || '';
+            }
+            return { open: openTime, close: closeTime };
+        }
+
+        function parseRestaurantTimeRangeString(rangeStr) {
+            if (!rangeStr) return [];
+            return String(rangeStr).trim().split(/\s*-\s*|\s+to\s+/i).map(function(s) { return s.trim(); }).filter(Boolean);
+        }
+
         // Update meal type dropdown with available options and timings
         function updateMealTypeDropdown(day, index, mealTypes) {
             const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
             if (!mealTypeSelect) return;
-            
-            let optionsHTML = '<option value="">Select Meal Type</option>';
-            
-            mealTypes.forEach(mealType => {
-                const timing = mealType.open_time && mealType.close_time 
-                    ? ` - ${mealType.open_time} to ${mealType.close_time}`
-                    : '';
-                
-                // Map meal type to meal_period number and add icons
-                let mealPeriod = '';
+
+            mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+            normalizeRestaurantMealTypes(mealTypes).forEach(function(mealType) {
+                const typeKey = normalizeRestaurantMealTypeKey(mealType.type, mealType.label);
+                const mealPeriod = getMealPeriodFromRestaurantType(mealType.type, mealType.label);
+                const times = {
+                    open: mealType.open_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).open || '',
+                    close: mealType.close_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).close || ''
+                };
+                const timing = times.open && times.close ? ' - ' + times.open + ' to ' + times.close : '';
                 let icon = '';
-                switch(mealType.type.toLowerCase()) {
-                    case 'breakfast':
-                        mealPeriod = '1';
-                        icon = '🌅 ';
-                        break;
-                    case 'lunch':
-                        mealPeriod = '2';
-                        icon = '☀️ ';
-                        break;
-                    case 'dinner':
-                        mealPeriod = '3';
-                        icon = '🌙 ';
-                        break;
-                }
-                
-                optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}" data-open-time="${mealType.open_time}" data-close-time="${mealType.close_time}">${icon}${mealType.label}${timing}</option>`;
+                if (typeKey === 'breakfast') icon = '🌅 ';
+                else if (typeKey === 'lunch') icon = '☀️ ';
+                else if (typeKey === 'dinner') icon = '🌙 ';
+
+                const option = document.createElement('option');
+                option.value = typeKey || mealType.type || mealType.label;
+                option.dataset.mealPeriod = mealPeriod;
+                option.dataset.openTime = times.open;
+                option.dataset.closeTime = times.close;
+                option.textContent = icon + (mealType.label || mealType.type || typeKey) + timing;
+                mealTypeSelect.appendChild(option);
             });
-            
-            mealTypeSelect.innerHTML = optionsHTML;
-            
-            // Add event listener for meal type change to filter dishes
-            mealTypeSelect.removeEventListener('change', mealTypeChangeHandler); // Remove existing listener
-            mealTypeSelect.addEventListener('change', mealTypeChangeHandler);
-            
-            function mealTypeChangeHandler() {
+
+            if (mealTypeSelect._restaurantMealTypeHandler) {
+                mealTypeSelect.removeEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+            }
+            mealTypeSelect._restaurantMealTypeHandler = function mealTypeChangeHandler() {
                 const selectedOption = this.options[this.selectedIndex];
-                const mealPeriod = selectedOption.dataset.mealPeriod;
                 const mealType = this.value;
+                const mealPeriod = (selectedOption && (selectedOption.dataset.mealPeriod || getMealPeriodFromRestaurantType(mealType, selectedOption.textContent))) || getMealPeriodFromRestaurantType(mealType);
                 const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
-                
-                // Get the dish select element (this should always exist)
-                const dishSelectId = 'day' + day + '_dish_' + index;
-                const dishSelect = document.getElementById(dishSelectId);
-                
+                const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+
                 if (!dishSelect) {
-                    console.error('Dish select element not found with ID:', dishSelectId);
-                    return; // Exit early if dish select doesn't exist
+                    console.error('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
+                    return;
                 }
-                
+
                 console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
-                
+
                 const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
                 const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-                
-                // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
+
                 if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
@@ -21732,14 +22054,15 @@
                     if (dishContainer) dishContainer.style.display = 'block';
                     const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
                     if (mealType && range) {
-                        const part = String(range).split('-').map(s => s.trim());
-                        if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
+                        const part = parseRestaurantTimeRangeString(range);
+                        if (part.length >= 2 && typeof populateTimeSlots === 'function') {
+                            populateTimeSlots(day, index, part[0], part[1]);
+                        }
                     }
                     updateRestaurantPricing(day, index);
                     return;
                 }
-                
-                // Clear dish selection when meal type changes (normal restaurant)
+
                 if (dishSelect) {
                     dishSelect.value = '';
                     dishSelect.innerHTML = '<option value="">Select Dish</option>';
@@ -21747,23 +22070,25 @@
                 if (dishContainer) dishContainer.style.display = 'none';
                 if (dishSelect) dishSelect.style.display = 'none';
                 updateRestaurantPricing(day, index);
-                
+
                 if (!mealType || mealType === '') {
+                    const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+                    if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                     return;
                 }
-                
+
                 if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                     if (mealPeriod) {
                         loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
-                        populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
                     } else {
                         loadDishesForRestaurant(day, restaurantId, index);
                     }
+                    const times = getRestaurantMealOptionTimes(selectedOption, mealType);
+                    populateTimeSlots(day, index, times.open, times.close);
                 } else {
                     console.log('Invalid restaurant ID in meal type change handler:', restaurantId);
-                    // Clear dish and time slot dropdowns (reuse dishSelect variable from above)
                     const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-                    
+
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
                         dishSelect.style.display = 'none';
@@ -21771,83 +22096,85 @@
                     if (timeSlotSelect) {
                         timeSlotSelect.innerHTML = '<option value="">Select restaurant first</option>';
                     }
-                    
-                    // Hide dish container if no valid restaurant
-                    if (dishContainer) {
-                        dishContainer.style.display = 'none';
-                    }
-                    
-                    // Update pricing when no valid restaurant
+                    if (dishContainer) dishContainer.style.display = 'none';
                     updateRestaurantPricing(day, index);
                 }
-            }
-            
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+
             console.log('Updated meal type dropdown with', mealTypes.length, 'options');
         }
         
         // Populate time slots with 30-minute intervals
         function populateTimeSlots(day, index, openTime, closeTime) {
             const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-            if (!timeSlotSelect || !openTime || !closeTime) return;
-            
+            if (!timeSlotSelect) return;
+
+            openTime = (openTime || '').toString().trim();
+            closeTime = (closeTime || '').toString().trim();
+            if (!openTime || !closeTime || openTime === 'null' || closeTime === 'null' || openTime === 'undefined' || closeTime === 'undefined') {
+                return;
+            }
+
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-            
-            // Parse open and close times
+
             const startTime = parseTime(openTime);
             const endTime = parseTime(closeTime);
-            
-            if (!startTime || !endTime) return;
-            
-            // Generate 30-minute intervals
+            if (!startTime || !endTime) {
+                console.log('Failed to parse restaurant time slots:', openTime, closeTime);
+                return;
+            }
+
             let currentTime = new Date(startTime);
-            
-            while (currentTime <= endTime) {
-                const timeValue = formatTime24(currentTime);
-                const timeDisplay = formatTime12(currentTime);
-                
+            let endDate = new Date(endTime);
+            if (endDate < currentTime) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+
+            let iterationCount = 0;
+            while (currentTime <= endDate && iterationCount < 100) {
                 const option = document.createElement('option');
-                option.value = timeValue;
-                option.textContent = timeDisplay;
+                option.value = formatTime24(currentTime);
+                option.textContent = formatTime12(currentTime);
                 timeSlotSelect.appendChild(option);
-                
-                // Add 30 minutes
-                currentTime.setMinutes(currentTime.getMinutes() + 30);
+                currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+                iterationCount++;
             }
         }
         
         // Parse time string (handles various formats)
         function parseTime(timeStr) {
             if (!timeStr) return null;
-            
+
             try {
-                console.log('Parsing time string:', timeStr);
-                
-                // Handle "HH:MM AM/PM" format
-                if (timeStr.includes('AM') || timeStr.includes('PM')) {
-                    const today = new Date();
-                    const [time, period] = timeStr.split(' ');
-                    const [hours, minutes] = time.split(':');
-                    let hour = parseInt(hours);
-                    
+                const normalized = String(timeStr).trim();
+                if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+
+                const periodMatch = normalized.match(/\s*(AM|PM|am|pm)\s*$/);
+                if (periodMatch) {
+                    const period = periodMatch[1].toUpperCase();
+                    const time = normalized.replace(/\s*(AM|PM|am|pm)\s*$/i, '').trim();
+                    const parts = time.split(':');
+                    let hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
                     if (period === 'PM' && hour !== 12) hour += 12;
                     if (period === 'AM' && hour === 12) hour = 0;
-                    
-                    today.setHours(hour, parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 12-hour time:', today);
-                    return today;
-                }
-                
-                // Handle "HH:MM" 24-hour format
-                if (timeStr.includes(':')) {
-                    const [hours, minutes] = timeStr.split(':');
                     const today = new Date();
-                    today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 24-hour time:', today);
+                    today.setHours(hour, minutes, 0, 0);
                     return today;
                 }
-                
-                // Handle other formats or return null
-                console.log('Unrecognized time format:', timeStr);
+
+                const parts = normalized.split(':');
+                if (parts.length >= 2) {
+                    const hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
+                    const today = new Date();
+                    today.setHours(hour, minutes, 0, 0);
+                    return today;
+                }
+
                 return null;
             } catch (e) {
                 console.error('Error parsing time:', timeStr, e);
@@ -22523,7 +22850,7 @@
                     const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
                     if (!slotEl) return;
                     if (range) {
-                        const part = range.split('-').map(s => s.trim());
+                        const part = parseRestaurantTimeRangeString(range);
                         if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
                         else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
                     } else {
@@ -23136,9 +23463,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, ${newIndex})" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24040,9 +24372,14 @@
                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_${newIndex}_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                     </div>
                                                 </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, ${newIndex})" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                    <i class="ri-close-circle-line me-1"></i>Clear
+                                                </button>
                                                 <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                     <i class="ri-refresh-line"></i>
                                                 </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24216,7 +24553,7 @@
                                 <label class="form-label fw-semibold">
                                     <i class="ri-building-line me-1"></i>City
                                 </label>
-                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex})">
+                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex}); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                     <option value="">Select City</option>
                                 </select>
                                 <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_${newIndex}">Please select a city first.</small>
@@ -24519,9 +24856,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day}, ${newIndex})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24591,114 +24933,15 @@
             // Load zones for the new transport using existing zone data
             const newPickupSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_pickup_zone_id"]`);
             const newDropoffSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_dropoff_zone_id"]`);
-            
-                    if (newPickupSelect && window.allLocationsData) {
-                // Populate pickup location select with existing locations data
-                newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                window.allLocationsData.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    newPickupSelect.appendChild(option);
-                });
-                newPickupSelect.disabled = false;
-                
-                // Prepare dropoff location select for locations initially
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-            } else if (newPickupSelect && window.allZonesData) {
-                // For dynamic transport, we should use locations data, not zones
-                // If locations data is not available, fetch it from API
-                console.log('Locations data not available, fetching from API for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Loading locations...</option>';
-                newPickupSelect.disabled = true;
-                
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.locations && Array.isArray(data.locations)) {
-                            newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                            
-                            data.locations.forEach(location => {
-                                const option = document.createElement('option');
-                                option.value = location.id;
-                                
-                                // Enhanced display format with icons for different types
-                                let icon = '';
-                                switch(location.type) {
-                                    case 'hotel':
-                                        icon = '🏨';
-                                        break;
-                                    case 'restaurant':
-                                        icon = '🍽️';
-                                        break;
-                                    case 'attraction':
-                                        icon = '🎯';
-                                        break;
-                                    default:
-                                        icon = '📍';
-                                }
-                                
-                                option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                                option.dataset.type = location.type;
-                                option.dataset.latitude = location.latitude || '';
-                                option.dataset.longitude = location.longitude || '';
-                                newPickupSelect.appendChild(option);
-                            });
-                            
-                            newPickupSelect.disabled = false;
-                            console.log('Dynamic transport pickup populated with locations');
-                        } else {
-                            // Fallback to zones only if API fails
-                            console.log('API failed, falling back to zones for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                window.allZonesData.forEach(zone => {
-                    newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                });
-                newPickupSelect.disabled = false;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching locations for dynamic transport:', error);
-                        // Fallback to zones on error
-                        newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                    window.allZonesData.forEach(zone => {
-                            newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                        });
-                        newPickupSelect.disabled = false;
-                    });
-                
-                // Prepare dropoff location select - don't pre-populate with zones
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-                
-                console.log(`Zones loaded for new transport section ${newIndex}`);
+
+            // A new transport row has no city yet, so its pickup list stays empty until one is chosen;
+            // once a city is selected the row loads only that city's locations.
+            if (newPickupSelect) {
+                const newRowCitySelect = document.getElementById(`day${day}_transport_city_${newIndex}`);
+                window.loadTransportZonesForCity(day, newRowCitySelect ? newRowCitySelect.value : '', newIndex);
+                console.log(`Pickup locations initialized for new transport section ${newIndex}`);
             } else {
-                console.log('No zones data available for new transport section');
+                console.error(`Dynamic transport pickup select not found for index ${newIndex}`);
             }
             
             // Initialize Google Maps autocomplete for the new transport fields
@@ -24912,7 +25155,7 @@
                 // For local transfer additional transport sections, use location data
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -24995,7 +25238,7 @@
                     // Use API for dynamic transport dropoff (same as static transport)
                     dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                     
-                    fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                    fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                         .then(response => response.json())
                         .then(data => {
                             if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -25242,9 +25485,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, ${newIndex})" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -25607,9 +25855,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, ${newIndex})" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -26364,6 +26617,722 @@
         window.forceUpdateAttractionPricing = function(day, index) {
             console.log(`Force updating pricing for day ${day}, index ${index}`);
             updateAttractionPricing(day, index);
+        };
+
+        // Reset one attraction booking slot (wrong fill → clear and start over)
+        window.clearAttractionForm = function(day, index) {
+            const prefix = `day${day}_attraction`;
+            const citySelect = document.getElementById(`${prefix}_city_${index}`);
+            const attractionSelect = document.getElementById(`${prefix}_${index}`);
+            const timeSelect = document.getElementById(`${prefix}_${index}_time`);
+            const ticketSelect = document.getElementById(`${prefix}_${index}_ticket`);
+            const transferRequired = document.getElementById(`${prefix}_${index}_transfer_required`);
+            const guideRequired = document.getElementById(`${prefix}_${index}_guide_required`);
+            const supplement = document.getElementById(`${prefix}_${index}_is_supplement`);
+            const remarks = document.getElementById(`${prefix}_${index}_remarks`);
+            const cityMessage = document.getElementById(`${prefix}_city_message_${index}`);
+
+            const resetSelect = function(el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            };
+
+            // Keep city for multi-city segment; clear city for single-city full reset
+            let keepCity = '';
+            const isMulti = !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            if (isMulti && citySelect && citySelect.value) {
+                keepCity = citySelect.value;
+            } else if (citySelect) {
+                resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                if (typeof populateCityDropdown === 'function') {
+                    populateCityDropdown(citySelect);
+                }
+            }
+
+            resetSelect(
+                attractionSelect,
+                keepCity ? '<option value="">Select Attraction</option>' : '<option value="">Select city first</option>',
+                !keepCity,
+                keepCity ? 'Select Attraction' : 'Select city first'
+            );
+            resetSelect(timeSelect, '<option value="">Select Time Slot</option>', false, 'Select Time Slot');
+            resetSelect(ticketSelect, '<option value="">Select Ticket</option>', false, 'Select Ticket');
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
+            if (guideRequired) {
+                guideRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(guideRequired).data('select2')) {
+                    jQuery(guideRequired).val('No').trigger('change');
+                }
+            }
+            if (typeof window.toggleAttractionTransferFields === 'function') {
+                window.toggleAttractionTransferFields(day, index);
+            }
+            if (typeof window.toggleAttractionGuideFields === 'function') {
+                window.toggleAttractionGuideFields(day, index);
+            }
+
+            // Extra transfer / guide / price hidden fields
+            [
+                `${prefix}_${index}_transfer_type`,
+                `${prefix}_${index}_transfer_way`,
+                `${prefix}_${index}_transfer_pickup_time`,
+                `${prefix}_${index}_transfer_pickup_time_select`,
+                `${prefix}_${index}_guide_pickup_time`,
+                `${prefix}_${index}_guide_pickup_time_select`,
+                `${prefix}_${index}_description`,
+                `${prefix}_${index}_nri`,
+                `${prefix}_${index}_transport`,
+                `${prefix}_${index}_transport_selection`,
+                `${prefix}_${index}_booking_type`,
+                `${prefix}_${index}_package_type`,
+                `${prefix}_${index}_package_attraction_id`,
+                `${prefix}_${index}_date`,
+                `${prefix}_${index}_adult_price`,
+                `${prefix}_${index}_child_price`,
+                `${prefix}_${index}_senior_price`,
+                `${prefix}_${index}_guide_base_price`,
+                `${prefix}_${index}_guide_hours`,
+                `${prefix}_${index}_guide_surcharge`,
+                `${prefix}_${index}_guide_total_price`,
+                `${prefix}_${index}_transfer_cost`
+            ].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.tagName === 'SELECT') {
+                    el.innerHTML = el.options && el.options.length
+                        ? `<option value="">${(el.options[0].textContent || 'Select').trim()}</option>`
+                        : '<option value=""></option>';
+                    el.value = '';
+                } else {
+                    el.value = (id.endsWith('_price') || id.endsWith('_cost') || id.endsWith('_hours') || id.endsWith('_surcharge') || id.endsWith('_total_price')) ? '0' : '';
+                }
+                if (el.removeAttribute) {
+                    el.removeAttribute('data-ajax-base-price');
+                    el.removeAttribute('data-ajax-final-price');
+                }
+            });
+
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_vehicle`),
+                '<option value="">Select Vehicle</option>',
+                false,
+                'Select Vehicle'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_pickup_location`),
+                '<option value="">Select Pickup Location</option>',
+                false,
+                'Select Pickup Location'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_language`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_package`),
+                '<option value="">Select Duration</option>',
+                false,
+                'Select Duration'
+            );
+
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            if (cityMessage) cityMessage.style.display = 'none';
+
+            // Reset guests display to main tour guests
+            const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+            const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+            const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+            const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+            const adults = mainMale + mainFemale;
+            const summaryElement = document.getElementById(`${prefix}_${index}_guest_summary`);
+            if (summaryElement) {
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            }
+            try {
+                if (window.guestData && typeof window.guestData === 'object') {
+                    delete window.guestData[`day${day}_attraction_${index}`];
+                }
+            } catch (e) { /* ignore */ }
+
+            // Pricing UI
+            const pricingColumns = document.getElementById(`${prefix}_${index}_pricing_columns`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            const totalPriceRow = document.getElementById(`${prefix}_${index}_total_price_row`);
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
+            const ticketPricing = document.getElementById(`${prefix}_${index}_ticket_pricing_content`);
+            if (ticketPricing) ticketPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select ticket to see pricing</div>';
+            const transportPricing = document.getElementById(`${prefix}_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>';
+            const guidePricing = document.getElementById(`${prefix}_${index}_guide_pricing_content`);
+            if (guidePricing) guidePricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>';
+            const totalPriceDisplay = document.getElementById(`${prefix}_${index}_total_price_display`);
+            if (totalPriceDisplay) {
+                totalPriceDisplay.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+            }
+
+            // Multi-city: restore segment city and reload attractions for it
+            if (keepCity && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(keepCity).trigger('change');
+                } else {
+                    citySelect.value = keepCity;
+                }
+                if (typeof loadAttractionsForCity === 'function') {
+                    loadAttractionsForCity(day, keepCity, index);
+                }
+            } else if (isMulti && typeof window.getActiveSegmentCityLabelForServices === 'function' && typeof window.syncAllServiceCities === 'function') {
+                const segCity = window.getActiveSegmentCityLabelForServices();
+                if (segCity) {
+                    setTimeout(function () { window.syncAllServiceCities(segCity); }, 50);
+                }
+            }
+
+            if (typeof updateAttractionDataField === 'function') updateAttractionDataField();
+            if (typeof updateAttractionSectionSummary === 'function') updateAttractionSectionSummary(day);
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e2) { /* ignore */ }
+
+            if (typeof showNotification === 'function') {
+                showNotification('Attraction form cleared', 'info');
+            }
+        };
+
+        // Shared helpers for Clear Form buttons across all services
+        window.__serviceClearHelpers = {
+            isMultiCity: function () {
+                return !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                    || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            },
+            resetSelect: function (el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            },
+            setSelectValue: function (el, value) {
+                if (!el) return;
+                el.value = value;
+                if (typeof jQuery !== 'undefined' && jQuery(el).data('select2')) {
+                    jQuery(el).val(value).trigger('change');
+                } else {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            },
+            resetGuestSummary: function (summaryId) {
+                const summaryElement = document.getElementById(summaryId);
+                if (!summaryElement) return;
+                const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+                const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+                const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+                const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+                const adults = mainMale + mainFemale;
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            },
+            keepOrClearCity: function (citySelect) {
+                const h = window.__serviceClearHelpers;
+                let keepCity = '';
+                if (h.isMultiCity() && citySelect && citySelect.value) {
+                    keepCity = citySelect.value;
+                } else if (citySelect) {
+                    h.resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                    if (typeof populateCityDropdown === 'function') populateCityDropdown(citySelect);
+                }
+                return keepCity;
+            },
+            currency: function () {
+                return (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD');
+            }
+        };
+
+        window.clearHotelForm = function () {
+            const h = window.__serviceClearHelpers;
+            const hotelCity = document.getElementById('hotelCitySelect');
+            const hotelSelect = document.getElementById('hotelSelect');
+            const roomType = document.getElementById('roomTypeSelect');
+            const bedType = document.getElementById('bedTypeSelect');
+            const mealPlan = document.getElementById('mealPlanSelect');
+            const remarks = document.getElementById('hotel_remarks');
+            const rooms = document.getElementById('numberOfRooms');
+            const persons = document.getElementById('selectedPersons');
+            const price = document.getElementById('roomPriceDisplay');
+            const addBtn = document.getElementById('addHotelBtn');
+            const childWith = document.getElementById('chkChildWithBed');
+            const childWithout = document.getElementById('chkChildWithoutBed');
+            const suppBreakfast = document.getElementById('hotelSupplementBreakfastIncluded');
+            const isMulti = h.isMultiCity();
+            const keepCity = isMulti && hotelCity ? (hotelCity.value || '') : '';
+
+            // Match the post-"Add Hotel" reset: clear hotel selection, but do NOT disable
+            // room/bed/meal (those stay enabled so picking a hotel can populate them again).
+            // Selected hotel nights are intentionally preserved.
+            try {
+                if (!isMulti && hotelCity) {
+                    if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                        jQuery(hotelCity).val(null).trigger('change');
+                    } else {
+                        hotelCity.value = '';
+                    }
+                }
+
+                if (hotelSelect) {
+                    if (isMulti && keepCity) {
+                        // Keep city + hotel list; only clear the selected hotel
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(hotelSelect).val(null).trigger('change');
+                            jQuery(hotelSelect).prop('disabled', false);
+                        }
+                        hotelSelect.disabled = false;
+                        hotelSelect.value = '';
+                    } else {
+                        h.resetSelect(
+                            hotelSelect,
+                            '<option value="">Select a city first to load hotels</option>',
+                            true,
+                            'Select a city first to load hotels'
+                        );
+                        if (typeof jQuery !== 'undefined') jQuery(hotelSelect).prop('disabled', true);
+                    }
+                }
+
+                // Room / bed / meal must stay ENABLED (empty until hotel is chosen again)
+                if (roomType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(roomType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(roomType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    roomType.disabled = false;
+                    roomType.innerHTML = '<option value="">Select room type</option>';
+                    roomType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(roomType).prop('disabled', false);
+                        jQuery(roomType).select2({ placeholder: 'Select room type', allowClear: true, width: '100%' });
+                    }
+                }
+                if (bedType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(bedType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(bedType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    bedType.disabled = false;
+                    bedType.innerHTML = '<option value="">Select room type first</option>';
+                    bedType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(bedType).prop('disabled', false);
+                        jQuery(bedType).select2({ placeholder: 'Select room type first', allowClear: true, width: '100%' });
+                    }
+                }
+                if (mealPlan) {
+                    if (typeof jQuery !== 'undefined' && jQuery(mealPlan).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(mealPlan).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    mealPlan.disabled = false;
+                    mealPlan.innerHTML = '<option value="">Select meal plan</option>';
+                    mealPlan.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(mealPlan).prop('disabled', false);
+                        jQuery(mealPlan).select2({ placeholder: 'Select meal plan', allowClear: true, width: '100%' });
+                    }
+                }
+            } catch (err) {
+                console.error('clearHotelForm select reset error:', err);
+            }
+
+            if (remarks) remarks.value = '';
+            if (rooms) rooms.value = '1';
+            if (persons) persons.value = '1';
+            if (price) { price.value = '0.00'; price.dataset.manuallyEdited = 'false'; }
+            if (addBtn) addBtn.disabled = true;
+            // Do not clear selected nights / night summary
+            if (childWith) childWith.checked = false;
+            if (childWithout) childWithout.checked = false;
+            if (suppBreakfast) suppBreakfast.checked = false;
+            window.selectedBedInfo = null;
+            const personSelector = document.getElementById('personSelector');
+            if (personSelector) personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+            const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+            if (bedPriceDisplay) bedPriceDisplay.style.display = 'none';
+            const guestCountInfo = document.getElementById('guestCountInfo');
+            if (guestCountInfo) guestCountInfo.style.display = 'none';
+
+            if (typeof clearRoomSelectionForm === 'function') {
+                try { clearRoomSelectionForm(); } catch (e2) { /* ignore */ }
+            }
+            if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                window.updateHotelSupplementBreakfastVisibility(null);
+            }
+
+            // Multi-city: restore segment city and ensure hotels list is available
+            if (isMulti && keepCity && hotelCity) {
+                if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                    jQuery(hotelCity).val(keepCity).trigger('change.select2');
+                } else {
+                    hotelCity.value = keepCity;
+                }
+                if (typeof window.loadHotelsForCity === 'function') {
+                    window.loadHotelsForCity(keepCity);
+                } else if (typeof loadHotelsForCity === 'function') {
+                    loadHotelsForCity(keepCity);
+                }
+            }
+
+            if (typeof showNotification === 'function') showNotification('Hotel form cleared', 'info');
+        };
+
+        window.clearGuideForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const citySelect = document.getElementById(`day${day}_guide_city_${index}`);
+            const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+            const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+            const pickupInput = document.getElementById(`day${day}_guide_${index}_pickup_time_input`);
+            const pickupAmpm = document.getElementById(`day${day}_guide_${index}_pickup_time_ampm`);
+            const pickupHidden = document.getElementById(`day${day}_guide_${index}_pickup_time`);
+            const supplement = document.getElementById(`day${day}_guide_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_guide_${index}_remarks`);
+
+            const keepCity = h.keepOrClearCity(citySelect);
+            h.resetSelect(guideSelect, keepCity ? '<option value="">Select Guide</option>' : '<option value="">Select city first</option>', !keepCity, keepCity ? 'Select Guide' : 'Select city first');
+            h.resetSelect(packageSelect, '<option value="">Select Duration</option>', false, 'Select Duration');
+            if (pickupInput) pickupInput.value = '';
+            if (pickupAmpm) pickupAmpm.value = 'AM';
+            if (pickupHidden) pickupHidden.value = '';
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            ['base_price', 'hours', 'surcharge', 'total_price'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_guide_${index}_${k}`);
+                if (el) el.value = '0';
+            });
+            h.resetGuestSummary(`day${day}_guide_${index}_guest_summary`);
+            const totalDisp = document.getElementById(`day${day}_guide_${index}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_guide_${index}_guide_name`);
+            if (nameEl) nameEl.textContent = 'Guide Name';
+            const pkgDisp = document.getElementById(`day${day}_guide_${index}_package_price_display`);
+            if (pkgDisp) pkgDisp.textContent = h.currency() + ' 0.00';
+            if (keepCity && citySelect) {
+                h.setSelectValue(citySelect, keepCity);
+                if (typeof loadGuidesForCity === 'function') loadGuidesForCity(day, keepCity, index);
+            }
+            if (typeof updateGuideDataField === 'function') updateGuideDataField();
+            if (typeof showNotification === 'function') showNotification('Guide form cleared', 'info');
+        };
+
+        window.clearRestaurantForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const isMulti = h.isMultiCity();
+            const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
+            const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+            const mealType = document.getElementById(`day${day}_meal_type_${index}`);
+            const dish = document.getElementById(`day${day}_dish_${index}`);
+            const timeSlot = document.getElementById(`day${day}_time_slot_${index}`);
+            const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+            const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+            const supplement = document.getElementById(`day${day}_restaurant_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_restaurant_${index}_remarks`);
+            const keepCity = isMulti && citySelect ? String(citySelect.value || '').trim() : '';
+
+            // Single-city: clear city. Multi-city: keep segment city.
+            if (!isMulti && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(null).trigger('change');
+                } else {
+                    citySelect.value = '';
+                    citySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Clear restaurant selection (do not leave it stuck disabled)
+            if (restaurantSelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(restaurantSelect).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(restaurantSelect).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                restaurantSelect.innerHTML = keepCity
+                    ? '<option value="">Search Restaurant</option>'
+                    : '<option value="">Select city first</option>';
+                restaurantSelect.value = '';
+                restaurantSelect.disabled = !keepCity;
+                if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                    window.reinitializeSelect2(restaurantSelect.id, keepCity ? 'Search Restaurant' : 'Select city first');
+                }
+                if (typeof jQuery !== 'undefined') {
+                    jQuery(restaurantSelect).prop('disabled', !keepCity);
+                }
+            }
+
+            // Meal / dish / time — clear and keep usable
+            [mealType, dish, timeSlot].forEach(function (el, i) {
+                if (!el) return;
+                if (typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(el).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                el.disabled = false;
+                if (i === 0) el.innerHTML = '<option value="">Select Meal Type</option>';
+                else if (i === 1) el.innerHTML = '<option value="">Select Dish</option>';
+                else el.innerHTML = '<option value="">Select Time Slot</option>';
+                el.value = '';
+                if (typeof jQuery !== 'undefined') jQuery(el).prop('disabled', false);
+            });
+
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+                dishContainer.querySelectorAll('.dynamic-dishes, .dish-option-btn').forEach(function (n) {
+                    try { n.remove(); } catch (e) { /* ignore */ }
+                });
+            }
+
+            // Hidden pricing fields
+            const mealIdField = document.getElementById(`day${day}_restaurant_${index}_meal_id`);
+            const dishNameField = document.getElementById(`day${day}_restaurant_${index}_dish_name`);
+            const totalHidden = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (mealIdField) mealIdField.value = '';
+            if (dishNameField) dishNameField.value = '';
+            if (totalHidden) totalHidden.value = '0';
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
+            if (typeof window.toggleRestaurantTransferFields === 'function') {
+                window.toggleRestaurantTransferFields(day, index);
+            }
+
+            // Transfer time inputs
+            const tInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_input`);
+            const tAmpm = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_ampm`);
+            const tHidden = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`);
+            if (tInput) tInput.value = '';
+            if (tAmpm) tAmpm.value = 'AM';
+            if (tHidden) tHidden.value = '';
+
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            h.resetGuestSummary(`day${day}_restaurant_${index}_guest_summary`);
+
+            const totalDisp = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_restaurant_${index}_restaurant_name`);
+            if (nameEl) nameEl.textContent = '';
+            const pricingDetails = document.getElementById(`day${day}_restaurant_${index}_pricing_details`);
+            if (pricingDetails) pricingDetails.innerHTML = '';
+            const transportPricing = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted small">No transport selected</div>';
+            const priceDisplay = document.getElementById(`day${day}_restaurant_${index}_price_display`);
+            if (priceDisplay) {
+                // leave card visible; just cleared content above
+            }
+
+            // Reload restaurant list for kept city (and refresh Select2 inside loader)
+            if (keepCity && typeof loadRestaurantsForCity === 'function') {
+                loadRestaurantsForCity(day, keepCity, index);
+            } else if (typeof loadRestaurantDetails === 'function') {
+                loadRestaurantDetails(day, '', index);
+            }
+
+            if (typeof updateRestaurantPricing === 'function') {
+                try { updateRestaurantPricing(day, index); } catch (e) { /* ignore */ }
+            }
+            if (typeof updateRestaurantDataField === 'function') updateRestaurantDataField();
+            if (typeof showNotification === 'function') showNotification('Restaurant form cleared', 'info');
+        };
+
+        window.clearEntryPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            // Shared search fields (only clear fully on first vehicle slot)
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_arrival_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_entry_pickup_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_entry_pickup_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_local_transfer_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['entry_pickup_container', 'entry_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_entry_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_entry_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_entry_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_entry_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_entry_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_entry_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Arrival transport form cleared', 'info');
+        };
+
+        window.clearExitPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_departure_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_exit_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_exit_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_exit_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_exit_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['exit_pickup_container', 'exit_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_exit_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_exit_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_exit_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_exit_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_exit_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_exit_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Departure transport form cleared', 'info');
+        };
+
+        window.clearTransportForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const isFirst = (index === undefined || index === null || String(index) === '0' || String(index) === '1' && !document.getElementById(`day${day}_transport_city_${index}`));
+            const cityId = document.getElementById(`day${day}_transport_city_${index}`)
+                ? `day${day}_transport_city_${index}`
+                : `day${day}_transport_city_0`;
+            const citySelect = document.getElementById(cityId);
+            const keepCity = h.keepOrClearCity(citySelect);
+
+            // First slot uses unindexed vehicle ids; addMore uses indexed ids
+            const vehicleId = document.getElementById(`day${day}_transport_${index}_vehicle_id`)
+                || document.getElementById(`day${day}_transport_vehicle_id`);
+            const serviceType = document.getElementById(`day${day}_transport_${index}_service_type_select`)
+                || document.getElementById(`day${day}_transport_${index}_service_type`)
+                || document.getElementById(`day${day}_transport_service_type`);
+            h.resetSelect(vehicleId, '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(serviceType, '<option value="">Select service type</option>', false, 'Select service type');
+
+            const suppIdx = (index !== undefined && index !== null) ? index : 1;
+            const supplement = document.getElementById(`day${day}_transport_${suppIdx}_is_supplement`)
+                || document.getElementById(`day${day}_transport_1_is_supplement`);
+            const remarks = document.getElementById(`day${day}_transport_${suppIdx}_remarks`)
+                || document.getElementById(`day${day}_transport_1_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+
+            // Reset location/time fields inside this transport item if present
+            const item = (vehicleId && vehicleId.closest) ? vehicleId.closest('.transport-item, .card') : null;
+            const root = item || document.getElementById(`day${day}_transports_container`) || document;
+            root.querySelectorAll(`input[type="text"], input[type="number"], textarea`).forEach(function (inp) {
+                if (!inp.id || inp.id.indexOf(`day${day}_transport`) === -1) return;
+                if (inp.id.indexOf('adults') !== -1 || inp.id.indexOf('passengers') !== -1) {
+                    inp.value = document.getElementById('adults')?.value || '1';
+                } else if (inp.id.indexOf('children') !== -1) {
+                    inp.value = '0';
+                } else if (inp.type === 'number') {
+                    inp.value = '';
+                } else if (inp.tagName === 'TEXTAREA' || inp.type === 'text') {
+                    if (inp.id.indexOf('remarks') === -1) inp.value = '';
+                }
+            });
+            root.querySelectorAll('select').forEach(function (sel) {
+                if (!sel.id || sel.id.indexOf(`day${day}_transport`) === -1) return;
+                if (sel.id.indexOf('_city_') !== -1) return;
+                if (sel === vehicleId || sel === serviceType) return;
+                if (sel.options && sel.options.length) {
+                    sel.selectedIndex = 0;
+                    if (typeof jQuery !== 'undefined' && jQuery(sel).data('select2')) {
+                        jQuery(sel).val(sel.value).trigger('change');
+                    }
+                }
+            });
+
+            const totalDisp = document.getElementById(`day${day}_transport_${index}_total_price_display`)
+                || document.getElementById(`day${day}_transport_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_transport_${index}_pricing_content`)
+                || document.getElementById(`day${day}_transport_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+
+            if (keepCity && citySelect) h.setSelectValue(citySelect, keepCity);
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Transport form cleared', 'info');
         };
         
         // Function to update all attraction pricing immediately
@@ -27215,13 +28184,138 @@
         }, 1000);
     }
 
+    // ---- Local transfer pickup/dropoff locations are city scoped ----
+    // Zone-assigned locations must be requested per city, otherwise every city of the country
+    // is offered (e.g. Batam hotels while Barrackpore is selected).
+    window.zoneAssignedLocationsUrl = function (city) {
+        const base = "{{ route('fetch-zone-assigned-locations') }}";
+        const cityName = String(city || '').trim();
+        return cityName ? `${base}?city=${encodeURIComponent(cityName)}` : base;
+    };
+
+    // City chosen on a given transport row (static row uses index 0), with sensible fallbacks.
+    window.getTransportRowCity = function (day, index) {
+        const idx = (index === null || index === undefined) ? 0 : index;
+        const rowCity = document.getElementById(`day${day}_transport_city_${idx}`);
+        if (rowCity && rowCity.value) {
+            return rowCity.value;
+        }
+        const anyTransportCity = document.querySelector('.transport-city-select');
+        if (anyTransportCity && anyTransportCity.value) {
+            return anyTransportCity.value;
+        }
+        return (typeof window.getSingleCityName === 'function') ? window.getSingleCityName() : '';
+    };
+
+    // Shared option label for zone-assigned locations (hotel/restaurant/attraction).
+    window.buildTransportLocationOption = function (location) {
+        let icon = '';
+        switch (location.type) {
+            case 'hotel':
+                icon = '🏨';
+                break;
+            case 'restaurant':
+                icon = '🍽️';
+                break;
+            case 'attraction':
+                icon = '🎯';
+                break;
+            default:
+                icon = '📍';
+        }
+
+        const option = document.createElement('option');
+        option.value = location.id;
+        option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
+        option.dataset.type = location.type;
+        option.dataset.latitude = location.latitude || '';
+        option.dataset.longitude = location.longitude || '';
+        return option;
+    };
+
+    /**
+     * Reload a transport row's pickup locations for the newly selected city.
+     * Wired to the city select's onchange (both static and dynamically added transport rows).
+     */
+    window.loadTransportZonesForCity = function (day, cityName, index) {
+        const idx = (index === null || index === undefined) ? 0 : parseInt(index, 10) || 0;
+        const pickupName = idx > 0 ? `day${day}_transport_${idx}_pickup_zone_id` : `day${day}_transport_pickup_zone_id`;
+        const dropoffName = idx > 0 ? `day${day}_transport_${idx}_dropoff_zone_id` : `day${day}_transport_dropoff_zone_id`;
+
+        const bundleRoot = document.getElementById('segmentServicesBundle');
+        const scope = bundleRoot || document;
+        const pickupSelect = scope.querySelector(`select[name="${pickupName}"]`);
+        const dropoffSelect = scope.querySelector(`select[name="${dropoffName}"]`);
+        const cityMessage = document.getElementById(`day${day}_transport_city_message_${idx}`);
+        const vehicleSelect = scope.querySelector(`select[name="${idx > 0 ? `day${day}_transport_${idx}_vehicle_id` : `day${day}_transport_vehicle_id`}"]`);
+
+        const refreshSelect2 = function (select) {
+            if (!select) return;
+            if (typeof jQuery !== 'undefined' && jQuery(select).data('select2')) {
+                jQuery(select).trigger('change.select2');
+            }
+        };
+
+        if (dropoffSelect) {
+            dropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
+            dropoffSelect.disabled = true;
+            refreshSelect2(dropoffSelect);
+        }
+        if (vehicleSelect) {
+            vehicleSelect.innerHTML = '<option value="">Select pickup first</option>';
+            vehicleSelect.disabled = true;
+            refreshSelect2(vehicleSelect);
+        }
+
+        if (!cityName) {
+            if (pickupSelect) {
+                pickupSelect.innerHTML = '<option value="">Select city first</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            }
+            if (cityMessage) cityMessage.style.display = 'block';
+            return;
+        }
+
+        if (cityMessage) cityMessage.style.display = 'none';
+        if (!pickupSelect) return;
+
+        pickupSelect.innerHTML = '<option value="">Loading pickup locations...</option>';
+        pickupSelect.disabled = true;
+        refreshSelect2(pickupSelect);
+
+        fetch(window.zoneAssignedLocationsUrl(cityName))
+            .then(response => response.json())
+            .then(data => {
+                pickupSelect.innerHTML = '<option value="">Select pickup location</option>';
+
+                if (data.success && Array.isArray(data.locations) && data.locations.length) {
+                    data.locations.forEach(location => {
+                        pickupSelect.appendChild(window.buildTransportLocationOption(location));
+                    });
+                    pickupSelect.disabled = false;
+                } else {
+                    pickupSelect.innerHTML = '<option value="">No locations available in this city</option>';
+                    pickupSelect.disabled = true;
+                }
+
+                refreshSelect2(pickupSelect);
+            })
+            .catch(error => {
+                console.error('Error loading pickup locations for city:', cityName, error);
+                pickupSelect.innerHTML = '<option value="">Error loading locations</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            });
+    };
+
     function fetchZonesForAllTransportSections(city) {
     console.log('Fetching zones and locations for city:', city);
     
     // Fetch both zones and locations data
     Promise.all([
         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`).then(response => response.json()),
-        fetch(`{{ route('fetch-zone-assigned-locations') }}`).then(response => response.json())
+        fetch(window.zoneAssignedLocationsUrl(city)).then(response => response.json())
     ]).then(([zonesData, locationsData]) => {
         console.log('Zones data received:', zonesData);
         console.log('Locations data received:', locationsData);
@@ -27256,33 +28350,24 @@
             // For local transfer pickup selects, use location data with hotels, attractions, restaurants
             if (select.name && select.name.includes('_transport_') && locationsData.success && locationsData.locations) {
                 console.log(`Updating local transfer pickup select ${index} with locations:`, select.name);
+
+                // Each transport row has its own city: when the row's city differs from the city
+                // this batch was fetched for, reload that row so it only lists its own city's locations.
+                const rowMatch = select.name.match(/^day(\d+)_transport_(?:(\d+)_)?pickup_zone_id$/);
+                if (rowMatch) {
+                    const rowDay = rowMatch[1];
+                    const rowIndex = rowMatch[2] ? parseInt(rowMatch[2], 10) : 0;
+                    const rowCity = window.getTransportRowCity(rowDay, rowIndex);
+                    if (rowCity && String(rowCity).toLowerCase() !== String(city || '').toLowerCase()) {
+                        window.loadTransportZonesForCity(rowDay, rowCity, rowIndex);
+                        return;
+                    }
+                }
+
                 select.innerHTML = '<option value="">Select pickup location</option>';
                 
                 locationsData.locations.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    select.appendChild(option);
+                    select.appendChild(window.buildTransportLocationOption(location));
                 });
                 
                 select.disabled = false;
@@ -28736,7 +29821,7 @@
                 // For local transfer dropoff, populate with zone-assigned locations (excluding pickup location)
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);
@@ -29107,7 +30192,7 @@
                 
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);
@@ -33217,6 +34302,146 @@
                         console.log('All guide pricing triggered');
                     };
 
+                    // Cache geocoded city bounds so Other Transport autocomplete can stay city-scoped.
+                    window._gmapsCityBoundsCache = window._gmapsCityBoundsCache || {};
+
+                    // Resolve the city dropdown tied to a Google Maps location input (Other Transport / entry / exit).
+                    window.resolveCityForAutocompleteInput = function(input) {
+                        if (!input) return '';
+                        const inputId = input.id || '';
+                        let citySelect = null;
+
+                        // day1_transport_2_pickup_location / day1_transport_2_hourly_pickup_location
+                        let match = inputId.match(/^day(\d+)_transport_(\d+)_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                        if (match) {
+                            citySelect = document.getElementById(`day${match[1]}_transport_city_${match[2]}`);
+                        } else {
+                            // day1_transport_pickup_location / day1_transport_hourly_pickup_location
+                            match = inputId.match(/^day(\d+)_transport_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                            if (match) {
+                                citySelect = document.getElementById(`day${match[1]}_transport_city_0`);
+                            }
+                        }
+
+                        if (!citySelect) {
+                            if (inputId.includes('_entry_')) {
+                                citySelect = document.getElementById('modal_local_transfer_city');
+                            } else if (inputId.includes('_exit_')) {
+                                citySelect = document.getElementById('modal_exit_city');
+                            }
+                        }
+
+                        if (!citySelect) return '';
+
+                        const opt = citySelect.options?.[citySelect.selectedIndex];
+                        const fromData = (opt?.getAttribute?.('data-city-name') || '').trim();
+                        const fromText = (opt?.textContent || '').trim().split('(')[0].trim();
+                        const fromValue = String(citySelect.value || '').trim();
+                        return fromData || fromText || fromValue;
+                    };
+
+                    // Geocode city (+ country) and apply strict viewport bounds to Autocomplete.
+                    window.applyCityBoundsToAutocomplete = function(autocomplete, cityName, countryName) {
+                        if (!autocomplete || !cityName || typeof google === 'undefined' || !google.maps?.Geocoder) {
+                            return;
+                        }
+
+                        const cacheKey = `${String(cityName).trim().toLowerCase()}|${String(countryName || '').trim().toLowerCase()}`;
+                        const applyBounds = (bounds) => {
+                            if (!bounds) return;
+                            try {
+                                autocomplete.setBounds(bounds);
+                                autocomplete.setOptions({ strictBounds: true });
+                            } catch (e) {
+                                console.warn('Failed to apply city bounds to autocomplete', e);
+                            }
+                        };
+
+                        if (window._gmapsCityBoundsCache[cacheKey]) {
+                            applyBounds(window._gmapsCityBoundsCache[cacheKey]);
+                            return;
+                        }
+
+                        const geocoder = new google.maps.Geocoder();
+                        const address = countryName ? `${cityName}, ${countryName}` : cityName;
+                        geocoder.geocode({ address: address }, function(results, status) {
+                            if (status !== 'OK' || !results?.[0]) {
+                                console.warn('City geocode failed for autocomplete bias:', address, status);
+                                return;
+                            }
+                            const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                            if (!bounds) return;
+                            window._gmapsCityBoundsCache[cacheKey] = bounds;
+                            applyBounds(bounds);
+                        });
+                    };
+
+                    window.placeMatchesSelectedCity = function(place, cityName) {
+                        if (!cityName || !place) return true;
+                        const needle = String(cityName).trim().toLowerCase();
+                        if (!needle) return true;
+                        const parts = [
+                            place.formatted_address || '',
+                            place.name || '',
+                            ...((place.address_components || []).map(c => `${c.long_name || ''} ${c.short_name || ''}`))
+                        ];
+                        return parts.join(' ').toLowerCase().includes(needle);
+                    };
+
+                    // Refresh bounds on already-initialized inputs when Other Transport city changes.
+                    window.refreshAutocompleteCityBounds = function(citySelectEl) {
+                        if (!citySelectEl) return;
+                        const selectId = citySelectEl.id || '';
+                        const match = selectId.match(/^day(\d+)_transport_city_(\d+)$/);
+                        if (!match) return;
+
+                        const day = match[1];
+                        const index = parseInt(match[2], 10) || 0;
+                        const ids = index === 0
+                            ? [
+                                `day${day}_transport_pickup_location`,
+                                `day${day}_transport_dropoff_location`,
+                                `day${day}_transport_hourly_pickup_location`
+                            ]
+                            : [
+                                `day${day}_transport_${index}_pickup_location`,
+                                `day${day}_transport_${index}_dropoff_location`,
+                                `day${day}_transport_${index}_hourly_pickup_location`
+                            ];
+
+                        const countryName = (typeof window.resolveSelectedCountryNameForAutocomplete === 'function')
+                            ? window.resolveSelectedCountryNameForAutocomplete()
+                            : (document.getElementById('user_country')?.value || '');
+                        const cityName = window.resolveCityForAutocompleteInput(document.getElementById(ids[0])) ||
+                            String(citySelectEl.value || '').trim();
+
+                        ids.forEach(function(id) {
+                            const input = document.getElementById(id);
+                            if (!input) return;
+                            // Clear previous location when city changes so stale out-of-city values are not kept.
+                            if (input.value) {
+                                input.value = '';
+                                const latField = document.getElementById(id.replace('_location', '_lat'));
+                                const lngField = document.getElementById(id.replace('_location', '_lng'));
+                                const placeIdField = document.getElementById(id.replace('_location', '_place_id'));
+                                if (latField) latField.value = '';
+                                if (lngField) lngField.value = '';
+                                if (placeIdField) placeIdField.value = '';
+                            }
+                            if (input._placesAutocomplete && cityName) {
+                                window.applyCityBoundsToAutocomplete(input._placesAutocomplete, cityName, countryName);
+                            } else {
+                                input.removeAttribute('data-autocomplete-initialized');
+                            }
+                        });
+
+                        setTimeout(function() {
+                            if (typeof window.initializeGoogleMapsAutocomplete === 'function') {
+                                window.initializeGoogleMapsAutocomplete();
+                            }
+                        }, 50);
+                    };
+
                     // Google Maps Autocomplete Functionality
                     window.initializeGoogleMapsAutocomplete = function() {
                         console.log('Initializing Google Maps Autocomplete...');
@@ -33242,21 +34467,18 @@
                                 const fromCityOption = opt?.getAttribute?.('data-country') || '';
                                 if (fromCityOption) return fromCityOption;
                             }
+
+                            // Fall back to Other Transport city option metadata
+                            const transportCity = document.querySelector('.transport-city-select');
+                            const transportOpt = transportCity?.options?.[transportCity.selectedIndex];
+                            const fromTransport = transportOpt?.getAttribute?.('data-country') || '';
+                            if (fromTransport) return fromTransport;
                             
                             return '';
                         };
+                        window.resolveSelectedCountryNameForAutocomplete = resolveSelectedCountryName;
                         
                         const selectedCountry = resolveSelectedCountryName();
-                        const selectedCity = ''; // City will be selected per service section
-                        
-                        // Create location bias for better search results
-                        let locationBias = null;
-                        if (selectedCountry && selectedCity) {
-                            // Use the city as the center point for location bias
-                            locationBias = selectedCity + ', ' + selectedCountry;
-                        } else if (selectedCountry) {
-                            locationBias = selectedCountry;
-                        }
                         
                         // Initialize autocomplete for all transport location inputs
                         document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
@@ -33273,8 +34495,15 @@
                                 if (countryCode) {
                                     autocompleteOptions.componentRestrictions = { country: countryCode };
                                 }
+
+                                const cityName = window.resolveCityForAutocompleteInput(input);
                                 
                                 const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
+                                input._placesAutocomplete = autocomplete;
+
+                                if (cityName) {
+                                    window.applyCityBoundsToAutocomplete(autocomplete, cityName, selectedCountry);
+                                }
                                 
                                 // Add place_changed event listener
                                 autocomplete.addListener('place_changed', function() {
@@ -33282,6 +34511,21 @@
                                     
                                     if (!place.geometry) {
                                         console.log('No geometry found for selected place');
+                                        return;
+                                    }
+
+                                    const selectedCityForInput = window.resolveCityForAutocompleteInput(input);
+                                    if (selectedCityForInput && !window.placeMatchesSelectedCity(place, selectedCityForInput)) {
+                                        console.warn('Selected place is outside the chosen city:', selectedCityForInput, place.formatted_address);
+                                        input.value = '';
+                                        const clearId = input.id || '';
+                                        const latField = document.getElementById(clearId.replace('_location', '_lat'));
+                                        const lngField = document.getElementById(clearId.replace('_location', '_lng'));
+                                        const placeIdField = document.getElementById(clearId.replace('_location', '_place_id'));
+                                        if (latField) latField.value = '';
+                                        if (lngField) lngField.value = '';
+                                        if (placeIdField) placeIdField.value = '';
+                                        alert(`Please select a location within ${selectedCityForInput} only.`);
                                         return;
                                     }
                                     
@@ -33622,6 +34866,19 @@
                             setTimeout(() => {
                                 reinitializeAutocomplete();
                             }, 1000); // Wait for city options to load
+                        }
+                        // Other Transport city change → scope Google suggestions to that city only
+                        if (e.target.classList && e.target.classList.contains('transport-city-select')) {
+                            setTimeout(() => {
+                                if (typeof window.refreshAutocompleteCityBounds === 'function') {
+                                    window.refreshAutocompleteCityBounds(e.target);
+                                }
+                            }, 100);
+                        }
+                        if (e.target.id === 'modal_local_transfer_city' || e.target.id === 'modal_exit_city') {
+                            setTimeout(() => {
+                                reinitializeAutocomplete();
+                            }, 200);
                         }
                     });
                     

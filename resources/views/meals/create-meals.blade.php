@@ -61,7 +61,7 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Add New Meal
-                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                    <x-currency-price-note :country="$current_restaurant->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <div class="d-flex gap-2">
                     {{-- @if(auth()->user()->role_id == '11')
@@ -75,7 +75,7 @@
                     </a> --}}
                 </div>
             </h5>
-            <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body">
+            <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving meal...">
                 @csrf
                 <!-- Hidden Fields -->
 
@@ -173,6 +173,19 @@
                                     @enderror
                                 </div>
 
+                                <div class="col-md-2 mb-3">
+                                    <label for="profit_type" class="form-label"><strong>Profit Type</strong></label>
+                                    <select id="profit_type" name="profit_type" class="form-select form-select-sm">
+                                        <option value="flat" {{ old('profit_type', 'flat') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        <option value="percentage" {{ old('profit_type') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-2 mb-3">
+                                    <label for="profit_on_cost" class="form-label"><strong>Profit On Cost</strong></label>
+                                    <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="profit_on_cost" name="profit_on_cost" placeholder="0.00" value="{{ old('profit_on_cost') }}">
+                                </div>
+
                                 <!-- Item Name -->
                                 <div class="col-md-3 mb-3" id="item_name_container" style="display: none;">
                                     <label for="name" class="form-label"><strong>Item Name</strong><span class="text-danger">*</span></label>
@@ -181,10 +194,24 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
+
+                                <!-- Item Cost Price -->
+                                <div class="col-md-3 mb-3" id="item_cost_price_container" style="display: none;">
+                                    <label for="item_cost_price" class="form-label"><strong>Item Cost Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-cost-input" id="item_cost_price" name="item_cost_price"
+                                           data-sell-target="price"
+                                           placeholder="Enter Item Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="item_cost_price-validation-message"></small>
+                                    @error('item_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
                                 <!-- Item Sell Price -->
                                 <div class="col-md-3 mb-3" id="item_price_container" style="display: none;">
                                     <label for="price" class="form-label"><strong>Item Sell Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="price" name="price" 
+                                    <input type="text" class="form-control meal-sell-input" id="price" name="price"
                                            placeholder="Enter Item Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="price-validation-message"></small>
@@ -193,34 +220,11 @@
                                     @enderror
                                 </div>
 
-                                <!-- Item Cost Price -->
-                                <div class="col-md-3 mb-3" id="item_cost_price_container" style="display: none;">
-                                    <label for="item_cost_price" class="form-label"><strong>Item Cost Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="item_cost_price" name="item_cost_price"
-                                           placeholder="Enter Item Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                           oninput="validatePrice(this)">
-                                    <small class="validation-message" id="item_cost_price-validation-message"></small>
-                                    @error('item_cost_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                
-                                <!-- Adult Sell Price -->
-                                <div class="col-md-3 mb-3" id="adult_price_container" style="display: none;">
-                                    <label for="adult_price" class="form-label"><strong>Adult Sell Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="adult_price" name="adult_price" 
-                                           placeholder="Enter Adult Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
-                                           oninput="validatePrice(this)">
-                                    <small class="validation-message" id="adult_price-validation-message"></small>
-                                    @error('adult_price')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
                                 <!-- Adult Cost Price -->
                                 <div class="col-md-3 mb-3" id="adult_cost_price_container" style="display: none;">
                                     <label for="adult_cost_price" class="form-label"><strong>Adult Cost Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="adult_cost_price" name="adult_cost_price"
+                                    <input type="text" class="form-control meal-cost-input" id="adult_cost_price" name="adult_cost_price"
+                                           data-sell-target="adult_price"
                                            placeholder="Enter Adult Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="adult_cost_price-validation-message"></small>
@@ -229,14 +233,14 @@
                                     @enderror
                                 </div>
 
-                                <!-- Child Sell Price -->
-                                <div class="col-md-3 mb-3" id="child_price_container" style="display: none;">
-                                    <label for="child_price" class="form-label"><strong>Child Sell Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="child_price" name="child_price" 
-                                           placeholder="Enter Child Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                <!-- Adult Sell Price -->
+                                <div class="col-md-3 mb-3" id="adult_price_container" style="display: none;">
+                                    <label for="adult_price" class="form-label"><strong>Adult Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-sell-input" id="adult_price" name="adult_price"
+                                           placeholder="Enter Adult Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
-                                    <small class="validation-message" id="child_price-validation-message"></small>
-                                    @error('child_price')
+                                    <small class="validation-message" id="adult_price-validation-message"></small>
+                                    @error('adult_price')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -244,11 +248,24 @@
                                 <!-- Child Cost Price -->
                                 <div class="col-md-3 mb-3" id="child_cost_price_container" style="display: none;">
                                     <label for="child_cost_price" class="form-label"><strong>Child Cost Price</strong><span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="child_cost_price" name="child_cost_price"
+                                    <input type="text" class="form-control meal-cost-input" id="child_cost_price" name="child_cost_price"
+                                           data-sell-target="child_price"
                                            placeholder="Enter Child Cost Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
                                            oninput="validatePrice(this)">
                                     <small class="validation-message" id="child_cost_price-validation-message"></small>
                                     @error('child_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <!-- Child Sell Price -->
+                                <div class="col-md-3 mb-3" id="child_price_container" style="display: none;">
+                                    <label for="child_price" class="form-label"><strong>Child Sell Price</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control meal-sell-input" id="child_price" name="child_price"
+                                           placeholder="Enter Child Price" pattern="^[0-9]+(\.[0-9]{1,2})?$"
+                                           oninput="validatePrice(this)">
+                                    <small class="validation-message" id="child_price-validation-message"></small>
+                                    @error('child_price')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -300,11 +317,15 @@
                 <!-- Submit Buttons -->
                 <div class="row mt-4">
                     <div class="col-md-12 text-center">
-                        <button type="submit" class="btn btn-primary" id="submitBtn"
+                        <button type="submit" class="btn btn-primary js-submit-loader-btn" id="submitBtn"
                             @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
                                 @if($dmcUsers->count() == 0) disabled title="Cannot submit: No DMCs available for this restaurant" @endif
                             @endif>
-                            Submit
+                            <span class="js-submit-loader-btn-text">Submit</span>
+                            <span class="js-submit-loader-btn-loading d-none">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Saving...
+                            </span>
                         </button>
                         @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
                             <div class="text-muted mt-2">
@@ -506,6 +527,7 @@
 </div>
 <!-- End Modal -->
 <!-- End of the form -->
+<x-form-submit-loader message="Saving meal..." />
 @endsection
 
 @section('scripts')
@@ -1013,6 +1035,85 @@
         } else {
             console.error('Bootstrap is not available');
         }
+    });
+</script>
+
+<script>
+    function calculateMealSellFromCost(costValue) {
+        const profitType = (document.getElementById('profit_type')?.value || 'flat').toLowerCase();
+        const profit = parseFloat(String(document.getElementById('profit_on_cost')?.value || '0').replace(',', '.'));
+        const cost = parseFloat(String(costValue || '0').replace(',', '.'));
+
+        if (isNaN(cost)) return '';
+
+        const profitAmount = isNaN(profit) ? 0 : profit;
+        let sell = cost;
+
+        if (profitType === 'percentage') {
+            sell = cost + (cost * profitAmount / 100);
+        } else {
+            sell = cost + profitAmount;
+        }
+
+        return Number(Math.max(0, sell).toFixed(2));
+    }
+
+    function updateMealSellFromCostInput(costInput) {
+        if (!costInput) return;
+        const sellId = costInput.getAttribute('data-sell-target');
+        const sellInput = sellId ? document.getElementById(sellId) : null;
+        if (!sellInput) return;
+
+        if (costInput.value === '' || costInput.value === null) {
+            return;
+        }
+
+        sellInput.value = calculateMealSellFromCost(costInput.value);
+        sellInput.dataset.autoFilled = '1';
+        if (typeof validatePrice === 'function') {
+            validatePrice(sellInput);
+        }
+    }
+
+    function updateAllMealSellPricesFromCost() {
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            updateMealSellFromCostInput(costInput);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateMealSellFromCostInput(this);
+            });
+            costInput.addEventListener('change', function () {
+                updateMealSellFromCostInput(this);
+            });
+        });
+
+        document.querySelectorAll('.meal-sell-input').forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+            });
+        });
+
+        const profitTypeEl = document.getElementById('profit_type');
+        const profitOnCostEl = document.getElementById('profit_on_cost');
+        if (profitTypeEl) {
+            profitTypeEl.addEventListener('change', updateAllMealSellPricesFromCost);
+        }
+        if (profitOnCostEl) {
+            profitOnCostEl.addEventListener('input', updateAllMealSellPricesFromCost);
+            profitOnCostEl.addEventListener('change', updateAllMealSellPricesFromCost);
+        }
+
+        document.querySelectorAll('.meal-cost-input').forEach(function (costInput) {
+            const sellId = costInput.getAttribute('data-sell-target');
+            const sellInput = sellId ? document.getElementById(sellId) : null;
+            if (sellInput && (sellInput.value === '' || sellInput.value === null) && costInput.value !== '') {
+                updateMealSellFromCostInput(costInput);
+            }
+        });
     });
 </script>
 @endsection

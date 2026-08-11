@@ -217,7 +217,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     <h5 class="mb-0">Manage Beds for {{ $hotel->name }}</h5>
-                    <x-currency-price-note :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
+                    <x-currency-price-note :country="$hotel->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <a href="javascript:history.back()" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -248,7 +248,7 @@
                     <div class="tab-pane fade show active" id="add-single" role="tabpanel" aria-labelledby="add-single-tab">
                         <div class="p-4">
             <form id="hotelForm" method="POST" action="{{ route('storebed') }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <input type="hidden" class="form-control" name="hotel_id" id="hotel_id"
                     value="{{ $hotel->hotel_unique_id }}">
@@ -324,6 +324,22 @@
                                 <label for="max-occupancy" class="form-label"><strong>Maximum Occupancy</strong></label>
                                 <input type="number" id="max-occupancy" name="max_occupancy" class="form-control" readonly>
                             </div>
+
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                <select id="bed_profit_margin" class="form-select js-bed-profit-type">
+                                    <option value="percentage" selected>%</option>
+                                    <option value="flat">Flat</option>
+                                </select>
+                                <small class="text-muted">Helper only — not saved</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="bed_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                <input type="number" id="bed_profit_amount" class="form-control js-bed-profit-amount"
+                                       value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                <small class="text-muted">Auto-fills Sell from Cost</small>
+                            </div>
+
                             <!-- extra bed -->
                             <div class="col-md-3 mb-3">
                                 <label for="extra_bed" class="form-label"><strong>Extra
@@ -350,18 +366,19 @@
                                 </select>
                             </div>
 
-                            <!-- extra bed price -->
-                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
-                                <label for="extra_bed_price" class="form-label"><strong>Extra Bed
-                                        Price(Sell)</strong><span class="text-danger">*</span></label>
-                                <input type="number" name="extra_bed_price" id="extra_bed_price"
-                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                            </div>
+                            <!-- extra bed price: Cost then Sell -->
                             <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
                                 <label for="extra_bed_cost_price" class="form-label"><strong>Extra Bed
                                         Price(Cost)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="extra_bed_cost_price" id="extra_bed_cost_price"
-                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                                    class="form-control js-bed-cost" data-sell-target="extra_bed_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-3 mb-3 extra_bed_price" style="display: none;">
+                                <label for="extra_bed_price" class="form-label"><strong>Extra Bed
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="extra_bed_price" id="extra_bed_price"
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                             </div>
 
                             <div class="mb-3 col-md-3">
@@ -390,18 +407,19 @@
                                 </select>
                             </div>
 
-                            <!-- baby cot price -->
-                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
-                                <label for="baby_cot_price" class="form-label"><strong>Baby Cot
-                                        Price(Sell)</strong><span class="text-danger">*</span></label>
-                                <input type="number" name="baby_cot_price" id="baby_cot_price"
-                                    class="form-control" placeholder="Enter Sell Price" min="0" step="0.01">
-                            </div>
+                            <!-- baby cot price: Cost then Sell -->
                             <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
                                 <label for="baby_cot_cost_price" class="form-label"><strong>Baby Cot
                                         Price(Cost)</strong><span class="text-danger">*</span></label>
                                 <input type="number" name="baby_cot_cost_price" id="baby_cot_cost_price"
-                                    class="form-control" placeholder="Enter Cost Price" min="0" step="0.01">
+                                    class="form-control js-bed-cost" data-sell-target="baby_cot_price"
+                                    placeholder="Enter Cost Price" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-3 mb-3 baby_cot_price" style="display: none;">
+                                <label for="baby_cot_price" class="form-label"><strong>Baby Cot
+                                        Price(Sell)</strong><span class="text-danger">*</span></label>
+                                <input type="number" name="baby_cot_price" id="baby_cot_price"
+                                    class="form-control js-bed-sell" placeholder="Enter Sell Price" min="0" step="0.01">
                             </div>
                             <hr>
                         </div>
@@ -441,7 +459,13 @@
 
                             <!-- Submit Buttons -->
                             <div class="d-flex gap-3">
-                                <button type="submit" class="btn btn-primary px-4">Save</button>
+                                <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                    <span class="js-submit-loader-btn-text">Save</span>
+                                    <span class="js-submit-loader-btn-loading d-none">
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        Saving...
+                                    </span>
+                                </button>
                                 <!-- <a href="{{ route('policy', $hotel->hotel_unique_id) }}"
                                     class="btn btn-success px-4">Save</a> -->
                             </div>
@@ -651,6 +675,7 @@
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -1118,6 +1143,67 @@
             updateAdultChildOptions(currentOccupancy);
         });
     });
+</script>
+<script>
+(function () {
+    function round2(n) {
+        return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    }
+
+    function calcSellFromCost(cost, type, amount) {
+        const c = parseFloat(cost);
+        const a = parseFloat(amount);
+        const costVal = isNaN(c) ? 0 : c;
+        const amtVal = isNaN(a) ? 0 : a;
+        if (costVal <= 0) return 0;
+        if (type === 'flat') return round2(costVal + amtVal);
+        return round2(costVal + (costVal * amtVal / 100));
+    }
+
+    function getProfitSettings() {
+        const typeEl = document.querySelector('.js-bed-profit-type');
+        const amountEl = document.querySelector('.js-bed-profit-amount');
+        return {
+            type: typeEl ? typeEl.value : 'percentage',
+            amount: amountEl ? amountEl.value : 0
+        };
+    }
+
+    function updateSellFromCost(costEl, force) {
+        if (!costEl) return;
+        const sellId = costEl.getAttribute('data-sell-target');
+        if (!sellId) return;
+        const sellEl = document.getElementById(sellId);
+        if (!sellEl) return;
+        if (!force && sellEl.dataset.userEdited === '1') return;
+        const g = getProfitSettings();
+        sellEl.value = calcSellFromCost(costEl.value, g.type, g.amount);
+        sellEl.dataset.userEdited = '';
+    }
+
+    function recalculateAll(force) {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            updateSellFromCost(costEl, force);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-bed-cost[data-sell-target]').forEach(function (costEl) {
+            costEl.addEventListener('input', function () {
+                updateSellFromCost(costEl, true);
+            });
+        });
+        document.querySelectorAll('.js-bed-sell').forEach(function (sellEl) {
+            sellEl.addEventListener('input', function () {
+                sellEl.dataset.userEdited = '1';
+            });
+        });
+        document.querySelectorAll('.js-bed-profit-type, .js-bed-profit-amount').forEach(function (el) {
+            el.addEventListener('input', function () { recalculateAll(true); });
+            el.addEventListener('change', function () { recalculateAll(true); });
+        });
+    });
+})();
 </script>
 @include('components.currency-price-note-dmc-script')
 @endsection

@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+@include('bookings.partials.services')
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <style>
@@ -97,12 +98,59 @@
     }
     
     /* Services column: professional soft-badge style (light bg, colored icon) */
-    #toursTable td:nth-child(5) {
+    #toursTable td.services-column-cell {
         padding-top: 0.75rem;
         padding-bottom: 0.75rem;
         overflow: visible !important;
     }
-    #toursTable td:nth-child(5) .services-icons-wrap {
+    #toursTable td.services-column-cell .services-country-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #toursTable td.services-column-cell .services-country-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem;
+        align-items: center;
+    }
+    #toursTable td.services-column-cell .services-country-tab {
+        appearance: none;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.62rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: 0.01em;
+        padding: 0.12rem 0.35rem;
+        border-radius: 3px;
+        cursor: pointer;
+        max-width: 7.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    #toursTable td.services-column-cell .services-country-tab:hover {
+        border-color: #94a3b8;
+        background: #f1f5f9;
+        color: #334155;
+    }
+    #toursTable td.services-column-cell .services-country-tab.is-active {
+        border-color: #0f766e;
+        background: #0f766e;
+        color: #fff;
+    }
+    #toursTable td.services-column-cell .services-country-panel {
+        display: none;
+    }
+    #toursTable td.services-column-cell .services-country-panel.is-active {
+        display: grid;
+    }
+    #toursTable td.services-column-cell .services-icons-wrap {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         row-gap: 0.35rem;
@@ -110,7 +158,7 @@
         align-items: stretch;
         max-width: 100%;
     }
-    #toursTable td:nth-child(5) .service-icon-wrapper {
+    #toursTable td.services-column-cell .service-icon-wrapper {
         min-width: 0;
         display: flex;
         justify-content: center;
@@ -508,35 +556,47 @@
 
     /* Negotiation modals – shared layout */
     .negotiation-modal-content {
-        border-radius: 0.75rem;
+        border-radius: 0.85rem;
         overflow: hidden;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
     }
     .negotiation-modal-header {
-        background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+        background: linear-gradient(135deg, #6366f1 0%, #7c83ed 55%, #818cf8 100%);
         color: #fff;
-        padding: 1rem 1.25rem;
+        padding: 1.05rem 1.35rem;
     }
     .negotiation-modal-header .modal-title {
-        font-size: 1.05rem;
+        font-size: 1.02rem;
         font-weight: 600;
+        letter-spacing: -0.01em;
+        color: #fff !important;
+    }
+    .negotiation-modal-header small {
+        font-size: 0.74rem;
+        color: rgba(255, 255, 255, 0.9) !important;
     }
     .negotiation-modal-header .btn-close {
         filter: brightness(0) invert(1);
-        opacity: 0.85;
+        opacity: 0.7;
+        transition: opacity 0.15s ease;
+    }
+    .negotiation-modal-header .btn-close:hover {
+        opacity: 1;
     }
     .negotiation-pricing-summary {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.65rem;
-        padding: 1rem 1.1rem;
+        background: #fff;
+        border: 1px solid #e5e9f0;
+        border-radius: 0.7rem;
+        padding: 0.95rem 1.05rem;
     }
-    .negotiation-pricing-item .negotiation-label {
+    .negotiation-pricing-item .negotiation-label,
+    .negotiation-pricing-summary .negotiation-label {
         display: block;
-        font-size: 0.68rem;
+        font-size: 0.66rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #64748b;
+        letter-spacing: 0.06em;
+        color: #7c879b;
         margin-bottom: 0.2rem;
     }
     .negotiation-pricing-item .negotiation-value {
@@ -544,6 +604,7 @@
         font-weight: 600;
         color: #0f172a;
         line-height: 1.3;
+        font-variant-numeric: tabular-nums;
     }
     .negotiation-pricing-item.negotiation-discount .negotiation-value {
         color: #dc2626;
@@ -557,17 +618,38 @@
         color: #94a3b8;
         margin-top: 0.65rem;
         padding-top: 0.55rem;
-        border-top: 1px dashed #e2e8f0;
+        border-top: 1px dashed #e5e9f0;
     }
     .negotiation-meta-block {
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 0.65rem 0.85rem;
+        background: #fbfcfe;
+        border: 1px solid #e5e9f0;
+        border-radius: 0.55rem;
+        padding: 0.7rem 0.9rem;
+    }
+    .negotiation-meta-block .negotiation-label {
+        display: block;
+        font-size: 0.66rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #7c879b;
+        margin-bottom: 0.2rem;
+    }
+    .negotiation-meta-block .negotiation-value {
+        font-weight: 600;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
     }
     .negotiation-modal-footer {
-        background: #f8fafc;
-        border-top: 1px solid #e2e8f0;
+        background: #f7f9fc;
+        border-top: 1px solid #e5e9f0;
+        padding: 0.85rem 1.15rem;
+    }
+    .negotiation-modal-footer .btn {
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.86rem;
+        padding: 0.45rem 1.1rem;
     }
     
     /* Compact guest icons section */
@@ -855,11 +937,22 @@
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Start Date</label>
-                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                    @php
+                        $enqToday = \Carbon\Carbon::today();
+                        $enqDateMin = $enqToday->copy()->subYear()->toDateString();
+                        $enqDateMax = $enqToday->copy()->addYear()->toDateString();
+                        $enqDefaultStart = $enqToday->toDateString();
+                        $enqDefaultEnd = $enqToday->copy()->addDays(30)->toDateString();
+                    @endphp
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter"
+                           min="{{ $enqDateMin }}" max="{{ $enqDateMax }}"
+                           value="{{ $enqDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">End Date</label>
-                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter"
+                           min="{{ $enqDateMin }}" max="{{ $enqDateMax }}"
+                           value="{{ $enqDefaultEnd }}">
                 </div>
             </div>
         </div>
@@ -926,6 +1019,8 @@
                         <tr 
                             data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
+                            data-check-in="{{ $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->toDateString() : '' }}"
+                            data-check-out="{{ $tour->check_out_time ? \Carbon\Carbon::parse($tour->check_out_time)->toDateString() : '' }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
                             data-infant="{{ (int)($tour->infant ?? 0) }}"
@@ -1017,125 +1112,11 @@
                                     @endif
                                 </div>
                             </td>
-                            <td class="align-top">
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    @php
-                                        // Fetch orders for this tour to get actual service data
-                                        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->where('bookingType', 'enquiry')->get();
-                                        $svc = [
-                                            'hotel' => 0,
-                                            'attraction' => 0,
-                                            'restaurant' => 0,
-                                            'guide' => 0,
-                                            'entry_port' => 0,
-                                            'exit_port' => 0,
-                                            'travel_hourly' => 0,
-                                            'travel_point' => 0,
-                                            'local_transport' => 0,
-                                            'miscellaneous' => 0,
-                                        ];
-                                        $serviceData = [];
-                                        $ordersTotalAmount = 0;
-                                        
-                                        foreach($orders as $order) {
-                                            if(isset($svc[$order->type])) {
-                                                $svc[$order->type]++;
-                                                if(!isset($serviceData[$order->type])) {
-                                                    $serviceData[$order->type] = [];
-                                                }
-                                                $serviceData[$order->type][] = $order;
-                                            }
-                                            $orderPayload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-                                            $ordersTotalAmount += extractOrderTotals($orderPayload);
-                                        }
-                                        $ordersTotalAmount = round($ordersTotalAmount, 2);
-                                        
-                                        $icons = [
-                                            'hotel' => 'ri-hotel-bed-line',
-                                            'attraction' => 'ri-camera-line',
-                                            'restaurant' => 'ri-restaurant-2-line',
-                                            'guide' => 'ri-user-voice-line',
-                                            'entry_port' => 'ri-flight-land-line',
-                                            'exit_port' => 'ri-flight-takeoff-line',
-                                            'travel_hourly' => 'ri-time-line',
-                                            'travel_point' => 'ri-route-line',
-                                            'local_transport' => 'ri-car-line',
-                                            'miscellaneous' => 'ri-file-list-3-line',
-                                        ];
-                                        $serviceLabels = [
-                                            'hotel' => 'Hotel',
-                                            'attraction' => 'Attraction',
-                                            'restaurant' => 'Restaurant',
-                                            'guide' => 'Guide',
-                                            'entry_port' => 'Arrival',
-                                            'exit_port' => 'Departure',
-                                            'travel_hourly' => 'Local-Tour Hourly',
-                                            'travel_point' => 'Local-Tour Point to Point',
-                                            'local_transport' => 'Local Transport',
-                                            'miscellaneous' => 'Miscellaneous',
-                                        ];
-                                        /* Professional palette: cohesive, good contrast for white icons */
-                                        $serviceColors = [
-                                            'hotel' => '#4338ca',
-                                            'attraction' => '#0f766e',
-                                            'restaurant' => '#c2410c',
-                                            'guide' => '#475569',
-                                            'entry_port' => '#047857',
-                                            'exit_port' => '#0369a1',
-                                            'travel_hourly' => '#b45309',
-                                            'travel_point' => '#5b21b6',
-                                            'local_transport' => '#334155',
-                                            'miscellaneous' => '#7c3aed',
-                                        ];
-                                        
-                                        // For debugging
-                                        $debugInfo = [
-                                            'tour_id' => $tour->tour_id,
-                                            'orders_count' => $orders->count(),
-                                            'svc' => $svc,
-                                            'serviceData_keys' => array_keys($serviceData)
-                                        ];
-                                    @endphp
-                                    <div class="services-icons-wrap">
-                                    @foreach($svc as $svcKey=>$count)
-                                        @if(intval($count) > 0)
-                                            @php
-                                                $label = $serviceLabels[$svcKey] ?? ucfirst($svcKey);
-                                                $tooltipText = $label . ': ' . $count;
-                                                $bgColor = $serviceColors[$svcKey] ?? '#6c757d';
-                                                $clickable = in_array($svcKey, ['hotel', 'attraction', 'restaurant', 'guide', 'entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport', 'miscellaneous']);
-                                            @endphp
-                                            @if($clickable)
-                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="true"
-                                                          onclick="openServiceModal('{{ $svcKey }}', {{ $tour->tour_id }}, event)"
-                                                          data-debug-info="{{ json_encode($debugInfo) }}"
-                                                          role="button"
-                                                          tabindex="0">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
-                                                    </span>
-                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
-                                                </span>
-                                            @else
-                                                <span class="service-icon-wrapper" data-tooltip="{{ $tooltipText }}">
-                                                    <span class="service-icon-badge"
-                                                          style="--service-color: {{ $bgColor }};"
-                                                          data-clickable="false"
-                                                          role="img">
-                                                        <i class="{{ $icons[$svcKey] }}"></i>
-                                                    </span>
-                                                    <span class="service-icon-tooltip">{{ $tooltipText }}</span>
-                                                </span>
-                                            @endif
-                                        @endif
-                                    @endforeach
-                                    @if(array_sum(array_map('intval', $svc)) === 0)
-                                        <span class="text-muted small">No services</span>
-                                    @endif
-                                    </div>
-                                </div>
+                            <td class="align-top services-column-cell">
+                                @include('bookings.partials.enquiry-services-cell', [
+                                    'tour' => $tour,
+                                    'serviceCountryScope' => $serviceCountryScope ?? ['restricted' => false, 'countries' => []],
+                                ])
                             </td>
                             @php
                                 $tourEnquiries = $enquary_comments->where('tour_id', $tour->tour_id)->sortByDesc('created_at')->values();
@@ -1289,6 +1270,13 @@
                                 $agentNegotiationCap = $currentActualAmount;
                                 $baseAmount = $netNegotiationBase;
                                 $canCheckNegotiation = $hasAgentComment;
+
+                                $agentNegotiationDetails = [];
+                                if ($hasAgentComment && is_array($latestComment->negotiation_details ?? null)) {
+                                    $agentNegotiationDetails = $latestComment->negotiation_details;
+                                } elseif ($latestAgentComment && is_array($latestAgentComment->negotiation_details ?? null)) {
+                                    $agentNegotiationDetails = $latestAgentComment->negotiation_details;
+                                }
                             @endphp
                             @php
                                 $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
@@ -1308,6 +1296,7 @@
                                         data-markup-type="{{ $tourMarkupType ?? '' }}"
                                         data-markup-raw="{{ $tourMarkupRaw ?? 0 }}"
                                         data-markup-money="{{ $tourMarkupMoney ?? 0 }}"
+                                        data-markup-on="{{ !empty($tourMarkupOn) ? 1 : 0 }}"
                                         data-discount-type="{{ $tourDiscountType ?? '' }}"
                                         data-discount-raw="{{ $tourDiscountRaw ?? 0 }}"
                                         data-discount-money="{{ $tourDiscountMoney ?? 0 }}"
@@ -1317,6 +1306,7 @@
                                         data-last-comment="{{ e($lastAgentRemark) }}"
                                         data-tour-status="{{ e($tour->tour_status) }}"
                                         data-negotiation-locked="{{ $canCheckNegotiation ? '1' : '0' }}"
+                                        data-country-groups='@json($tour->negotiation_country_groups ?? [])'
                                         onclick="openAgentNegotiationModal(this)"
                                         {{ $canCheckNegotiation ? 'disabled' : '' }}
                                     >
@@ -1343,6 +1333,8 @@
                                         data-discount-money="{{ $tourDiscountMoney ?? 0 }}"
                                         data-payable="{{ $netNegotiationBase ?? 0 }}"
                                         data-comment="{{ e($lastAgentRemark) }}"
+                                        data-country-groups='@json($tour->negotiation_country_groups ?? [])'
+                                        data-agent-offers='@json($agentNegotiationDetails ?? [])'
                                         onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
                                         {{ $canCheckNegotiation ? '' : 'disabled' }}
                                     >
@@ -1457,7 +1449,7 @@
                 <div class="modal-header negotiation-modal-header border-0">
                     <div>
                         <h5 class="modal-title mb-0" id="newEnquiryUpdateModalLabel">DMC Negotiation</h5>
-                        <small class="text-white-50">Review agent offer and respond</small>
+                        <small class="text-white-50">Review agent offers and respond per country</small>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -1467,31 +1459,11 @@
                         <input type="hidden" name="enquiry_id" id="new_enquiry_modal_enquiry_id" />
                         <input type="hidden" name="tour_id" id="new_enquiry_modal_tour_id" value="" />
                         <input type="hidden" name="actual_amount" id="new_enquiry_modal_actual_amount" value="" />
+                        <input type="hidden" name="price" id="new_enquiry_current_price" value="" />
 
-                        <div class="negotiation-pricing-summary mb-3">
-                            <div class="row g-3">
-                                <div class="col-6 col-md-4 negotiation-pricing-item">
-                                    <span class="negotiation-label">Gross Total</span>
-                                    <div class="negotiation-value" id="new_enquiry_display_gross">—</div>
-                                </div>
-                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-markup">
-                                    <span class="negotiation-label" id="new_enquiry_markup_label">Markup</span>
-                                    <div class="negotiation-value text-info" id="new_enquiry_display_markup">—</div>
-                                </div>
-                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-discount">
-                                    <span class="negotiation-label" id="new_enquiry_discount_label">Discount</span>
-                                    <div class="negotiation-value" id="new_enquiry_display_discount">—</div>
-                                </div>
-                                <div class="col-6 col-md-4 negotiation-pricing-item negotiation-payable">
-                                    <span class="negotiation-label">Payable Amount</span>
-                                    <div class="negotiation-value" id="new_enquiry_display_actual">—</div>
-                                </div>
-                                <div class="col-6 col-md-4 negotiation-pricing-item">
-                                    <span class="negotiation-label">Agent Offer</span>
-                                    <div class="negotiation-value text-success" id="new_enquiry_display_price">—</div>
-                                </div>
-                            </div>
-                            <div class="negotiation-formula-hint">Payable = Gross + Markup − Discount. Your counter-offer cannot exceed payable amount.</div>
+                        <div id="newEnquiryCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
+                        <div class="alert alert-info py-2 px-3 mb-3">
+                            Enter a counter offer for each country in that country's currency. Counter offers cannot exceed the payable amount for that country.
                         </div>
 
                         <div class="negotiation-meta-block mb-3">
@@ -1499,16 +1471,12 @@
                             <div class="negotiation-value fw-normal text-muted" id="new_enquiry_display_comment" style="font-size: 0.9rem;">—</div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="new_enquiry_current_price" class="form-label fw-semibold">Your Counter Price</label>
-                            <input id="new_enquiry_current_price" type="number" name="price" class="form-control" min="0" step="0.01" placeholder="Enter counter price" onkeyup="validateNewEnquiryPrice(this)" required />
-                            <div id="new-enquiry-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
-                                Counter price cannot exceed the payable amount.
-                            </div>
-                        </div>
                         <div class="mb-0">
-                            <label for="new_enquiry_comment" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                            <textarea id="new_enquiry_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation" required></textarea>
+                            <label for="new_enquiry_comment" class="form-label fw-semibold">Remarks </label>
+                            <textarea id="new_enquiry_comment" name="comment" rows="3" class="form-control" placeholder="Add remarks for this negotiation"></textarea>
+                        </div>
+                        <div id="new-enquiry-warning-message" class="alert alert-warning mt-2 py-2 px-3 d-none mb-0">
+                            Counter price cannot exceed the payable amount.
                         </div>
                     </div>
                     <div class="modal-footer negotiation-modal-footer border-0">
@@ -1522,72 +1490,55 @@
     
     <!-- Negotiate by Agent Modal -->
     <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <form class="modal-content negotiation-modal-content border-0 shadow-lg" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}" data-update-price-url="{{ route('update-price-comment') }}">
                 @csrf
                 <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
                 <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
                 <input type="hidden" name="actual_amount" id="agent_negotiation_actual_amount">
+                <input type="hidden" name="amount" id="agentNegotiationAmount" value="">
                 <input type="hidden" id="agent_negotiation_enquiry_id" value="">
                 <div class="modal-header negotiation-modal-header border-0">
                     <div>
                         <h5 class="modal-title mb-0" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
-                        <small class="text-white-50">Submit your offer against the payable tour amount</small>
+                        <small class="text-white-50">Negotiate separately for each country in its own currency</small>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body pt-3 pb-2">
-                    <div class="negotiation-pricing-summary mb-3">
-                        <div class="row g-3">
-                            <div class="col-6 col-md-4 negotiation-pricing-item">
-                                <span class="negotiation-label">Tour</span>
-                                <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
+                <div class="modal-body negotiation-split-body">
+                    <div class="negotiation-main-scroll">
+                        <div class="mb-3">
+                            <span class="negotiation-label">Tour</span>
+                            <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
+                        </div>
+                        <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
+                        <div class="alert alert-info py-2 px-3 mb-3" id="agentNegotiationCurrencyHint">
+                            Each country shows its booked services total in that country's currency. Enter an offer for every country.
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Agent Offer</span>
+                                    <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
+                                </div>
                             </div>
-                            <div class="col-6 col-md-4 negotiation-pricing-item">
-                                <span class="negotiation-label">Gross Total</span>
-                                <div class="negotiation-value" id="agentNegotiationGrossAmount">—</div>
-                            </div>
-                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-markup">
-                                <span class="negotiation-label" id="agentNegotiationMarkupLabel">Markup</span>
-                                <div class="negotiation-value text-info" id="agentNegotiationMarkupAmount">—</div>
-                            </div>
-                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-discount">
-                                <span class="negotiation-label" id="agentNegotiationDiscountLabel">Discount</span>
-                                <div class="negotiation-value" id="agentNegotiationDiscountAmount">—</div>
-                            </div>
-                            <div class="col-6 col-md-4 negotiation-pricing-item negotiation-payable">
-                                <span class="negotiation-label">Payable Amount</span>
-                                <div class="negotiation-value" id="agentNegotiationCurrentAmount">—</div>
+                            <div class="col-md-6">
+                                <div class="negotiation-meta-block h-100">
+                                    <span class="negotiation-label">Last Remarks</span>
+                                    <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="negotiation-formula-hint">Payable = Gross + Markup − Discount</div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Agent Offer</span>
-                                <div class="negotiation-value text-warning" id="agentNegotiationLastAmount">—</div>
-                            </div>
+                        <div class="mb-2">
+                            <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks </label>
+                            <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
                         </div>
-                        <div class="col-md-6">
-                            <div class="negotiation-meta-block h-100">
-                                <span class="negotiation-label">Last Remarks</span>
-                                <div class="negotiation-value fw-normal text-muted" id="agentNegotiationLastRemark" style="font-size: 0.9rem;">—</div>
-                            </div>
+                        <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
+                            Negotiated amount cannot exceed the payable amount.
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="agentNegotiationAmount" class="form-label fw-semibold">Your Offer Amount</label>
-                        <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
-                        <div class="form-text text-primary fw-semibold mt-1" id="agentNegotiationMaxMessage">Maximum allowed: <span id="agentNegotiationMaxValue">—</span></div>
-                    </div>
-                    <div class="mb-2">
-                        <label for="agentNegotiationRemark" class="form-label fw-semibold">Remarks <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation" required></textarea>
-                        <div class="invalid-feedback d-none" id="agentNegotiationRemarkError">Please fill the input.</div>
-                    </div>
-                    <div class="alert alert-warning py-2 px-3 d-none mb-0" id="agentNegotiationWarning">
-                        Negotiated amount cannot exceed the payable amount.
+                    <div class="negotiation-profit-scroll" id="agentNegotiationProfitPanel">
+                        <div class="nego-profit-empty">Open a tour to see country-wise sell, cost, and profit.</div>
                     </div>
                 </div>
                 <div class="modal-footer negotiation-modal-footer border-0 d-flex flex-wrap align-items-center justify-content-end gap-2">
@@ -1603,8 +1554,12 @@
     <!-- Service Modals for each tour -->
     @foreach($tours as $tour)
     @php
-    // Re-fetch orders for this tour for modal rendering
-    $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->get();
+    // Orders are preloaded in BookingsController::hydrateTourNegotiationCurrencyData()
+    // (includes orders.country + orders.currency per booking_id for all service types)
+    $scope = $serviceCountryScope ?? ['restricted' => false, 'countries' => []];
+    $orders = collect($tour->booking ?? []);
+    $pageCurrency = $currency ?? 'SGD';
+    $tourCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? null);
     $svc = [
         'hotel' => 0,
         'attraction' => 0,
@@ -1618,1987 +1573,83 @@
         'miscellaneous' => 0,
     ];
     $serviceData = [];
+    $orderServiceCountry = [];
     
     foreach($orders as $order) {
-        if(isset($svc[$order->type])) {
-            $svc[$order->type]++;
-            if(!isset($serviceData[$order->type])) {
-                $serviceData[$order->type] = [];
-            }
-            $serviceData[$order->type][] = $order;
+        if(!isset($svc[$order->type])) {
+            continue;
         }
+
+        $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry($order, $tourCountries, []);
+        if ($resolvedCountry === '' || $resolvedCountry === 'Other') {
+            $resolvedCountry = $tourCountries[0] ?? 'Other';
+        }
+        $canonicalCountry = \App\Helpers\CommonHelper::matchTourCountryName($resolvedCountry, $tourCountries) ?? $resolvedCountry;
+        if (!\App\Helpers\CommonHelper::isServiceCountryAllowed($canonicalCountry, $scope)) {
+            continue;
+        }
+
+        $svc[$order->type]++;
+        if(!isset($serviceData[$order->type])) {
+            $serviceData[$order->type] = [];
+        }
+        $serviceData[$order->type][] = $order;
+        $orderServiceCountry[$order->booking_id ?? spl_object_id($order)] = $canonicalCountry;
+        // Also stash on the model for blade cards
+        $order->resolved_service_country = $canonicalCountry;
     }
 @endphp
 
 <!-- Hotel Details Modal -->
-@if(isset($svc['hotel']) && $svc['hotel'] > 0)
-<div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-            <!-- Compact Header -->
-            <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                            <i class="ri-hotel-line me-1" style="font-size: 0.9rem;"></i>Hotel Enquiries - Tour #{{ $tour->tour_id }}
-                        </h6>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                </div>
-            </div>
-            
-            <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
-                    @foreach($serviceData['hotel'] as $index => $hotelOrder)
-                    @php
-                        $hotelData = is_string($hotelOrder->data) ? json_decode($hotelOrder->data, true) : $hotelOrder->data;
-                    @endphp
-                    
-                    @if(is_array($hotelData))
-                        @foreach($hotelData as $bookingIndex => $booking)
-                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #74b9ff !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%);">
-                                    <div class="row align-items-center g-1">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                <i class="ri-hotel-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['hotelDetails']['hotel_name'] ?? 'Hotel Bookings' }}
-                                            </h6>
-                                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Enquiry {{ $index + 1 }} • {{ ucfirst($booking['bookingType'] ?? 'Standard') }}</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                    <!-- Customer Details & Address -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-user-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Customer Details</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Full Name</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['fullName'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Email Address</small>
-                                                        <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $booking['email'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Phone Number</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['countryCode'] ?? '' }} {{ $booking['phone'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Address</h6>
-                                                </div>
-                                                <div class="text-muted" style="font-size: 0.75rem;">
-                                                    @if($booking['address1'] ?? false)
-                                                        <div>{{ $booking['address1'] }}</div>
-                                                    @endif
-                                                    @if($booking['address2'] ?? false)
-                                                        <div>{{ $booking['address2'] }}</div>
-                                                    @endif
-                                                    @if($booking['state'] ?? false)
-                                                        <div>{{ $booking['state'] }} {{ $booking['zip'] ?? '' }}</div>
-                                                    @endif
-                                                    @if(!($booking['address1'] ?? false) && !($booking['address2'] ?? false) && !($booking['state'] ?? false))
-                                                        <div class="text-muted">Address not provided</div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Stay Information & Hotel Details -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-check-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Stay Schedule</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Check-in</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.75rem;">
-                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 0)
-                                                                {{ \Carbon\Carbon::parse($booking['bookingDate'][0])->format('M d, Y') }}
-                                                            @else
-                                                                N/A
-                                                            @endif
-                                                        </div>
-                                                        @if(isset($booking['hotelDetails']['checkInTime']))
-                                                            <small class="text-primary fw-medium" style="font-size: 0.65rem;">{{ $booking['hotelDetails']['checkInTime'] }}</small>
-                                                        @endif
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Check-out</small>
-                                                        <div class="fw-bold text-danger" style="font-size: 0.75rem;">
-                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1)
-                                                                {{ \Carbon\Carbon::parse(end($booking['bookingDate']))->format('M d, Y') }}
-                                                            @else
-                                                                N/A
-                                                            @endif
-                                                        </div>
-                                                        @if(isset($booking['hotelDetails']['checkOutTime']))
-                                                            <small class="text-danger fw-medium" style="font-size: 0.65rem;">{{ $booking['hotelDetails']['checkOutTime'] }}</small>
-                                                        @endif
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Total Nights</small>
-                                                        <div>
-                                                            @if(isset($booking['bookingDate']) && is_array($booking['bookingDate']) && count($booking['bookingDate']) > 1)
-                                                                @php
-                                                                    $checkIn = \Carbon\Carbon::parse($booking['bookingDate'][0]);
-                                                                    $checkOut = \Carbon\Carbon::parse(end($booking['bookingDate']));
-                                                                    $nights = $checkIn->diffInDays($checkOut);
-                                                                @endphp
-                                                                <span class="badge" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); color: white; font-size: 0.65rem; padding: 2px 4px;">{{ $nights }} Night{{ $nights > 1 ? 's' : '' }}</span>
-                                                            @else
-                                                                <span class="badge bg-secondary" style="font-size: 0.65rem; padding: 2px 4px;">Duration TBD</span>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-building-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Hotel Details</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Location</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['hotelDetails']['location'] ?? 'Location not specified' }}</div>
-                                                    </div>
-                                                    @if(isset($booking['hotelDetails']['cancellation_charge']) && !empty($booking['hotelDetails']['cancellation_charge']))
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Cancellation Policy</small>
-                                                        <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['hotelDetails']['cancellation_charge'] }}</div>
-                                                    </div>
-                                                    @endif
-                                                </div>
-                                                @if(isset($booking['hotelDetails']['image']))
-                                                    <div class="mt-1">
-                                                        <img src="{{ $booking['hotelDetails']['image'] }}" 
-                                                             alt="{{ $booking['hotelDetails']['hotel_name'] ?? 'Hotel' }}" 
-                                                             class="img-fluid rounded shadow-sm" 
-                                                             style="height: 60px; width: 100%; object-fit: cover;">
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @include('bookings.partials.hotel-booking-modal-sections', ['booking' => $booking, 'currency' => $currency])
-
-                                    <!-- Transfer Options -->
-                                    @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
-                                        <div class="bg-light rounded p-1 mb-2">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-car-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Transfer Details</h6>
-                                            </div>
-                                            <div class="row g-1">
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
-                                                                <span class="badge bg-primary" style="font-size: 0.65rem;">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Way</small>
-                                                                <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                            @if(isset($booking['transfer_options']['destination_name']) && !empty($booking['transfer_options']['destination_name']))
-                                                            <div class="col-12">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Destination</small>
-                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">
-                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['destination_name'] }}
-                                                                </div>
-                                                            </div>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
-                                                            <div class="row g-1">
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle</small>
-                                                                    <div class="fw-medium" style="font-size: 0.75rem;">
-                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
-                                                                    </div>
-                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
-                                                                        <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
-                                                                    @endif
-                                                                </div>
-                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
-                                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
-                                                                </div>
-                                                                @endif
-                                                                @php
-                                                                    // For PRO tours, show total transfer price (base × pax) when available
-                                                                    $transferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
-                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
-                                                                        $transferCostDisplay = $booking['transfer_options']['totalPrice'];
-                                                                    }
-                                                                @endphp
-                                                                @if($transferCostDisplay > 0)
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$transferCostDisplay, 2) }}</div>
-                                                                </div>
-                                                                @endif
-                                                            </div>
-                                                        @elseif(isset($booking['transfer_options']['vehicle_id']))
-                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle ID</small>
-                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_id'] }}</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
-                                                <div class="col-12">
-                                                    <div class="bg-info bg-opacity-10 rounded p-1 mt-1">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Location</small>
-                                                        <div class="fw-medium text-info" style="font-size: 0.75rem;">{{ $booking['transfer_options']['pickup_location_name'] }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Special Requests -->
-                                    @if(isset($booking['specialRequests']) && !empty($booking['specialRequests']))
-                                        <div class="bg-light rounded p-1 mb-2">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <div class="rounded-circle p-1 me-1" style="background-color: #6f42c1; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-message-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Special Requests</h6>
-                                            </div>
-                                            <div class="bg-white rounded p-1">
-                                                <p class="mb-0 text-dark" style="font-size: 0.75rem;">{{ $booking['specialRequests'] }}</p>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-5">
-                        <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                            <i class="ri-hotel-line ri-48px text-muted"></i>
-                        </div>
-                        <h4 class="text-dark mb-3">No Hotel Data Available</h4>
-                        <p class="text-muted mb-4">Hotel services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <!-- Compact Footer -->
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
- </div>
-@endif
+@include('bookings.partials.enquiry-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'hotel',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+    ])
 
 <!-- Attraction Details Modal -->
-@if(isset($svc['attraction']) && $svc['attraction'] > 0)
-<div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-            <!-- Compact Header -->
-            <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                            <i class="ri-building-2-line me-1" style="font-size: 0.9rem;"></i>Attraction Enquiries - Tour #{{ $tour->tour_id }}
-                        </h6>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                </div>
-            </div>
-            
-            <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['attraction']) && count($serviceData['attraction']) > 0)
-                    @foreach($serviceData['attraction'] as $index => $attractionOrder)
-                    @php
-                        $attractionData = is_string($attractionOrder->data) ? json_decode($attractionOrder->data, true) : $attractionOrder->data;
-                    @endphp
-                    
-                    @if(is_array($attractionData))
-                        @php $actualBookingIndex = 0; @endphp
-                        @foreach($attractionData as $originalKey => $booking)
-                            @php $bookingIndex = $actualBookingIndex; @endphp
-                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd9853 0%, #fe7854 100%);">
-                                    <div class="row align-items-center g-1">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                <i class="ri-building-2-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['AttractionName'] ?? 'Attraction Booking' }}
-                                            </h6>
-                                            <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ $booking['ticketName'] ?? 'Standard Ticket' }} • Enquiry {{ $index + 1 }}</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                    <!-- Visit & Guest Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Visit Schedule</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Visit Date</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Visit Time</small>
-                                                        <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $booking['visitTime'] ?? 'Full Day' }}</div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Selection Type</small>
-                                                        <span class="badge bg-info" style="font-size: 0.65rem; padding: 2px 6px;">{{ ucfirst($booking['Selection'] ?? 'Standard') }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guest Information</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-4 text-center">
-                                                        <div class="bg-white rounded p-1">
-                                                            <div class="fw-bold text-success" style="font-size: 0.85rem;">{{ $booking['adultCount'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4 text-center">
-                                                        <div class="bg-white rounded p-1">
-                                                            <div class="fw-bold text-warning" style="font-size: 0.85rem;">{{ $booking['childCount'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.6rem;">Children</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-4 text-center">
-                                                        <div class="bg-white rounded p-1">
-                                                            <div class="fw-bold text-info" style="font-size: 0.85rem;">{{ $booking['seniorCount'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.6rem;">Seniors</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-center mt-1">
-                                                    <span class="badge" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); color: white; font-size: 0.65rem; padding: 2px 6px;">
-                                                        Total: {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) + ($booking['seniorCount'] ?? 0) }} Guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Attraction Details -->
-                                    <div class="bg-light rounded p-1 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-building-2-line text-white" style="font-size: 0.7rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Attraction Details</h6>
-                                        </div>
-                                        <div class="bg-white rounded p-1">
-                                            <div class="row g-1">
-                                                <div class="col-4">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Ticket ID</small>
-                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['ticketId'] ?? 'N/A' }}</div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">NRI Status</small>
-                                                    <span class="badge bg-info" style="font-size: 0.65rem;">{{ ucfirst($booking['nri'] ?? 'N/A') }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Ticket & Pricing Details -->
-                                    @if(isset($booking['ticket_details']))
-                                    <div class="bg-light rounded p-1 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-ticket-line text-white" style="font-size: 0.7rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Ticket & Pricing</h6>
-                                        </div>
-                                        
-                                        <!-- Pricing Cards -->
-                                        <div class="row g-1 mb-1">
-                                            <div class="col-4">
-                                                <div class="bg-white border rounded p-1 text-center" style="border-color: #28a745 !important;">
-                                                    <small class="text-success fw-bold d-block" style="font-size: 0.7rem;">Adult</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="bg-white border rounded p-1 text-center" style="border-color: #ffc107 !important;">
-                                                    <small class="text-warning fw-bold d-block" style="font-size: 0.7rem;">Child</small>
-                                                    <div class="fw-bold text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="bg-white border rounded p-1 text-center" style="border-color: #17a2b8 !important;">
-                                                    <small class="text-info fw-bold d-block" style="font-size: 0.7rem;">Senior</small>
-                                                    <div class="fw-bold text-info" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Booking Summary -->
-                                        <div class="bg-white rounded p-1 border" style="border-color: #fd9853 !important;">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <small class="fw-bold text-dark" style="font-size: 0.75rem;">Booking Summary</small>
-                                                    <div class="d-flex gap-1 flex-wrap">
-                                                        @if($booking['adultCount'] ?? 0 > 0)
-                                                            <span class="badge bg-success" style="font-size: 0.6rem;">{{ $booking['adultCount'] }} × {{ number_format($booking['ticket_details']['adult_price'] ?? 0, 2) }}</span>
-                                                        @endif
-                                                        @if($booking['childCount'] ?? 0 > 0)
-                                                            <span class="badge bg-warning" style="font-size: 0.6rem;">{{ $booking['childCount'] }} × {{ number_format($booking['ticket_details']['child_price'] ?? 0, 2) }}</span>
-                                                        @endif
-                                                        @if($booking['seniorCount'] ?? 0 > 0)
-                                                            <span class="badge bg-info" style="font-size: 0.6rem;">{{ $booking['seniorCount'] }} × {{ number_format($booking['ticket_details']['senior_price'] ?? 0, 2) }}</span>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                <div class="text-end">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Total</small>
-                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #fd9853;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        @if(isset($booking['ticket_details']['description']) && !empty($booking['ticket_details']['description']))
-                                        <!-- Ticket Description -->
-                                        <div class="bg-white rounded p-1 mt-1 border-start border-3" style="border-color: #fd9853 !important;">
-                                            <small class="fw-bold text-dark d-block" style="font-size: 0.75rem;">Ticket Info</small>
-                                            <div class="text-muted" style="font-size: 0.7rem;">{!! $booking['ticket_details']['description'] !!}</div>
-                                        </div>
-                                        @endif
-                                    </div>
-                                    @endif
-
-                                    <!-- Transfer Options -->
-                                    @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
-                                        <div class="bg-light rounded p-1 mb-2">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-car-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Transfer Details</h6>
-                                            </div>
-                                            <div class="row g-1">
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
-                                                                <span class="badge bg-primary" style="font-size: 0.65rem;">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Way</small>
-                                                                <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                            @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
-                                                            <div class="col-12">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Location</small>
-                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">
-                                                                    <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
-                                                                </div>
-                                                            </div>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
-                                                            <div class="row g-1">
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle</small>
-                                                                    <div class="fw-medium" style="font-size: 0.75rem;">
-                                                                        <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
-                                                                    </div>
-                                                                    @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
-                                                                        <small class="text-muted" style="font-size: 0.6rem;">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
-                                                                    @endif
-                                                                </div>
-                                                                @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Capacity</small>
-                                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers</div>
-                                                                </div>
-                                                                @endif
-                                                                @php
-                                                                    // For PRO tours, show total transfer price (base × pax) when available
-                                                                    $attractionTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
-                                                                    if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
-                                                                        $attractionTransferCostDisplay = $booking['transfer_options']['totalPrice'];
-                                                                    }
-                                                                @endphp
-                                                                @if($attractionTransferCostDisplay > 0)
-                                                                <div class="col-12">
-                                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Cost</small>
-                                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)$attractionTransferCostDisplay, 2) }}</div>
-                                                                </div>
-                                                                @endif
-                                                            </div>
-                                                        @elseif(isset($booking['transfer_options']['vehicle_id']))
-                                                            <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle ID</small>
-                                                            <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['transfer_options']['vehicle_id'] }}</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Guide Options -->
-                                    @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && isset($booking['guide_options']['guide_required']) && ($booking['guide_options']['guide_required'] === true || $booking['guide_options']['guide_required'] === 'true' || $booking['guide_options']['guide_required'] === 'Yes'))
-                                        <div class="bg-light rounded p-1 mb-2">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-user-star-line text-white" style="font-size: 0.7rem;"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Details</h6>
-                                            </div>
-                                            <div class="row g-1">
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        <div class="row g-1">
-                                                            <div class="col-12">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">
-                                                                    <i class="ri-user-line me-1"></i>{{ $booking['guide_options']['guide_name'] ?? 'N/A' }}
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Duration</small>
-                                                                <span class="badge bg-info" style="font-size: 0.65rem;">{{ $booking['guide_options']['package_hours'] ?? 'N/A' }} Hrs</span>
-                                                            </div>
-                                                            @if(isset($booking['guide_options']['pickup_time']) && !empty($booking['guide_options']['pickup_time']))
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Time</small>
-                                                                <div class="fw-medium text-success" style="font-size: 0.75rem;">
-                                                                    @php
-                                                                        $displayPickupTime = $booking['guide_options']['pickup_time'] ?? '';
-                                                                        if (str_contains($displayPickupTime, ' - ')) {
-                                                                            $parts = explode(' - ', $displayPickupTime);
-                                                                            $displayPickupTime = $parts[0];
-                                                                        }
-                                                                        $formattedPickupTime = $displayPickupTime;
-                                                                        if (!empty($displayPickupTime)) {
-                                                                            try {
-                                                                                $timeObj = \Carbon\Carbon::createFromFormat('H:i', $displayPickupTime);
-                                                                                $formattedPickupTime = $timeObj->format('h:i A');
-                                                                            } catch (\Exception $e) {
-                                                                                try {
-                                                                                    $timeObj = \Carbon\Carbon::createFromFormat('h:i A', $displayPickupTime);
-                                                                                    $formattedPickupTime = $timeObj->format('h:i A');
-                                                                                } catch (\Exception $e2) {
-                                                                                    try {
-                                                                                        $timeObj = \Carbon\Carbon::parse($displayPickupTime);
-                                                                                        $formattedPickupTime = $timeObj->format('h:i A');
-                                                                                    } catch (\Exception $e3) {}
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    @endphp
-                                                                    <i class="ri-time-line me-1"></i>{{ $formattedPickupTime }}
-                                                                </div>
-                                                            </div>
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="bg-white rounded p-1">
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                                <div class="fw-medium text-primary" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['guide_options']['base_price'] ?? 0, 2) }}</div>
-                                                            </div>
-                                                            @if(isset($booking['guide_options']['surcharge']) && $booking['guide_options']['surcharge'] > 0)
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                                <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format($booking['guide_options']['surcharge'], 2) }}</div>
-                                                            </div>
-                                                            @endif
-                                                            <div class="col-12">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Total Guide Cost</small>
-                                                                <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($booking['guide_options']['total_price'] ?? 0, 2) }}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                </div>
-                            </div>
-                            @php $actualBookingIndex++; @endphp
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-3">
-                        <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                            <i class="ri-building-2-line text-muted" style="font-size: 1.5rem;"></i>
-                        </div>
-                        <h6 class="text-dark mb-1" style="font-size: 0.9rem;">No Attraction Data Available</h6>
-                        <p class="text-muted mb-0" style="font-size: 0.75rem;">Attraction services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <!-- Compact Footer -->
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('attraction', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
+@include('bookings.partials.enquiry-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'attraction',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+    ])
 
 <!-- Restaurant Details Modal -->
-@if(isset($svc['restaurant']) && $svc['restaurant'] > 0)
-<div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-            <!-- Compact Header -->
-            <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h5 class="mb-0 fw-bold">
-                            <i class="ri-restaurant-2-line me-2"></i>Restaurant Bookings
-                        </h5>
-                        <small class="opacity-90">Tour #{{ $tour->tour_id }}</small>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" aria-label="Close"></button>
-                </div>
-            </div>
-            
-            <div class="modal-body p-3" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['restaurant']) && count($serviceData['restaurant']) > 0)
-                    @foreach($serviceData['restaurant'] as $index => $restaurantOrder)
-                    @php
-                        $restaurantData = is_string($restaurantOrder->data) ? json_decode($restaurantOrder->data, true) : $restaurantOrder->data;
-                    @endphp
-                    
-                    @if(is_array($restaurantData))
-                        @php $actualBookingIndex = 0; @endphp
-                        @foreach($restaurantData as $originalKey => $booking)
-                            @php $bookingIndex = $actualBookingIndex; @endphp
-                            <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd79a8 !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
-                                    <div class="row align-items-center g-2">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white">
-                                                <i class="ri-restaurant-2-line me-1"></i>{{ $booking['restaurantName'] ?? 'Restaurant Booking' }}
-                                            </h6>
-                                            <small class="text-white opacity-90">{{ ucfirst($booking['mealType'] ?? 'Meal') }} • {{ $booking['mealSpecificType'] ?? 'Standard' }}</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-3" style="background-color: #ffffff;">
-                                    <!-- Customer & Reservation Details -->
-                                    <div class="row mb-3 g-3">
-                                      
-                                        <div class="col-md-12">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Reservation Details</h6>
-                                                </div>
-                                                <div class="mb-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Date</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
-                                                </div>
-                                                <div class="mb-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.75rem;">Dining Time</small>
-                                                    <div class="fw-medium text-primary" style="font-size: 0.85rem;">{{ $booking['visitTime'] ?? 'TBC' }}</div>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
-                                                            <div class="fw-bold text-success" style="font-size: 1rem;">{{ $booking['adultCount'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #fd79a8 !important;">
-                                                            <div class="fw-bold text-warning" style="font-size: 1rem;">{{ $booking['childCount'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.6rem;">Children</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <span class="badge" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
-                                                        Party: {{ ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                      <!-- Menu & Meal Details -->
-                                      @if(isset($booking['MealDescription']) && is_array($booking['MealDescription']))
-                                    <div class="bg-light rounded p-2 mb-3">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-restaurant-line text-white" style="font-size: 0.9rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Menu Items ({{ count($booking['MealDescription']) }})</h6>
-                                        </div>
-                                        
-                                        @foreach($booking['MealDescription'] as $index => $meal)
-                                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 3px solid #fd79a8 !important;">
-                                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd79a8 0%, #fdcb6e 100%);">
-                                                    <div class="row align-items-center g-1">
-                                                        <div class="col-md-8">
-                                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                                <i class="ri-restaurant-2-line me-1"></i>Menu Item {{ $index + 1 }}
-                                                            </h6>
-                                                            <div class="d-flex gap-1 mt-1">
-                                                                <span class="badge bg-white bg-opacity-20 text-white border-0 px-2 py-0" style="font-size: 0.65rem;">
-                                                                    {{ $meal['category'] ?? 'Category' }}
-                                                                </span>
-                                                                <span class="badge bg-white bg-opacity-20 text-white border-0 px-2 py-0" style="font-size: 0.65rem;">
-                                                                    {{ $meal['item_type'] ?? 'Type' }}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4 text-end">
-                                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                                {{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                                    <div class="row g-2">
-                                                        <div class="col-md-4">
-                                                            <div class="bg-light rounded p-1 text-center">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Quantity</small>
-                                                                <div class="fw-bold text-primary" style="font-size: 1.2rem;">{{ $meal['quantity'] ?? 1 }}</div>
-                                                                <small class="text-muted" style="font-size: 0.65rem;">{{ ($meal['quantity'] ?? 1) == 1 ? 'item' : 'items' }}</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <div class="bg-light rounded p-1 text-center">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Unit Price</small>
-                                                                <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($meal['price'] ?? 0), 2) }}</div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <div class="bg-light rounded p-1 text-center" style="background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Subtotal</small>
-                                                                <div class="fw-bold" style="font-size: 1rem; color: #fd79a8;">{{ $currency }} {{ number_format((float)(($meal['price'] ?? 0) * ($meal['quantity'] ?? 1)), 2) }}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                        
-                                        <!-- Order Summary -->
-                                        <div class="bg-light rounded p-2 mt-2">
-                                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">
-                                                        <i class="ri-receipt-line me-1"></i>Order Summary
-                                                    </h6>
-                                                    <small class="text-muted" style="font-size: 0.7rem;">
-                                                        {{ count($booking['MealDescription']) }} item(s) • {{ $booking['mealType'] ?? 'Meal' }}
-                                                    </small>
-                                                </div>
-                                                <div class="text-end">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                                    <div class="fw-bold" style="font-size: 1.2rem; color: #fd79a8;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endif
-
-                                    <!-- Transfer Options -->
-                                    @if(isset($booking['transfer_options']) && is_array($booking['transfer_options']) && isset($booking['transfer_options']['transfer_required']) && ($booking['transfer_options']['transfer_required'] === true || $booking['transfer_options']['transfer_required'] === 'true' || $booking['transfer_options']['transfer_required'] === 'Yes'))
-                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-success rounded-circle p-2 me-3">
-                                                    <i class="ri-car-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Transfer Details</h6>
-                                            </div>
-                                            
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="bg-light rounded p-3 h-100">
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Transfer Type</small>
-                                                            <div class="fw-medium">
-                                                                <span class="badge bg-primary">{{ $booking['transfer_options']['type'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Transfer Way</small>
-                                                            <div class="fw-medium">
-                                                                <span class="badge bg-info">{{ $booking['transfer_options']['way'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                        </div>
-                                                        @if(isset($booking['transfer_options']['pickup_location_name']) && !empty($booking['transfer_options']['pickup_location_name']))
-                                                        <div class="mb-0">
-                                                            <small class="text-muted d-block">Pickup Location</small>
-                                                            <div class="fw-medium text-primary">
-                                                                <i class="ri-map-pin-line me-1"></i>{{ $booking['transfer_options']['pickup_location_name'] }}
-                                                            </div>
-                                                        </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="bg-light rounded p-3 h-100">
-                                                        @if(isset($booking['transfer_options']['vehicle_details']) && is_array($booking['transfer_options']['vehicle_details']))
-                                                            <div class="mb-2">
-                                                                <small class="text-muted d-block">Vehicle</small>
-                                                                <div class="fw-medium">
-                                                                    <i class="ri-car-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['vehicle_name'] ?? 'N/A' }}
-                                                                </div>
-                                                                @if(isset($booking['transfer_options']['vehicle_details']['vehicle_type']))
-                                                                    <small class="text-muted">Type: {{ $booking['transfer_options']['vehicle_details']['vehicle_type'] }}</small>
-                                                                @endif
-                                                            </div>
-                                                            @if(isset($booking['transfer_options']['vehicle_details']['seating_capacity']))
-                                                            <div class="mb-2">
-                                                                <small class="text-muted d-block">Seating Capacity</small>
-                                                                <div class="fw-medium">
-                                                                    <i class="ri-user-line me-1"></i>{{ $booking['transfer_options']['vehicle_details']['seating_capacity'] }} passengers
-                                                                </div>
-                                                            </div>
-                                                            @endif
-                                                        @elseif(isset($booking['transfer_options']['vehicle_id']))
-                                                            <div class="mb-2">
-                                                                <small class="text-muted d-block">Vehicle ID</small>
-                                                                <div class="fw-medium">{{ $booking['transfer_options']['vehicle_id'] }}</div>
-                                                            </div>
-                                                        @endif
-                                                        
-                                                        @php
-                                                            // For PRO tours, show total transfer price (base × pax) when available
-                                                            $restaurantTransferCostDisplay = $booking['transfer_options']['cost'] ?? 0;
-                                                            if (isset($tour) && $tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
-                                                                $restaurantTransferCostDisplay = $booking['transfer_options']['totalPrice'];
-                                                            }
-                                                        @endphp
-                                                        @if($restaurantTransferCostDisplay > 0)
-                                                        <div class="mb-0">
-                                                            <small class="text-muted d-block">Transfer Cost</small>
-                                                            <div class="fs-5 fw-bold text-success">
-                                                                <i class="ri-money-dollar-circle-line me-1"></i>{{ $currency }} {{ number_format((float)$restaurantTransferCostDisplay, 2) }}
-                                                            </div>
-                                                        </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Guide Options -->
-                                    @if(isset($booking['guide_options']) && is_array($booking['guide_options']) && (isset($booking['guide_options']['guideId']) || isset($booking['guide_options']['guide_id']) || isset($booking['guide_options']['guideName']) || isset($booking['guide_options']['guide_name']) || isset($booking['guide_options']['name'])))
-                                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <div class="bg-info rounded-circle p-2 me-3">
-                                                    <i class="ri-user-voice-line text-white"></i>
-                                                </div>
-                                                <h6 class="fw-bold mb-0 text-dark">Guide Details</h6>
-                                            </div>
-                                            
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="bg-light rounded p-3 h-100">
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Guide Name</small>
-                                                            <div class="fw-medium">
-                                                                <i class="ri-user-voice-line me-1"></i>{{ $booking['guide_options']['guideName'] ?? $booking['guide_options']['guide_name'] ?? $booking['guide_options']['name'] ?? 'N/A' }}
-                                                            </div>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Service Type</small>
-                                                            <div class="fw-medium">
-                                                                <span class="badge bg-info">{{ $booking['guide_options']['serviceType'] ?? $booking['guide_options']['service_type'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Language</small>
-                                                            <div class="fw-medium">
-                                                                <span class="badge bg-success">{{ $booking['guide_options']['language'] ?? $booking['guide_options']['languages'] ?? 'N/A' }}</span>
-                                                            </div>
-                                                        </div>
-                                                        @if(isset($booking['guide_options']['tourActivity']) || isset($booking['guide_options']['tour_activity']) || isset($booking['guide_options']['Activity']))
-                                                        <div class="mb-0">
-                                                            <small class="text-muted d-block">Tour Activity</small>
-                                                            <div class="fw-medium text-primary">
-                                                                <i class="ri-map-pin-line me-1"></i>{{ $booking['guide_options']['tourActivity'] ?? $booking['guide_options']['tour_activity'] ?? $booking['guide_options']['Activity'] ?? 'N/A' }}
-                                                            </div>
-                                                        </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="bg-light rounded p-3 h-100">
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Service Hours</small>
-                                                            <div class="fw-medium">
-                                                                <i class="ri-time-line me-1"></i>{{ $booking['guide_options']['hours'] ?? $booking['guide_options']['service_hours'] ?? 'N/A' }} Hours
-                                                            </div>
-                                                        </div>
-                                                        <div class="mb-2">
-                                                            <small class="text-muted d-block">Group Size</small>
-                                                            <div class="row g-1">
-                                                                <div class="col-6">
-                                                                    <div class="bg-white rounded p-1 text-center border">
-                                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['guide_options']['adultsQty'] ?? $booking['guide_options']['adults_qty'] ?? 0 }}</div>
-                                                                        <small class="text-muted" style="font-size: 0.65rem;">Adults</small>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-6">
-                                                                    <div class="bg-white rounded p-1 text-center border">
-                                                                        <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['guide_options']['childQty'] ?? $booking['guide_options']['child_qty'] ?? 0 }}</div>
-                                                                        <small class="text-muted" style="font-size: 0.65rem;">Children</small>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        @if(isset($booking['guide_options']['cost']) && $booking['guide_options']['cost'] > 0)
-                                                        <div class="mb-0">
-                                                            <small class="text-muted d-block">Guide Cost</small>
-                                                            <div class="fs-5 fw-bold text-info">
-                                                                <i class="ri-money-dollar-circle-line me-1"></i>{{ $currency }} {{ number_format((float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0), 2) }}
-                                                            </div>
-                                                        </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Pricing Overview -->
-                                    <div class="bg-light rounded p-2 mb-3">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.9rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Pricing Overview</h6>
-                                        </div>
-                                        @php
-                                            $vehicleCost = 0;
-                                            if (isset($booking['transfer_options']['cost']) && $booking['transfer_options']['cost'] > 0) {
-                                                // PRO tours: prefer totalPrice (base × pax) when available
-                                                if ($tour->is_pro == 1 && isset($booking['transfer_options']['totalPrice'])) {
-                                                    $vehicleCost = (float) $booking['transfer_options']['totalPrice'];
-                                                } else {
-                                                    $vehicleCost = (float) $booking['transfer_options']['cost'];
-                                                }
-                                            }
-                                            $guideCost = 0;
-                                            if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
-                                                $guideCostValue = $booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0;
-                                                if ($guideCostValue > 0) {
-                                                    $guideCost = (float) $guideCostValue;
-                                                }
-                                            }
-                                            $mealPrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
-                                            $totalPrice = $mealPrice + $vehicleCost + $guideCost;
-                                            $hasTransfer = $vehicleCost > 0;
-                                            $hasGuide = $guideCost > 0;
-                                        @endphp
-                                        <div class="row g-2">
-                                            <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
-                                                <div class="text-center p-2 border rounded bg-white" style="border-color: #28a745 !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Meal Price</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($mealPrice, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            @if($hasTransfer)
-                                            <div class="col-md-{{ $hasGuide ? '3' : '4' }}">
-                                                <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                                    <div class="fw-bold text-info" style="font-size: 0.8rem;">{{ $currency }} {{ number_format($vehicleCost, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            @endif
-                                            @if($hasGuide)
-                                            <div class="col-md-{{ $hasTransfer ? '3' : '4' }}">
-                                                <div class="text-center p-2 border rounded bg-white" style="border-color: #00cec9 !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                                    <div class="fw-bold" style="font-size: 0.8rem; color: #00cec9;">{{ $currency }} {{ number_format($guideCost, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            @endif
-                                            <div class="col-md-{{ $hasTransfer && $hasGuide ? '3' : ($hasTransfer || $hasGuide ? '4' : '6') }}">
-                                                <div class="text-center p-2 border rounded bg-white" style="border-color: #fd79a8 !important; background: linear-gradient(135deg, rgba(253,121,168,0.1) 0%, rgba(253,203,110,0.1) 100%) !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                                    <div class="fw-bold" style="font-size: 1.1rem; color: #fd79a8;">{{ $currency }} {{ number_format($totalPrice, 2) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                  
-
-                               
-                                </div>
-                            </div>
-                            @php $actualBookingIndex++; @endphp
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-5">
-                        <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                            <i class="ri-restaurant-2-line ri-48px text-muted"></i>
-                        </div>
-                        <h4 class="text-dark mb-3">No Restaurant Data Available</h4>
-                        <p class="text-muted mb-4">Restaurant services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <!-- Compact Footer with Buttons in One Row -->
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('restaurant', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
+@include('bookings.partials.enquiry-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'restaurant',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+    ])
 
 
 <!-- Guide Details Modal -->
-@if(isset($svc['guide']) && $svc['guide'] > 0)
-<div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-            <!-- Compact Header -->
-            <div class="modal-header border-0 py-2 px-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                            <i class="ri-user-voice-line me-1" style="font-size: 0.9rem;"></i>Guide Bookings - Tour #{{ $tour->tour_id }}
-                        </h6>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                </div>
-            </div>
-            
-            <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['guide']) && count($serviceData['guide']) > 0)
-                    @foreach($serviceData['guide'] as $index => $guideOrder)
-                    @php
-                        $guideData = is_string($guideOrder->data) ? json_decode($guideOrder->data, true) : $guideOrder->data;
-                    @endphp
-                    
-                    @if(is_array($guideData))
-                        @foreach($guideData as $booking)
-                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00cec9 !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00cec9 0%, #55a3ff 100%);">
-                                    <div class="row align-items-center g-1">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                <i class="ri-user-voice-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['guide_name'] ?? 'Guide Booking' }}
-                                            </h6>
-                                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Guide Service • {{ $booking['hours'] ?? 'N/A' }}H</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                    <!-- Guide Information & Image -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-8">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Information</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['guide_name'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                        <div class="fw-medium text-success" style="font-size: 0.75rem;">{{ $currency }} {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                        <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $currency }} {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            @if(isset($booking['image']))
-                                                <div class="d-flex justify-content-center align-items-center">
-                                                    <img src="{{ $booking['image'] }}" 
-                                                         alt="{{ $booking['guide_name'] ?? 'Guide' }}" 
-                                                         class="rounded-circle shadow-sm" 
-                                                         style="width: 80px; height: 80px; object-fit: cover; border: 2px solid #00cec9;">
-                                                </div>
-                                            @else
-                                                <div class="d-flex justify-content-center align-items-center">
-                                                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef;">
-                                                        <i class="ri-user-voice-line text-muted" style="font-size: 2rem;"></i>
-                                                    </div>
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-
-                                    <!-- Service Schedule & Group Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Duration</small>
-                                                        <span class="badge" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); color: white; font-size: 0.65rem; padding: 2px 4px;">{{ $booking['hours'] ?? 'N/A' }}H</span>
-                                                    </div>
-                                                </div>
-                                                @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
-                                                <div class="bg-white rounded p-1 mt-1">
-                                                    <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
-                                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
-                                                </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #00cec9 !important;">
-                                                            <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #00cec9 !important;">
-                                                            <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <span class="badge" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
-                                                        Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Pricing Breakdown -->
-                                    <div class="bg-light rounded p-1 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-1" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.7rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing Breakdown</h6>
-                                        </div>
-                                        <div class="row g-1">
-                                            <div class="col-md-4">
-                                                <div class="text-center p-1 border rounded bg-white" style="border-color: #28a745 !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Base Price</small>
-                                                    <div class="fw-bold text-success" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['basePrice'] ?? 0), 2) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="text-center p-1 border rounded bg-white" style="border-color: #ffc107 !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Surcharge</small>
-                                                    <div class="fw-bold text-warning" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['surcharge'] ?? 0), 2) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <div class="text-center p-1 border rounded bg-white" style="border-color: #00cec9 !important; background: linear-gradient(135deg, rgba(0,206,201,0.1) 0%, rgba(85,163,255,0.1) 100%) !important;">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Total Amount</small>
-                                                    <div class="fw-bold" style="font-size: 0.9rem; color: #00cec9;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-5">
-                        <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
-                            <i class="ri-user-voice-line ri-48px text-muted"></i>
-                        </div>
-                        <h4 class="text-dark mb-3">No Guide Data Available</h4>
-                        <p class="text-muted mb-4">Guide services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <!-- Compact Footer -->
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('guide', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
+@include('bookings.partials.enquiry-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'guide',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+    ])
 
 <!-- Entry Port (Arrival) Details Modal -->
-@if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
-<div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-            <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                            <i class="ri-flight-land-line me-1" style="font-size: 0.9rem;"></i>Arrival Transfer - Tour #{{ $tour->tour_id }}
-                        </h6>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                </div>
-            </div>
-            <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['entry_port']) && count($serviceData['entry_port']) > 0)
-                    @foreach($serviceData['entry_port'] as $index => $entryOrder)
-                    @php
-                        $entryData = is_string($entryOrder->data) ? json_decode($entryOrder->data, true) : $entryOrder->data;
-                    @endphp
-                    
-                    @if(is_array($entryData))
-                        @foreach($entryData as $booking)
-                            @php
-                                $entryTransferPrice = (float)($booking['totalPrice'] ?? 0);
-                                $entryGuidePrice = 0;
-                                if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
-                                    $entryGuidePrice = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0);
-                                }
-                                $entryCardTotal = $entryTransferPrice + $entryGuidePrice;
-                            @endphp
-                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #00b894 !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #00b894 0%, #55a3ff 100%);">
-                                    <div class="row align-items-center g-1">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
-                                            </h6>
-                                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Arrival {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}@if($entryGuidePrice > 0) • With Guide @endif</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                {{ $currency }} {{ number_format($entryCardTotal, 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                    <!-- Service Schedule & Group Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
-                                                        <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
-                                                        <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Arrival</span></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
-                                                            <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #00b894 !important;">
-                                                            <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <span class="badge" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
-                                                        Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Route Information -->
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
-                                        </div>
-                                        <div class="row g-1 mb-1">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
-                                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
-                                                        <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
-                                                        <span class="text-truncate">{{ $booking['entrypickup'] ?? 'N/A' }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
-                                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
-                                                        <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
-                                                        <span class="text-truncate">{{ $booking['entrydropoff'] ?? 'N/A' }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Compact Route Direction Visual -->
-                                        <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
-                                            <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrypickup'] ?? 'Pickup', 15) }}</span>
-                                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
-                                            <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($booking['entrydropoff'] ?? 'Dropoff', 15) }}</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Vehicle & Location Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                        <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
-                                                </div>
-                                                <div class="row g-1 mb-2">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
-                                                        <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                                <!-- Compact Vehicle Image Display -->
-                                                <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
-                                                    @if(isset($booking['image']) && $booking['image'])
-                                                        <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
-                                                            <img src="{{ $booking['image'] }}" 
-                                                                 alt="Vehicle Image" 
-                                                                 class="rounded-circle shadow-sm" 
-                                                                 style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #00b894; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
-                                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';">
-                                                        </div>
-                                                    @else
-                                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
-                                                            <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                                @if(($booking['Night_Start_Time'] ?? false) && ($booking['Night_End_Time'] ?? false))
-                                                <div class="bg-white rounded p-1 mt-1">
-                                                    <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Night Service</small>
-                                                    <div class="fw-medium text-warning" style="font-size: 0.75rem;">{{ $booking['Night_Start_Time'] }} - {{ $booking['Night_End_Time'] }}</div>
-                                                </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Arrival: Price breakdown (Transfer + Guide then Total) -->
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
-                                        </div>
-                                        <div class="bg-white rounded p-2">
-                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-                                                <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($entryTransferPrice, 2) }}</span>
-                                            </div>
-                                            @if($entryGuidePrice > 0)
-                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-                                                <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                <span class="fw-semibold text-info">{{ $currency }} {{ number_format($entryGuidePrice, 2) }}</span>
-                                            </div>
-                                            @endif
-                                            <div class="d-flex justify-content-between align-items-center py-2 mt-1">
-                                                <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($entryCardTotal, 2) }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @php
-                                        $hasEntryGuide = isset($booking['guide_options']) && is_array($booking['guide_options']) && (
-                                            !empty($booking['guide_options']['guide_required']) ||
-                                            !empty($booking['guide_options']['guideName']) ||
-                                            !empty($booking['guide_options']['guide_name']) ||
-                                            !empty($booking['guide_options']['name']) ||
-                                            (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['sell'] ?? 0) > 0
-                                        );
-                                    @endphp
-                                    @if($hasEntryGuide)
-                                    <!-- Guide Details (Arrival) -->
-                                    @php
-                                        $go = $booking['guide_options'] ?? [];
-                                        $entryGuideName = $go['guideName'] ?? $go['guide_name'] ?? $go['name'] ?? 'N/A';
-                                        $entryGuideName = is_array($entryGuideName) ? implode(', ', $entryGuideName) : (string)$entryGuideName;
-                                        $entryGuideService = $go['serviceType'] ?? $go['service_type'] ?? 'N/A';
-                                        $entryGuideService = is_array($entryGuideService) ? implode(', ', $entryGuideService) : (string)$entryGuideService;
-                                        $entryGuideLang = $go['language'] ?? $go['languages'] ?? 'N/A';
-                                        $entryGuideLang = is_array($entryGuideLang) ? implode(', ', $entryGuideLang) : (string)$entryGuideLang;
-                                        $entryGuideHours = $go['hours'] ?? $go['service_hours'] ?? 'N/A';
-                                        $entryGuideHours = is_array($entryGuideHours) ? implode(', ', $entryGuideHours) : (string)$entryGuideHours;
-                                    @endphp
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Details</h6>
-                                        </div>
-                                        <div class="row g-1">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $entryGuideName }}</div>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
-                                                    <span class="badge bg-info" style="font-size: 0.65rem;">{{ $entryGuideService }}</span>
-                                                    <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $entryGuideLang }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
-                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $entryGuideHours }} H</div>
-                                                    @php $arrivalGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
-                                                    @if($arrivalGuideCost > 0)
-                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($arrivalGuideCost, 2) }}</div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-5">
-                        <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100%;">
-                            <i class="ri-flight-land-line ri-48px text-muted"></i>
-                        </div>
-                        <h4 class="text-dark mb-3">No Arrival Transfer Data Available</h4>
-                        <p class="text-muted mb-4">Entry port services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('entry_port', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
+@include('bookings.partials.transport-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'entry_port',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+        'showTransportActions' => false,
+    ])
 
 <!-- Exit Port (Departure) Details Modal -->
-@if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
-<div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-        <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
-            <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
-                <div class="d-flex align-items-center justify-content-between w-100">
-                    <div class="text-white">
-                        <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                            <i class="ri-flight-takeoff-line me-1" style="font-size: 0.9rem;"></i>Departure Transfer - Tour #{{ $tour->tour_id }}
-                        </h6>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                </div>
-            </div>
-            <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                @if(isset($serviceData['exit_port']) && count($serviceData['exit_port']) > 0)
-                    @foreach($serviceData['exit_port'] as $index => $exitOrder)
-                    @php
-                        $exitData = is_string($exitOrder->data) ? json_decode($exitOrder->data, true) : $exitOrder->data;
-                    @endphp
-                    
-                    @if(is_array($exitData))
-                        @foreach($exitData as $bookingIndex => $booking)
-                            @php
-                                $exitTransferPrice = (float)($booking['totalPrice'] ?? 0);
-                                $exitGuidePrice = 0;
-                                if (isset($booking['guide_options']) && is_array($booking['guide_options'])) {
-                                    $exitGuidePrice = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0);
-                                }
-                                $exitCardTotal = $exitTransferPrice + $exitGuidePrice;
-                                $tourTypeIs1 = isset($tour->tour_type) && ((int)$tour->tour_type === 1 || $tour->tour_type == 1 || $tour->tour_type === '1');
-                                $exitPickup = $tourTypeIs1 ? ($booking['pickupLocation'] ?? $booking['exitpickup'] ?? 'N/A') : ($booking['exitpickup'] ?? 'N/A');
-                                $exitDropoff = $tourTypeIs1 ? ($booking['dropoffLocation'] ?? $booking['exitdropoff'] ?? 'N/A') : ($booking['exitdropoff'] ?? 'N/A');
-                            @endphp
-                            <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #fd7f6f !important;">
-                                <!-- Compact Card Header -->
-                                <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #fd7f6f 0%, #feb47b 100%);">
-                                    <div class="row align-items-center g-1">
-                                        <div class="col-md-8">
-                                            <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Vehicle Transfer' }}
-                                            </h6>
-                                            <small class="text-white opacity-90" style="font-size: 0.7rem;">Departure {{ $index + 1 }} • {{ ucfirst($booking['type'] ?? 'Standard') }}@if($exitGuidePrice > 0) • With Guide @endif</small>
-                                        </div>
-                                        <div class="col-md-4 text-end">
-                                            <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                {{ $currency }} {{ number_format($exitCardTotal, 2) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body p-2" style="background-color: #ffffff;">
-                                    <!-- Service Schedule & Group Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Service Schedule</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'TBC' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Type</small>
-                                                        <div><span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ ucfirst($booking['type'] ?? 'Standard') }}</span></div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Transfer</small>
-                                                        <div><span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">Departure</span></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Group Information</h6>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
-                                                            <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Adults</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-6 text-center">
-                                                        <div class="bg-white rounded p-1 border" style="border-color: #fd7f6f !important;">
-                                                            <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                            <small class="text-muted" style="font-size: 0.55rem;">Children</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <span class="badge" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); color: white; font-size: 0.7rem; padding: 2px 4px;">
-                                                        Total: {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Guests
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Route Information (tour_type=1: pickupLocation/dropoffLocation) -->
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-route-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Information</h6>
-                                        </div>
-                                        <div class="row g-1 mb-1">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup</small>
-                                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
-                                                        <i class="ri-map-pin-line text-success me-1" style="font-size: 0.7rem;"></i>
-                                                        <span class="text-truncate">{{ $exitPickup }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Dropoff</small>
-                                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.75rem;">
-                                                        <i class="ri-map-pin-2-line text-danger me-1" style="font-size: 0.7rem;"></i>
-                                                        <span class="text-truncate">{{ $exitDropoff }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Compact Route Direction Visual -->
-                                        <div class="d-flex align-items-center justify-content-center p-1 bg-white rounded">
-                                            <span class="badge bg-success me-1" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($exitPickup, 15) }}</span>
-                                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 0.8rem;"></i>
-                                            <span class="badge bg-danger" style="font-size: 0.65rem; padding: 2px 4px;">{{ Str::limit($exitDropoff, 15) }}</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Vehicle & Location Information -->
-                                    <div class="row mb-2 g-2">
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                        <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
-                                                </div>
-                                                <div class="row g-1 mb-2">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Vehicle</small>
-                                                        <div class="fw-medium text-truncate" style="font-size: 0.75rem;" title="{{ $booking['vehicles_name'] ?? 'N/A' }}">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block mb-0" style="font-size: 0.65rem;">Service</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                                <!-- Compact Vehicle Image Display -->
-                                                <div class="d-flex justify-content-center align-items-center" style="min-height: 80px; width: 100%; overflow: hidden; position: relative;">
-                                                    @if(isset($booking['image']) && $booking['image'])
-                                                        <div class="position-relative" style="width: 80px; height: 80px; flex-shrink: 0; overflow: hidden;">
-                                                            <img src="{{ $booking['image'] }}" 
-                                                                 alt="Vehicle Image" 
-                                                                 class="rounded-circle shadow-sm" 
-                                                                 style="width: 80px; height: 80px; object-fit: cover; object-position: center; border: 2px solid #fd7f6f; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
-                                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\' style=\'width: 80px; height: 80px; border: 2px solid #e9ecef;\'><i class=\'ri-car-line text-muted\' style=\'font-size: 2rem;\'></i></div>';">
-                                                        </div>
-                                                    @else
-                                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px; border: 2px solid #e9ecef; flex-shrink: 0;">
-                                                            <i class="ri-car-line text-muted" style="font-size: 2rem;"></i>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="bg-light rounded p-2 h-100">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-map-pin-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Location Information</h6>
-                                                </div>
-                                                <div class="row g-1 mb-1">
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Departure: Price breakdown (Transfer + Guide then Total) -->
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-money-dollar-circle-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
-                                        </div>
-                                        <div class="bg-white rounded p-2">
-                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-                                                <span class="text-muted" style="font-size: 0.8rem;">Transfer</span>
-                                                <span class="fw-semibold text-dark">{{ $currency }} {{ number_format($exitTransferPrice, 2) }}</span>
-                                            </div>
-                                            @if($exitGuidePrice > 0)
-                                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-light">
-                                                <span class="text-muted" style="font-size: 0.8rem;">Guide</span>
-                                                <span class="fw-semibold text-info">{{ $currency }} {{ number_format($exitGuidePrice, 2) }}</span>
-                                            </div>
-                                            @endif
-                                            <div class="d-flex justify-content-between align-items-center py-2 mt-1">
-                                                <span class="fw-bold text-dark" style="font-size: 0.9rem;">Total</span>
-                                                <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format($exitCardTotal, 2) }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    @php
-                                        $hasExitGuide = isset($booking['guide_options']) && is_array($booking['guide_options']) && (
-                                            !empty($booking['guide_options']['guide_required']) ||
-                                            !empty($booking['guide_options']['guideName']) ||
-                                            !empty($booking['guide_options']['guide_name']) ||
-                                            !empty($booking['guide_options']['name']) ||
-                                            (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['sell'] ?? 0) > 0
-                                        );
-                                    @endphp
-                                    @if($hasExitGuide)
-                                    <!-- Guide Details (Departure) -->
-                                    <div class="bg-light rounded p-2 mb-2">
-                                        <div class="d-flex align-items-center mb-1">
-                                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                <i class="ri-user-voice-line text-white" style="font-size: 0.8rem;"></i>
-                                            </div>
-                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Guide Details</h6>
-                                        </div>
-                                        @php
-                                            $goExit = $booking['guide_options'] ?? [];
-                                            $exitGuideName = $goExit['guideName'] ?? $goExit['guide_name'] ?? $goExit['name'] ?? 'N/A';
-                                            $exitGuideName = is_array($exitGuideName) ? implode(', ', $exitGuideName) : (string)$exitGuideName;
-                                            $exitGuideService = $goExit['serviceType'] ?? $goExit['service_type'] ?? 'N/A';
-                                            $exitGuideService = is_array($exitGuideService) ? implode(', ', $exitGuideService) : (string)$exitGuideService;
-                                            $exitGuideLang = $goExit['language'] ?? $goExit['languages'] ?? 'N/A';
-                                            $exitGuideLang = is_array($exitGuideLang) ? implode(', ', $exitGuideLang) : (string)$exitGuideLang;
-                                            $exitGuideHours = $goExit['hours'] ?? $goExit['service_hours'] ?? 'N/A';
-                                            $exitGuideHours = is_array($exitGuideHours) ? implode(', ', $exitGuideHours) : (string)$exitGuideHours;
-                                        @endphp
-                                        <div class="row g-1">
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Guide Name</small>
-                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $exitGuideName }}</div>
-                                                    <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Service</small>
-                                                    <span class="badge bg-info" style="font-size: 0.65rem;">{{ $exitGuideService }}</span>
-                                                    <span class="badge bg-success ms-1" style="font-size: 0.65rem;">{{ $exitGuideLang }}</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="bg-white rounded p-1">
-                                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Hours / Activity</small>
-                                                    <div class="fw-medium" style="font-size: 0.75rem;">{{ $exitGuideHours }} H</div>
-                                                    @php $depGuideCost = (float)($booking['guide_options']['cost'] ?? $booking['guide_options']['Cost'] ?? $booking['guide_options']['sell'] ?? $booking['guide_options']['Sell'] ?? 0); @endphp
-                                                    @if($depGuideCost > 0)
-                                                    <div class="fw-bold text-success mt-1" style="font-size: 0.85rem;">{{ $currency }} {{ number_format($depGuideCost, 2) }}</div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                    @endforeach
-                @else
-                    <div class="text-center py-5">
-                        <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100%;">
-                            <i class="ri-flight-takeoff-line ri-48px text-muted"></i>
-                        </div>
-                        <h4 class="text-dark mb-3">No Departure Transfer Data Available</h4>
-                        <p class="text-muted mb-4">Exit port services are booked but detailed information is not available.</p>
-                    </div>
-                @endif
-            </div>
-            <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                <div class="d-flex gap-2 w-100 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('exit_port', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                        <i class="ri-close-line me-1"></i>Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
+@include('bookings.partials.transport-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'exit_port',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+        'showTransportActions' => false,
+    ])
 
 <!-- Travel Hourly Details Modal -->
 @if(isset($svc['travel_hourly']) && $svc['travel_hourly'] > 0)
@@ -3631,6 +1682,8 @@
                     @if(isset($serviceData['travel_hourly']) && count($serviceData['travel_hourly']) > 0)
                         @foreach($serviceData['travel_hourly'] as $index => $hourlyOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($hourlyOrder, $pageCurrency ?? ($currency ?? 'SGD'));
+                                $hourlyCountry = trim((string) ($hourlyOrder->resolved_service_country ?? $hourlyOrder->country ?? 'Other'));
                                 $hourlyData = is_string($hourlyOrder->data) ? json_decode($hourlyOrder->data, true) : $hourlyOrder->data;
                             @endphp
                             
@@ -3641,7 +1694,7 @@
                                         <hr class="my-2">
                                     @endif
                             
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                                    <div class="card mb-2 shadow-sm border-0 svc-country-item" data-service-country="{{ $hourlyCountry !== '' ? $hourlyCountry : 'Other' }}" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
                                         <!-- Compact Card Header -->
                                         <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
                                             <div class="row align-items-center g-1">
@@ -3864,6 +1917,8 @@
                     @if(isset($serviceData['travel_point']) && count($serviceData['travel_point']) > 0)
                         @foreach($serviceData['travel_point'] as $index => $pointOrder)
                             @php
+                        $currency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($pointOrder, $pageCurrency ?? ($currency ?? 'SGD'));
+                                $pointCountry = trim((string) ($pointOrder->resolved_service_country ?? $pointOrder->country ?? 'Other'));
                                 $pointData = is_string($pointOrder->data) ? json_decode($pointOrder->data, true) : $pointOrder->data;
                             @endphp
                             
@@ -3889,7 +1944,7 @@
                                         <hr class="my-2">
                                     @endif
                             
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
+                                    <div class="card mb-2 shadow-sm border-0 svc-country-item" data-service-country="{{ $pointCountry !== '' ? $pointCountry : 'Other' }}" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
                                         <!-- Compact Card Header -->
                                         <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
                                             <div class="row align-items-center g-1">
@@ -4096,427 +2151,105 @@
 @endif
 
 <!-- Local Transport Details Modal -->
-@if(isset($svc['local_transport']) && $svc['local_transport'] > 0)
-    <div class="modal fade" id="local_transportDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="local_transportModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 15px; overflow: hidden;">
-                @php
-                    $firstOrder = $serviceData['local_transport'][0] ?? null;
-                    $firstBookingData = null;
-                    $headerFromZone = 'N/A';
-                    $headerToZone = 'N/A';
-                    
-                    if ($firstOrder) {
-                        $firstBookingData = is_string($firstOrder->data) ? json_decode($firstOrder->data, true) : $firstOrder->data;
-                        $firstBookingData = is_array($firstBookingData) && isset($firstBookingData[0]) ? $firstBookingData[0] : $firstBookingData;
-                        
-                        // Get zone names for header
-                        if(isset($firstBookingData['from_zone_id']) && $firstBookingData['from_zone_id']) {
-                            $fromZone = \DB::table('zones')->where('zone_id', $firstBookingData['from_zone_id'])->first();
-                            $headerFromZone = $fromZone ? $fromZone->zone_type : 'Zone ' . $firstBookingData['from_zone_id'];
-                        }
-                        
-                        if(isset($firstBookingData['to_zone_id']) && $firstBookingData['to_zone_id']) {
-                            $toZone = \DB::table('zones')->where('zone_id', $firstBookingData['to_zone_id'])->first();
-                            $headerToZone = $toZone ? $toZone->zone_type : 'Zone ' . $firstBookingData['to_zone_id'];
-                        }
-                    }
-                @endphp
-                
-                <!-- Compact Modal Header -->
-                <div class="modal-header p-2 border-0" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <div class="d-flex align-items-center justify-content-between w-100">
-                        <div class="text-white">
-                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                <i class="ri-car-line me-1" style="font-size: 0.9rem;"></i>Local Transport - Tour #{{ $tour->tour_id }} • {{ $headerFromZone }} → {{ $headerToZone }}
-                            </h6>
-                        </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                    </div>
-                </div>
-
-                <!-- Compact Modal Body -->
-                <div class="modal-body p-2" style="background: #f8fafc;">
-                    @if(isset($serviceData['local_transport']) && count($serviceData['local_transport']) > 0)
-                        @foreach($serviceData['local_transport'] as $index => $transportOrder)
-                            @php
-                                $transportData = is_string($transportOrder->data) ? json_decode($transportOrder->data, true) : $transportOrder->data;
-                            @endphp
-                            
-                            @if(is_array($transportData))
-                                @foreach($transportData as $bookingIndex => $booking)
-                                    @php
-                                        // Fetch zone information
-                                        $fromZoneName = 'N/A';
-                                        $toZoneName = 'N/A';
-                                        
-                                        if(isset($booking['from_zone_id']) && $booking['from_zone_id']) {
-                                            $fromZone = \DB::table('zones')->where('zone_id', $booking['from_zone_id'])->first();
-                                            $fromZoneName = $fromZone ? $fromZone->zone_type : 'Zone ' . $booking['from_zone_id'];
-                                        }
-                                        
-                                        if(isset($booking['to_zone_id']) && $booking['to_zone_id']) {
-                                            $toZone = \DB::table('zones')->where('zone_id', $booking['to_zone_id'])->first();
-                                            $toZoneName = $toZone ? $toZone->zone_type : 'Zone ' . $booking['to_zone_id'];
-                                        }
-                                    @endphp
-                                    
-                                    @if($index > 0 || $bookingIndex > 0)
-                                        <hr class="my-2">
-                                    @endif
-                            
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; background: #ffffff; border-left: 4px solid #4facfe !important;">
-                                        <!-- Compact Card Header -->
-                                        <div class="card-header border-0 py-1 px-2" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                                            <div class="row align-items-center g-1">
-                                                <div class="col-md-8">
-                                                    <h6 class="card-title mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                        <i class="ri-car-line me-1" style="font-size: 0.8rem;"></i>{{ $booking['vehicles_name'] ?? 'Local Transport Service' }}
-                                                    </h6>
-                                                </div>
-                                                <div class="col-md-4 text-end">
-                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">
-                                                        {{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Compact Card Body -->
-                                        <div class="card-body p-2" style="background: #ffffff;">
-                                            <!-- Service Schedule & Passenger Information -->
-                                            <div class="row mb-2 g-2">
-                                                <div class="col-md-6">
-                                                    <div class="bg-light rounded p-2 h-100">
-                                                        <div class="d-flex align-items-center mb-1">
-                                                            <div class="bg-primary rounded-circle p-1 me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                                <i class="ri-calendar-line text-white" style="font-size: 0.8rem;"></i>
-                                                            </div>
-                                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Transport Schedule</h6>
-                                                        </div>
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'N/A' }}</div>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Distance</small>
-                                                                <span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">{{ $booking['distance'] ?? 'N/A' }} km</span>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
-                                                                <span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ $booking['type'] ?? 'Standard' }}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="bg-light rounded p-2 h-100">
-                                                        <div class="d-flex align-items-center mb-1">
-                                                            <div class="bg-success rounded-circle p-1 me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                                <i class="ri-group-line text-white" style="font-size: 0.8rem;"></i>
-                                                            </div>
-                                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Passenger Information</h6>
-                                                        </div>
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Adults</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['adults'] ?? 0 }}</div>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Children</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['children'] ?? 0 }}</div>
-                                                            </div>
-                                                            <div class="col-12">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Total Guests</small>
-                                                                <span class="badge bg-primary px-1 py-0" style="font-size: 0.65rem;">
-                                                                    {{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }} Passenger{{ (($booking['adults'] ?? 0) + ($booking['children'] ?? 0)) == 1 ? '' : 's' }}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Route Details -->
-                                            <div class="bg-light rounded p-2 mb-2">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <div class="bg-warning rounded-circle p-1 me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                        <i class="ri-direction-line text-white" style="font-size: 0.8rem;"></i>
-                                                    </div>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Route Details</h6>
-                                                </div>
-                                                <div class="row g-1">
-                                                    <div class="col-md-6">
-                                                        <div class="d-flex align-items-start">
-                                                            <div class="bg-success rounded-circle p-1 me-2 mt-1" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
-                                                                <i class="ri-play-circle-line text-white" style="font-size: 0.75rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Pickup Location</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrypickup'] ?? 'N/A' }}</div>
-                                                                <small class="text-success" style="font-size: 0.65rem;">Origin</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <div class="d-flex align-items-start">
-                                                            <div class="bg-danger rounded-circle p-1 me-2 mt-1" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
-                                                                <i class="ri-flag-line text-white" style="font-size: 0.75rem;"></i>
-                                                            </div>
-                                                            <div>
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Drop-off Location</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['dropoffLocation'] ?? 'N/A' }}</div>
-                                                                <small class="text-danger" style="font-size: 0.65rem;">Destination</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">City</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['city'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Country</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['country'] ?? 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Vehicle Information -->
-                                            <div class="row mb-2 g-2">
-                                                <div class="col-md-8">
-                                                    <div class="bg-light rounded p-2 h-100">
-                                                        <div class="d-flex align-items-center mb-1">
-                                                            <div class="bg-warning rounded-circle p-1 me-2" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                                                <i class="ri-car-line text-white" style="font-size: 0.8rem;"></i>
-                                                            </div>
-                                                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Vehicle Details</h6>
-                                                        </div>
-                                                        <div class="row g-1">
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Vehicle Name</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['vehicles_name'] ?? 'N/A' }}</div>
-                                                            </div>
-                                                            <div class="col-6">
-                                                                <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['type'] ?? 'N/A' }} Transport</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="bg-light rounded p-2 h-100 d-flex align-items-center justify-content-center">
-                                                        @if(isset($booking['image']))
-                                                            <img src="{{ $booking['image'] }}" 
-                                                                 alt="{{ $booking['vehicles_name'] ?? 'Vehicle' }}" 
-                                                                 class="img-fluid rounded shadow-sm" 
-                                                                 style="height: 80px; width: 100%; object-fit: cover;">
-                                                        @else
-                                                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 80px;">
-                                                                <i class="ri-car-line ri-32px text-muted"></i>
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Pricing & Zone Summary -->
-                                            <div class="bg-light rounded p-2">
-                                                <div class="row g-2 align-items-center">
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
-                                                        <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">From Zone</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $fromZoneName }}</div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">To Zone</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ $toZoneName }}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @endif
-                        @endforeach
-                    @else
-                        <div class="text-center py-3">
-                            <div class="bg-light rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                <i class="ri-car-line text-muted" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="text-muted mb-0" style="font-size: 0.9rem;">No local transport data available</h6>
-                        </div>
-                    @endif
-                </div>
-
-                <!-- Compact Modal Footer -->
-                <div class="modal-footer border-0 py-2 px-3" style="background: #f8fafc;">
-                    <div class="d-flex gap-2 w-100 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('local_transport', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                            <i class="ri-close-line me-1"></i>Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
+@include('bookings.partials.transport-service-modal', [
+        'tour' => $tour,
+        'serviceKey' => 'local_transport',
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+        'showTransportActions' => false,
+    ])
 
 <!-- Miscellaneous Details Modal -->
-@if(isset($svc['miscellaneous']) && $svc['miscellaneous'] > 0)
-    <div class="modal fade" id="miscellaneousDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="miscellaneousDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
-                <div class="modal-header border-0 py-2 px-3" style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);">
-                    <div class="d-flex align-items-center justify-content-between w-100">
-                        <div class="text-white">
-                            <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">
-                                <i class="ri-file-list-3-line me-1" style="font-size: 0.9rem;"></i>Miscellaneous - Tour #{{ $tour->tour_id }}
-                            </h6>
-                        </div>
-                        <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" aria-label="Close" style="font-size: 0.8rem;"></button>
-                    </div>
-                </div>
-                <div class="modal-body p-2" style="background-color: #f8f9fa;">
-                    @if(isset($serviceData['miscellaneous']) && count($serviceData['miscellaneous']) > 0)
-                        @foreach($serviceData['miscellaneous'] as $index => $miscOrder)
-                            @php
-                                $miscData = is_string($miscOrder->data) ? json_decode($miscOrder->data, true) : $miscOrder->data;
-                            @endphp
-                            @if(is_array($miscData))
-                                @foreach($miscData as $booking)
-                                    <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #7c3aed !important;">
-                                        <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);">
-                                            <div class="row align-items-center g-1">
-                                                <div class="col-md-8">
-                                                    <h6 class="mb-0 fw-bold text-white" style="font-size: 0.85rem;">
-                                                        <i class="ri-file-list-3-line me-1"></i>{{ $booking['itemName'] ?? 'Miscellaneous Item' }}
-                                                    </h6>
-                                                    <small class="text-white opacity-90" style="font-size: 0.7rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</small>
-                                                </div>
-                                                <div class="col-md-4 text-end">
-                                                    <span class="badge bg-white text-success px-2 py-1" style="font-size: 0.8rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body p-2" style="background-color: #ffffff;">
-                                            <div class="row g-2 mb-2">
-                                                <div class="col-md-6">
-                                                    <div class="bg-light rounded p-2">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Item</small>
-                                                        <div class="fw-medium" style="font-size: 0.85rem;">{{ $booking['itemName'] ?? 'N/A' }}</div>
-                                                        <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Date</small>
-                                                        <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="bg-light rounded p-2">
-                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">Pax</small>
-                                                        <div class="row g-1">
-                                                            <div class="col-4 text-center">
-                                                                <div class="bg-white rounded p-1 border">
-                                                                    <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $booking['adultsQty'] ?? 0 }}</div>
-                                                                    <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-4 text-center">
-                                                                <div class="bg-white rounded p-1 border">
-                                                                    <div class="fw-bold text-warning" style="font-size: 0.9rem;">{{ $booking['childQty'] ?? 0 }}</div>
-                                                                    <small class="text-muted" style="font-size: 0.6rem;">Child</small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-4 text-center">
-                                                                <div class="bg-white rounded p-1 border">
-                                                                    <div class="fw-bold text-info" style="font-size: 0.9rem;">{{ $booking['infantQty'] ?? 0 }}</div>
-                                                                    <small class="text-muted" style="font-size: 0.6rem;">Infant</small>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="bg-light rounded p-2">
-                                                <div class="d-flex align-items-center mb-1">
-                                                    <i class="ri-money-dollar-circle-line text-primary me-2" style="font-size: 0.9rem;"></i>
-                                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Pricing</h6>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center py-1">
-                                                    <span class="text-muted" style="font-size: 0.8rem;">Total</span>
-                                                    <span class="fw-bold text-success" style="font-size: 1rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</span>
-                                                </div>
-                                                @if(isset($booking['adultSell']) || isset($booking['childSell']) || isset($booking['infantSell']))
-                                                <small class="text-muted" style="font-size: 0.7rem;">Adult: {{ $booking['adultSell'] ?? 0 }} / Child: {{ $booking['childSell'] ?? 0 }} / Infant: {{ $booking['infantSell'] ?? 0 }}</small>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @endif
-                        @endforeach
-                    @else
-                        <div class="text-center py-4">
-                            <i class="ri-file-list-3-line text-muted" style="font-size: 2.5rem;"></i>
-                            <h6 class="text-muted mt-2 mb-0">No miscellaneous data available</h6>
-                        </div>
-                    @endif
-                </div>
-                <div class="modal-footer border-0 py-2 px-3" style="background: #f8f9fa;">
-                    <div class="d-flex gap-2 w-100 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeServiceModal('miscellaneous', {{ $tour->tour_id }})" style="border-radius: 8px; font-size: 0.85rem;">
-                            <i class="ri-close-line me-1"></i>Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
+@include('bookings.partials.miscellaneous-service-modal', [
+        'tour' => $tour,
+        'serviceData' => $serviceData,
+        'pageCurrency' => $pageCurrency ?? ($currency ?? 'SGD'),
+    ])
 @endforeach
 </div>
 
 <script>
 // Filter functionality
+function toLocalDateString(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getEnquiryDateBounds() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minDate = new Date(today);
+    minDate.setFullYear(minDate.getFullYear() - 1);
+    const maxDate = new Date(today);
+    maxDate.setFullYear(maxDate.getFullYear() + 1);
+    const defaultEnd = new Date(today);
+    defaultEnd.setDate(defaultEnd.getDate() + 30);
+    return {
+        todayStr: toLocalDateString(today),
+        minStr: toLocalDateString(minDate),
+        maxStr: toLocalDateString(maxDate),
+        endPlus30Str: toLocalDateString(defaultEnd),
+    };
+}
+
+function clampDateInputValue(input, minStr, maxStr) {
+    if (!input || !input.value) return;
+    if (minStr && input.value < minStr) input.value = minStr;
+    if (maxStr && input.value > maxStr) input.value = maxStr;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const countryFilter = document.getElementById('countryFilter');
     const agentFilter = document.getElementById('agentFilter');
     const startDateFilter = document.getElementById('startDateFilter');
     const endDateFilter = document.getElementById('endDateFilter');
-    const today = new Date().toISOString().split('T')[0];
+    const bounds = getEnquiryDateBounds();
+
+    // Default range: today → today + 30 days; selectable window: 1 year past ↔ 1 year future
+    if (startDateFilter) {
+        startDateFilter.setAttribute('min', bounds.minStr);
+        startDateFilter.setAttribute('max', bounds.maxStr);
+        if (!startDateFilter.value) startDateFilter.value = bounds.todayStr;
+        clampDateInputValue(startDateFilter, bounds.minStr, bounds.maxStr);
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('min', bounds.minStr);
+        endDateFilter.setAttribute('max', bounds.maxStr);
+        if (!endDateFilter.value) endDateFilter.value = bounds.endPlus30Str;
+        clampDateInputValue(endDateFilter, bounds.minStr, bounds.maxStr);
+    }
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     if (startDateFilter) {
-        startDateFilter.setAttribute('max', today);
         startDateFilter.addEventListener('change', function() {
+            clampDateInputValue(startDateFilter, bounds.minStr, bounds.maxStr);
             if (endDateFilter) {
                 if (startDateFilter.value) {
-                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    const endMin = startDateFilter.value > bounds.minStr ? startDateFilter.value : bounds.minStr;
+                    endDateFilter.setAttribute('min', endMin);
                     if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
                         endDateFilter.value = startDateFilter.value;
                     }
                 } else {
-                    endDateFilter.removeAttribute('min');
+                    endDateFilter.setAttribute('min', bounds.minStr);
                 }
+                clampDateInputValue(endDateFilter, endDateFilter.getAttribute('min') || bounds.minStr, bounds.maxStr);
             }
             filterTable();
         });
     }
     if (endDateFilter) {
-        endDateFilter.setAttribute('max', today);
         if (startDateFilter && startDateFilter.value) {
             endDateFilter.setAttribute('min', startDateFilter.value);
         }
         endDateFilter.addEventListener('change', function() {
+            clampDateInputValue(endDateFilter, endDateFilter.getAttribute('min') || bounds.minStr, bounds.maxStr);
             if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
                 startDateFilter.value = endDateFilter.value;
                 startDateFilter.dispatchEvent(new Event('change'));
@@ -4537,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show today's data
+    // Apply initial filter on page load (today → today + 30 days by check_in/check_out)
     filterTable();
 });
 
@@ -4565,8 +2298,8 @@ function filterTable() {
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
         const createdBy = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const createdAt = row.getAttribute('data-created-at');
-        const updatedAt = row.getAttribute('data-updated-at');
+        const checkIn = (row.getAttribute('data-check-in') || '').trim();
+        const checkOut = (row.getAttribute('data-check-out') || '').trim();
         
         let show = true;
         
@@ -4594,30 +2327,22 @@ function filterTable() {
             show = false;
         }
         
-        // Date filtering (check both created_at and updated_at)
-        if ((startDateValue || endDateValue) && (createdAt || updatedAt)) {
-            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
-            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
-            let dateInRange = false;
-            
-            // Check created_at if available
-            if (createdAt) {
-                const createdDate = new Date(createdAt + 'T00:00:00');
-                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            // Check updated_at if available and created_at didn't match
-            if (!dateInRange && updatedAt) {
-                const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
-                    dateInRange = true;
-                }
-            }
-            
-            if (!dateInRange) {
+        // Date filtering by tour travel dates (check_in_time / check_out_time overlap)
+        if (startDateValue || endDateValue) {
+            const tourStartStr = checkIn || checkOut;
+            const tourEndStr = checkOut || checkIn;
+
+            if (!tourStartStr) {
                 show = false;
+            } else {
+                const tourStart = new Date(tourStartStr + 'T00:00:00');
+                const tourEnd = new Date(tourEndStr + 'T23:59:59');
+                const filterStart = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+                const filterEnd = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
+                const overlaps = (!filterStart || tourEnd >= filterStart) && (!filterEnd || tourStart <= filterEnd);
+                if (!overlaps) {
+                    show = false;
+                }
             }
         }
         
@@ -4632,8 +2357,8 @@ function filterTable() {
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     const infants = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-infant') || '0', 10), 0);
     
-    // Count today's enquiries from visible rows
-    const today = new Date().toISOString().split('T')[0];
+    // Count today's enquiries from visible rows (by created date)
+    const today = toLocalDateString(new Date());
     const todayCount = visibleRows.filter(r => {
         const createdAt = r.getAttribute('data-created-at');
         return createdAt === today;
@@ -4663,8 +2388,8 @@ function filterTable() {
     updateFilterResults(visibleCount, totalRows);
 
     if (startDateValue || endDateValue) {
-        const start = startDateValue ? new Date(startDateValue) : null;
-        const end = endDateValue ? new Date(endDateValue) : null;
+        const start = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+        const end = endDateValue ? new Date(endDateValue + 'T00:00:00') : null;
         let label = '';
 
         if (start && end) {
@@ -4706,6 +2431,7 @@ function resetFilters() {
     const agentSelect = document.getElementById('agentFilter');
     const startDateInput = document.getElementById('startDateFilter');
     const endDateInput = document.getElementById('endDateFilter');
+    const bounds = getEnquiryDateBounds();
 
     if (searchInput) searchInput.value = '';
     // Reset Select2 dropdowns properly
@@ -4720,11 +2446,14 @@ function resetFilters() {
         agentSelect.value = '';
     }
     if (startDateInput) {
-        startDateInput.value = '';
+        startDateInput.setAttribute('min', bounds.minStr);
+        startDateInput.setAttribute('max', bounds.maxStr);
+        startDateInput.value = bounds.todayStr;
     }
     if (endDateInput) {
-        endDateInput.value = '';
-        endDateInput.removeAttribute('min');
+        endDateInput.setAttribute('min', bounds.todayStr);
+        endDateInput.setAttribute('max', bounds.maxStr);
+        endDateInput.value = bounds.endPlus30Str;
     }
     filterTable();
     
@@ -4837,6 +2566,70 @@ function exportData() {
     console.log('Exporting data...');
 }
 
+// Service country tabs (Services column)
+function selectServiceCountryTab(button) {
+    if (!button) return;
+    const cell = button.closest('.services-country-cell');
+    if (!cell) return;
+
+    const country = button.getAttribute('data-country') || '';
+    cell.setAttribute('data-selected-country', country);
+
+    cell.querySelectorAll('.services-country-tab').forEach(tab => {
+        const isActive = tab === button;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    cell.querySelectorAll('.services-country-panel').forEach(panel => {
+        const match = (panel.getAttribute('data-country') || '') === country;
+        panel.classList.toggle('is-active', match);
+        if (match) {
+            panel.removeAttribute('hidden');
+        } else {
+            panel.setAttribute('hidden', 'hidden');
+        }
+    });
+}
+
+function getSelectedServiceCountryForTour(tourId) {
+    const cell = document.querySelector(`.services-country-cell[data-tour-id="${tourId}"]`);
+    return (cell?.getAttribute('data-selected-country') || '').trim();
+}
+
+function applyServiceModalCountryFilter(modalElement, country) {
+    if (!modalElement) return;
+
+    const items = modalElement.querySelectorAll('.svc-country-item');
+    if (!items.length) return;
+
+    const selected = (country || '').trim().toLowerCase();
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const itemCountry = (item.getAttribute('data-service-country') || '').trim().toLowerCase();
+        const show = !selected || itemCountry === selected;
+        item.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+
+    let emptyEl = modalElement.querySelector('.svc-country-empty-filter');
+    if (visibleCount === 0) {
+        if (!emptyEl) {
+            emptyEl = document.createElement('div');
+            emptyEl.className = 'text-center py-4 svc-country-empty-filter';
+            emptyEl.innerHTML = '<i class="ri-map-pin-line text-muted" style="font-size:1.5rem;"></i>'
+                + '<h6 class="text-dark mt-2 mb-1">No bookings for this country</h6>'
+                + '<p class="text-muted mb-0" style="font-size:0.85rem;">Switch the country tab in the Services column to view other bookings.</p>';
+            const body = modalElement.querySelector('.modal-body');
+            if (body) body.appendChild(emptyEl);
+        }
+        emptyEl.style.display = '';
+    } else if (emptyEl) {
+        emptyEl.style.display = 'none';
+    }
+}
+
 // Service Modal Functions
 function openServiceModal(serviceType, tourId, event) {
     console.log('Opening service modal:', serviceType, 'for tour:', tourId);
@@ -4870,6 +2663,10 @@ function openServiceModal(serviceType, tourId, event) {
         });
         return;
     }
+
+    // Filter modal cards to the country currently selected in the Services column
+    const selectedCountry = getSelectedServiceCountryForTour(tourId);
+    applyServiceModalCountryFilter(modalElement, selectedCountry);
     
     try {
         // Method 1: Try Bootstrap 5 method
@@ -5032,6 +2829,7 @@ function testServices() {
 </script>
 @endsection
 @section('scripts')
+@include('bookings.partials.negotiation-profit-breakdown')
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
@@ -5242,114 +3040,238 @@ function testServices() {
             table.button('.buttons-print').trigger();
         });
         
+        function syncDmcPrimaryNegotiationAmount() {
+            const firstOffer = document.querySelector('#newEnquiryCountryBlocks .dmc-nego-offer-input');
+            const priceInput = document.getElementById('new_enquiry_current_price');
+            const actualAmtField = document.getElementById('new_enquiry_modal_actual_amount');
+            if (!firstOffer) {
+                return;
+            }
+            if (priceInput) priceInput.value = firstOffer.value || '';
+            if (actualAmtField) actualAmtField.value = firstOffer.getAttribute('data-max') || '';
+        }
+
+        function findAgentOfferForGroup(agentOffers, group) {
+            if (!Array.isArray(agentOffers) || agentOffers.length === 0) {
+                return null;
+            }
+            const country = String(group.country || '').trim().toLowerCase();
+            const currency = String(group.currency || '').trim().toUpperCase();
+            let match = agentOffers.find(function (offer) {
+                return String(offer.country || '').trim().toLowerCase() === country
+                    && String(offer.currency || '').trim().toUpperCase() === currency;
+            });
+            if (!match) {
+                match = agentOffers.find(function (offer) {
+                    return String(offer.currency || '').trim().toUpperCase() === currency;
+                });
+            }
+            return match || null;
+        }
+
+        function renderDmcNegotiationCountryBlocks(countryGroups, agentOffers, fallbackPrice) {
+            const blocksEl = document.getElementById('newEnquiryCountryBlocks');
+            const warningMessage = document.getElementById('new-enquiry-warning-message');
+            if (!blocksEl) return;
+
+            blocksEl.innerHTML = '';
+            if (!Array.isArray(countryGroups) || countryGroups.length === 0) {
+                blocksEl.innerHTML = '<div class="alert alert-warning mb-0">No country-wise order totals found for this tour.</div>';
+                syncDmcPrimaryNegotiationAmount();
+                return;
+            }
+
+            countryGroups.forEach(function (group, index) {
+                const currency = group.currency || '';
+                const country = group.country || currency || ('Country ' + (index + 1));
+                const payable = Number(group.payable || 0);
+                const gross = Number(group.gross || 0);
+                const markup = Number(group.markup || 0);
+                const discount = Number(group.discount || 0);
+                const agentOffer = findAgentOfferForGroup(agentOffers, group);
+                const agentAmount = agentOffer ? parseFloat(agentOffer.amount) : NaN;
+                const defaultCounter = Number.isFinite(agentAmount) && agentAmount > 0
+                    ? agentAmount
+                    : (Number.isFinite(fallbackPrice) && fallbackPrice > 0 && index === 0 ? fallbackPrice : (payable > 0 ? payable : ''));
+
+                const card = document.createElement('div');
+                card.className = 'negotiation-pricing-summary';
+                card.innerHTML =
+                    '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                        '<strong>' + country + ' <span class="text-muted">(' + currency + ')</span></strong>' +
+                        '<small class="text-muted">' + (group.order_count || 0) + ' service(s)</small>' +
+                    '</div>' +
+                    '<div class="row g-2 mb-2">' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">Gross</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">Markup</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">Discount</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
+                        '<div class="col-6 col-md-3"><span class="negotiation-label">Payable</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(payable) + '</div></div>' +
+                    '</div>' +
+                    '<div class="mb-2"><span class="negotiation-label">Agent Offer</span>' +
+                        '<div class="negotiation-value text-success">' +
+                            (Number.isFinite(agentAmount) ? (currency + ' ' + formatNegotiationAmount(agentAmount)) : '—') +
+                        '</div></div>' +
+                    '<label class="form-label fw-semibold">Your Counter Price (' + currency + ') <span class="text-danger">*</span></label>' +
+                    '<input type="number" class="form-control dmc-nego-offer-input" min="0" step="0.01" required ' +
+                        'data-index="' + index + '" data-max="' + payable + '" data-country="' + String(country).replace(/"/g, '&quot;') + '" data-currency="' + currency + '" ' +
+                        'value="' + defaultCounter + '" placeholder="Enter counter in ' + currency + '">' +
+                    '<div class="form-text text-primary fw-semibold mt-1">Maximum allowed: ' + currency + ' ' + formatNegotiationAmount(payable) + '</div>' +
+                    '<input type="hidden" name="offers[' + index + '][country]" value="' + String(country).replace(/"/g, '&quot;') + '">' +
+                    '<input type="hidden" name="offers[' + index + '][currency]" value="' + currency + '">' +
+                    '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
+                    '<input type="hidden" name="offers[' + index + '][gross]" value="' + gross + '">' +
+                    '<input type="hidden" name="offers[' + index + '][amount]" class="dmc-nego-offer-hidden" value="' + defaultCounter + '">';
+                blocksEl.appendChild(card);
+            });
+
+            blocksEl.querySelectorAll('.dmc-nego-offer-input').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    const max = parseFloat(this.getAttribute('data-max'));
+                    const val = parseFloat(this.value);
+                    const hidden = this.parentElement.querySelector('.dmc-nego-offer-hidden');
+                    if (hidden) hidden.value = this.value;
+                    syncDmcPrimaryNegotiationAmount();
+                    if (warningMessage) {
+                        if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
+                            warningMessage.classList.remove('d-none');
+                            warningMessage.textContent = 'Counter price for ' + (this.getAttribute('data-country') || 'a country') +
+                                ' cannot exceed ' + (this.getAttribute('data-currency') || '') + ' ' + formatNegotiationAmount(max) + '.';
+                        } else {
+                            warningMessage.classList.add('d-none');
+                        }
+                    }
+                });
+                input.addEventListener('blur', function () {
+                    const max = parseFloat(this.getAttribute('data-max'));
+                    const val = parseFloat(this.value);
+                    if (!isNaN(val) && !isNaN(max) && max > 0 && val > max) {
+                        this.value = max;
+                        const hidden = this.parentElement.querySelector('.dmc-nego-offer-hidden');
+                        if (hidden) hidden.value = String(max);
+                        syncDmcPrimaryNegotiationAmount();
+                        if (warningMessage) warningMessage.classList.add('d-none');
+                    }
+                });
+            });
+
+            syncDmcPrimaryNegotiationAmount();
+        }
+
         // Modal helper functions for Update Price (New Enquiries)
         window.openNewEnquiryModal = function(button, route) {
             var modalEl = document.getElementById('newEnquiryUpdateModal');
             var form = document.getElementById('newEnquiryUpdateForm');
-            var priceInput = document.getElementById('new_enquiry_current_price');
             var commentInput = document.getElementById('new_enquiry_comment');
             var idInput = document.getElementById('new_enquiry_modal_enquiry_id');
-            var displayGross = document.getElementById('new_enquiry_display_gross');
-            var displayActual = document.getElementById('new_enquiry_display_actual');
-            var displayPrice = document.getElementById('new_enquiry_display_price');
-            var displayDiscount = document.getElementById('new_enquiry_display_discount');
-            var displayMarkup = document.getElementById('new_enquiry_display_markup');
-            var markupLabel = document.getElementById('new_enquiry_markup_label');
-            var discountLabel = document.getElementById('new_enquiry_discount_label');
             var displayComment = document.getElementById('new_enquiry_display_comment');
+            var warningMessage = document.getElementById('new-enquiry-warning-message');
 
             form.action = route || '';
             idInput.value = button.getAttribute('data-enquiry-id') || '';
             var tourIdField = document.getElementById('new_enquiry_modal_tour_id');
-            var actualAmtField = document.getElementById('new_enquiry_modal_actual_amount');
             if (tourIdField) {
                 tourIdField.value = button.getAttribute('data-tour-id') || '';
             }
 
-            var gross = parseNegotiationAttr(button.getAttribute('data-gross'));
-            var actual = parseNegotiationAttr(button.getAttribute('data-actual'));
-            var discount = parseNegotiationAttr(button.getAttribute('data-discount'));
-            if ((!Number.isFinite(discount) || discount < 0) && Number.isFinite(gross) && Number.isFinite(actual) && gross > actual) {
-                discount = gross - actual;
-            }
             var prevPrice = parseNegotiationAttr(button.getAttribute('data-price'));
             var prevComment = button.getAttribute('data-comment') || '';
-
-            if (actualAmtField) {
-                actualAmtField.value = Number.isFinite(actual) ? actual : '';
-            }
-
-            if (displayGross) {
-                displayGross.textContent = Number.isFinite(gross) ? formatNegotiationAmount(gross) : '—';
-            }
-            if (displayActual) {
-                displayActual.textContent = Number.isFinite(actual) ? formatNegotiationAmount(actual) : '—';
-            }
-            // Markup + typed discount display (business calculation: Payable = Gross + Markup − Discount).
-            var markupType = button.getAttribute('data-markup-type') || '';
-            var markupRaw = button.getAttribute('data-markup-raw');
-            var markupMoney = button.getAttribute('data-markup-money');
-            var discountType = button.getAttribute('data-discount-type') || '';
-            var discountRaw = button.getAttribute('data-discount-raw');
-            var discountMoney = button.getAttribute('data-discount-money');
-
-            applyAdjustmentDisplay(markupLabel, displayMarkup, 'Markup', markupType, markupRaw, markupMoney, '+');
-
-            var discountMoneyVal = parseNegotiationAttr(discountMoney);
-            if (!Number.isFinite(discountMoneyVal)) {
-                discountMoneyVal = Number.isFinite(discount) ? discount : 0;
-            }
-            applyAdjustmentDisplay(discountLabel, displayDiscount, 'Discount', discountType, discountRaw, discountMoneyVal, '−');
-            if (displayPrice) {
-                displayPrice.textContent = Number.isFinite(prevPrice) ? formatNegotiationAmount(prevPrice) : '—';
-            }
             if (displayComment) {
                 displayComment.textContent = prevComment || '—';
             }
-
-            priceInput.value = Number.isFinite(prevPrice) ? prevPrice : '';
             commentInput.value = '';
-            if (Number.isFinite(actual) && actual > 0) {
-                priceInput.setAttribute('max', actual);
-            } else {
-                priceInput.removeAttribute('max');
-            }
+            if (warningMessage) warningMessage.classList.add('d-none');
+
+            let countryGroups = [];
+            let agentOffers = [];
+            try { countryGroups = JSON.parse(button.getAttribute('data-country-groups') || '[]'); } catch (e) { countryGroups = []; }
+            try { agentOffers = JSON.parse(button.getAttribute('data-agent-offers') || '[]'); } catch (e) { agentOffers = []; }
+            if (!Array.isArray(countryGroups)) countryGroups = [];
+            if (!Array.isArray(agentOffers)) agentOffers = [];
+
+            renderDmcNegotiationCountryBlocks(countryGroups, agentOffers, prevPrice);
 
             var modal = new bootstrap.Modal(modalEl);
             modal.show();
         };
 
         window.validateNewEnquiryPrice = function(input) {
-            var maxValue = parseFloat(input.getAttribute('max'));
+            var maxValue = parseFloat(input.getAttribute('data-max') || input.getAttribute('max'));
             var currentValue = parseFloat(input.value);
             var warningMessage = document.getElementById('new-enquiry-warning-message');
-            
+            var hidden = input.parentElement ? input.parentElement.querySelector('.dmc-nego-offer-hidden') : null;
+
             if (!isNaN(maxValue) && !isNaN(currentValue) && currentValue > maxValue) {
-                input.value = maxValue; // Reset to maximum allowed value
-                warningMessage.classList.remove('d-none');
-                
-                setTimeout(function() {
-                    warningMessage.classList.add('d-none');
-                }, 3000);
+                input.value = maxValue;
+                if (hidden) hidden.value = String(maxValue);
+                syncDmcPrimaryNegotiationAmount();
+                if (warningMessage) {
+                    warningMessage.classList.remove('d-none');
+                    setTimeout(function() {
+                        warningMessage.classList.add('d-none');
+                    }, 3000);
+                }
+            } else if (hidden) {
+                hidden.value = input.value;
+                syncDmcPrimaryNegotiationAmount();
             }
         };
 
         // Add form submission handler with loader
         $(document).ready(function() {
             $('#newEnquiryUpdateForm').on('submit', function(e) {
+                const offerInputs = Array.from(document.querySelectorAll('#newEnquiryCountryBlocks .dmc-nego-offer-input'));
+                const warningMessage = document.getElementById('new-enquiry-warning-message');
+                for (let i = 0; i < offerInputs.length; i++) {
+                    const input = offerInputs[i];
+                    const val = parseFloat(input.value);
+                    const max = parseFloat(input.getAttribute('data-max'));
+                    if (isNaN(val) || val <= 0) {
+                        e.preventDefault();
+                        if (warningMessage) {
+                            warningMessage.classList.remove('d-none');
+                            warningMessage.textContent = 'Please enter a counter price for every country.';
+                        }
+                        input.focus();
+                        return false;
+                    }
+                    if (!isNaN(max) && max > 0 && val > max) {
+                        e.preventDefault();
+                        input.value = max;
+                        const hidden = input.parentElement.querySelector('.dmc-nego-offer-hidden');
+                        if (hidden) hidden.value = String(max);
+                        syncDmcPrimaryNegotiationAmount();
+                        if (warningMessage) {
+                            warningMessage.classList.remove('d-none');
+                            warningMessage.textContent = 'Counter price cannot exceed the payable amount.';
+                        }
+                        return false;
+                    }
+                    const hidden = input.parentElement.querySelector('.dmc-nego-offer-hidden');
+                    if (hidden) hidden.value = input.value;
+                }
+                if (offerInputs.length > 0) {
+                    syncDmcPrimaryNegotiationAmount();
+                } else {
+                    // Confirm-from-agent path may post offers[] as hidden fields without DMC blocks.
+                    const confirmOffer = document.querySelector('#newEnquiryUpdateForm input[name="offers[0][amount]"]');
+                    const priceInput = document.getElementById('new_enquiry_current_price');
+                    if (confirmOffer && priceInput && !String(priceInput.value || '').trim()) {
+                        priceInput.value = confirmOffer.value || '';
+                    }
+                }
+
                 const submitBtn = document.getElementById('new_enquiry_submit_btn');
                 const cancelBtn = document.getElementById('new_enquiry_cancel_btn');
-                
-                // Show loader
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
-                submitBtn.disabled = true;
-                cancelBtn.disabled = true;
-                
-                // Form will submit naturally, no need to prevent default
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                    submitBtn.disabled = true;
+                }
+                if (cancelBtn) cancelBtn.disabled = true;
             });
         });
 
+
+        let agentNegotiationContext = null;
         let agentNegotiationModalInstance = null;
         let agentNegotiationActionsDisabled = false;
 
@@ -5427,56 +3349,110 @@ function testServices() {
             const tourIdInput = document.getElementById('agent_negotiation_tour_id');
             const actionInput = document.getElementById('agent_negotiation_action');
             const actualInput = document.getElementById('agent_negotiation_actual_amount');
+            const amountHidden = document.getElementById('agentNegotiationAmount');
             const enquiryIdHidden = document.getElementById('agent_negotiation_enquiry_id');
-            const amountInput = document.getElementById('agentNegotiationAmount');
             const remarkInput = document.getElementById('agentNegotiationRemark');
             const warning = document.getElementById('agentNegotiationWarning');
             const displayEl = document.getElementById('agentNegotiationDisplayId');
-            const grossAmountEl = document.getElementById('agentNegotiationGrossAmount');
-            const discountAmountEl = document.getElementById('agentNegotiationDiscountAmount');
-            const markupAmountEl = document.getElementById('agentNegotiationMarkupAmount');
-            const markupLabelEl = document.getElementById('agentNegotiationMarkupLabel');
-            const discountLabelEl = document.getElementById('agentNegotiationDiscountLabel');
-            const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
             const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
             const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
-            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
+            const blocksEl = document.getElementById('agentNegotiationCountryBlocks');
 
             restoreAgentNegotiationFormToAgentNegotiation();
 
             const tourId = button.getAttribute('data-tour-id');
             const displayId = button.getAttribute('data-display-id') || '—';
             const tourStatus = button.getAttribute('data-tour-status') || '';
-            const actualAttr = button.getAttribute('data-actual');
-            const grossAttr = button.getAttribute('data-gross');
-            const discountAmountAttr = button.getAttribute('data-discount-amount');
-            const markupTypeAttr = button.getAttribute('data-markup-type') || '';
-            const markupRawAttr = button.getAttribute('data-markup-raw');
-            const markupMoneyAttr = button.getAttribute('data-markup-money');
-            const discountTypeAttr = button.getAttribute('data-discount-type') || '';
-            const discountRawAttr = button.getAttribute('data-discount-raw');
-            const lastAttr = button.getAttribute('data-last-amount');
             const lastAgentOfferAttr = button.getAttribute('data-last-agent-offer');
             const isLocked = button.getAttribute('data-negotiation-locked') === '1';
-            const actualAmount = parseNegotiationAttr(actualAttr);
-            const grossAmount = parseNegotiationAttr(grossAttr);
-            let tourDiscountAmount = parseNegotiationAttr(discountAmountAttr);
-            const negotiationCap = parseNegotiationAttr(lastAttr) ?? actualAmount;
             const lastAgentOffer = parseNegotiationAttr(lastAgentOfferAttr);
             const lastRemark = button.getAttribute('data-last-comment') || '';
 
-            if ((!Number.isFinite(tourDiscountAmount) || tourDiscountAmount < 0)
-                && Number.isFinite(grossAmount) && Number.isFinite(actualAmount) && grossAmount > actualAmount) {
-                tourDiscountAmount = grossAmount - actualAmount;
+            let countryGroups = [];
+            try { countryGroups = JSON.parse(button.getAttribute('data-country-groups') || '[]'); } catch (e) { countryGroups = []; }
+            if (!Array.isArray(countryGroups)) countryGroups = [];
+
+            agentNegotiationContext = {
+                groups: countryGroups,
+                lastAgentOffer: lastAgentOffer,
+                isLocked: isLocked
+            };
+
+            if (typeof renderAgentNegotiationProfitPanel === 'function') {
+                renderAgentNegotiationProfitPanel(countryGroups);
             }
 
-            if (grossAmountEl) {
-                grossAmountEl.textContent = Number.isFinite(grossAmount) ? formatNegotiationAmount(grossAmount) : '—';
+            if (blocksEl) {
+                blocksEl.innerHTML = '';
+                if (countryGroups.length === 0) {
+                    blocksEl.innerHTML = '<div class="alert alert-warning mb-0">No country-wise order totals found for this tour.</div>';
+                } else {
+                    countryGroups.forEach(function (group, index) {
+                        const currency = group.currency || '';
+                        const country = group.country || currency || ('Country ' + (index + 1));
+                        const payable = Number(group.payable || 0);
+                        const gross = Number(group.gross || 0);
+                        const markup = Number(group.markup || 0);
+                        const discount = Number(group.discount || 0);
+                        const card = document.createElement('div');
+                        card.className = 'negotiation-pricing-summary';
+                        card.innerHTML =
+                            '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                                '<strong>' + country + ' <span class="text-muted">(' + currency + ')</span></strong>' +
+                                '<small class="text-muted">' + (group.order_count || 0) + ' service(s)</small>' +
+                            '</div>' +
+                            '<div class="row g-2 mb-2">' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">Gross</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(gross) + '</div></div>' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">Markup</span><div class="negotiation-value text-info">' + (markup > 0 ? ('+' + currency + ' ' + formatNegotiationAmount(markup)) : (currency + ' 0.00')) + '</div></div>' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">Discount</span><div class="negotiation-value">' + (discount > 0 ? ('−' + currency + ' ' + formatNegotiationAmount(discount)) : (currency + ' 0.00')) + '</div></div>' +
+                                '<div class="col-6 col-md-3"><span class="negotiation-label">Payable</span><div class="negotiation-value">' + currency + ' ' + formatNegotiationAmount(payable) + '</div></div>' +
+                            '</div>' +
+                            '<label class="form-label fw-semibold">Offer Amount (' + currency + ') <span class="text-danger">*</span></label>' +
+                            '<input type="number" class="form-control agent-nego-offer-input" min="0" step="0.01" ' +
+                                'data-index="' + index + '" data-max="' + payable + '" data-country="' + String(country).replace(/"/g, '&quot;') + '" data-currency="' + currency + '" ' +
+                                'data-gross="' + gross + '" data-payable="' + payable + '" value="' + (payable > 0 ? payable : '') + '" placeholder="Enter offer in ' + currency + '">' +
+                            '<div class="agent-nego-offer-error text-danger small mt-1 d-none" role="alert"></div>' +
+                            '<div class="form-text text-primary fw-semibold mt-1">Maximum allowed: ' + currency + ' ' + formatNegotiationAmount(payable) + '</div>' +
+                            '<input type="hidden" name="offers[' + index + '][country]" value="' + String(country).replace(/"/g, '&quot;') + '">' +
+                            '<input type="hidden" name="offers[' + index + '][currency]" value="' + currency + '">' +
+                            '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
+                            '<input type="hidden" name="offers[' + index + '][gross]" value="' + gross + '">' +
+                            '<input type="hidden" name="offers[' + index + '][amount]" class="agent-nego-offer-hidden" value="' + (payable > 0 ? payable : '') + '">';
+                        blocksEl.appendChild(card);
+                    });
+
+                    blocksEl.querySelectorAll('.agent-nego-offer-input').forEach(function (input) {
+                        input.addEventListener('input', function () {
+                            const hidden = this.parentElement.querySelector('.agent-nego-offer-hidden');
+                            if (hidden) hidden.value = this.value;
+                            syncPrimaryNegotiationAmount();
+                            if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
+                                syncAgentNegotiationProfitFromOffers();
+                            }
+                            highlightExceededAgentOffer(this);
+                        });
+                        input.addEventListener('blur', function () {
+                            if (isAgentOfferExceeded(this)) {
+                                const max = getAgentOfferMax(this);
+                                this.value = max;
+                                const hidden = this.parentElement.querySelector('.agent-nego-offer-hidden');
+                                if (hidden) hidden.value = String(max);
+                                syncPrimaryNegotiationAmount();
+                                if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
+                                    syncAgentNegotiationProfitFromOffers();
+                                }
+                                highlightExceededAgentOffer(this);
+                            }
+                        });
+                    });
+                    if (typeof syncAgentNegotiationProfitFromOffers === 'function') {
+                        syncAgentNegotiationProfitFromOffers();
+                    }
+                    blocksEl.querySelectorAll('.agent-nego-offer-input').forEach(function (input) {
+                        highlightExceededAgentOffer(input);
+                    });
+                }
             }
-            // Markup line (business calculation: Payable = Gross + Markup − Discount).
-            applyAdjustmentDisplay(markupLabelEl, markupAmountEl, 'Markup', markupTypeAttr, markupRawAttr, markupMoneyAttr, '+');
-            // Typed discount line.
-            applyAdjustmentDisplay(discountLabelEl, discountAmountEl, 'Discount', discountTypeAttr, discountRawAttr, tourDiscountAmount, '−');
 
             form.dataset.enquiryId = button.getAttribute('data-enquiry-id') || '';
             if (enquiryIdHidden) {
@@ -5485,78 +3461,102 @@ function testServices() {
 
             form.dataset.currentStatus = tourStatus;
             tourIdInput.value = tourId;
-            actualInput.value = Number.isFinite(actualAmount) ? actualAmount : '';
             actionInput.value = 'negotiate';
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
-            remarkInput.classList.remove('is-invalid');
-            const remarkErrEl = document.getElementById('agentNegotiationRemarkError');
-            if (remarkErrEl) remarkErrEl.classList.add('d-none');
+            remarkInput.value = '';
+            lastRemarkEl.textContent = lastRemark || '—';
 
-            let maxAllowedAmount = null;
-            if (Number.isFinite(negotiationCap) && negotiationCap > 0) {
-                maxAllowedAmount = negotiationCap;
-            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
-                maxAllowedAmount = actualAmount;
-            }
-
-            // Set max attribute and display max value
-            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
-                amountInput.setAttribute('max', maxAllowedAmount);
-                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
-            } else {
-                amountInput.removeAttribute('max');
-                maxValueEl.textContent = '—';
-            }
-
-            if (currentAmountEl) {
-                currentAmountEl.textContent = Number.isFinite(actualAmount) ? formatNegotiationAmount(actualAmount) : '—';
-            }
-
-            if (Number.isFinite(negotiationCap) && negotiationCap > 0) {
-                amountInput.value = negotiationCap;
-            } else {
-                amountInput.value = '';
-            }
             if (Number.isFinite(lastAgentOffer) && lastAgentOffer > 0) {
                 lastAmountEl.textContent = formatNegotiationAmount(lastAgentOffer);
             } else {
                 lastAmountEl.textContent = '—';
             }
 
-            remarkInput.value = '';
-            lastRemarkEl.textContent = lastRemark || '—';
+            syncPrimaryNegotiationAmount();
             toggleAgentNegotiationActions(isLocked);
-
-            // Add real-time validation for amount input (remove old listener first)
-            const oldHandler = amountInput.oninput;
-            amountInput.oninput = null;
-            amountInput.addEventListener('input', function validateAmount() {
-                const enteredValue = parseFloat(this.value);
-                const maxValue = parseFloat(this.getAttribute('max'));
-                
-                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
-                    warning.classList.remove('d-none');
-                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
-                } else {
-                    warning.classList.add('d-none');
-                }
-            });
-            
-            // Auto-revert to max value when user leaves the field (blur event)
-            amountInput.addEventListener('blur', function revertToMax() {
-                const enteredValue = parseFloat(this.value);
-                const maxValue = parseFloat(this.getAttribute('max'));
-                
-                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
-                    this.value = maxValue;
-                    warning.classList.add('d-none');
-                }
-            });
-
             agentNegotiationModalInstance.show();
         };
 
+        /** Max allowed offer for a country input (payable amount). */
+        function getAgentOfferMax(input) {
+            const max = parseFloat(input.getAttribute('data-max'));
+            return Number.isFinite(max) && max > 0 ? max : NaN;
+        }
+
+        function isAgentOfferExceeded(input) {
+            const value = parseFloat(input.value);
+            const max = getAgentOfferMax(input);
+            return Number.isFinite(value) && Number.isFinite(max) && value > max;
+        }
+
+        /** Inline feedback under that country's Offer Amount field. */
+        function highlightExceededAgentOffer(input) {
+            const card = input.closest('.negotiation-pricing-summary');
+            const fieldError = card ? card.querySelector('.agent-nego-offer-error') : null;
+            const globalWarning = document.getElementById('agentNegotiationWarning');
+            const exceeded = isAgentOfferExceeded(input);
+
+            input.classList.toggle('is-invalid', exceeded);
+
+            if (fieldError) {
+                if (exceeded) {
+                    const country = input.getAttribute('data-country') || 'this country';
+                    const currency = input.getAttribute('data-currency') || '';
+                    const limit = (currency ? currency + ' ' : '') + formatNegotiationAmount(getAgentOfferMax(input));
+                    fieldError.textContent = 'Price exceeded for ' + country + '. Offer cannot be more than the negotiated amount ' + limit + '.';
+                    fieldError.classList.remove('d-none');
+                } else {
+                    fieldError.textContent = '';
+                    fieldError.classList.add('d-none');
+                }
+            }
+
+            if (globalWarning) {
+                globalWarning.classList.add('d-none');
+            }
+        }
+
+        /** Blocks submit when any country offer is above its payable amount. */
+        function validateAgentOffersWithinPayable(offerInputs) {
+            let firstExceeded = null;
+            offerInputs.forEach(function (input) {
+                highlightExceededAgentOffer(input);
+                if (!firstExceeded && isAgentOfferExceeded(input)) {
+                    firstExceeded = input;
+                }
+            });
+
+            if (!firstExceeded) {
+                return true;
+            }
+
+            const country = firstExceeded.getAttribute('data-country') || 'this country';
+            const currency = firstExceeded.getAttribute('data-currency') || '';
+            const limit = (currency ? currency + ' ' : '') + formatNegotiationAmount(getAgentOfferMax(firstExceeded));
+
+            firstExceeded.focus();
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Price exceeded',
+                text: 'The offer amount for ' + country + ' is exceeding the negotiated payable amount ' + limit + '. Please enter ' + limit + ' or less.'
+            });
+            return false;
+        }
+
+        function syncPrimaryNegotiationAmount() {
+            const firstOffer = document.querySelector('#agentNegotiationCountryBlocks .agent-nego-offer-input');
+            const amountHidden = document.getElementById('agentNegotiationAmount');
+            const actualInput = document.getElementById('agent_negotiation_actual_amount');
+            if (!firstOffer) {
+                if (amountHidden) amountHidden.value = '';
+                if (actualInput) actualInput.value = '';
+                return;
+            }
+            if (amountHidden) amountHidden.value = firstOffer.value || '';
+            if (actualInput) actualInput.value = firstOffer.getAttribute('data-payable') || '';
+        }
         window.submitAgentNegotiation = function(action) {
             if (agentNegotiationActionsDisabled) {
                 hideAgentNegotiationModalThen(function () {
@@ -5583,30 +3583,35 @@ function testServices() {
             warning.classList.add('d-none');
 
             if (action === 'negotiate') {
-                const amountValue = parseFloat(amountInput.value);
-                if (isNaN(amountValue) || amountValue <= 0) {
+                const offerInputs = Array.from(document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input'));
+                if (offerInputs.length === 0) {
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Amount required',
-                        text: 'Please enter a valid negotiation amount.'
+                        title: 'No country totals',
+                        text: 'No country-wise booking totals are available to negotiate.'
                     });
                     return;
                 }
-                const remarkError = document.getElementById('agentNegotiationRemarkError');
-                if (remarkInput.value.trim() === '') {
-                    remarkInput.classList.add('is-invalid');
-                    remarkError.classList.remove('d-none');
-                    return;
-                }
-                remarkInput.classList.remove('is-invalid');
-                remarkError.classList.add('d-none');
 
-                const max = parseFloat(amountInput.getAttribute('max'));
-                if (!isNaN(max) && max > 0 && amountValue > max) {
-                    warning.classList.remove('d-none');
-                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
+                for (const input of offerInputs) {
+                    const amountValue = parseFloat(input.value);
+                    const country = input.getAttribute('data-country') || 'a country';
+                    if (isNaN(amountValue) || amountValue <= 0) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Amount required',
+                            text: 'Please enter a valid negotiation amount for ' + country + '.'
+                        });
+                        return;
+                    }
+                    const hidden = input.parentElement.querySelector('.agent-nego-offer-hidden');
+                    if (hidden) hidden.value = input.value;
+                }
+
+                if (!validateAgentOffersWithinPayable(offerInputs)) {
                     return;
                 }
+                syncPrimaryNegotiationAmount();
 
                 // Show loader on negotiate button
                 const originalSubmitText = submitBtn.innerHTML;
@@ -5619,16 +3624,6 @@ function testServices() {
                 form.submit();
                 return;
             }
-
-            // Cancel and Confirm: remarks required
-            const remarkError = document.getElementById('agentNegotiationRemarkError');
-            if (remarkInput.value.trim() === '') {
-                remarkInput.classList.add('is-invalid');
-                remarkError.classList.remove('d-none');
-                return;
-            }
-            remarkInput.classList.remove('is-invalid');
-            remarkError.classList.add('d-none');
 
             if (action === 'confirm') {
                 const tidEarly = tourIdInput ? String(tourIdInput.value || '').trim() : '';
@@ -5657,7 +3652,8 @@ function testServices() {
                     });
                     return;
                 }
-                const confirmAmount = parseFloat(amountInput.value);
+                const firstOfferInput = document.querySelector('#agentNegotiationCountryBlocks .agent-nego-offer-input');
+                const confirmAmount = parseFloat(firstOfferInput ? firstOfferInput.value : (amountInput ? amountInput.value : NaN));
                 if (isNaN(confirmAmount) || confirmAmount <= 0) {
                     hideAgentNegotiationModalThen(function () {
                         Swal.fire({
@@ -5668,12 +3664,11 @@ function testServices() {
                     });
                     return;
                 }
-                const maxConfirm = parseFloat(amountInput.getAttribute('max'));
-                if (!isNaN(maxConfirm) && maxConfirm > 0 && confirmAmount > maxConfirm) {
-                    warning.classList.remove('d-none');
-                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxConfirm)}.`;
+                const offerInputs = Array.from(document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input'));
+                if (!validateAgentOffersWithinPayable(offerInputs)) {
                     return;
                 }
+                syncPrimaryNegotiationAmount();
             }
 
             const prompts = {
@@ -5744,19 +3739,52 @@ function testServices() {
                             if (tourIdEl) {
                                 tourIdEl.value = tid;
                             }
-                            const actualCap = rowBtn
-                                ? (rowBtn.getAttribute('data-actual') || '')
-                                : (actualInput ? String(actualInput.value || '').trim() : '');
-                            if (actualAmtEl) {
-                                actualAmtEl.value = actualCap;
-                            }
-                            priceEl.value = amountInput.value;
                             commentEl.value = remarkInput.value;
-                            if (actualCap !== '') {
-                                priceEl.setAttribute('max', actualCap);
+
+                            // Prefer multi-country offers from the agent modal; fall back to legacy single amount.
+                            const agentOfferInputs = Array.from(document.querySelectorAll('#agentNegotiationCountryBlocks .agent-nego-offer-input'));
+                            updateForm.querySelectorAll('.dmc-confirm-offer-field').forEach(function (el) { el.remove(); });
+                            const blocksEl = document.getElementById('newEnquiryCountryBlocks');
+                            if (blocksEl) blocksEl.innerHTML = '';
+
+                            if (agentOfferInputs.length > 0) {
+                                agentOfferInputs.forEach(function (input, index) {
+                                    const country = input.getAttribute('data-country') || '';
+                                    const currency = input.getAttribute('data-currency') || '';
+                                    const payable = input.getAttribute('data-payable') || input.getAttribute('data-max') || '0';
+                                    const gross = input.getAttribute('data-gross') || '0';
+                                    const amount = input.value || '';
+
+                                    [
+                                        ['country', country],
+                                        ['currency', currency],
+                                        ['actual_amount', payable],
+                                        ['gross', gross],
+                                        ['amount', amount]
+                                    ].forEach(function (pair) {
+                                        const hidden = document.createElement('input');
+                                        hidden.type = 'hidden';
+                                        hidden.className = 'dmc-confirm-offer-field';
+                                        hidden.name = 'offers[' + index + '][' + pair[0] + ']';
+                                        hidden.value = pair[1];
+                                        updateForm.appendChild(hidden);
+                                    });
+                                });
+                                const firstOffer = agentOfferInputs[0];
+                                priceEl.value = firstOffer.value || amountInput.value;
+                                if (actualAmtEl) {
+                                    actualAmtEl.value = firstOffer.getAttribute('data-payable') || firstOffer.getAttribute('data-max') || '';
+                                }
                             } else {
-                                priceEl.removeAttribute('max');
+                                const actualCap = rowBtn
+                                    ? (rowBtn.getAttribute('data-actual') || '')
+                                    : (actualInput ? String(actualInput.value || '').trim() : '');
+                                if (actualAmtEl) {
+                                    actualAmtEl.value = actualCap;
+                                }
+                                priceEl.value = amountInput.value;
                             }
+
                             updateForm.action = updateUrl;
                             if (typeof updateForm.requestSubmit === 'function') {
                                 updateForm.requestSubmit();
@@ -5979,7 +4007,5 @@ function testServices() {
     padding: 0.375rem 0.75rem;
 }
 </style>
-
 @endsection
-
 @extends('layouts.datatablejs')

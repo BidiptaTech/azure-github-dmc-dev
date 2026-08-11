@@ -24,6 +24,104 @@ $exchangeRate = $exchangeRate ?? CommonHelper::getInvoiceExchangeRate($baseCurre
 $showCurrencyConversion = CommonHelper::shouldShowInvoiceCurrencyConversion($baseCurrency, $selectedCurrency, $currencyConversion);
 $selectedCurrencyPrefix = $selectedCurrency . ' ';
 
-$formatPrice = function ($amount) use ($baseCurrency, $selectedCurrency, $exchangeRate) {
-    return CommonHelper::formatInvoiceDualPrice($amount, $baseCurrency, $selectedCurrency, $exchangeRate);
+$isThirdPartyInvoice = CommonHelper::isInvoiceThirdPartyEnabled($invoice);
+$invoiceMultiGeo = CommonHelper::detectInvoiceMultiGeo($invoice);
+$isMultiGeoBooking = !empty($invoiceMultiGeo['is_multi']);
+$showMultiGeoThirdPartyNotice = $isMultiGeoBooking && !$isThirdPartyInvoice;
+
+if ($isThirdPartyInvoice) {
+    CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
+}
+
+$formatPrice = function ($amount, $itemOrCurrency = null) use ($baseCurrency, $selectedCurrency, $exchangeRate, $isThirdPartyInvoice) {
+    if (!$isThirdPartyInvoice) {
+        return CommonHelper::formatInvoiceDualPrice($amount, $baseCurrency, $selectedCurrency, $exchangeRate);
+    }
+
+    // Summary totals already converted into selected currency
+    if ($itemOrCurrency === null) {
+        $amt = is_numeric($amount) ? (float) $amount : 0.0;
+
+        return CommonHelper::formatMoneyAdaptive($amt) . ' ' . strtoupper($selectedCurrency);
+    }
+
+    if (is_object($itemOrCurrency) || is_array($itemOrCurrency)) {
+        $itemCurrency = CommonHelper::resolveInvoiceItemCurrency($itemOrCurrency, $baseCurrency);
+    } else {
+        $itemCurrency = strtoupper(trim((string) $itemOrCurrency)) ?: $baseCurrency;
+    }
+
+    return CommonHelper::formatInvoiceItemPrice($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+};
+
+$formatItemPrice = $formatPrice;
+
+$groupItemsByGeo = function ($items) use ($baseCurrency, $isThirdPartyInvoice) {
+    if (!$isThirdPartyInvoice) {
+        return [[
+            'key' => 'all',
+            'country' => '',
+            'city' => '',
+            'currency' => $baseCurrency,
+            'items' => $items instanceof \Illuminate\Support\Collection ? $items : collect($items),
+        ]];
+    }
+
+    return CommonHelper::groupInvoiceItemsByGeo($items, $baseCurrency);
+};
+
+$serviceSectionTitle = function (string $singular, string $plural, array $geoGroup = []) use ($isThirdPartyInvoice) {
+    return CommonHelper::invoiceServiceSectionTitle($singular, $plural, $geoGroup, $isThirdPartyInvoice);
+};
+
+$priceColumnSuffix = function () use ($isThirdPartyInvoice, $baseCurrency, $selectedCurrency) {
+    if ($isThirdPartyInvoice) {
+        return '';
+    }
+
+    $suffix = ' (' . $baseCurrency;
+    if ($selectedCurrency !== $baseCurrency) {
+        $suffix .= ' / ' . $selectedCurrency;
+    }
+
+    return $suffix . ')';
+};
+
+$thirdPartyNegotiation = $isThirdPartyInvoice
+    ? CommonHelper::sumNegotiationDetailsInCurrency($invoice, $selectedCurrency, $baseCurrency)
+    : null;
+
+// Payments from tours.payment_details:
+// - Selected: for third-party summary (amounts already in selected currency)
+// - Base: for standard dual-price formatPrice() which converts base → selected
+$invoicePaymentReceivedSelected = CommonHelper::sumTourPaymentsInCurrency(
+    $invoice,
+    $selectedCurrency,
+    $baseCurrency
+);
+$invoicePaymentReceivedBase = CommonHelper::sumTourPaymentsInCurrency(
+    $invoice,
+    $baseCurrency,
+    $baseCurrency
+);
+$invoicePaymentReceivedForDisplay = !empty($isThirdPartyInvoice)
+    ? $invoicePaymentReceivedSelected
+    : $invoicePaymentReceivedBase;
+
+/**
+ * Keep Currency Conversion box in sync with the Final / Outstanding amount shown above it.
+ */
+$syncInvoiceCurrencyConversion = function ($displayAmountInSelected) use (&$currencyConversion, &$showCurrencyConversion, $baseCurrency, $selectedCurrency) {
+    $amt = is_numeric($displayAmountInSelected) ? (float) $displayAmountInSelected : 0.0;
+    $currencyConversion = CommonHelper::buildInvoiceCurrencyConversionFromAmount(
+        $amt,
+        $selectedCurrency,
+        $baseCurrency,
+        $selectedCurrency
+    );
+    $showCurrencyConversion = CommonHelper::shouldShowInvoiceCurrencyConversion(
+        $baseCurrency,
+        $selectedCurrency,
+        $currencyConversion
+    );
 };

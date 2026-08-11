@@ -473,7 +473,7 @@ $(document).ready(function() {
                         <td class="assign-driver-cell">
                             <div class="assign-driver-view">
                                 <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
-                                    if (!item.assigned_driver_id) return 'Not Assigned';
+                                    if (!item.assigned_driver_id) return 'Select Driver';
                                     const d = initialDrivers.find(dr => dr.driver_id == item.assigned_driver_id);
                                     if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
                                     return 'Driver #' + item.assigned_driver_id;
@@ -665,7 +665,7 @@ $(document).ready(function() {
                                 <td class="assign-driver-cell">
                                     <div class="assign-driver-view">
                                         <span class="assign-driver-text ${!(item.assigned_driver_id) ? 'empty' : ''}">${(function() {
-                                            if (!item.assigned_driver_id) return 'Not Assigned';
+                                            if (!item.assigned_driver_id) return 'Select Driver';
                                             const d = response.drivers && response.drivers.find(dr => dr.driver_id == item.assigned_driver_id);
                                             if (d) return d.license_no ? d.name + ' - ' + d.license_no : d.name;
                                             return 'Driver #' + item.assigned_driver_id;
@@ -1063,7 +1063,7 @@ $(document).ready(function() {
             });
             $select.on('select2:close', function() {
                 const selectedText = $select.find('option:selected').text();
-                $cell.find('.assign-driver-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+                $cell.find('.assign-driver-text').text(selectedText || 'Select Driver').toggleClass('empty', !$select.val());
                 $edit.removeClass('is-active').hide();
                 $view.show();
             });

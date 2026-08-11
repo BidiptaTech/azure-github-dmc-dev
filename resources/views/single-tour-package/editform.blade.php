@@ -89,45 +89,15 @@
         $currentUserRole = $currentUser->role_id;
         $displayCurrency = strtoupper(trim((string) ($currentUser->currency ?? 'SGD')));
         
-        // Determine DMC ID based on role hierarchy (same as controller logic)
-        $dmcId = null;
+        // Resolve the DMC through the same helper the controller uses. Re-implementing the role hierarchy
+        // here only covered roles 11/33/34/37/38/124/125, so every other role family (35, 36, 74-78,
+        // 128-138, agent logins, ...) fell through to null. That left $dmcUser null and silently disabled
+        // everything gated on the DMC's flags — the zone_on "Local Transfer" option, price_hide, and the
+        // dmc_id posted with the form.
+        $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
         $dmcUser = null;
         $isPointToPoint = false;
-        
-        if($currentUserRole == 11){
-            $dmcId = $currentUser->userId;
-        }elseif(in_array($currentUserRole, [33, 34])){
-            $user = \App\Models\User::where('userId', $currentUser->userId)->first();
-            $dmcId = $user->created_by;
-        }elseif(in_array($currentUserRole, [37, 124])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcId = $user->created_by;
-            } else {
-                // Fallback: if user not found, try direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }elseif(in_array($currentUserRole, [38, 125])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcIdss = $user->created_by;
-                $user = \App\Models\User::where('userId', $dmcIdss)->first();
-                if($user) {
-                    $dmcId = $user->created_by;
-                } else {
-                    // Fallback: if second user not found, use first user's created_by
-                    $dmcId = $dmcIds;
-                }
-            } else {
-                // Fallback: if first user not found, use direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }else{
-            $dmcId = null;
-        }
-        
+
         // Get DMC user information
         if ($dmcId) {
             $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
@@ -1467,7 +1437,7 @@
                                 @php
                                     $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
                                 @endphp
-                                <div class="col-md-2" id="discountAmountCol">
+                                <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
                                     </label>
@@ -1702,7 +1672,8 @@
                                         data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}"
                                         data-service-start="{{ $checkInValue }}"
                                         data-service-end="{{ $checkOutValue }}"
-                                        data-service-city="{{ $hotelDetails['location'] ?? '' }}"
+                                        data-service-city="{{ $hotelDetails['location'] ?? ($hotelDetails['city'] ?? '') }}"
+                                        data-service-country="{{ $hotelOrder->country ?? ($hotelDetails['country'] ?? ($hotelInfo['country'] ?? '')) }}"
                                     >
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
@@ -3839,8 +3810,28 @@
                                             $guideTotalPrice = $guideOptions['total_price'] ?? 0;
                                             $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
                                             $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['AttractionCity'] ?? $payload['attraction_city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['AttractionId'] ?? $payload['attraction_id'] ?? null)) {
+                                                $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'];
+                                                $masterAttraction = collect($attractions ?? [])->first(function ($a) use ($attractionIdLookup, $attractionName) {
+                                                    if ($attractionIdLookup !== null && $attractionIdLookup !== '') {
+                                                        return (string) ($a->attraction_id ?? $a->id ?? '') === (string) $attractionIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($a->name ?? ''), (string) $attractionName) === 0;
+                                                });
+                                                if ($masterAttraction) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterAttraction->location ?? $masterAttraction->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterAttraction->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="attraction">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -3859,14 +3850,23 @@
                                                     <select class="form-select border-2 attraction-name-select" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}'); handleAttractionBundleSelection(this, {{ $order->booking_id }})" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
-                                                                // Check if attraction has country field directly
-                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
+                                                            // tour->destination can be a single country ("Singapore") or, for multi-city
+                                                            // tours, a comma-separated list ("Singapore, India"). Comparing the whole
+                                                            // string against one attraction's country never matched on multi-city tours,
+                                                            // which emptied this list and (further down) broke ticket price lookups —
+                                                            // parse it into individual country names instead.
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all attractions
-                                                                return empty($tourCountry);
+                                                                $attractionCountry = $attraction->country ?? '';
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if ($attractionCountry !== '' && strcasecmp($attractionCountry, $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
                                                             });
                                                             $packagedAttractionList = collect($packagedAttractions ?? []);
                                                             $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
@@ -4481,8 +4481,37 @@
                                             }
                                             $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
                                             $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            // entrypickup is often "City, (Country)"
+                                            if ($serviceCity === '' && !empty($payload['entrypickup'])) {
+                                                $entryPickup = trim((string) $payload['entrypickup']);
+                                                if (preg_match('/^([^,(]+)/', $entryPickup, $m)) {
+                                                    $serviceCity = trim($m[1]);
+                                                }
+                                            }
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['guide_id'] ?? null)) {
+                                                $guideIdLookup = $payload['guide_id'];
+                                                $masterGuide = collect($guides ?? [])->first(function ($g) use ($guideIdLookup) {
+                                                    return (string) ($g->guide_id ?? $g->id ?? '') === (string) $guideIdLookup;
+                                                });
+                                                if ($masterGuide) {
+                                                    if ($serviceCity === '') {
+                                                        $guideCityVal = $masterGuide->city ?? null;
+                                                        if (is_object($guideCityVal)) {
+                                                            $serviceCity = trim((string) ($guideCityVal->name ?? ''));
+                                                        } else {
+                                                            $serviceCity = trim((string) ($guideCityVal ?? ''));
+                                                        }
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterGuide->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="guide">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4717,8 +4746,38 @@
                                             $transportReturn = ($transportWay === 'Two Way');
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            // Geo for multi-city segment filtering (prefer order columns, then JSON, then master restaurant)
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if ($serviceCity === '' || $serviceCountry === '') {
+                                                $restaurantIdLookup = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                $masterRestaurant = collect($restaurants ?? [])->first(function ($r) use ($restaurantIdLookup, $restaurantName) {
+                                                    if ($restaurantIdLookup !== null && $restaurantIdLookup !== '') {
+                                                        return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $restaurantIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                });
+                                                if ($masterRestaurant) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterRestaurant->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterRestaurant->country ?? ''));
+                                                    }
+                                                }
+                                            }
+                                            if ($serviceCity === '' && $serviceCountry !== '' && isset($cities)) {
+                                                // Only auto-fill city when exactly one city maps to this country in the tour city list
+                                                $citiesForCountry = collect($cities)->filter(function ($c) use ($serviceCountry) {
+                                                    return strcasecmp((string) ($c->country ?? ''), $serviceCountry) === 0;
+                                                });
+                                                if ($citiesForCountry->count() === 1) {
+                                                    $serviceCity = trim((string) ($citiesForCountry->first()->name ?? ''));
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="restaurant">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -4749,16 +4808,42 @@
                                                                     echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '" data-adult-price="' . htmlspecialchars((string)$mrPrice) . '">' . htmlspecialchars($mrName) . '</option>';
                                                                 }
                                                             }
-                                                            
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
-                                                                // Check if restaurant has country field directly
-                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+
+                                                            // Multi-city destination is often a CSV ("Singapore, Indonesia") — match any country
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $allRestaurantsList = collect($restaurants ?? []);
+                                                            $filteredRestaurants = $allRestaurantsList->filter(function ($restaurant) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all restaurants
-                                                                return empty($tourCountry);
+                                                                $restaurantCountry = trim((string) ($restaurant->country ?? ''));
+                                                                if ($restaurantCountry === '') {
+                                                                    return true;
+                                                                }
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if (strcasecmp($restaurantCountry, (string) $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
                                                             });
+
+                                                            // Keep the booked restaurant visible even if country filter missed it
+                                                            $selectedRestaurantMaster = null;
+                                                            if ($restaurantName && !$multiRestaurantSelected) {
+                                                                $selectedRestaurantMaster = $allRestaurantsList->first(function ($r) use ($restaurantName, $payload) {
+                                                                    $rid = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                                    if ($rid !== null && $rid !== '' && (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $rid) {
+                                                                        return true;
+                                                                    }
+                                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                                });
+                                                                if ($selectedRestaurantMaster && !$filteredRestaurants->contains(function ($r) use ($selectedRestaurantMaster) {
+                                                                    return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) ($selectedRestaurantMaster->restaurant_id ?? $selectedRestaurantMaster->id ?? '');
+                                                                })) {
+                                                                    $filteredRestaurants = $filteredRestaurants->push($selectedRestaurantMaster)->values();
+                                                                }
+                                                            }
                                                         @endphp
                                                         @foreach($filteredRestaurants as $restaurant)
                                                             <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name && !$multiRestaurantSelected ? 'selected' : '' }} 
@@ -4774,7 +4859,11 @@
                                                             </option>
                                                         @endforeach
                                                         @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName) && !$multiRestaurantSelected)
-                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                            <option value="{{ $restaurantName }}" selected
+                                                                data-restaurant-id="{{ $payload['restaurantId'] ?? $payload['restaurant_id'] ?? ($selectedRestaurantMaster->restaurant_id ?? '') }}"
+                                                                @if($selectedRestaurantMaster) data-restaurant-data="{{ json_encode($selectedRestaurantMaster) }}" @endif>
+                                                                {{ $restaurantName }}
+                                                            </option>
                                                         @endif
                                                     </select>
                                                 </div>
@@ -8367,7 +8456,7 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                 </label>
-                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 36px; font-size: 0.8rem;">
+                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
                             </div>
                             <div class="col-md-6 col-lg-2">
                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
@@ -8552,7 +8641,7 @@
                                     <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Hourly
                                 </label>
                             </div>
-                            @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
+                            @if(isset($UserDmc->zone_on) && $UserDmc->zone_on != 0)
                             <div class="form-check">
                                 <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')">
                                 <label class="form-check-label fw-semibold" for="local_transfer_service_type_local" style="font-size: 0.8rem; color: #10b981;">
@@ -8669,7 +8758,7 @@
                             <!-- Point To Point Fields (Hidden Initially) -->
                             <div class="col-12">
                                 <div id="point_to_point_fields" class="row g-2 point-to-point-fields d-none">
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
                                         </label>
@@ -8680,7 +8769,7 @@
                                             <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
                                         </label>
@@ -8705,13 +8794,8 @@
                                         </div>
                                         <input type="hidden" name="point_pickup_time" id="local_transfer_point_pickup_time">
                                     </div>
-                                    <div class="col-md-6 col-lg-2">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
-                                        </label>
-                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" onchange="syncPointToPointPickupDateFromDisplay()">
-                                        <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
-                                    </div>
+                                    {{-- Pick up date is not chosen here: the transfer defaults to the tour start date. --}}
+                                    <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
                                     <div class="col-md-6 col-lg-2">
                                         <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
                                             &nbsp;
@@ -12718,6 +12802,36 @@
         });
     }
     // -------- End Global Payment Gate --------
+
+    /**
+     * Resolve city + country from a modal city <select> (data-country on the option).
+     * Multi-city tours must NOT use #user_country CSV as the order country.
+     */
+    window.resolveModalCityGeo = function(citySelectId) {
+        const el = document.getElementById(citySelectId);
+        if (!el) return { city: '', country: '' };
+        const city = (el.value || '').toString().trim();
+        let country = '';
+        try {
+            const opt = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+            if (opt) {
+                country = (opt.getAttribute('data-country') || opt.dataset.country || '').toString().trim();
+            }
+        } catch (e) { /* ignore */ }
+        return { city: city, country: country };
+    };
+
+    /**
+     * Prefer modal city country; reject CSV / blank; fall back to hotel/attraction record country.
+     */
+    window.resolveServiceOrderCountry = function(preferredCountry, fallbackCountry) {
+        const clean = function(v) {
+            const s = (v == null ? '' : String(v)).trim();
+            if (!s || s.indexOf(',') !== -1) return '';
+            return s;
+        };
+        return clean(preferredCountry) || clean(fallbackCountry) || '';
+    };
     
     // Service addition functions
     function addHotelService() {
@@ -13012,6 +13126,18 @@
         if (confirmBtn) {
             confirmBtn.addEventListener('click', confirmAttractionSelection);
         }
+
+        // Guide/transport are optional add-ons for the attraction, but when the user turns
+        // one of them on, its own required fields should also gate the Confirm button.
+        ['modal_need_attraction_guide', 'modal_need_attraction_transport'].forEach(function (toggleId) {
+            const toggleEl = document.getElementById(toggleId);
+            if (toggleEl) toggleEl.addEventListener('change', validateAttractionForm);
+        });
+        ['modal_attraction_guide_language', 'modal_attraction_guide_name',
+         'modal_attraction_transport_destination', 'modal_attraction_transport_vehicle'].forEach(function (fieldId) {
+            const fieldEl = document.getElementById(fieldId);
+            if (fieldEl) fieldEl.addEventListener('change', validateAttractionForm);
+        });
         
         // Set date restrictions and default value (single-city uses tour range; multi-city uses active stay range)
         let startDate = document.getElementById('start_date').value;
@@ -13098,12 +13224,14 @@
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
         const all_bundles = @json($packagedAttractions ?? []);
-        const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
+        const cityKey = (typeof cityMatchKey === 'function')
+            ? cityMatchKey(city)
+            : (city || '').trim().toLowerCase();
         const attractions = all_attractions.filter(function(attraction) {
-            const loc = (typeof normalizeCityText === 'function')
-                ? normalizeCityText(attraction.location)
-                : (attraction.location || '').trim();
-            return loc === normCity;
+            const loc = (typeof cityMatchKey === 'function')
+                ? cityMatchKey(attraction.location)
+                : (attraction.location || '').trim().toLowerCase();
+            return loc === cityKey;
         });
         // Add attraction options
         attractions.forEach(attraction => {
@@ -13233,11 +13361,24 @@
                     if (ticketSelect) {
                         ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
                         const ticketOption = document.createElement('option');
-                        ticketOption.value = attractionData.name;
+                        // Bundle tickets don't have a real ticket_id — use the package id so
+                        // parseInt(ticketId) downstream still yields a valid number.
+                        const bundleTicketId = attractionData.package_attraction_id || 0;
+                        const bundleTicketData = {
+                            ticket_id: bundleTicketId,
+                            name: attractionData.name || '',
+                            adult_price: attractionData.adult_price || 0,
+                            child_price: attractionData.child_price || 0,
+                            senior_price: attractionData.senior_price || 0,
+                            description: attractionData.description || '',
+                            nri: attractionData.nri || 'residential'
+                        };
+                        ticketOption.value = bundleTicketId;
                         ticketOption.textContent = attractionData.name;
-                        ticketOption.dataset.adultPrice = attractionData.adult_price || 0;
-                        ticketOption.dataset.childPrice = attractionData.child_price || 0;
-                        ticketOption.dataset.seniorPrice = attractionData.senior_price || 0;
+                        ticketOption.setAttribute('data-ticket', JSON.stringify(bundleTicketData));
+                        ticketOption.dataset.adultPrice = bundleTicketData.adult_price;
+                        ticketOption.dataset.childPrice = bundleTicketData.child_price;
+                        ticketOption.dataset.seniorPrice = bundleTicketData.senior_price;
                         ticketOption.selected = true;
                         ticketSelect.appendChild(ticketOption);
                     }
@@ -13266,6 +13407,7 @@
                     if (typeof updateAttractionPricing === 'function') {
                         updateAttractionPricing();
                     }
+                    validateAttractionForm();
                     return;
                 }
 
@@ -13404,7 +13546,7 @@
         
         if (selectedOption && selectedOption.value) {
             try {
-                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
+                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket')) || {};
                 
                 // Get guest data
                 const guestData = window.attractionModalGuestData || {
@@ -13465,11 +13607,31 @@
         
         let isValid = true;
         
-        // Check required fields
+        // Base requirements: always needed, regardless of the optional guide/transport toggles.
         if (!attractionSelect.value) isValid = false;
         if (!timeSlotSelect.value) isValid = false;
         if (!ticketSelect.value) isValid = false;
         if (!visitDateSelect.value) isValid = false;
+        
+        // Guide is optional — only require guide details when "Do you want a guide?" is Yes.
+        // When it's No, guide has no bearing on Confirm; only ticket + time (+ attraction/date) matter.
+        const needGuideToggle = document.getElementById('modal_need_attraction_guide');
+        if (needGuideToggle && needGuideToggle.checked) {
+            const guideLanguage = document.getElementById('modal_attraction_guide_language');
+            const guideName = document.getElementById('modal_attraction_guide_name');
+            if (!guideLanguage || !guideLanguage.value) isValid = false;
+            if (!guideName || !guideName.value) isValid = false;
+        }
+        
+        // Transport is optional — only require transport details when "Need transport?" is Yes.
+        // When it's No, transport has no bearing on Confirm; only ticket + time (+ attraction/date) matter.
+        const needTransportToggle = document.getElementById('modal_need_attraction_transport');
+        if (needTransportToggle && needTransportToggle.checked) {
+            const transportDestination = document.getElementById('modal_attraction_transport_destination');
+            const transportVehicle = document.getElementById('modal_attraction_transport_vehicle');
+            if (!transportDestination || !transportDestination.value) isValid = false;
+            if (!transportVehicle || !transportVehicle.value) isValid = false;
+        }
         
         confirmBtn.disabled = !isValid;
     }
@@ -13896,15 +14058,41 @@
     // Transport Modal Functions
     function showTransportSelectionModal(tourId, country, startDate, endDate, transportType = 'entry_port') {
         console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate, transportType });
+
+        // Multi-city: use the active city plan stay range (e.g. Bali 19–20, not overall tour 16–…)
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        try {
+            const mode = typeof getCurrentCityMode === 'function' ? getCurrentCityMode() : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+            }
+        } catch (e) { /* ignore */ }
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
         document.getElementById('modal_transport_type').value = transportType;
         // City field removed
-        document.getElementById('modal_transport_start_date').value = startDate;
-        document.getElementById('modal_transport_end_date').value = endDate;
-        // Pickup date is now hardcoded and readonly in the HTML
+        document.getElementById('modal_transport_start_date').value = effectiveStartDate;
+        document.getElementById('modal_transport_end_date').value = effectiveEndDate;
+
+        // Arrival defaults to city start; departure defaults to city end; editable within stay dates
+        const pickupDateInput = document.getElementById('modal_transport_pickup_date');
+        if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+            pickupDateInput.min = effectiveStartDate;
+            pickupDateInput.max = effectiveEndDate;
+            pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+            pickupDateInput.readOnly = false;
+            pickupDateInput.disabled = false;
+        }
         
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
@@ -13950,6 +14138,14 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
+            // Re-apply stay dates after modal init (in case anything reset the field)
+            if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+                pickupDateInput.min = effectiveStartDate;
+                pickupDateInput.max = effectiveEndDate;
+                if (!pickupDateInput.value || pickupDateInput.value < effectiveStartDate || pickupDateInput.value > effectiveEndDate) {
+                    pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+                }
+            }
             // Set default pickup time to 09:00 AM using the new inputs
             const timeInput = document.getElementById('modal_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
@@ -14106,57 +14302,6 @@
         if (typeof checkHourlyFormCompletion === 'function') checkHourlyFormCompletion();
     }
 
-    // Point To Point pickup date: display dd-mm-yyyy, submit Y-m-d
-    function parseDdMmYyyyToYmd(str) {
-        if (!str || typeof str !== 'string') return null;
-        const cleaned = str.trim().replace(/\s/g, '');
-        const parts = cleaned.split(/[-/.]/);
-        if (parts.length !== 3) return null;
-        const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
-        if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > 2100) return null;
-        const date = new Date(y, m - 1, d);
-        if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
-        return String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    }
-    function ymdToDdMmYyyy(ymd) {
-        if (!ymd || typeof ymd !== 'string') return '';
-        const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!match) return '';
-        return match[3] + '-' + match[2] + '-' + match[1];
-    }
-    function formatPointToPointPickupDateInput(el) {
-        if (!el || !el.value) return;
-        let v = el.value.replace(/\D/g, '');
-        if (v.length > 8) v = v.slice(0, 8);
-        if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
-        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
-        el.value = v;
-    }
-    function syncPointToPointPickupDateFromDisplay() {
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        if (!display || !hidden) return;
-        // type="date" inputs use Y-m-d format natively
-        let ymd = display.value && display.value.match(/^\d{4}-\d{2}-\d{2}$/) ? display.value : parseDdMmYyyyToYmd(display.value);
-        const min = display.getAttribute('data-min') || display.min || '';
-        const max = display.getAttribute('data-max') || display.max || '';
-        if (ymd) {
-            if (min && ymd < min) { hidden.value = min; display.value = min; }
-            else if (max && ymd > max) { hidden.value = max; display.value = max; }
-            else { hidden.value = ymd; }
-        } else if (!display.value || display.value.trim() === '') {
-            hidden.value = '';
-        }
-        if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
-    }
-    function syncPointToPointPickupDateToDisplay() {
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        if (!hidden || !display) return;
-        // type="date" inputs require Y-m-d format
-        display.value = (hidden.value && hidden.value.match(/^\d{4}-\d{2}-\d{2}$/)) ? hidden.value : ymdToDdMmYyyy(hidden.value);
-    }
-    
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
         console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate, serviceType });
         
@@ -14231,7 +14376,6 @@
                             handleLocalTransferServiceTypeChange('hourly');
                         } else                         if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
                             handleLocalTransferServiceTypeChange('point_to_point');
-                            syncPointToPointPickupDateToDisplay();
                         } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
                             handleLocalTransferServiceTypeChange('local_transfer');
                         }
@@ -14437,25 +14581,25 @@
         
         // Local transfer search button is handled by onclick attribute
         
-        // Set default service type to 'point_to_point'
+        // Default to the zone based Local Transfer flow for a zone-enabled DMC, otherwise Point To Point.
+        const zoneStatus = {{ (int) ($UserDmc->zone_on ?? 0) }};
         const pointToPointRadio = document.getElementById('local_transfer_service_type_point');
-        if (pointToPointRadio) {
+        const localTransferRadio = document.getElementById('local_transfer_service_type_local');
+        if (zoneStatus != 0 && localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
+        } else if (pointToPointRadio) {
             pointToPointRadio.checked = true;
             handleLocalTransferServiceTypeChange('point_to_point');
-            syncPointToPointPickupDateToDisplay();
+        } else if (localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
         } else {
-            // Fallback: check if local transfer radio exists
-            const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
-            if (localTransferServiceType) {
-                localTransferServiceType.checked = true;
-                handleLocalTransferServiceTypeChange('local_transfer');
-            } else {
-                // If neither exists, set default to point_to_point
-                window.currentLocalTransferServiceType = 'point_to_point';
-                const modalTitle = document.getElementById('localTransferSelectionModalLabel');
-                if (modalTitle) {
-                    modalTitle.textContent = 'Point To Point Service Selection';
-                }
+            // If neither exists, set default to point_to_point
+            window.currentLocalTransferServiceType = 'point_to_point';
+            const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+            if (modalTitle) {
+                modalTitle.textContent = 'Point To Point Service Selection';
             }
         }
         
@@ -17146,8 +17290,19 @@
         
         // Get tour details
         const tourId = document.getElementById('modal_transport_tour_id').value;
-        const country = document.getElementById('modal_transport_country').value;
-        const city = document.getElementById('modal_transport_city').value;
+        const transportCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_entryport_transport_city')
+            : { city: '', country: '' };
+        const city = transportCityGeo.city
+            || (document.getElementById('modal_transport_city') ? document.getElementById('modal_transport_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transportCityGeo.country || vehicleData.country || (document.getElementById('modal_transport_country') ? document.getElementById('modal_transport_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transportCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('modal_transport_start_date').value;
         const endDate = document.getElementById('modal_transport_end_date').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
@@ -17600,8 +17755,19 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const localCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_local_transfer_city')
+            : { city: '', country: '' };
+        const city = localCityGeo.city
+            || (document.getElementById('local_transfer_city') ? document.getElementById('local_transfer_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                localCityGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (localCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('local_transfer_start_date').value;
         const endDate = document.getElementById('local_transfer_end_date').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
@@ -17724,7 +17890,14 @@
         
         const ticketSelect = document.getElementById('modal_attraction_ticket');
         const selectedTicketOption = ticketSelect.options[ticketSelect.selectedIndex];
-        const ticketData = selectedTicketOption ? JSON.parse(selectedTicketOption.getAttribute('data-ticket')) : {};
+        let ticketData = {};
+        if (selectedTicketOption) {
+            try {
+                ticketData = JSON.parse(selectedTicketOption.getAttribute('data-ticket')) || {};
+            } catch (e) {
+                ticketData = {};
+            }
+        }
         console.log('Ticket data:', ticketData);
         
         // Get guest data from modal
@@ -17740,7 +17913,18 @@
         
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const attractionCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_attraction_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                attractionCityGeo.country || (attractionData && attractionData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (attractionCityGeo.country || '');
+        const attractionCity = attractionCityGeo.city
+            || (attractionData && (attractionData.location || attractionData.city))
+            || '';
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -17786,6 +17970,9 @@
             seniorCount: 0,
             AttractionId: parseInt(attractionId),
             AttractionName: attractionData.name || "",
+            AttractionCity: attractionCity || null,
+            city: attractionCity || null,
+            country: country || null,
             ticketId: parseInt(ticketId),
             ticketName: ticketData.name || "",
             ticket_details: {
@@ -20005,8 +20192,21 @@
         const selectedHotelOption = hotelSelect.options[hotelSelect.selectedIndex];
         const hotelData = selectedHotelOption ? JSON.parse(selectedHotelOption.getAttribute('data-hotel') || '{}') : {};
         
-        // Get country from tour form (fallback if hotel location is not available)
-        const country = document.getElementById('user_country') ? document.getElementById('user_country').value : '';
+        // Multi-city: use selected modal city country (NOT the tour destination CSV)
+        const hotelCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_city_select')
+            : { city: '', country: '' };
+        const serviceCity = hotelCityGeo.city
+            || hotelData.city
+            || hotelData.location
+            || '';
+        const serviceCountry = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                hotelCityGeo.country || hotelData.country,
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (hotelCityGeo.country || hotelData.country || '');
+        const country = serviceCountry;
         
         // Get selected room and bed data
         const roomType = document.getElementById('room_type');
@@ -20183,12 +20383,16 @@
                 hotel_name: hotelData.name || "Hotel",
                 checkInTime: checkInTime,
                 checkOutTime: checkOutTime,
-                location: hotelData.location || hotelData.city || country || null,
+                location: hotelData.location || hotelData.city || serviceCity || null,
+                city: hotelData.city || serviceCity || null,
+                country: serviceCountry || null,
                 image: hotelData.master_image || hotelData.image || "",
                 cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut],
-            transfer_options: null
+            transfer_options: null,
+            city: serviceCity || hotelData.city || hotelData.location || null,
+            country: serviceCountry || null
         };
 
         // Supplement + Remarks (from hotel modal)
@@ -20706,18 +20910,24 @@
         console.log('Guide data:', guideData);
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
         
         // Get city from guide modal selection or fallback to tour city
         const citySelect = document.getElementById('modal_guide_city_select');
-        let city = '';
-        if (citySelect && citySelect.value) {
-            city = citySelect.value;
-        } else {
+        const guideCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_guide_city_select')
+            : { city: '', country: '' };
+        let city = guideCityGeo.city || '';
+        if (!city) {
             // Fallback to tour city if available
             const tourCity = '{{ $tour->city ?? "" }}';
             city = tourCity || '';
         }
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                guideCityGeo.country || (guideData && guideData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (guideCityGeo.country || '');
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -20814,6 +21024,8 @@
             agent_id: agentId,
             remarks: guideRemarks,
             supplement: guideSupplement,
+            city: city || null,
+            country: country || null,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
@@ -23339,7 +23551,18 @@
         };
         
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const restaurantCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_restaurant_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                restaurantCityGeo.country || (restaurantData && restaurantData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (restaurantCityGeo.country || '');
+        const restaurantCity = restaurantCityGeo.city
+            || (restaurantData && (restaurantData.city || restaurantData.location))
+            || '';
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -23395,7 +23618,9 @@
             dmc_id: dmcUser.userId || "",
             bookingType: "enquiry",
             remarks: restaurantRemarks,
-            supplement: restaurantSupplement
+            supplement: restaurantSupplement,
+            city: restaurantCity || null,
+            country: country || null
         }];
         
         if (isMultiRestaurant && bookingData[0]) {
@@ -23623,8 +23848,20 @@
     }
     
     // City mode helpers (used by modals + tour header)
+    // Strips the "(Country)" and "[start→end]" decorations that city labels carry, e.g.
+    // "Singapore (Singapore) [2026-08-05→2026-08-07]" -> "Singapore".
     function normalizeCityText(s) {
-        return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
+        return (s || '')
+            .toString()
+            .replace(/\[[^\]]*\]/g, ' ')
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // Comparison key for two city labels that may differ in case or decoration.
+    function cityMatchKey(s) {
+        return normalizeCityText(s).toLowerCase();
     }
 
     function getCurrentCityMode() {
@@ -23663,16 +23900,34 @@
 
     function setSelectToCity(selectEl, cityValue) {
         if (!selectEl || !cityValue) return false;
-        const desired = normalizeCityText(cityValue);
+        const desired = cityMatchKey(cityValue);
         const opts = Array.from(selectEl.options || []);
-        const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-        let match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        const exact = opts.find(o => cityMatchKey(o.value) === desired) || opts.find(o => cityMatchKey(o.textContent) === desired);
+        let match = exact || opts.find(o => desired && cityMatchKey(o.textContent).startsWith(desired));
         if (!match) {
             // City not in the rendered option list (e.g. server filtered them out) — inject it so
-            // auto-fill still works instead of silently leaving the field empty.
+            // auto-fill still works instead of silently leaving the field empty. Use the normalized
+            // name so the value still matches the city stored on hotels/attractions/etc.
             match = document.createElement('option');
-            match.value = cityValue;
-            match.textContent = cityValue;
+            match.value = normalizeCityText(cityValue);
+            match.textContent = match.value;
+            // Copy country from the active multi-city segment (or single city) so order geo is correct
+            try {
+                let countryAttr = '';
+                const mode = getCurrentCityMode();
+                if (mode === 'multi') {
+                    const bundle = document.getElementById('segmentServicesBundle');
+                    const seg = bundle ? bundle.closest('.segment') : null;
+                    const citySel = seg ? seg.querySelector('.city-select') : null;
+                    const segOpt = citySel && citySel.selectedOptions ? citySel.selectedOptions[0] : null;
+                    countryAttr = segOpt ? (segOpt.getAttribute('data-country') || '') : '';
+                } else {
+                    const sc = document.getElementById('single_city');
+                    const scOpt = sc && sc.selectedOptions ? sc.selectedOptions[0] : null;
+                    countryAttr = scOpt ? (scOpt.getAttribute('data-country') || '') : '';
+                }
+                if (countryAttr) match.setAttribute('data-country', countryAttr);
+            } catch (e) { /* ignore */ }
             selectEl.appendChild(match);
         }
 
@@ -23697,8 +23952,10 @@
         return true;
     }
 
-    function lockModalCitySelectIfSingle(selectEl) {
-        if (!selectEl || getCurrentCityMode() !== 'single') return;
+    // The city a service belongs to is decided by the tour's city plan (the single city, or the active
+    // segment in multi-city mode), so it is shown read-only in the service modals rather than editable.
+    function lockModalCitySelect(selectEl) {
+        if (!selectEl) return;
         selectEl.disabled = true;
         const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
         if ($sel && $sel.length && $sel.data('select2')) {
@@ -23727,7 +23984,7 @@
             const sel = modal.querySelector('#' + id);
             if (!sel) return;
             setSelectToCity(sel, city);
-            lockModalCitySelectIfSingle(sel);
+            lockModalCitySelect(sel);
         });
 
         const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
@@ -25128,6 +25385,64 @@
     }
 
     // Functions to load meals and dish types for restaurant edit form
+    function restoreSavedRestaurantMealDish(bookingId) {
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
+        const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
+        if (mealTypeSelect && currentMealType) {
+            const hasMeal = Array.from(mealTypeSelect.options || []).some(o => o.value === currentMealType);
+            if (!hasMeal) {
+                const opt = document.createElement('option');
+                opt.value = currentMealType;
+                opt.textContent = currentMealType;
+                opt.selected = true;
+                mealTypeSelect.appendChild(opt);
+            } else {
+                mealTypeSelect.value = currentMealType;
+            }
+        }
+        if (dishTypeSelect && currentDishType) {
+            const hasDish = Array.from(dishTypeSelect.options || []).some(o => o.value === currentDishType);
+            if (!hasDish) {
+                const opt = document.createElement('option');
+                opt.value = currentDishType;
+                opt.textContent = currentDishType;
+                opt.selected = true;
+                dishTypeSelect.appendChild(opt);
+            } else {
+                dishTypeSelect.value = currentDishType;
+            }
+        }
+    }
+
+    function resolveRestaurantIdForEdit(selectedOption) {
+        if (!selectedOption) return '';
+        let restaurantId = selectedOption.getAttribute('data-restaurant-id') || '';
+        if (restaurantId) return restaurantId;
+
+        const name = (selectedOption.value || '').toString().trim();
+        if (!name) return '';
+
+        // Fall back to master restaurants list loaded on the page
+        try {
+            window.__editformRestaurants = window.__editformRestaurants || @json($restaurants ?? []);
+            const match = (window.__editformRestaurants || []).find(function (r) {
+                return String(r.name || '').toLowerCase() === name.toLowerCase();
+            });
+            if (match) {
+                restaurantId = String(match.restaurant_id || match.id || '');
+                if (restaurantId) {
+                    selectedOption.setAttribute('data-restaurant-id', restaurantId);
+                    try {
+                        selectedOption.setAttribute('data-restaurant-data', JSON.stringify(match));
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return restaurantId;
+    }
+
     function loadRestaurantMealsForEdit(bookingId) {
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
         const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
@@ -25142,12 +25457,10 @@
         const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
         const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
         
-        // Clear dependent dropdowns
-        mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
-        dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
-        
         const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) {
+            mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+            if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
             return;
         }
         
@@ -25158,6 +25471,10 @@
             handleMultiRestaurantSelectedForEdit(bookingId, selectedValue);
             return;
         }
+        
+        // Clear dependent dropdowns only after we know a restaurant is selected
+        mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+        if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
         
         // Show transport section for normal restaurants
         const transportSection = document.getElementById(`restaurant_transport_section_${bookingId}`);
@@ -25174,7 +25491,7 @@
         
         // Try to get restaurant data from data attribute
         const restaurantDataStr = selectedOption.getAttribute('data-restaurant-data');
-        const restaurantId = selectedOption.getAttribute('data-restaurant-id');
+        let restaurantId = resolveRestaurantIdForEdit(selectedOption);
         
         if (restaurantDataStr) {
             try {
@@ -25188,6 +25505,9 @@
                     }
                     return;
                 }
+                if (!restaurantId) {
+                    restaurantId = String(restaurantData.restaurant_id || restaurantData.id || '');
+                }
             } catch (error) {
                 console.error('Error parsing restaurant data:', error);
             }
@@ -25196,7 +25516,11 @@
         // Try to fetch meals from API
         if (restaurantId) {
             fetchMealsForRestaurantEdit(restaurantId, mealTypeSelect, bookingId, currentMealType, currentDishType);
+            return;
         }
+
+        // No restaurant id available — keep saved meal/dish visible instead of empty placeholders
+        restoreSavedRestaurantMealDish(bookingId);
     }
     
     function populateMealTypesForEdit(mealTypeSelect, meals, currentMealType = '') {
@@ -25244,13 +25568,14 @@
             const dmcId = document.getElementById('dmc_id')?.value;
             if (!dmcId) {
                 console.error('DMC ID not found');
+                if (bookingId) restoreSavedRestaurantMealDish(bookingId);
                 return;
             }
             
             const response = await fetch(`{{ route('api.restaurant.details') }}?restaurantId=${restaurantId}&dmc_id=${dmcId}`);
             const data = await response.json();
             
-            if (data.success && data.meals && Array.isArray(data.meals)) {
+            if (data.success && data.meals && Array.isArray(data.meals) && data.meals.length > 0) {
                 // Convert API format to expected format
                 const meals = data.meals.map(meal => ({
                     meal_id: meal.meal_id,
@@ -25263,12 +25588,22 @@
                     price: meal.price
                 }));
                 populateMealTypesForEdit(mealTypeSelect, meals, currentMealType);
+                // Ensure saved dish is restored if dish loader didn't select it
+                if (bookingId && currentDishType) {
+                    const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+                    if (dishTypeSelect && !dishTypeSelect.value) {
+                        restoreSavedRestaurantMealDish(bookingId);
+                    }
+                }
                 if (bookingId && typeof updateRestaurantPriceForEdit === 'function') {
                     updateRestaurantPriceForEdit(bookingId);
                 }
+            } else if (bookingId) {
+                restoreSavedRestaurantMealDish(bookingId);
             }
         } catch (error) {
             console.error('Error fetching meals for restaurant:', error);
+            if (bookingId) restoreSavedRestaurantMealDish(bookingId);
         }
     }
     
@@ -25688,6 +26023,13 @@
                 if (!dishTypeSelect.value && currentDishType) {
                     dishTypeSelect.value = dishTypeMatch[1];
                 }
+            } else if (currentDishType) {
+                // Saved booking may only have meal period text ("Breakfast") — restore dish from hidden field
+                const dishOption = document.createElement('option');
+                dishOption.value = currentDishType;
+                dishOption.textContent = currentDishType;
+                dishOption.selected = true;
+                dishTypeSelect.appendChild(dishOption);
             }
             return;
         }
@@ -26877,7 +27219,7 @@
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
         if (!csrfToken) throw new Error('CSRF token not found');
 
-        try { if (typeof updateCityHiddenField === 'function') updateCityHiddenField(); } catch (e) { /* ignore */ }
+        try { if (typeof window.updateCityHiddenField === 'function') window.updateCityHiddenField(); } catch (e) { /* ignore */ }
         const city = (document.getElementById('city') || {}).value || '';
         const cityType =
             (document.querySelector('input[name="city_type"]:checked') || {}).value ||
@@ -27182,6 +27524,16 @@
                         throw new Error(errorMessage);
                     }
                     
+                    // Also persist the city selection before reloading (see comment above).
+                    try {
+                        const cityTypeNow2 = (document.querySelector('input[name="city_type"]:checked') || {}).value || 'single';
+                        if (cityTypeNow2 === 'multi') {
+                            await persistCityPlansNow();
+                        }
+                    } catch (cityErr) {
+                        console.error('Failed to persist city plans after tour info update:', cityErr);
+                    }
+
                     // Show success feedback with deleted services count
                     const deletedCount = confirmData.deleted_services_count || 0;
                     const successMsg = confirmData.message || 'Tour information updated successfully.';
@@ -27227,6 +27579,19 @@
                 }
                 
                 throw new Error(errorMessage);
+            }
+
+            // Also persist the city selection (master-list cities plus any dated city plans).
+            // This makes sure a city just added to the multi-city list is saved even before
+            // it has a date range — "Update Tour Information" shouldn't silently drop it.
+            try {
+                const cityTypeNow = (document.querySelector('input[name="city_type"]:checked') || {}).value || 'single';
+                if (cityTypeNow === 'multi') {
+                    await persistCityPlansNow();
+                }
+            } catch (cityErr) {
+                console.error('Failed to persist city plans after tour info update:', cityErr);
+                showToastr('warning', 'Tour info updated, but saving the city selection failed: ' + (cityErr && cityErr.message ? cityErr.message : 'Unknown error'));
             }
 
             // Show success feedback
@@ -27739,24 +28104,24 @@
 
         function parseSegmentsFromDbCity(raw) {
             const s = (raw || '').toString();
-            const out = [];
-            // Match: City Name [YYYY-MM-DD→YYYY-MM-DD]
-            const re = /([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/g;
-            let m;
-            while ((m = re.exec(s)) !== null) {
-                const cityDisplay = (m[1] || '').trim(); // may include "(Country)"
-                const city = normalizeCityValue(cityDisplay); // option value is city name only
-                const start = (m[2] || '').trim();
-                const end = (m[3] || '').trim();
-                if (city) out.push({ city, cityDisplay, start, end });
-            }
-            if (out.length) return out;
-
-            // Fallback: CSV of cities without dates
+            if (!s.trim()) return [];
+            // Each comma-separated token is either "City Name [YYYY-MM-DD→YYYY-MM-DD]" (dated)
+            // or just "City Name" (a city added without a date range yet — blank-date entry).
+            // Handling both per-token (instead of only ever returning one or the other) keeps
+            // mixed strings like "Singapore [2026-08-05→2026-08-07], Batam" from losing cities.
+            const dateRe = /^(.*?)\s*\[\s*(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\s*\]$/;
             return s.split(',')
                 .map(t => t.trim())
                 .filter(Boolean)
-                .map(cityDisplay => ({ city: normalizeCityValue(cityDisplay), cityDisplay, start: '', end: '' }));
+                .map(token => {
+                    const m = token.match(dateRe);
+                    if (m) {
+                        const cityDisplay = (m[1] || '').trim();
+                        return { city: normalizeCityValue(cityDisplay), cityDisplay, start: (m[2] || '').trim(), end: (m[3] || '').trim() };
+                    }
+                    return { city: normalizeCityValue(token), cityDisplay: token, start: '', end: '' };
+                })
+                .filter(p => p.city);
         }
 
         function updateCityHiddenField() {
@@ -27765,9 +28130,15 @@
             if (!cityHidden) return;
 
             if (mode === 'multi') {
-                // Prefer segments (city plans) since DB stores city+date ranges
+                // Build one token per segment (with dates when the segment has them), then
+                // append any master-list city that doesn't have a segment yet as a blank
+                // (date-less) token. This way, adding a city to the master list is always
+                // saved — even before a city plan/date range exists for it — and once a
+                // segment with dates is created for that city, its existing token simply
+                // gains the date range instead of a duplicate entry being added.
                 const segs = Array.from(document.querySelectorAll('#segmentsWrapper .segment'));
                 const parts = [];
+                const citiesWithSegment = new Set();
                 for (const seg of segs) {
                     const citySel = seg.querySelector('.city-select');
                     const startEl = seg.querySelector('.start-date');
@@ -27781,21 +28152,30 @@
                     const display = opt ? (opt.textContent || '').trim() : '';
                     const cityToken = display || cityVal;
                     parts.push(st && en ? `${cityToken} [${st}→${en}]` : cityToken);
-                }
-                if (parts.length) {
-                    cityHidden.value = parts.join(', ');
-                    return;
+                    citiesWithSegment.add(normalizeCityValue(cityVal));
                 }
 
-                // Otherwise fall back to master list
+                // Append master-list cities that don't have a segment/date yet (blank-date entries).
                 const mc = document.getElementById('multi_cities');
-                const vals = mc ? Array.from(mc.selectedOptions).map(o => (o.value || '').trim()).filter(Boolean) : [];
-                cityHidden.value = vals.join(', ');
+                if (mc) {
+                    Array.from(mc.selectedOptions).forEach(o => {
+                        const cityVal = (o.value || '').trim();
+                        if (!cityVal || citiesWithSegment.has(normalizeCityValue(cityVal))) return;
+                        const display = (o.textContent || '').trim() || cityVal;
+                        parts.push(display);
+                    });
+                }
+
+                cityHidden.value = parts.join(', ');
             } else {
                 const sc = document.getElementById('single_city');
                 cityHidden.value = sc ? (sc.value || '') : '';
             }
         }
+        // Exposed on window because this IIFE-scoped function is also called (defensively,
+        // via `typeof window.updateCityHiddenField === 'function'`) from persistCityPlansNow(),
+        // which is defined outside this IIFE and otherwise couldn't reach it.
+        window.updateCityHiddenField = updateCityHiddenField;
 
         function setCityTypeMode(mode) {
             const isMulti = mode === 'multi';
@@ -27804,9 +28184,12 @@
             const mcMaster = document.getElementById('multiCityMasterField');
             const agencyCol = document.getElementById('agencyCol');
             const agentCol = document.getElementById('agentCol');
+            const discountCol = document.getElementById('discountAmountCol');
             if (mc) mc.classList.toggle('d-none', !isMulti);
             if (sc) sc.classList.toggle('d-none', isMulti);
             if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
+            // Discount amount is single-city only
+            if (discountCol) discountCol.classList.toggle('d-none', isMulti);
 
             // No stretching needed: in multi-city we show master cities in the 6-col slot.
 
@@ -27877,8 +28260,24 @@
         }
 
         function buildSegmentOptions(masterCities) {
+            const mc = document.getElementById('multi_cities');
+            const countryByCity = {};
+            try {
+                if (mc) {
+                    Array.from(mc.options || []).forEach(function (opt) {
+                        const name = (opt.value || '').toString().trim();
+                        const country = (opt.getAttribute('data-country') || '').toString().trim();
+                        if (name) countryByCity[name] = country;
+                    });
+                }
+            } catch (e) { /* ignore */ }
             return ['<option value="">Select city...</option>']
-                .concat(masterCities.map(c => `<option value="${String(c).replace(/"/g, '&quot;')}">${String(c)}</option>`))
+                .concat(masterCities.map(function (c) {
+                    const name = String(c);
+                    const country = countryByCity[name] || countryByCity[name.trim()] || '';
+                    const countryAttr = country ? ` data-country="${String(country).replace(/"/g, '&quot;')}"` : '';
+                    return `<option value="${name.replace(/"/g, '&quot;')}"${countryAttr}>${name}</option>`;
+                }))
                 .join('');
         }
 
@@ -27946,9 +28345,9 @@
                                         style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
                                     <i class="ri-close-line"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger removeSegment" title="Remove this city plan row">
+                                <button type="button" class="btn btn-outline-danger removeSegment" title="Remove this city plan row"
+                                        style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
                                     <i class="ri-close-line"></i>
-                                    <span>Remove</span>
                                 </button>
                             </div>
                         </div>
@@ -27986,8 +28385,10 @@
                     </div>
                 </div>`;
 
-            wrap.insertAdjacentHTML('beforeend', segmentHTML);
-            const seg = wrap.querySelector('.segment:last-child');
+            // New empty plans go to the top (easier to fill); DB-prefilled rows append to keep order.
+            const isNewEmpty = !(prefill && (prefill.city || prefill.cityDisplay || prefill.start || prefill.end));
+            wrap.insertAdjacentHTML(isNewEmpty ? 'afterbegin' : 'beforeend', segmentHTML);
+            const seg = wrap.querySelector(isNewEmpty ? '.segment:first-child' : '.segment:last-child');
             if (!seg) return;
             if (prefill && prefill.city) {
                 const citySel = seg.querySelector('.city-select');
@@ -28237,7 +28638,10 @@
             const bs = normalizeDateToISO(bStart);
             const be = normalizeDateToISO(bEnd);
             if (!as || !ae || !bs || !be) return false;
-            return as <= be && ae >= bs;
+            // Touching at a single day (e.g. Singapore 3→4 then Malaysia 4→6) is allowed —
+            // that shared day is just checkout from one city and checkin to the next. Only an
+            // actual overlap of more than that boundary day should be blocked.
+            return as < be && ae > bs;
         }
 
         function segmentHasOverlap(seg) {
@@ -28323,25 +28727,58 @@
             } catch (e) { /* ignore */ }
         }
 
-        function applyServiceDateFilter(segStart, segEnd, segCity) {
+        function applyServiceDateFilter(segStart, segEnd, segCity, segCountry) {
             if (!segStart || !segEnd) return;
             try {
                 const wantCity = normalizeCityValue(segCity || '').toLowerCase();
+                const wantCountry = (segCountry || '').toString().trim().toLowerCase();
                 const segS = normalizeDateToISO(segStart);
                 const segE = normalizeDateToISO(segEnd);
                 if (!segS || !segE) return;
 
-                // Single-date services
+                const serviceMatchesSegmentGeo = function (el) {
+                    const cAttr = normalizeCityValue(el.getAttribute('data-service-city') || '').toLowerCase();
+                    const countryAttr = (el.getAttribute('data-service-country') || '').toString().trim().toLowerCase();
+                    // No geo on the service card (legacy rows) → allow date-only
+                    if (!cAttr && !countryAttr) return null;
+                    if (wantCity && cAttr) {
+                        return cAttr === wantCity;
+                    }
+                    if (wantCountry && countryAttr) {
+                        return countryAttr === wantCountry;
+                    }
+                    // Service has geo but segment geo unknown → don't force-hide
+                    if (!wantCity && !wantCountry) return true;
+                    // Service geo cannot match this segment (e.g. Singapore under Bali)
+                    return false;
+                };
+
+                const applyGeoAwareVisibility = function (el, dateOk) {
+                    const geoOk = serviceMatchesSegmentGeo(el);
+                    if (geoOk === false) {
+                        // Wrong city/country for this stay — never show here
+                        el.classList.toggle('d-none', true);
+                        return;
+                    }
+                    if (geoOk === true) {
+                        // Correct city/country — show on this stay (date is secondary)
+                        el.classList.toggle('d-none', false);
+                        return;
+                    }
+                    // Legacy: no geo attrs → date range only
+                    el.classList.toggle('d-none', !dateOk);
+                };
+
+                // Single-date services (restaurants, attractions, guides, transfers)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date]').forEach(function (el) {
                     const d = (el.getAttribute('data-service-date') || '').trim();
-                    if (!d) return; // if unknown date, keep visible
+                    if (!d) return;
                     const di = normalizeDateToISO(d);
                     if (!di) return;
-                    const ok = di >= segS && di <= segE;
-                    el.classList.toggle('d-none', !ok);
+                    applyGeoAwareVisibility(el, di >= segS && di <= segE);
                 });
 
-                // Range services (hotels): show if overlaps the segment range
+                // Range services (hotels)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-start][data-service-end]').forEach(function (el) {
                     const s = (el.getAttribute('data-service-start') || '').trim();
                     const e = (el.getAttribute('data-service-end') || '').trim();
@@ -28349,13 +28786,7 @@
                     const si = normalizeDateToISO(s);
                     const ei = normalizeDateToISO(e);
                     if (!si || !ei) return;
-                    const ok = si <= segE && ei >= segS;
-                    let cityOk = true;
-                    const cAttr = (el.getAttribute('data-service-city') || '').trim();
-                    if (wantCity && cAttr) {
-                        cityOk = normalizeCityValue(cAttr).toLowerCase() === wantCity;
-                    }
-                    el.classList.toggle('d-none', !(ok && cityOk));
+                    applyGeoAwareVisibility(el, si <= segE && ei >= segS);
                 });
             } catch (e) { /* ignore */ }
         }
@@ -28402,6 +28833,26 @@
                 return;
             }
 
+            // Switching away from a different segment: close its panel so it doesn't stay
+            // stuck in a stale "open" state. Without this, that segment's header still
+            // looks/behaves as open, so the click handler below would think there's nothing
+            // to do and Bootstrap's native toggle would just close it again on the next
+            // click — without ever moving the shared services bundle back into it. That's
+            // what made "Add Service" appear to stop working when switching cities back and forth.
+            if (!wasActive && _activeSegmentEl) {
+                try {
+                    const prevCollapse = _activeSegmentEl.querySelector('.segment-body-collapse');
+                    if (prevCollapse && prevCollapse.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                            const inst = bootstrap.Collapse.getInstance(prevCollapse) || new bootstrap.Collapse(prevCollapse, { toggle: false });
+                            inst.hide();
+                        } else {
+                            prevCollapse.classList.remove('show');
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
             // Update segment header UI
             const header = seg.querySelector('.segment-header');
             const title = seg.querySelector('.segment-title');
@@ -28442,22 +28893,35 @@
 
             // Filter services to segment date range (e.g. 26–30 Apr shows only services in that range)
             clearServiceDateFilter();
-            applyServiceDateFilter(start, end, citySel.value);
+            applyServiceDateFilter(
+                start,
+                end,
+                citySel.value,
+                (citySel.selectedOptions && citySel.selectedOptions[0])
+                    ? (citySel.selectedOptions[0].getAttribute('data-country') || '')
+                    : ''
+            );
 
             applySegmentStayDateBadges(start, end);
 
-            // Auto-open the first service accordion (Hotel) when segment becomes valid.
-            try {
-                const el = document.getElementById('hotelAccommodationsSection');
-                if (el && !el.classList.contains('show')) {
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                        const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
-                        inst.show();
-                    } else {
-                        el.classList.add('show');
+            // Auto-open the first service accordion (Hotel) only the first time this segment
+            // becomes active. Without the !wasActive guard, every click anywhere inside an
+            // already-active segment re-ran this and force-reopened Hotel — which, since all
+            // service sections share one Bootstrap accordion, silently closed whichever section
+            // (e.g. Attraction) the user had manually opened.
+            if (!wasActive) {
+                try {
+                    const el = document.getElementById('hotelAccommodationsSection');
+                    if (el && !el.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                            const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
+                            inst.show();
+                        } else {
+                            el.classList.add('show');
+                        }
                     }
-                }
-            } catch (e) { /* ignore */ }
+                } catch (e) { /* ignore */ }
+            }
         }
 
         // React when user edits a segment row
@@ -28491,18 +28955,29 @@
 
         // When clicking the date-range accordion bar, also activate services for that stay.
         // This makes the behavior match "All services for this stay".
+        //
+        // IMPORTANT: this must run in the capture phase and take full control (preventDefault +
+        // stopPropagation) whenever it decides to switch to a *different* segment. The header
+        // also carries Bootstrap's native data-bs-toggle="collapse" attribute; if we let that
+        // fire too, it independently opens/closes the panel based on whatever "show" state it
+        // was left in — which could be stale (e.g. still "show" from when this segment was last
+        // active). That race is what made clicking back to a previously-used city (e.g. Singapore,
+        // after switching to Malaysia) sometimes just close the row without ever bringing the
+        // service forms/buttons back, making "Add Service" look blocked.
         document.addEventListener('click', function (e) {
             const headerBtn = e.target && (e.target.closest ? e.target.closest('#segmentsWrapper .segment-header [data-bs-target]') : null);
             if (!headerBtn) return;
             const seg = headerBtn.closest('.segment');
             if (!seg) return;
-            // Don't fight the user's intent if they are closing an already-active segment.
-            const collapse = seg.querySelector('.segment-body-collapse');
-            const isOpen = !!(collapse && collapse.classList.contains('show'));
-            if (_activeSegmentEl !== seg && !isOpen) {
-                activateSegmentForServices(seg);
-            }
-        });
+            // Already the active segment: don't fight the user's intent — let Bootstrap's
+            // native toggle simply open/close this row's panel as normal.
+            if (_activeSegmentEl === seg) return;
+            // Switching to a different segment: fully own this click so it always (re)activates,
+            // regardless of whatever stale open/closed state the panel happens to be in.
+            e.preventDefault();
+            e.stopPropagation();
+            activateSegmentForServices(seg);
+        }, true);
 
         // Make sure the mini arrow button doesn't double-toggle (it sits inside a clickable collapse header).
         document.addEventListener('click', function (e) {
@@ -28511,7 +28986,16 @@
             e.preventDefault();
             e.stopPropagation();
             const seg = btn.closest('.segment');
-            const collapse = seg ? seg.querySelector('.segment-body-collapse') : null;
+            if (!seg) return;
+            // If this segment isn't the active one, activate it (moves the shared services
+            // bundle into it) instead of blindly toggling — otherwise the panel would just
+            // open empty, since the actual service forms/buttons live in the one shared
+            // bundle that only ever lives inside whichever segment is currently active.
+            if (_activeSegmentEl !== seg) {
+                activateSegmentForServices(seg);
+                return;
+            }
+            const collapse = seg.querySelector('.segment-body-collapse');
             if (!collapse) return;
             try {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
@@ -28599,6 +29083,11 @@
                             const dc = (data.data && typeof data.data.deleted_services_count !== 'undefined') ? data.data.deleted_services_count : null;
                             showToastr('success', dc !== null ? `City plan removed. ${dc} service(s) removed.` : 'City plan removed.');
                         }
+                        // Reload so soft-deleted services disappear from the edit form
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 900);
+                        return;
                     } else {
                         // Not saved yet: just remove from UI
                         if (typeof showToastr === 'function') showToastr('success', 'City plan removed.');
@@ -28639,11 +29128,17 @@
                     const cityVal = (citySel && citySel.value ? citySel.value : (cityInp && cityInp.value ? cityInp.value : '')).trim();
                     const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
                     const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
-                    if (!cityVal || !st || !en) {
-                        if (typeof showToastr === 'function') showToastr('error', 'Please select City, Stay from, and Stay until.');
+                    // A city can be saved on its own with a blank date range — the date range
+                    // can be added and saved later without needing to re-add the city.
+                    if (!cityVal) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please select a City.');
                         return;
                     }
-                    if (segmentHasOverlap(seg)) {
+                    if ((st || en) && !(st && en)) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please provide both Stay from and Stay until, or leave both blank.');
+                        return;
+                    }
+                    if (st && en && segmentHasOverlap(seg)) {
                         if (typeof showToastr === 'function') showToastr('error', 'These dates are already booked in another city plan.');
                         return;
                     }
@@ -28738,3 +29233,4 @@
     })();
 </script>
 @endsection
+ 

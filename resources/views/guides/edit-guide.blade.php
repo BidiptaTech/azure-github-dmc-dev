@@ -170,7 +170,18 @@
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 <span class="d-flex align-items-center flex-wrap gap-2">
                     Edit Guide Details
-                    <x-currency-price-note />
+                    @php
+                        $guideNoteCountry = trim((string) ($guide->country ?? $selectedCountry ?? ''));
+                        $guideNoteCurrency = $guideNoteCountry !== ''
+                            ? \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($guideNoteCountry)])->value('currency')
+                            : null;
+                    @endphp
+                    <x-currency-price-note
+                        :country="$guideNoteCountry !== '' ? $guideNoteCountry : null"
+                        :currency="$guideNoteCurrency"
+                        :watch-country="true"
+                        country-select-id="country"
+                    />
                 </span>
                 <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
@@ -297,27 +308,35 @@
                                 @enderror
                             </div>
                             
-                            <!-- Country -->
+                            <!-- Country (Master DMC countries) -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                
-                                @if(in_array(auth()->user()->role_id, [1, 20]))
-                                    <select class="form-control" id="country" name="country" required disabled onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                @php
+                                    $scopedCountries = collect($masterDmcCountries ?? $country ?? []);
+                                    $editSelectedCountry = old('country', $selectedCountry ?? $guide->country ?? '');
+                                    // Ensure the guide's saved country is always available in the select.
+                                    if (filled($editSelectedCountry) && !$scopedCountries->contains(function ($c) use ($editSelectedCountry) {
+                                        return strcasecmp(trim((string) ($c->name ?? '')), trim((string) $editSelectedCountry)) === 0;
+                                    })) {
+                                        $missingCountry = \App\Models\Country::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim((string) $editSelectedCountry))])->first();
+                                        if ($missingCountry) {
+                                            $scopedCountries = $scopedCountries->prepend($missingCountry)->unique('id')->values();
+                                        }
+                                    }
+                                @endphp
+                                <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                    @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
-                                        @foreach($country as $countryOption)
-                                            <option value="{{ $countryOption->name }}" 
-                                                {{ $guide->country == $countryOption->name ? 'selected' : '' }}>
-                                                {{ $countryOption->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <input type="hidden" name="country" value="{{ $guide->country }}">
-                                @else
-                                    <input id="country" class="form-control" type="text" value="{{$guide->country}}" onchange="validateDriverAge(document.getElementById('driver_age'))" readonly>
-                                @endif
-                                
+                                    @endif
+                                    @foreach($scopedCountries as $countryOption)
+                                        <option value="{{ $countryOption->name }}"
+                                            {{ strcasecmp(trim((string) $editSelectedCountry), trim((string) $countryOption->name)) === 0 ? 'selected' : '' }}>
+                                            {{ $countryOption->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -327,11 +346,9 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 <select name="city" id="citySelect" class="form-control" required>
-                                    <option value="{{ $guide->city }}">{{ $guide->city }}</option>
+                                    <option value="">Select City</option>
                                     @foreach($city as $c)
-                                        @if($c->name != $guide->city)
-                                            <option value="{{ $c->name }}">{{ $c->name }}</option>
-                                        @endif
+                                        <option value="{{ $c->name }}" {{ old('city', $guide->city) == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('city')
@@ -567,29 +584,43 @@
                             <fieldset id="rate" class="border p-4 rounded mb-4">
                                 <h5 class="card-title mb-3">Rates</h5>
                                 <div class="row">
-                                    <!-- Minimum Sell Price -->
-                                    <div class="col-md-3">
-                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
-                                                class="text-danger">*</span></label>
-                                        <input value="{{$guide->day_rate}}" type="text" id="day_rate"
-                                            class="form-control" name="day_rate" placeholder="Enter Minimum Sell Price" required
-                                            oninput="validateNumericPrice(this); calculateEditHourlyRates();">
-                                        <small class="validation-message text-danger" id="day_rate-validation-message"></small>
-                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
-                                        @error('day_rate')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_margin" class="form-label"><strong>Profit (margin)</strong></label>
+                                        <select id="guide_profit_margin" class="form-select js-guide-profit-type">
+                                            <option value="percentage" selected>%</option>
+                                            <option value="flat">Flat</option>
+                                        </select>
+                                        <small class="text-muted">Helper only — not saved</small>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="guide_profit_amount" class="form-label"><strong>Profit amount</strong></label>
+                                        <input type="number" id="guide_profit_amount" class="form-control js-guide-profit-amount"
+                                               value="0" min="0" step="0.01" placeholder="Enter profit amount">
+                                        <small class="text-muted">Auto-fills Sell from Cost</small>
                                     </div>
 
-                                    <!-- Minimum Cost Price -->
+                                    <!-- Minimum Cost then Sell -->
                                     <div class="col-md-3">
                                         <label for="minimum_cost_price" class="form-label"><strong>Minimum Cost Price</strong><span
                                                 class="text-danger">*</span></label>
                                         <input value="{{ old('minimum_cost_price', $guide->minimum_cost_price) }}" type="text" id="minimum_cost_price"
-                                            class="form-control" name="minimum_cost_price" placeholder="Enter Minimum Cost Price" required
-                                            oninput="validateNumericPrice(this); calculateEditHourlyCostRates();">
+                                            class="form-control js-guide-cost" name="minimum_cost_price" data-sell-target="day_rate"
+                                            placeholder="Enter Minimum Cost Price" required
+                                            oninput="validateNumericPrice(this); calculateEditHourlyCostRates(); applyGuideProfitToSells(true);">
                                         <small class="validation-message text-danger" id="minimum_cost_price-validation-message"></small>
                                         @error('minimum_cost_price')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="day_rate" class="form-label"><strong>Minimum Sell Price</strong><span
+                                                class="text-danger">*</span></label>
+                                        <input value="{{$guide->day_rate}}" type="text" id="day_rate"
+                                            class="form-control js-guide-sell" name="day_rate" placeholder="Enter Minimum Sell Price" required
+                                            oninput="validateNumericPrice(this); calculateEditHourlyRates();">
+                                        <small class="validation-message text-danger" id="day_rate-validation-message"></small>
+                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
+                                        @error('day_rate')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
                                     </div>
@@ -630,156 +661,137 @@
                                         @enderror
                                     </div>
 
-                                    {{-- <!-- Night Start Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_start_time" class="form-label"><strong>Night Start Time</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->night_start_time}}" id="night_start_time" type="text" class="form-control" name="night_start_time" placeholder="Select start time" required>
-                                        @error('night_start_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
+                                    <!-- Hourly Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text" id="hourly_cost_price"
+                                            class="form-control js-guide-cost" name="hourly_cost_price" data-sell-target="hourly_price"
+                                            placeholder="Enter Hourly Cost Price"
+                                            required oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
+                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-
-                                    <!-- Night End Time -->
-                                    <div class="col-md-2">
-                                        <label for="night_end_time" class="form-label"><strong>Night End Time</strong><span class="text-danger">*</span></label>
-                                        <input value="{{$guide->night_end_time}}" id="night_end_time" type="text" class="form-control" name="night_end_time" placeholder="Select end time" required>
-                                        @error('night_end_time')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                        @enderror
-                                    </div> --}}
-
-                                    <!-- Night Time Error Popup -->
-                                    {{-- <div id="timeErrorPopup" class="time-error-popup">
-                                        <p>
-                                            <i class="fas fa-exclamation-triangle"></i> <!-- Font Awesome Icon -->
-                                            Night End Time must be after the Night Start Time.
-                                        </p>
-                                    </div> --}}
-
-                                    <!-- Hourly Sell / Cost Price -->
                                     <div class="col-md-3 mb-3">
                                         <label for="hourly_price" class="form-label"><strong>Hourly Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('hourly_price', $guide->hourly_price) }}" type="text" id="hourly_price"
-                                            class="form-control" name="hourly_price" placeholder="Enter Hourly Sell Price"
+                                            class="form-control js-guide-sell" name="hourly_price" placeholder="Enter Hourly Sell Price"
                                             required oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="hourly_price-validation-message"></small>
                                         @error('hourly_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="hourly_cost_price" class="form-label"><strong>Hourly Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('hourly_cost_price', $guide->hourly_cost_price) }}" type="text" id="hourly_cost_price"
-                                            class="form-control" name="hourly_cost_price" placeholder="Enter Hourly Cost Price"
-                                            required oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="hourly_cost_price-validation-message"></small>
-                                        @error('hourly_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Two Hour Sell / Cost Price -->
+                                    <!-- Two Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text" id="two_hour_cost_price"
+                                            class="form-control js-guide-cost" name="two_hour_cost_price" data-sell-target="two_hour_price"
+                                            placeholder="Enter Two Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
+                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="two_hour_price" class="form-label"><strong>Two Hour Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('two_hour_price', $guide->two_hour_price) }}" type="text" id="two_hour_price"
-                                            class="form-control" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required
+                                            class="form-control js-guide-sell" name="two_hour_price" placeholder="Enter Two Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="two_hour_price-validation-message"></small>
                                         @error('two_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="two_hour_cost_price" class="form-label"><strong>Two Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('two_hour_cost_price', $guide->two_hour_cost_price) }}" type="text" id="two_hour_cost_price"
-                                            class="form-control" name="two_hour_cost_price" placeholder="Enter Two Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="two_hour_cost_price-validation-message"></small>
-                                        @error('two_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Four Hour Sell / Cost Price -->
+                                    <!-- Four Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text" id="four_hour_cost_price"
+                                            class="form-control js-guide-cost" name="four_hour_cost_price" data-sell-target="four_hour_price"
+                                            placeholder="Enter Four Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
+                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="four_hour_price" class="form-label"><strong>Four Hour Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('four_hour_price', $guide->four_hour_price) }}" type="text" id="four_hour_price"
-                                            class="form-control" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required
+                                            class="form-control js-guide-sell" name="four_hour_price" placeholder="Enter Four Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="four_hour_price-validation-message"></small>
                                         @error('four_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="four_hour_cost_price" class="form-label"><strong>Four Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('four_hour_cost_price', $guide->four_hour_cost_price) }}" type="text" id="four_hour_cost_price"
-                                            class="form-control" name="four_hour_cost_price" placeholder="Enter Four Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="four_hour_cost_price-validation-message"></small>
-                                        @error('four_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Six Hour Sell / Cost Price -->
+                                    <!-- Six Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text" id="six_hour_cost_price"
+                                            class="form-control js-guide-cost" name="six_hour_cost_price" data-sell-target="six_hour_price"
+                                            placeholder="Enter Six Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
+                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="six_hour_price" class="form-label"><strong>Six Hour Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('six_hour_price', $guide->six_hour_price) }}" type="text" id="six_hour_price"
-                                            class="form-control" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required
+                                            class="form-control js-guide-sell" name="six_hour_price" placeholder="Enter Six Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="six_hour_price-validation-message"></small>
                                         @error('six_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="six_hour_cost_price" class="form-label"><strong>Six Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('six_hour_cost_price', $guide->six_hour_cost_price) }}" type="text" id="six_hour_cost_price"
-                                            class="form-control" name="six_hour_cost_price" placeholder="Enter Six Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="six_hour_cost_price-validation-message"></small>
-                                        @error('six_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Eight Hour Sell / Cost Price -->
+                                    <!-- Eight Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text" id="eight_hour_cost_price"
+                                            class="form-control js-guide-cost" name="eight_hour_cost_price" data-sell-target="eight_hour_price"
+                                            placeholder="Enter Eight Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
+                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="eight_hour_price" class="form-label"><strong>Eight Hour Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('eight_hour_price', $guide->eight_hour_price) }}" type="text" id="eight_hour_price"
-                                            class="form-control" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required
+                                            class="form-control js-guide-sell" name="eight_hour_price" placeholder="Enter Eight Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="eight_hour_price-validation-message"></small>
                                         @error('eight_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="eight_hour_cost_price" class="form-label"><strong>Eight Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('eight_hour_cost_price', $guide->eight_hour_cost_price) }}" type="text" id="eight_hour_cost_price"
-                                            class="form-control" name="eight_hour_cost_price" placeholder="Enter Eight Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="eight_hour_cost_price-validation-message"></small>
-                                        @error('eight_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Ten Hour Sell / Cost Price -->
+                                    <!-- Ten Hour Cost then Sell -->
+                                    <div class="col-md-3 mb-3">
+                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text" id="ten_hour_cost_price"
+                                            class="form-control js-guide-cost" name="ten_hour_cost_price" data-sell-target="ten_hour_price"
+                                            placeholder="Enter Ten Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
+                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
+                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="ten_hour_price" class="form-label"><strong>Ten Hour Sell Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('ten_hour_price', $guide->ten_hour_price) }}" type="text" id="ten_hour_price"
-                                            class="form-control" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required
+                                            class="form-control js-guide-sell" name="ten_hour_price" placeholder="Enter Ten Hour Sell Price" required
                                             oninput="validateNumericPrice(this)">
                                         <small class="validation-message text-danger" id="ten_hour_price-validation-message"></small>
                                         @error('ten_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="ten_hour_cost_price" class="form-label"><strong>Ten Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('ten_hour_cost_price', $guide->ten_hour_cost_price) }}" type="text" id="ten_hour_cost_price"
-                                            class="form-control" name="ten_hour_cost_price" placeholder="Enter Ten Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="ten_hour_cost_price-validation-message"></small>
-                                        @error('ten_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
 
-                                    <!-- Twelve Hour Sell / Cost Price -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text" id="twelve_hour_price"
-                                            class="form-control" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required
-                                            oninput="validateNumericPrice(this)">
-                                        <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
-                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                    </div>
+                                    <!-- Twelve Hour Cost then Sell -->
                                     <div class="col-md-3 mb-3">
                                         <label for="twelve_hour_cost_price" class="form-label"><strong>Twelve Hour Cost Price</strong><span class="text-danger">*</span></label>
                                         <input value="{{ old('twelve_hour_cost_price', $guide->twelve_hour_cost_price) }}" type="text" id="twelve_hour_cost_price"
-                                            class="form-control" name="twelve_hour_cost_price" placeholder="Enter Twelve Hour Cost Price" required
-                                            oninput="validateNumericPrice(this)">
+                                            class="form-control js-guide-cost" name="twelve_hour_cost_price" data-sell-target="twelve_hour_price"
+                                            placeholder="Enter Twelve Hour Cost Price" required
+                                            oninput="validateNumericPrice(this); applyGuideProfitToSells(true);">
                                         <small class="validation-message text-danger" id="twelve_hour_cost_price-validation-message"></small>
                                         @error('twelve_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="twelve_hour_price" class="form-label"><strong>Twelve Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                        <input value="{{ old('twelve_hour_price', $guide->twelve_hour_price) }}" type="text" id="twelve_hour_price"
+                                            class="form-control js-guide-sell" name="twelve_hour_price" placeholder="Enter Twelve Hour Sell Price" required
+                                            oninput="validateNumericPrice(this)">
+                                        <small class="validation-message text-danger" id="twelve_hour_price-validation-message"></small>
+                                        @error('twelve_hour_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
                             </fieldset>
@@ -817,6 +829,7 @@
 @endsection
 
 @section('scripts')
+@include('components.currency-price-note-dmc-script')
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.js"></script>
@@ -830,76 +843,57 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
-        // Initialize Select2 for city (only select from existing cities)
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+        if (typeof window.updateCurrencyPriceNoteFromCountry === 'function') {
+            window.updateCurrencyPriceNoteFromCountry(document.getElementById('country'));
+        }
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
             width: '100%'
         });
-        
-        // Handle country change for role_id 1 and 20 to load cities
-        var userRoleId = {{ auth()->user()->role_id }};
-        if ([1, 20].includes(userRoleId)) {
-            $('#country').on('change', function() {
-                var countryName = $(this).val();
-                var selectedCountryValue = $(this).val();
-                
-                if (!selectedCountryValue || selectedCountryValue === '') {
-                    // Country cleared, disable city field
-                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                    return;
-                }
-                
-                // Show loading state and disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-                
-                $.ajax({
-                    url: "{{ route('get.cities.by.country') }}",
-                    type: "GET",
-                    data: { 
-                        country: countryName
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        // Clear loading state
-                        $('#citySelect').empty();
-                        
-                        // Preserve current city if it exists in the new list
-                        var currentCity = '{{ $guide->city }}';
-                        var cityFound = false;
-                        
-                        // Add default option
-                        $('#citySelect').append('<option value="">Select a City</option>');
-                        
-                        // Add cities from response
-                        if (response.cities && response.cities.length > 0) {
-                            $.each(response.cities, function(key, city) {
-                                var isSelected = (city.name === currentCity) ? 'selected' : '';
-                                if (isSelected) cityFound = true;
-                                $('#citySelect').append('<option value="' + city.name + '" ' + isSelected + '>' + city.name + '</option>');
-                            });
-                            // Enable city field when cities are loaded
-                            $('#citySelect').prop('disabled', false);
-                        } else {
-                            // No cities found, keep disabled
-                            $('#citySelect').append('<option value="">No cities available</option>');
-                        }
-                        
-                        // If current city not found, add it as selected option
-                        if (currentCity && !cityFound) {
-                            $('#citySelect').append('<option value="' + currentCity + '" selected>' + currentCity + '</option>');
-                            $('#citySelect').prop('disabled', false);
-                        }
-                        
-                        // Trigger change to refresh Select2
-                        $('#citySelect').trigger('change');
-                    },
-                    error: function(xhr, status, error) {
-                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+
+        var currentCity = @json(old('city', $guide->city ?? ''));
+
+        function loadCitiesByCountry(countryName, preserveCity) {
+            if (!countryName) {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+            $.ajax({
+                url: "{{ route('get.cities.by.country') }}",
+                type: "GET",
+                data: { country: countryName },
+                dataType: 'json',
+                success: function(response) {
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
+                    if (response.cities && response.cities.length > 0) {
+                        $.each(response.cities, function(key, city) {
+                            var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                            $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
+                        });
+                        $('#citySelect').prop('disabled', false);
+                    } else {
+                        $('#citySelect').append('<option value="">No cities available</option>');
                     }
-                });
+                    $('#citySelect').trigger('change');
+                },
+                error: function() {
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+                }
             });
         }
+
+        $('#country').on('change', function() {
+            loadCitiesByCountry($(this).val(), false);
+        });
     });
 </script>
 
@@ -1773,6 +1767,9 @@
         };
         
         updateEditCalculatedRates(hourMultipliers, baseCost);
+        if (typeof applyGuideProfitToSells === 'function') {
+            applyGuideProfitToSells(true);
+        }
     }
 
     function updateEditCalculatedRates(hourMultipliers, baseRate) {
@@ -1839,7 +1836,47 @@
             icon.classList.add('ri-eye-off-line');
         }
     });
+
+    window.applyGuideProfitToSells = function(force) {
+        function round2(n) {
+            return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+        }
+        function calcSellFromCost(cost, type, amount) {
+            const c = parseFloat(cost);
+            const a = parseFloat(amount);
+            const costVal = isNaN(c) ? 0 : c;
+            const amtVal = isNaN(a) ? 0 : a;
+            if (costVal <= 0) return 0;
+            if (type === 'flat') return round2(costVal + amtVal);
+            return round2(costVal + (costVal * amtVal / 100));
+        }
+        const typeEl = document.querySelector('.js-guide-profit-type');
+        const amountEl = document.querySelector('.js-guide-profit-amount');
+        const type = typeEl ? typeEl.value : 'percentage';
+        const amount = amountEl ? amountEl.value : 0;
+
+        document.querySelectorAll('.js-guide-cost[data-sell-target]').forEach(function (costEl) {
+            const sellId = costEl.getAttribute('data-sell-target');
+            const sellEl = document.getElementById(sellId);
+            if (!sellEl) return;
+            if (!force && sellEl.dataset.userEdited === '1') return;
+            sellEl.value = calcSellFromCost(costEl.value, type, amount).toFixed(2);
+            sellEl.dataset.userEdited = '';
+            if (typeof validateNumericPrice === 'function') {
+                validateNumericPrice(sellEl);
+            }
+        });
+    };
+
+    document.querySelectorAll('.js-guide-sell').forEach(function (sellEl) {
+        sellEl.addEventListener('input', function () {
+            sellEl.dataset.userEdited = '1';
+        });
+    });
+    document.querySelectorAll('.js-guide-profit-type, .js-guide-profit-amount').forEach(function (el) {
+        el.addEventListener('input', function () { applyGuideProfitToSells(true); });
+        el.addEventListener('change', function () { applyGuideProfitToSells(true); });
+    });
     </script>
     
-
 @endsection
