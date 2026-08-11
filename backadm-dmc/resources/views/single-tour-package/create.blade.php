@@ -7725,6 +7725,45 @@
                 $('.service-grid').empty();
             }
 
+            /** Multi-city: remove all city plans when main tour dates change (keep master city list). */
+            function clearMultiCityPlansOnTourDateChange() {
+                const mode = String($('input[name="city_mode"]:checked').val() || 'single');
+                if (mode !== 'multi') return false;
+
+                const hadPlans = $('#segmentsWrapper .segment').length > 0;
+                if (!hadPlans && !Object.keys(window.__segmentServiceState || {}).length) {
+                    applySegmentDateLimits();
+                    refreshGlobalServicesVisibility();
+                    return false;
+                }
+
+                ensureServicesBundleAtHome();
+                $('#segmentsWrapper').empty();
+                segmentIndex = 0;
+
+                if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
+                if (window.__segmentServiceState) window.__segmentServiceState = {};
+                if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+
+                clearMultiSegmentStayContext();
+                ensureServicesBundleAtHome();
+                $('.service-grid').empty();
+
+                // City-plan services are invalid after tour date change — clear live selections too.
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                applySegmentDateLimits();
+                refreshGlobalServicesVisibility();
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
+                }
+                return true;
+            }
+            window.clearMultiCityPlansOnTourDateChange = clearMultiCityPlansOnTourDateChange;
+
             function resetTourPackageCityMode(mode) {
                 if ($('#single_city').length) {
                     $('#single_city').val(null).trigger('change');
@@ -8204,10 +8243,17 @@
                 });
             });
 
-            // Re-apply date limits whenever main tour dates change
+            // Re-apply date limits whenever main tour dates change (city plans cleared in applyDateChanges after confirm)
             $('#travel_dates').on('apply.daterangepicker', function () {
                 applySegmentDateLimits();
                 refreshGlobalServicesVisibility();
+            });
+
+            // Clearing tour dates also removes multi-city plans
+            $('#travel_dates').on('cancel.daterangepicker', function () {
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
             });
             
             // Store previous country value for Select2
@@ -14714,6 +14760,11 @@
                 if (typeof window.updateAddCityPlanButtonState === 'function') {
                     window.updateAddCityPlanButtonState();
                 }
+
+                // Multi-city: tour date change invalidates stay plans — remove all city plans
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
                 
                 // Update global variables
                 tourStartDate = newStartDate;
@@ -14753,6 +14804,10 @@
                     if (!datesChanged) {
                         return;
                     }
+
+                    const isMultiCityMode = ($('input[name="city_mode"]:checked').val() === 'multi');
+                    const multiCityPlanCount = isMultiCityMode ? $('#segmentsWrapper .segment').length : 0;
+                    const hasMultiCityPlans = multiCityPlanCount > 0;
                     
                     // Check if there are any selected services
                     const hasServices = (selectedHotels && selectedHotels.length > 0) ||
@@ -14760,7 +14815,7 @@
                                     (selectedRestaurants && selectedRestaurants.length > 0) ||
                                     (selectedGuides && selectedGuides.length > 0);
                     
-                    if (hasServices) {
+                    if (hasServices || hasMultiCityPlans) {
                         // Check which services will be removed or updated
                         const serviceChanges = checkServicesToRemove(newStartDate, newEndDate);
                         const servicesToRemove = serviceChanges.toRemove;
@@ -14773,10 +14828,15 @@
                         
                         const totalToUpdate = servicesToUpdate.hotels.length;
                         
-                        // Show alert if services will be removed or updated
-                        if (totalToRemove > 0 || totalToUpdate > 0) {
+                        // Show alert if services will be removed/updated, or multi-city plans will be cleared
+                        if (totalToRemove > 0 || totalToUpdate > 0 || hasMultiCityPlans) {
                             // Build alert message
-                            let message = '⚠️ WARNING: Changing travel dates will affect the following services:\n\n';
+                            let message = '⚠️ WARNING: Changing travel dates will affect the following:\n\n';
+
+                            if (hasMultiCityPlans) {
+                                message += `🗺️ City plans to be REMOVED (${multiCityPlanCount}):\n`;
+                                message += '   All multi-city stay plans will be cleared. You will need to add them again.\n\n';
+                            }
                             
                             // Show hotels that will be updated
                             if (servicesToUpdate.hotels.length > 0) {
@@ -14823,7 +14883,11 @@
                             
                             message += `\nNew Date Range: ${picker.startDate.format('MMM DD, YYYY')} - ${picker.endDate.format('MMM DD, YYYY')}\n\n`;
                             
-                            if (totalToRemove > 0 && totalToUpdate > 0) {
+                            if (hasMultiCityPlans && (totalToRemove > 0 || totalToUpdate > 0)) {
+                                message += 'Do you want to proceed? City plans will be removed, and services may be updated or removed.';
+                            } else if (hasMultiCityPlans) {
+                                message += 'Do you want to proceed? All city plans will be permanently removed.';
+                            } else if (totalToRemove > 0 && totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotels within range will be updated, and services outside range will be permanently removed.';
                             } else if (totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotel dates will be updated to match the new date range.';
