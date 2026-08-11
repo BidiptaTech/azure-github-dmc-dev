@@ -7725,6 +7725,45 @@
                 $('.service-grid').empty();
             }
 
+            /** Multi-city: remove all city plans when main tour dates change (keep master city list). */
+            function clearMultiCityPlansOnTourDateChange() {
+                const mode = String($('input[name="city_mode"]:checked').val() || 'single');
+                if (mode !== 'multi') return false;
+
+                const hadPlans = $('#segmentsWrapper .segment').length > 0;
+                if (!hadPlans && !Object.keys(window.__segmentServiceState || {}).length) {
+                    applySegmentDateLimits();
+                    refreshGlobalServicesVisibility();
+                    return false;
+                }
+
+                ensureServicesBundleAtHome();
+                $('#segmentsWrapper').empty();
+                segmentIndex = 0;
+
+                if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
+                if (window.__segmentServiceState) window.__segmentServiceState = {};
+                if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+
+                clearMultiSegmentStayContext();
+                ensureServicesBundleAtHome();
+                $('.service-grid').empty();
+
+                // City-plan services are invalid after tour date change — clear live selections too.
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                applySegmentDateLimits();
+                refreshGlobalServicesVisibility();
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
+                }
+                return true;
+            }
+            window.clearMultiCityPlansOnTourDateChange = clearMultiCityPlansOnTourDateChange;
+
             function resetTourPackageCityMode(mode) {
                 if ($('#single_city').length) {
                     $('#single_city').val(null).trigger('change');
@@ -8204,10 +8243,17 @@
                 });
             });
 
-            // Re-apply date limits whenever main tour dates change
+            // Re-apply date limits whenever main tour dates change (city plans cleared in applyDateChanges after confirm)
             $('#travel_dates').on('apply.daterangepicker', function () {
                 applySegmentDateLimits();
                 refreshGlobalServicesVisibility();
+            });
+
+            // Clearing tour dates also removes multi-city plans
+            $('#travel_dates').on('cancel.daterangepicker', function () {
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
             });
             
             // Store previous country value for Select2
@@ -13798,6 +13844,21 @@
         window.loadRestaurantsForCity = function(day, cityName, index) {
             const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
             const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
+            if (!restaurantSelect) return;
+
+            function refreshRestaurantSelect2(placeholder, disabled) {
+                restaurantSelect.disabled = !!disabled;
+                if (typeof jQuery !== 'undefined') {
+                    const $r = jQuery(restaurantSelect);
+                    if ($r.hasClass('select2-hidden-accessible')) {
+                        try { $r.select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                        window.reinitializeSelect2(restaurantSelect.id, placeholder || 'Search Restaurant');
+                    }
+                    $r.prop('disabled', !!disabled);
+                }
+            }
             
             function prependMultiRestaurantOptions(selectEl) {
                 const list = window.multiRestaurants || [];
@@ -13816,7 +13877,8 @@
             if (cityName) {
                 restaurantSelect.disabled = false;
                 restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
-                cityMessage.style.display = 'none';
+                if (cityMessage) cityMessage.style.display = 'none';
+                refreshRestaurantSelect2('Loading restaurants...', false);
                 
                 const currentDmcId = '{{ $finalDmcId }}';
                 
@@ -13841,6 +13903,7 @@
                         }
                         
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                         
                         const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                         if (transferRequired && transferRequired.value === 'Yes') {
@@ -13854,12 +13917,12 @@
                         prependMultiRestaurantOptions(restaurantSelect);
                         restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                     });
             } else {
-                restaurantSelect.disabled = false;
-                restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
-                prependMultiRestaurantOptions(restaurantSelect);
-                cityMessage.style.display = 'block';
+                restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+                if (cityMessage) cityMessage.style.display = 'block';
+                refreshRestaurantSelect2('Select city first', true);
             }
         }
         
@@ -14697,6 +14760,11 @@
                 if (typeof window.updateAddCityPlanButtonState === 'function') {
                     window.updateAddCityPlanButtonState();
                 }
+
+                // Multi-city: tour date change invalidates stay plans — remove all city plans
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
                 
                 // Update global variables
                 tourStartDate = newStartDate;
@@ -14736,6 +14804,10 @@
                     if (!datesChanged) {
                         return;
                     }
+
+                    const isMultiCityMode = ($('input[name="city_mode"]:checked').val() === 'multi');
+                    const multiCityPlanCount = isMultiCityMode ? $('#segmentsWrapper .segment').length : 0;
+                    const hasMultiCityPlans = multiCityPlanCount > 0;
                     
                     // Check if there are any selected services
                     const hasServices = (selectedHotels && selectedHotels.length > 0) ||
@@ -14743,7 +14815,7 @@
                                     (selectedRestaurants && selectedRestaurants.length > 0) ||
                                     (selectedGuides && selectedGuides.length > 0);
                     
-                    if (hasServices) {
+                    if (hasServices || hasMultiCityPlans) {
                         // Check which services will be removed or updated
                         const serviceChanges = checkServicesToRemove(newStartDate, newEndDate);
                         const servicesToRemove = serviceChanges.toRemove;
@@ -14756,10 +14828,15 @@
                         
                         const totalToUpdate = servicesToUpdate.hotels.length;
                         
-                        // Show alert if services will be removed or updated
-                        if (totalToRemove > 0 || totalToUpdate > 0) {
+                        // Show alert if services will be removed/updated, or multi-city plans will be cleared
+                        if (totalToRemove > 0 || totalToUpdate > 0 || hasMultiCityPlans) {
                             // Build alert message
-                            let message = '⚠️ WARNING: Changing travel dates will affect the following services:\n\n';
+                            let message = '⚠️ WARNING: Changing travel dates will affect the following:\n\n';
+
+                            if (hasMultiCityPlans) {
+                                message += `🗺️ City plans to be REMOVED (${multiCityPlanCount}):\n`;
+                                message += '   All multi-city stay plans will be cleared. You will need to add them again.\n\n';
+                            }
                             
                             // Show hotels that will be updated
                             if (servicesToUpdate.hotels.length > 0) {
@@ -14806,7 +14883,11 @@
                             
                             message += `\nNew Date Range: ${picker.startDate.format('MMM DD, YYYY')} - ${picker.endDate.format('MMM DD, YYYY')}\n\n`;
                             
-                            if (totalToRemove > 0 && totalToUpdate > 0) {
+                            if (hasMultiCityPlans && (totalToRemove > 0 || totalToUpdate > 0)) {
+                                message += 'Do you want to proceed? City plans will be removed, and services may be updated or removed.';
+                            } else if (hasMultiCityPlans) {
+                                message += 'Do you want to proceed? All city plans will be permanently removed.';
+                            } else if (totalToRemove > 0 && totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotels within range will be updated, and services outside range will be permanently removed.';
                             } else if (totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotel dates will be updated to match the new date range.';
@@ -15483,9 +15564,21 @@
             
             if (!hotelId) {
                 // Clear dropdowns if no hotel selected
-                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                if (roomTypeSelect) {
+                    roomTypeSelect.disabled = false;
+                    roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+                }
+                if (bedTypeSelect) {
+                    bedTypeSelect.disabled = false;
+                    bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+                }
+                if (mealPlanSelect) {
+                    mealPlanSelect.disabled = false;
+                    mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+                }
                 return;
             }
             
@@ -15497,6 +15590,20 @@
             }
             
             console.log('Selected hotel data:', selectedHotel);
+
+            // Always re-enable dependent selects (Clear Form may have left them disabled)
+            if (roomTypeSelect) {
+                roomTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+            }
+            if (bedTypeSelect) {
+                bedTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+            }
+            if (mealPlanSelect) {
+                mealPlanSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+            }
             
             // Get current user's DMC ID for room filtering
             const currentDmcId = '{{ $finalDmcId }}';
@@ -26816,40 +26923,123 @@
             const persons = document.getElementById('selectedPersons');
             const price = document.getElementById('roomPriceDisplay');
             const addBtn = document.getElementById('addHotelBtn');
-            const nightSelection = document.getElementById('nightSelection');
-            const nightSummary = document.getElementById('nightSelectionSummary');
             const childWith = document.getElementById('chkChildWithBed');
             const childWithout = document.getElementById('chkChildWithoutBed');
             const suppBreakfast = document.getElementById('hotelSupplementBreakfastIncluded');
+            const isMulti = h.isMultiCity();
+            const keepCity = isMulti && hotelCity ? (hotelCity.value || '') : '';
 
-            const keepCity = h.keepOrClearCity(hotelCity);
-            h.resetSelect(hotelSelect, keepCity ? '<option value="">Select Hotel</option>' : '<option value="">Select a city first to load hotels</option>', !keepCity, keepCity ? 'Select Hotel' : 'Select a city first to load hotels');
-            h.resetSelect(roomType, '<option value="">Room Type</option>', true, 'Room Type');
-            h.resetSelect(bedType, '<option value="">Bed Type</option>', true, 'Bed Type');
-            h.resetSelect(mealPlan, '<option value="">Select Meal Plans</option>', true, 'Select Meal Plans');
+            // Match the post-"Add Hotel" reset: clear hotel selection, but do NOT disable
+            // room/bed/meal (those stay enabled so picking a hotel can populate them again).
+            // Selected hotel nights are intentionally preserved.
+            try {
+                if (!isMulti && hotelCity) {
+                    if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                        jQuery(hotelCity).val(null).trigger('change');
+                    } else {
+                        hotelCity.value = '';
+                    }
+                }
+
+                if (hotelSelect) {
+                    if (isMulti && keepCity) {
+                        // Keep city + hotel list; only clear the selected hotel
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(hotelSelect).val(null).trigger('change');
+                            jQuery(hotelSelect).prop('disabled', false);
+                        }
+                        hotelSelect.disabled = false;
+                        hotelSelect.value = '';
+                    } else {
+                        h.resetSelect(
+                            hotelSelect,
+                            '<option value="">Select a city first to load hotels</option>',
+                            true,
+                            'Select a city first to load hotels'
+                        );
+                        if (typeof jQuery !== 'undefined') jQuery(hotelSelect).prop('disabled', true);
+                    }
+                }
+
+                // Room / bed / meal must stay ENABLED (empty until hotel is chosen again)
+                if (roomType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(roomType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(roomType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    roomType.disabled = false;
+                    roomType.innerHTML = '<option value="">Select room type</option>';
+                    roomType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(roomType).prop('disabled', false);
+                        jQuery(roomType).select2({ placeholder: 'Select room type', allowClear: true, width: '100%' });
+                    }
+                }
+                if (bedType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(bedType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(bedType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    bedType.disabled = false;
+                    bedType.innerHTML = '<option value="">Select room type first</option>';
+                    bedType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(bedType).prop('disabled', false);
+                        jQuery(bedType).select2({ placeholder: 'Select room type first', allowClear: true, width: '100%' });
+                    }
+                }
+                if (mealPlan) {
+                    if (typeof jQuery !== 'undefined' && jQuery(mealPlan).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(mealPlan).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    mealPlan.disabled = false;
+                    mealPlan.innerHTML = '<option value="">Select meal plan</option>';
+                    mealPlan.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(mealPlan).prop('disabled', false);
+                        jQuery(mealPlan).select2({ placeholder: 'Select meal plan', allowClear: true, width: '100%' });
+                    }
+                }
+            } catch (err) {
+                console.error('clearHotelForm select reset error:', err);
+            }
+
             if (remarks) remarks.value = '';
             if (rooms) rooms.value = '1';
             if (persons) persons.value = '1';
             if (price) { price.value = '0.00'; price.dataset.manuallyEdited = 'false'; }
             if (addBtn) addBtn.disabled = true;
-            if (nightSelection) nightSelection.innerHTML = '';
-            if (nightSummary) nightSummary.innerHTML = '';
+            // Do not clear selected nights / night summary
             if (childWith) childWith.checked = false;
             if (childWithout) childWithout.checked = false;
             if (suppBreakfast) suppBreakfast.checked = false;
             window.selectedBedInfo = null;
             const personSelector = document.getElementById('personSelector');
             if (personSelector) personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
-            const hotelTotal = document.getElementById('hotelTotalPrice');
-            // Don't wipe already-added hotels list — only clear draft form
-            if (keepCity && hotelCity) {
-                h.setSelectValue(hotelCity, keepCity);
-                if (typeof loadHotelsForCity === 'function') loadHotelsForCity(keepCity);
-                else if (typeof window.loadHotelsByCity === 'function') window.loadHotelsByCity(keepCity);
-            } else if (h.isMultiCity() && typeof window.getActiveSegmentCityLabelForServices === 'function' && typeof window.syncAllServiceCities === 'function') {
-                const segCity = window.getActiveSegmentCityLabelForServices();
-                if (segCity) setTimeout(function () { window.syncAllServiceCities(segCity); }, 50);
+            const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+            if (bedPriceDisplay) bedPriceDisplay.style.display = 'none';
+            const guestCountInfo = document.getElementById('guestCountInfo');
+            if (guestCountInfo) guestCountInfo.style.display = 'none';
+
+            if (typeof clearRoomSelectionForm === 'function') {
+                try { clearRoomSelectionForm(); } catch (e2) { /* ignore */ }
             }
+            if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                window.updateHotelSupplementBreakfastVisibility(null);
+            }
+
+            // Multi-city: restore segment city and ensure hotels list is available
+            if (isMulti && keepCity && hotelCity) {
+                if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                    jQuery(hotelCity).val(keepCity).trigger('change.select2');
+                } else {
+                    hotelCity.value = keepCity;
+                }
+                if (typeof window.loadHotelsForCity === 'function') {
+                    window.loadHotelsForCity(keepCity);
+                } else if (typeof loadHotelsForCity === 'function') {
+                    loadHotelsForCity(keepCity);
+                }
+            }
+
             if (typeof showNotification === 'function') showNotification('Hotel form cleared', 'info');
         };
 
@@ -26893,29 +27083,97 @@
 
         window.clearRestaurantForm = function (day, index) {
             const h = window.__serviceClearHelpers;
+            const isMulti = h.isMultiCity();
             const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
             const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
             const mealType = document.getElementById(`day${day}_meal_type_${index}`);
             const dish = document.getElementById(`day${day}_dish_${index}`);
             const timeSlot = document.getElementById(`day${day}_time_slot_${index}`);
+            const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
             const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
             const supplement = document.getElementById(`day${day}_restaurant_${index}_is_supplement`);
             const remarks = document.getElementById(`day${day}_restaurant_${index}_remarks`);
+            const keepCity = isMulti && citySelect ? String(citySelect.value || '').trim() : '';
 
-            const keepCity = h.keepOrClearCity(citySelect);
-            h.resetSelect(restaurantSelect, keepCity ? '<option value="">Select Restaurant</option>' : '<option value="">Select city first</option>', !keepCity, keepCity ? 'Select Restaurant' : 'Select city first');
-            h.resetSelect(mealType, '<option value="">Select Meal Type</option>', false, 'Select Meal Type');
-            h.resetSelect(dish, '<option value="">Select Dish</option>', false, 'Select Dish');
-            h.resetSelect(timeSlot, '<option value="">Select Time Slot</option>', false, 'Select Time Slot');
-            if (transferRequired) h.setSelectValue(transferRequired, 'No');
+            // Single-city: clear city. Multi-city: keep segment city.
+            if (!isMulti && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(null).trigger('change');
+                } else {
+                    citySelect.value = '';
+                    citySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Clear restaurant selection (do not leave it stuck disabled)
+            if (restaurantSelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(restaurantSelect).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(restaurantSelect).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                restaurantSelect.innerHTML = keepCity
+                    ? '<option value="">Search Restaurant</option>'
+                    : '<option value="">Select city first</option>';
+                restaurantSelect.value = '';
+                restaurantSelect.disabled = !keepCity;
+                if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                    window.reinitializeSelect2(restaurantSelect.id, keepCity ? 'Search Restaurant' : 'Select city first');
+                }
+                if (typeof jQuery !== 'undefined') {
+                    jQuery(restaurantSelect).prop('disabled', !keepCity);
+                }
+            }
+
+            // Meal / dish / time — clear and keep usable
+            [mealType, dish, timeSlot].forEach(function (el, i) {
+                if (!el) return;
+                if (typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(el).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                el.disabled = false;
+                if (i === 0) el.innerHTML = '<option value="">Select Meal Type</option>';
+                else if (i === 1) el.innerHTML = '<option value="">Select Dish</option>';
+                else el.innerHTML = '<option value="">Select Time Slot</option>';
+                el.value = '';
+                if (typeof jQuery !== 'undefined') jQuery(el).prop('disabled', false);
+            });
+
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+                dishContainer.querySelectorAll('.dynamic-dishes, .dish-option-btn').forEach(function (n) {
+                    try { n.remove(); } catch (e) { /* ignore */ }
+                });
+            }
+
+            // Hidden pricing fields
+            const mealIdField = document.getElementById(`day${day}_restaurant_${index}_meal_id`);
+            const dishNameField = document.getElementById(`day${day}_restaurant_${index}_dish_name`);
+            const totalHidden = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (mealIdField) mealIdField.value = '';
+            if (dishNameField) dishNameField.value = '';
+            if (totalHidden) totalHidden.value = '0';
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
             if (typeof window.toggleRestaurantTransferFields === 'function') {
                 window.toggleRestaurantTransferFields(day, index);
             }
+
+            // Transfer time inputs
+            const tInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_input`);
+            const tAmpm = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_ampm`);
+            const tHidden = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`);
+            if (tInput) tInput.value = '';
+            if (tAmpm) tAmpm.value = 'AM';
+            if (tHidden) tHidden.value = '';
+
             if (supplement) supplement.checked = false;
             if (remarks) remarks.value = '';
-            const totalHidden = document.getElementById(`day${day}_restaurant_${index}_total_price`);
-            if (totalHidden) totalHidden.value = '0';
             h.resetGuestSummary(`day${day}_restaurant_${index}_guest_summary`);
+
             const totalDisp = document.getElementById(`day${day}_restaurant_${index}_total_display`);
             if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
             const nameEl = document.getElementById(`day${day}_restaurant_${index}_restaurant_name`);
@@ -26924,9 +27182,20 @@
             if (pricingDetails) pricingDetails.innerHTML = '';
             const transportPricing = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
             if (transportPricing) transportPricing.innerHTML = '<div class="text-muted small">No transport selected</div>';
-            if (keepCity && citySelect) {
-                h.setSelectValue(citySelect, keepCity);
-                if (typeof loadRestaurantsForCity === 'function') loadRestaurantsForCity(day, keepCity, index);
+            const priceDisplay = document.getElementById(`day${day}_restaurant_${index}_price_display`);
+            if (priceDisplay) {
+                // leave card visible; just cleared content above
+            }
+
+            // Reload restaurant list for kept city (and refresh Select2 inside loader)
+            if (keepCity && typeof loadRestaurantsForCity === 'function') {
+                loadRestaurantsForCity(day, keepCity, index);
+            } else if (typeof loadRestaurantDetails === 'function') {
+                loadRestaurantDetails(day, '', index);
+            }
+
+            if (typeof updateRestaurantPricing === 'function') {
+                try { updateRestaurantPricing(day, index); } catch (e) { /* ignore */ }
             }
             if (typeof updateRestaurantDataField === 'function') updateRestaurantDataField();
             if (typeof showNotification === 'function') showNotification('Restaurant form cleared', 'info');

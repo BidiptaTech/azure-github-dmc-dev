@@ -897,7 +897,12 @@ class UserController extends Controller
                     $roleId = (int) ($u->role_id ?? 0);
                     return $roleId === $masterDmcRoleId || in_array($roleId, $travclicksRoleIds, true);
                 })
-                ->sortBy('userId')
+                // Travclicks roles first, then Master DMC rows.
+                ->sortBy(function ($u) use ($masterDmcRoleId) {
+                    $roleId = (int) ($u->role_id ?? 0);
+                    $group = ($roleId === $masterDmcRoleId) ? 1 : 0;
+                    return sprintf('%d-%010d', $group, (int) ($u->userId ?? 0));
+                })
                 ->values();
         }
 
@@ -1141,9 +1146,9 @@ class UserController extends Controller
         $adminSalesManager = User::where('role_id',3)->get();
         if ($this->auth_user->role_id == 10) {
             $assignedCountries = explode(',', $this->auth_user->country); 
-            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->get(); 
+            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->orderBy('name')->get(); 
         } else {
-            $country = Country::where('is_active', 1)->get(); 
+            $country = Country::where('is_active', 1)->orderBy('name')->get(); 
         }
         $countriesArray = [];
         if($this->auth_user->role_id == 1){
@@ -1646,9 +1651,9 @@ class UserController extends Controller
         // Handle country access based on role
         if ($this->auth_user->role_id == 10) {
             $assignedCountries = explode(',', $this->auth_user->country);
-            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->get();
+            $country = Country::where('is_active', 1)->whereIn('name', $assignedCountries)->orderBy('name')->get();
         } else {
-            $country = Country::where('is_active', 1)->get();
+            $country = Country::where('is_active', 1)->orderBy('name')->get();
         }
         
         // If we're coming from role 24 setup, prepare countries array
@@ -2791,7 +2796,9 @@ class UserController extends Controller
     public function getCountries($masterDmcId) {
         $masterDmc = User::where('userId',$masterDmcId)->first();
         $countries = $masterDmc ? explode(',', $masterDmc->country) : []; // Assuming countries are stored as CSV
-        return response()->json(['countries' => $countries]);
+        $countries = array_values(array_filter(array_map('trim', $countries)));
+        natcasesort($countries);
+        return response()->json(['countries' => array_values($countries)]);
     }
 
     /*
@@ -2832,7 +2839,7 @@ class UserController extends Controller
         
         if ($masterDmc && $masterDmc->country) {
             $countries = explode(',', $masterDmc->country);
-            $countryObjects = Country::whereIn('name', $countries)->get(['name']);
+            $countryObjects = Country::whereIn('name', $countries)->orderBy('name')->get(['name']);
             return response()->json(['countries' => $countryObjects]);
         }
         
@@ -3199,6 +3206,7 @@ class UserController extends Controller
         
         $cities = City::where('country', $countryName)
                 ->select('name', 'city_id')
+                ->orderBy('name')
                 ->get();
                  
         return response()->json(['cities' => $cities]);
