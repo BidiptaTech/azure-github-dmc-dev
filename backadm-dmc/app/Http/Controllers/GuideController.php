@@ -24,6 +24,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class GuideController extends Controller
 {
@@ -880,7 +881,14 @@ class GuideController extends Controller
             'guide_gender' => 'required|in:Male,Female,Other',
             'name' => 'required|string|max:255',
             'contact_no' => 'required|string|min:8|max:15',
-            'email' => 'required|email|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('guides', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($guide->id),
+            ],
             'languages' => 'array',
             'about' => 'required',
             // 'license_no' => 'required|string',
@@ -913,8 +921,10 @@ class GuideController extends Controller
             'eight_hour_cost_price' => 'required|numeric',
             'ten_hour_cost_price' => 'required|numeric',
             'twelve_hour_cost_price' => 'required|numeric',
+            'app_password' => 'nullable|string|max:255',
         ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
+            'email.unique' => 'This email is already registered for another guide.',
         ]);
 
         //process license image
@@ -935,12 +945,25 @@ class GuideController extends Controller
             }
         }
 
+        $plainPassword = trim((string) $request->input('app_password', ''));
+
         $guide->salutation = $validated['salutation'];
         $guide->guide_gender = $validated['guide_gender'];
         $guide->name = $request->input('name');
         $guide->contact_no = $request->input('contact_no');
         $guide->email = $request->input('email');
-        $guide->app_password = Hash::make($request->app_password);
+        if ($plainPassword !== '') {
+            $guide->app_password = Hash::make($plainPassword);
+
+            // Invalidate existing Sanctum tokens for this guide
+            PersonalAccessToken::where('tokenable_type', Guide::class)
+                ->where('tokenable_id', $guide->id)
+                ->where(function ($query) {
+                    $query->whereNull('expires_at')
+                        ->orWhere('expires_at', '>', now());
+                })
+                ->update(['expires_at' => now()]);
+        }
         $guide->description = $request->input('about');
         $guide->country = $request->input('country', $guide->country);
         $guide->city = $request->city;
