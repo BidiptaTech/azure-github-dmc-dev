@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 
 import { BASE_URL } from "@/services/api";
 import { setSelectedDmcId } from '../dmc/dmcSlice';
+import { clearTourSession } from "@/utils/tourSession";
 
 // Function to get initial state from cookies
 const getInitialState = () => {
@@ -542,6 +543,11 @@ const authSlice = createSlice({
       state.userRole = null; // Reset user role
       state.dmcId = null; // Reset dmcId in auth state
       state.global_countries = null; // Reset global_countries in auth state
+      try {
+        clearTourSession();
+      } catch {
+        // ignore
+      }
       Cookies.remove("authToken");
       Cookies.remove("AgentId");
       Cookies.remove("Username");
@@ -574,6 +580,13 @@ const authSlice = createSlice({
     },
     setTourIdd: (state, action) => {
       state.tourId = action.payload;
+      if (!action.payload) {
+        try {
+          clearTourSession();
+        } catch {
+          // ignore
+        }
+      }
     },
     // New reducers to update the new state variables
     setUsername: (state, action) => {

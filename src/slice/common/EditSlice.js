@@ -22,8 +22,8 @@ import { BASE_URL } from "@/services/api";
 // 🟢 Async thunk to fetch tour edit data
 export const fetchEditid = createAsyncThunk(
   "editing/fetchEditid",
-  async (_, { getState, rejectWithValue, dispatch }) => {
-    const { tourId } = getState().editing;
+  async (tourIdArg, { getState, rejectWithValue, dispatch }) => {
+    const tourId = tourIdArg || getState().editing.tourId;
 
     // Check if tourId exists before proceeding
     if (!tourId) {
@@ -63,13 +63,21 @@ export const fetchEditid = createAsyncThunk(
         dispatch(setAgentId(agent_id));
       }
 
-      // Safely dispatch hotel service data
-      dispatch(setHotelService(data?.service?.hotel || []));
+      // Safely dispatch hotel service data (do not wipe existing with undefined)
+      if (Array.isArray(data?.service?.hotel)) {
+        dispatch(setHotelService(data.service.hotel));
+      }
 
       // Safely dispatch other service data
-      dispatch(setAttractionService(data?.service?.attraction || []));
-      dispatch(setRestaurantsService(data?.service?.restaurant || []));
-      dispatch(setDateService(data?.service?.date_service || []));
+      if (Array.isArray(data?.service?.attraction)) {
+        dispatch(setAttractionService(data.service.attraction));
+      }
+      if (Array.isArray(data?.service?.restaurant)) {
+        dispatch(setRestaurantsService(data.service.restaurant));
+      }
+      if (data?.service?.date_service != null) {
+        dispatch(setDateService(data.service.date_service));
+      }
 
       // Handle entry_port data
       if (Array.isArray(data?.service?.entry_port)) {
@@ -140,10 +148,18 @@ export const fetchEditid = createAsyncThunk(
       }
 
       // Safely dispatch other data
-      dispatch(setPointToPoint(data.service?.travel_point || []));
-      dispatch(setHourly(data.service?.travel_hourly || []));
-      dispatch(setZone(data.service?.local_transport || []));
-      dispatch(setbookedGuide(data.service?.guide || []));
+      if (Array.isArray(data.service?.travel_point)) {
+        dispatch(setPointToPoint(data.service.travel_point));
+      }
+      if (Array.isArray(data.service?.travel_hourly)) {
+        dispatch(setHourly(data.service.travel_hourly));
+      }
+      if (Array.isArray(data.service?.local_transport)) {
+        dispatch(setZone(data.service.local_transport));
+      }
+      if (Array.isArray(data.service?.guide)) {
+        dispatch(setbookedGuide(data.service.guide));
+      }
 
       // Handle DMC ID, logo, and company name from response
       if (data?.dmc_id) {
@@ -278,7 +294,6 @@ const EditSlice = createSlice({
       .addCase(fetchEditid.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload || action.error.message;
-        state.tourId = null;
       })
 
       // 🗑️ Delete Tour

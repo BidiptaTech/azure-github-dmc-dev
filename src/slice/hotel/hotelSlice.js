@@ -36,10 +36,14 @@ export const fetchHotels = createAsyncThunk(
 
      const { adults, children, infant } = guests;
 
-      // Ensure stateSearchLocation is an array and join it into a string
-      const formattedLocation = Array.isArray(location)
+      // Ensure stateSearchLocation is an array/string and join it into a string
+      let formattedLocation = Array.isArray(location)
         ? location.join(",")
         : location;
+      if (formattedLocation && typeof formattedLocation === "object") {
+        formattedLocation =
+          formattedLocation.address || formattedLocation.name || "";
+      }
        const dateRange=[ucheckIn,ucheckOut]
      
    
@@ -346,6 +350,14 @@ const hotelSlice = createSlice({
     },
     updateSearchState: (state, action) => {
       const updatedState = { ...action.payload };
+
+      // Normalize location to string/array — objects break /location API
+      if (updatedState.location != null && typeof updatedState.location === "object" && !Array.isArray(updatedState.location)) {
+        updatedState.location =
+          updatedState.location.address ||
+          updatedState.location.name ||
+          "";
+      }
 
       // Handle check-in date
       if (updatedState.ucheckIn) {
