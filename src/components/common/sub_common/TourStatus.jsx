@@ -1,0 +1,1115 @@
+import React, { useState, useEffect, useRef } from "react";
+import { Tooltip } from "react-tooltip";
+import "../../../styles/TourStatus.css";
+import {
+  setCheckIn,
+  setCheckOut,
+  setSearchLocation,
+  setGuest,
+} from "../../../slice/common/BookingSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { Box } from "@mui/material";
+import hotelIcon from "../../../../public/icons/resort.png";
+import airplane from "../../../../public/icons/airplane.png";
+import airplane2 from "../../../../public/icons/airplane2.png";
+import car1 from "../../../../public/icons/car1.png";
+import attractionIcon from "../../../../public/icons/attraction.png";
+// import travellersIcon from "../../../../public/icons/travelling.png";
+import restaurant from "../../../../public/icons/restaurants.png";
+import guideIcon from "../../../../public/icons/tour-guides.png";
+import AttractionModal from "../../tour-list/common/AttractionModal";
+import RestaurantModal from "../../restaurants/common/RestaurantModal";
+import PortModal from "@/components/activity-list/activity-list-v2/PickupDropModal";
+import LocalTourModal from "@/components/activity-list/activity-list-v3/LocaltourModal";
+import TourguideModal from "@/components/activity-list/activity-list-v1/TourguideModal";
+import HotelModal from "@/components/hotel-list/common/HotelModal";
+import { setHaveBooking, setSelectedCity } from "@/slice/common/commonSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setTourId1, fetchEditid } from "@/slice/common/EditSlice";
+import { setTourId } from "@/slice/common/stepsSlice";
+import {
+  setId,
+  setHotelService,
+  settourdetails,
+  updateSearchState,
+} from "@/slice/hotel/hotelSlice";
+import { setAttractionService } from "@/slice/attractions/attractionSlice";
+import { setRestaurantsService } from "@/slice/restaurant/RestaurantsSlice";
+import { setEntryport, setExitport } from "@/slice/port/pickupDropSlice";
+import {
+  setHourly,
+  setPointToPoint,
+  setZone,
+} from "@/slice/localtour/Localslice";
+import { setbookedGuide } from "@/slice/tourguide/guideslice";
+import { setDateService } from "@/slice/common/dateServicesSlice";
+import { setCity } from "@/slice/common/citySlice";
+import {
+  saveTourSession,
+  loadTourSession,
+} from "@/utils/tourSession";
+
+export default function TourStatus() {
+  const [selectedDate, setSelectedDate] = useState(null); // Track selected date
+  const [modalOpen, setModalOpen] = useState(false); // Modal open state
+  const [restaurantModalOpen, setRestaurantModalOpen] = useState(false); // Restaurant modal state
+  const [localtourModalOpen, setlocaltourModalOpen] = useState(false); // Restaurant modal state
+  const [guideModalOpen, setguideModalOpen] = useState(false);
+  const [entryexitModalOpen, setentryexitModalOpen] = useState(false); // Restaurant modal state
+  const [range, setRange] = useState([]);
+  const [hotelModalOpen, setHotelModalOpen] = useState(false);
+  const [portType, setPortType] = useState(""); // "entry" or "exit"
+  const hasRestoredTourRef = useRef(false);
+
+  const { checkIn, checkOut, searchLocation, guests } = useSelector(
+    (state) => state.bookings
+  );
+  console.log("TourStatus - checkIn:", checkIn, "checkOut:", checkOut);
+  const attractionServices = useSelector((state) => state.attractions.services || []);
+  // console.log("Attraction bookings from Redux:", attractionServices);
+
+  const restaurantServices = useSelector(
+    (state) => state.restaurants.services || []
+  );
+  // console.log('Restaurant bookings from Redux:', restaurantServices);
+
+  const travelPointRaw = useSelector(
+    (state) => state.localtour.pointtopoint || []
+  );
+  // console.log("point 2 point", travelPointRaw);
+  const travelHourlyRaw = useSelector((state) => state.localtour.hourly || []);
+  // console.log("hourlyveh", travelHourlyRaw);
+
+  const travelZoneRaw = useSelector((state) => state.localtour.Zonebook || []);
+  // console.log("travelzzzzzz", travelZoneRaw);
+  const entryPortRaw = useSelector((state) => state.pickupDrop.entryport || []);
+  const exitPortRaw = useSelector((state) => state.pickupDrop.exitport || []);
+  const bookedGuideRaw = useSelector((state) => state.tourguide.bookedguide || []);
+
+  const dateServiceRaw = useSelector((state) => state.dateService.services || []);
+  // console.log("dateService123", dateService);
+  // const dateKey = Object.keys(dateService)[0];
+  // console.log("dateKey", dateKey);
+
+  const dispatch = useDispatch();
+  const { status } = useSelector((state) => state.bookings || []);
+  // console.log(status,"status");
+
+  // Get hotel bookings from redux store
+  //here i am gett all the data from response and store in a redux and send data to the hotel modal
+  const hotelBookingsRaw = useSelector((state) => state.hotels.hotelService || []);
+  const tourdetails = useSelector((state) => state.hotels.tourdetails);
+  const hotelSearchState = useSelector((state) => state.hotels.searchState);
+  const selectedCity = useSelector((state) => state.common.selectedCity);
+  const cityList = useSelector((state) => state.city?.city || []);
+  const userCountry = useSelector((state) => state.auth?.user_country);
+  //  console.log(hotelBookings,"hotelBookings");
+
+  const haveBooking = useSelector((state) => state.common.haveBooking);
+  const globalTourId = useSelector(
+    (state) => state.auth?.tourId || state.steps?.id
+  );
+
+  const hasActiveTour = Boolean(haveBooking && globalTourId);
+
+  const bookings = hasActiveTour ? attractionServices : [];
+  const restaurantBooking = hasActiveTour ? restaurantServices : [];
+  const travelPoint = hasActiveTour ? travelPointRaw : [];
+  const travelHourly = hasActiveTour ? travelHourlyRaw : [];
+  const travelZone = hasActiveTour ? travelZoneRaw : [];
+  const travel = hasActiveTour
+    ? [...travelHourly, ...travelPoint, ...travelZone]
+    : [];
+  const formData = hasActiveTour ? entryPortRaw : [];
+  const formData1 = hasActiveTour ? exitPortRaw : [];
+  const bookedguide = hasActiveTour ? bookedGuideRaw : [];
+  const dateService = hasActiveTour ? dateServiceRaw : {};
+  const hotelBookings = hasActiveTour ? hotelBookingsRaw : [];
+
+  const hydrateDestination = (destination, checkInValue, checkOutValue) => {
+    if (!destination) return;
+
+    const nameToCode = {};
+    const codeToName = {};
+    if (Array.isArray(userCountry)) {
+      userCountry.forEach((country) => {
+        if (country?.name && country?.code) {
+          nameToCode[country.name] = country.code;
+          nameToCode[country.name.toLowerCase()] = country.code;
+          codeToName[country.code] = country.name;
+          codeToName[country.code.toLowerCase()] = country.name;
+        }
+      });
+    }
+
+    const destinationArray = Array.isArray(destination)
+      ? destination
+      : String(destination)
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean);
+
+    const countryCodeArray = destinationArray
+      .map((item) => {
+        let code = nameToCode[item];
+        if (!code) {
+          const name = codeToName[item];
+          if (name) code = nameToCode[name];
+        }
+        return code || item;
+      })
+      .filter(Boolean);
+
+    const destinationNames = destinationArray
+      .map((item) => codeToName[item] || item)
+      .filter(Boolean);
+
+    if (countryCodeArray.length) {
+      dispatch(setSearchLocation(countryCodeArray));
+    }
+
+    dispatch(
+      updateSearchState({
+        location: destinationNames,
+        ...(checkInValue
+          ? {
+              ucheckIn: checkInValue.includes("/")
+                ? checkInValue.split("/").reverse().join("-")
+                : checkInValue,
+            }
+          : {}),
+        ...(checkOutValue
+          ? {
+              ucheckOut: checkOutValue.includes("/")
+                ? checkOutValue.split("/").reverse().join("-")
+                : checkOutValue,
+            }
+          : {}),
+      })
+    );
+
+    if (destinationNames.length > 0) {
+      dispatch(setSelectedCity(destinationNames[0]));
+    }
+
+    dispatch(
+      settourdetails({
+        destination,
+        country: destination,
+        CheckInTime: checkInValue || "",
+        CheckOutTime: checkOutValue || "",
+      })
+    );
+  };
+
+  // Restore active tour after refresh (Redux is in-memory only)
+  useEffect(() => {
+    if (hasRestoredTourRef.current) return;
+    if (globalTourId) return;
+
+    const saved = loadTourSession();
+    if (!saved?.tourId) return;
+
+    hasRestoredTourRef.current = true;
+
+    // #region agent log
+    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "8029bf",
+      },
+      body: JSON.stringify({
+        sessionId: "8029bf",
+        runId: "post-fix",
+        hypothesisId: "E",
+        location: "TourStatus.jsx:restore-tour",
+        message: "Restoring tour session after refresh",
+        data: {
+          tourId: saved.tourId,
+          checkIn: saved.checkIn || "",
+          checkOut: saved.checkOut || "",
+          haveBooking: !!saved.haveBooking,
+          cachedHotels: Array.isArray(saved.services?.hotels)
+            ? saved.services.hotels.length
+            : 0,
+          hasSearchLocation: Array.isArray(saved.searchLocation)
+            ? saved.searchLocation.length
+            : 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    dispatch(setTourId1(saved.tourId));
+    dispatch(setTourIdd(saved.tourId));
+    dispatch(setTourId(saved.tourId));
+    dispatch(setId(saved.tourId));
+    if (saved.checkIn) dispatch(setCheckIn(saved.checkIn));
+    if (saved.checkOut) dispatch(setCheckOut(saved.checkOut));
+    if (saved.haveBooking) dispatch(setHaveBooking(true));
+
+    // Restore search / city context immediately
+    if (Array.isArray(saved.searchLocation) && saved.searchLocation.length) {
+      dispatch(setSearchLocation(saved.searchLocation));
+    }
+    if (saved.selectedCity != null) {
+      dispatch(setSelectedCity(saved.selectedCity));
+    }
+    if (Array.isArray(saved.cityList) && saved.cityList.length) {
+      dispatch(setCity(saved.cityList));
+    }
+    if (saved.guests) {
+      dispatch(setGuest(saved.guests));
+    }
+    if (saved.tourdetails || saved.checkIn || saved.checkOut) {
+      dispatch(
+        settourdetails({
+          ...(saved.tourdetails || {}),
+          CheckInTime:
+            saved.tourdetails?.CheckInTime ||
+            saved.tourdetails?.check_in_time ||
+            saved.checkIn ||
+            "",
+          CheckOutTime:
+            saved.tourdetails?.CheckOutTime ||
+            saved.tourdetails?.check_out_time ||
+            saved.checkOut ||
+            "",
+          destination:
+            saved.tourdetails?.destination ||
+            saved.tourdetails?.country ||
+            saved.selectedCity ||
+            saved.tourdetails?.destination,
+        })
+      );
+    }
+    if (saved.searchState) {
+      dispatch(updateSearchState(saved.searchState));
+    } else if (saved.checkIn || saved.checkOut || saved.selectedCity) {
+      dispatch(
+        updateSearchState({
+          location:
+            saved.searchState?.location ||
+            saved.tourdetails?.destination ||
+            saved.selectedCity ||
+            [],
+          ucheckIn: saved.checkIn
+            ? saved.checkIn.includes("/")
+              ? saved.checkIn.split("/").reverse().join("-")
+              : saved.checkIn
+            : null,
+          ucheckOut: saved.checkOut
+            ? saved.checkOut.includes("/")
+              ? saved.checkOut.split("/").reverse().join("-")
+              : saved.checkOut
+            : null,
+        })
+      );
+    }
+
+    // Restore booked services from cache so UI is not empty if API fails
+    const svc = saved.services || {};
+    if (Array.isArray(svc.hotels) && svc.hotels.length) {
+      dispatch(setHotelService(svc.hotels));
+    }
+    if (Array.isArray(svc.attractions) && svc.attractions.length) {
+      dispatch(setAttractionService(svc.attractions));
+    }
+    if (Array.isArray(svc.restaurants) && svc.restaurants.length) {
+      dispatch(setRestaurantsService(svc.restaurants));
+    }
+    if (Array.isArray(svc.entryPorts) && svc.entryPorts.length) {
+      dispatch(setEntryport(svc.entryPorts));
+    }
+    if (Array.isArray(svc.exitPorts) && svc.exitPorts.length) {
+      dispatch(setExitport(svc.exitPorts));
+    }
+    if (Array.isArray(svc.travelPoint) && svc.travelPoint.length) {
+      dispatch(setPointToPoint(svc.travelPoint));
+    }
+    if (Array.isArray(svc.travelHourly) && svc.travelHourly.length) {
+      dispatch(setHourly(svc.travelHourly));
+    }
+    if (Array.isArray(svc.travelZone) && svc.travelZone.length) {
+      dispatch(setZone(svc.travelZone));
+    }
+    if (Array.isArray(svc.guides) && svc.guides.length) {
+      dispatch(setbookedGuide(svc.guides));
+    }
+    if (svc.dateService) {
+      dispatch(setDateService(svc.dateService));
+    }
+
+    dispatch(setHaveBooking(true));
+
+    const cachedHotelCount = Array.isArray(svc.hotels) ? svc.hotels.length : 0;
+    const cachedAttractionCount = Array.isArray(svc.attractions)
+      ? svc.attractions.length
+      : 0;
+    const hasCachedServices =
+      cachedHotelCount > 0 ||
+      cachedAttractionCount > 0 ||
+      (Array.isArray(svc.restaurants) && svc.restaurants.length > 0) ||
+      (Array.isArray(svc.guides) && svc.guides.length > 0) ||
+      (Array.isArray(svc.entryPorts) && svc.entryPorts.length > 0) ||
+      (Array.isArray(svc.exitPorts) && svc.exitPorts.length > 0) ||
+      (Array.isArray(svc.travelPoint) && svc.travelPoint.length > 0) ||
+      (Array.isArray(svc.travelHourly) && svc.travelHourly.length > 0) ||
+      (Array.isArray(svc.travelZone) && svc.travelZone.length > 0);
+
+    // Prefer cached services after refresh. Only hit edit-tour when cache is empty.
+    if (hasCachedServices) {
+      if (saved.tourdetails?.destination || saved.tourdetails?.country) {
+        hydrateDestination(
+          saved.tourdetails.destination || saved.tourdetails.country,
+          saved.checkIn,
+          saved.checkOut
+        );
+      }
+      // #region agent log
+      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "8029bf",
+        },
+        body: JSON.stringify({
+          sessionId: "8029bf",
+          runId: "post-fix",
+          hypothesisId: "C,G",
+          location: "TourStatus.jsx:restore-from-cache",
+          message: "Restored services from cache; skipped fetchEditid",
+          data: {
+            tourId: saved.tourId,
+            cachedHotelCount,
+            cachedAttractionCount,
+            hasSearchLocation: Array.isArray(saved.searchLocation)
+              ? saved.searchLocation.length
+              : 0,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return;
+    }
+
+    dispatch(fetchEditid(saved.tourId))
+      .unwrap()
+      .then((response) => {
+        dispatch(setHaveBooking(true));
+        const data = response?.data || response;
+        if (data?.destination) {
+          hydrateDestination(
+            data.destination,
+            saved.checkIn,
+            saved.checkOut
+          );
+        }
+        // #region agent log
+        fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "8029bf",
+          },
+          body: JSON.stringify({
+            sessionId: "8029bf",
+            runId: "post-fix",
+            hypothesisId: "C,E",
+            location: "TourStatus.jsx:restore-fetch-ok",
+            message: "fetchEditid succeeded after restore",
+            data: {
+              tourId: saved.tourId,
+              hotelCount: Array.isArray(data?.service?.hotel)
+                ? data.service.hotel.length
+                : 0,
+              destination: data?.destination || null,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+      })
+      .catch((err) => {
+        // #region agent log
+        fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "8029bf",
+          },
+          body: JSON.stringify({
+            sessionId: "8029bf",
+            runId: "post-fix",
+            hypothesisId: "C,E",
+            location: "TourStatus.jsx:restore-fetch-fail",
+            message: "fetchEditid failed after restore",
+            data: {
+              tourId: saved.tourId,
+              error:
+                typeof err === "string"
+                  ? err
+                  : JSON.stringify(err || {}),
+              usedCache: false,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+      });
+  }, [dispatch, globalTourId]);
+
+  // Persist tour context so refresh can restore it
+  useEffect(() => {
+    if (!globalTourId || !checkIn || !checkOut) return;
+    const savedOk = saveTourSession({
+      tourId: globalTourId,
+      checkIn,
+      checkOut,
+      haveBooking: !!haveBooking,
+      searchLocation: searchLocation || [],
+      selectedCity: selectedCity ?? null,
+      cityList: cityList || [],
+      guests: guests || null,
+      tourdetails: tourdetails || null,
+      searchState: hotelSearchState || null,
+      services: {
+        hotels: hotelBookingsRaw || [],
+        attractions: attractionServices || [],
+        restaurants: restaurantServices || [],
+        entryPorts: entryPortRaw || [],
+        exitPorts: exitPortRaw || [],
+        travelPoint: travelPointRaw || [],
+        travelHourly: travelHourlyRaw || [],
+        travelZone: travelZoneRaw || [],
+        guides: bookedGuideRaw || [],
+        dateService: dateServiceRaw || [],
+      },
+    });
+    // #region agent log
+    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "8029bf",
+      },
+      body: JSON.stringify({
+        sessionId: "8029bf",
+        runId: "post-fix",
+        hypothesisId: "G",
+        location: "TourStatus.jsx:persist-session",
+        message: "Persisted tour session",
+        data: {
+          savedOk: !!savedOk,
+          tourId: globalTourId,
+          hotelCount: Array.isArray(hotelBookingsRaw)
+            ? hotelBookingsRaw.length
+            : 0,
+          attractionCount: Array.isArray(attractionServices)
+            ? attractionServices.length
+            : 0,
+          searchLocationCount: Array.isArray(searchLocation)
+            ? searchLocation.length
+            : 0,
+          hasSelectedCity: selectedCity != null,
+          cityListCount: Array.isArray(cityList) ? cityList.length : 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [
+    globalTourId,
+    checkIn,
+    checkOut,
+    haveBooking,
+    searchLocation,
+    selectedCity,
+    cityList,
+    guests,
+    tourdetails,
+    hotelSearchState,
+    hotelBookingsRaw,
+    attractionServices,
+    restaurantServices,
+    entryPortRaw,
+    exitPortRaw,
+    travelPointRaw,
+    travelHourlyRaw,
+    travelZoneRaw,
+    bookedGuideRaw,
+    dateServiceRaw,
+  ]);
+
+  // #region agent log
+  useEffect(() => {
+    const payload = {
+      sessionId: "8029bf",
+      runId: hasRestoredTourRef.current ? "post-fix" : "pre-fix",
+      hypothesisId: "A,B,C",
+      location: "TourStatus.jsx:mount-state",
+      message: "TourStatus state snapshot",
+      data: {
+        checkIn: checkIn || "",
+        checkOut: checkOut || "",
+        haveBooking: !!haveBooking,
+        globalTourId: globalTourId ?? null,
+        hasActiveTour: !!hasActiveTour,
+        rangeWillBeEmpty: !(checkIn && checkOut),
+        rawCounts: {
+          hotels: Array.isArray(hotelBookingsRaw) ? hotelBookingsRaw.length : -1,
+          attractions: Array.isArray(attractionServices) ? attractionServices.length : -1,
+          restaurants: Array.isArray(restaurantServices) ? restaurantServices.length : -1,
+          guides: Array.isArray(bookedGuideRaw) ? bookedGuideRaw.length : -1,
+          entryPorts: Array.isArray(entryPortRaw) ? entryPortRaw.length : -1,
+          exitPorts: Array.isArray(exitPortRaw) ? exitPortRaw.length : -1,
+        },
+        gatedCounts: {
+          hotels: Array.isArray(hotelBookings) ? hotelBookings.length : -1,
+          attractions: Array.isArray(bookings) ? bookings.length : -1,
+        },
+        navType: typeof performance !== "undefined" && performance.getEntriesByType
+          ? (performance.getEntriesByType("navigation")[0]?.type || "unknown")
+          : "unknown",
+      },
+      timestamp: Date.now(),
+    };
+    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "8029bf",
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  }, [
+    checkIn,
+    checkOut,
+    haveBooking,
+    globalTourId,
+    hasActiveTour,
+    hotelBookingsRaw,
+    attractionServices,
+    restaurantServices,
+    bookedGuideRaw,
+    entryPortRaw,
+    exitPortRaw,
+    hotelBookings,
+    bookings,
+  ]);
+  // #endregion
+
+  useEffect(() => {
+    let newDateServiceDates = new Set();
+
+    const formatDate = (date) => {
+      if (!date) return "";
+      const [year, month, day] = date.split("-").map(Number); // Expects "YYYY-MM-DD"
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
+        2,
+        "0"
+      )}`;
+    };
+
+    if (typeof dateService === "string") {
+      const formatted = formatDate(dateService);
+      if (formatted) newDateServiceDates.add(formatted);
+    } else if (Array.isArray(dateService)) {
+      dateService.forEach((service) => {
+        const formatted = formatDate(service.date);
+        if (formatted) newDateServiceDates.add(formatted);
+      });
+    } else if (dateService && typeof dateService === "object") {
+      (dateService.data || []).forEach((service) => {
+        const formatted = formatDate(service.date);
+        if (formatted) newDateServiceDates.add(formatted);
+      });
+    }
+
+    // setDateServiceDates(newDateServiceDates); // Uncomment to update state
+  }, [dateService]);
+
+  const parseDate = (dateStr) => {
+    const [day, month, year] = dateStr.split("/").map(Number); // Expects "DD/MM/YYYY"
+    return new Date(Date.UTC(year, month - 1, day)); // Creates UTC date to prevent offset issues
+  };
+
+  useEffect(() => {
+    if (checkIn && checkOut) {
+      const startDate = parseDate(checkIn);
+      const endDate = parseDate(checkOut);
+      const parseOk = !isNaN(startDate) && !isNaN(endDate) && startDate <= endDate;
+
+      // #region agent log
+      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "8029bf",
+        },
+        body: JSON.stringify({
+          sessionId: "8029bf",
+          runId: "pre-fix",
+          hypothesisId: "A,D",
+          location: "TourStatus.jsx:range-effect",
+          message: "Date range parse result",
+          data: {
+            checkIn,
+            checkOut,
+            parseOk,
+            startMs: isNaN(startDate) ? null : startDate.getTime(),
+            endMs: isNaN(endDate) ? null : endDate.getTime(),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
+      if (parseOk) {
+        const updatedRange = [];
+        let currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+          updatedRange.push(new Date(currentDate));
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Use UTC date addition
+        }
+
+        setRange(updatedRange);
+      } else {
+        setRange([]);
+      }
+    } else {
+      // #region agent log
+      fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "8029bf",
+        },
+        body: JSON.stringify({
+          sessionId: "8029bf",
+          runId: "pre-fix",
+          hypothesisId: "A",
+          location: "TourStatus.jsx:range-effect",
+          message: "Missing checkIn/checkOut - clearing range",
+          data: { checkIn: checkIn || "", checkOut: checkOut || "" },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      setRange([]);
+    }
+  }, [checkIn, checkOut]);
+
+  // Removed auto-fetch of booking ID on mount since tour is now created during booking/enquiry
+  // useEffect(() => {
+  //   if (status === "idle") {
+  //     dispatch(fetchBookingid());
+  //   }
+  // }, [dispatch, status]);
+
+  const formatDate = (date) => date.toISOString().split("T")[0];
+
+  const handleHotelClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setHotelModalOpen(true);
+  };
+
+  const handleAttractionClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setModalOpen(true);
+  };
+
+  const handleRestaurantClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setRestaurantModalOpen(true);
+  };
+
+  const handleLocaltourClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setlocaltourModalOpen(true);
+  };
+
+  const handleEntryPortClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setPortType("entry");
+    setentryexitModalOpen(true);
+  };
+
+  const handleExitPortClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setPortType("exit");
+    setentryexitModalOpen(true);
+  };
+
+  const handleGuideClick = (date) => {
+    setSelectedDate(formatDate(date));
+    setguideModalOpen(true);
+  };
+
+  const subBoxIcons = [
+    { icon: hotelIcon, name: "Hotel", color: "#4caf50" },
+    { icon: airplane, name: "Pickup/Drop(Entry Port)", color: "#ff9800" },
+    { icon: airplane2, name: "Pickup/Drop(Exit Port)", color: "#2196f3" },
+    {
+      icon: attractionIcon,
+      name: "Attraction & Experiences",
+      color: "#9c27b0",
+    },
+    { icon: guideIcon, name: "Tour Guide", color: "#795548" },
+    { icon: restaurant, name: "Restaurant", color: "#607d8b" },
+    { icon: car1, name: "Travellers", color: "#f44336" },
+  ];
+
+  const formatDateForDisplay = (date) => {
+    const d = new Date(date);
+
+    // Get day name (Mon, Tue, etc.)
+    const dayName = new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+    }).format(d);
+
+    // Get day of month (1-31)
+    const day = d.getDate();
+
+    // Get month name (Jan, Feb, etc.)
+    const monthName = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+    }).format(d);
+
+    // Get year and take last 2 digits
+    const year = d.getFullYear().toString().substr(-2);
+
+    // Format as "Mon, 24 Jan'25"
+    return `${dayName}, ${day} ${monthName}'${year}`;
+  };
+
+  return (
+    <div className="tour-status-container">
+      <div className="range-box">
+        {range.length > 0 ? (
+          <div className="boxes-container">
+            {range.map((date, index) => {
+              const formattedDate = formatDate(date);
+              const services = dateService[formattedDate]?.services || {};
+              // console.log("services", services);
+
+              const attractionCount = (services.attraction?.count || 0) + (services.attraction_package?.count || 0);
+              // console.log("attractionCount", attractionCount);
+              const restaurantCount = services.restaurant?.count || 0;
+              const localtravelPointCount = services.travel_point?.count || 0;
+              const localtravelHourCount = services.travel_hourly?.count || 0;
+              const localtravelZoneCount = services.local_transport?.count || 0;
+              const localtourCount =
+                localtravelPointCount +
+                localtravelHourCount +
+                localtravelZoneCount;
+              const entrycount = services.entry_port?.count || 0;
+              const exitcount = services.exit_port?.count || 0;
+              const portcount = entrycount + exitcount;
+              const guidecount = services.guide?.count || 0;
+
+              // Add hotel count
+              const hotelCount = services.hotel?.count || 0;
+
+              // Filter icons based on the current day
+              const visibleIcons = subBoxIcons.filter((icon) => {
+                if (icon.name === "Pickup/Drop(Entry Port)") {
+                  return index === 0;
+                }
+                if (icon.name === "Pickup/Drop(Exit Port)") {
+                  return index === range.length - 1;
+                }
+                return true;
+              });
+
+              return (
+                <div
+                  key={index}
+                  className="number-box"
+                  style={{
+                    width: "180px",
+                    height: "80px",
+                    // backgroundColor: "#f0e70d1a",
+                    backgroundColor: "#0dcaf033",
+                    border: "1.5px solid rgba(5, 4, 4, 0.98)",
+                    borderRadius: "8px",
+                    padding: "10px 8px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                    transition: "all 0.2s ease",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      color: "#333",
+                      textAlign: "center",
+                      marginBottom: "10px",
+                      padding: "2px 0",
+                      borderBottom: "1px dashed rgba(0,0,0,0.1)",
+                      position: "relative",
+                    }}
+                  >
+                    {formatDateForDisplay(date)}
+                  </div>
+                  <div
+                    className="sub-box-container"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${visibleIcons.length}, 1fr)`,
+                      gap: "4px",
+                      width: "100%",
+                      marginTop: "5px",
+                    }}
+                  >
+                    {visibleIcons.map((icon, subIndex) => {
+                      // Determine if the icon should be active (has a count)
+                      let count = 0;
+                      if (icon.name === "Hotel") count = hotelCount;
+                      else if (icon.name === "Pickup/Drop(Entry Port)")
+                        count = entrycount;
+                      else if (icon.name === "Pickup/Drop(Exit Port)")
+                        count = exitcount;
+                      else if (icon.name === "Attraction & Experiences")
+                        count = attractionCount;
+                      else if (icon.name === "Tour Guide") count = guidecount;
+                      else if (icon.name === "Restaurant")
+                        count = restaurantCount;
+                      else if (icon.name === "Travellers")
+                        count = localtourCount;
+
+                      const isActive = count > 0;
+
+                      return (
+                        <div
+                          key={subIndex}
+                          className="sub-box"
+                          style={{
+                            width: "20px",
+                            height: "20px",
+                            textAlign: "center",
+                            lineHeight: "50px",
+                            cursor: isActive ? "pointer" : "default",
+                            marginLeft:
+                              visibleIcons.length === 5
+                                ? "6px"
+                                : visibleIcons.length === 6
+                                ? "3px"
+                                : "4px",
+                            position: "relative",
+                            opacity: isActive ? 1 : 0.5,
+                            filter: isActive ? "none" : "grayscale(60%)",
+                            transition: "all 0.2s ease",
+                          }}
+                          onClick={() => {
+                            if (!isActive) return;
+
+                            const iconName = icon.name;
+                            if (iconName === "Hotel" && hotelCount > 0)
+                              handleHotelClick(date);
+                            else if (
+                              iconName === "Attraction & Experiences" &&
+                              attractionCount > 0
+                            )
+                              handleAttractionClick(date);
+                            else if (
+                              iconName === "Pickup/Drop(Entry Port)" &&
+                              entrycount > 0
+                            )
+                              handleEntryPortClick(date);
+                            else if (
+                              iconName === "Pickup/Drop(Exit Port)" &&
+                              exitcount > 0
+                            )
+                              handleExitPortClick(date);
+                            else if (
+                              iconName === "Travellers" &&
+                              localtourCount > 0
+                            )
+                              handleLocaltourClick(date);
+                            else if (
+                              iconName === "Tour Guide" &&
+                              guidecount > 0
+                            )
+                              handleGuideClick(date);
+                            else if (
+                              iconName === "Restaurant" &&
+                              restaurantCount > 0
+                            )
+                              handleRestaurantClick(date);
+                          }}
+                        >
+                          <div style={{ position: "relative" }}>
+                            <img
+                              src={icon.icon}
+                              alt={icon.name}
+                              data-tooltip-content={icon.name}
+                              data-tooltip-id={`tooltip-${subIndex}-${index}`}
+                              style={{
+                                width: "15px",
+                                height: "15px",
+                                transition: "transform 0.2s ease",
+                              }}
+                            />
+                            {count > 0 && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 3,
+                                  right: -10,
+                                  backgroundColor: icon.color || "blue",
+                                  color: "white",
+                                  borderRadius: "50%",
+                                  width: "14px",
+                                  height: "15px",
+                                  display: "flex",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  fontSize: "10px",
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                                }}
+                              >
+                                {count}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Box
+            style={{
+              textAlign: "center",
+              padding: "20px",
+              color: "#666",
+              fontStyle: "italic",
+              backgroundColor: "rgba(0,0,0,0.02)",
+              borderRadius: "8px",
+            }}
+          >
+            No date range selected
+          </Box>
+        )}
+      </div>
+
+      {/* Tooltips */}
+      {subBoxIcons.map((icon, iconIndex) =>
+        range.map((_, dateIndex) => (
+          <Tooltip
+            key={`tooltip-${iconIndex}-${dateIndex}`}
+            id={`tooltip-${iconIndex}-${dateIndex}`}
+            effect="solid"
+            place="top"
+            style={{
+              borderRadius: "4px",
+              fontSize: "12px",
+              padding: "4px 8px",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+            }}
+          />
+        ))
+      )}
+
+      {/* Modals */}
+      <PortModal
+        open={entryexitModalOpen}
+        onClose={() => setentryexitModalOpen(false)}
+        bookings={portType === "entry" ? formData : formData1}
+        date={selectedDate}
+        portType={portType}
+      />
+      <AttractionModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        bookings={bookings}
+        date={selectedDate}
+      />
+      <LocalTourModal
+        open={localtourModalOpen}
+        onClose={() => setlocaltourModalOpen(false)}
+        bookings={travel}
+        date={selectedDate}
+      />
+      <TourguideModal
+        open={guideModalOpen}
+        onClose={() => setguideModalOpen(false)}
+        bookings={bookedguide}
+        date={selectedDate}
+      />
+      <RestaurantModal
+        open={restaurantModalOpen}
+        onClose={() => setRestaurantModalOpen(false)}
+        bookings={restaurantBooking}
+        date={selectedDate}
+      />
+      <HotelModal
+        open={hotelModalOpen}
+        onClose={() => setHotelModalOpen(false)}
+        bookings={hotelBookings}
+        date={selectedDate}
+      />
+
+      <style jsx>{`
+        .tour-status-container {
+          padding: 15px;
+          background: linear-gradient(145deg, #ffffff, #f9f9f9);
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+
+        .boxes-container {
+          display: flex;
+          overflow-x: auto;
+          gap: 12px;
+          padding: 8px 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+
+        .boxes-container::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .boxes-container::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.05);
+          border-radius: 10px;
+        }
+
+        .boxes-container::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.15);
+          border-radius: 10px;
+        }
+
+        .boxes-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.25);
+        }
+
+        .number-box {
+          position: relative;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .number-box:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        .sub-box:hover img {
+          transform: scale(1.1);
+        }
+      `}</style>
+    </div>
+  );
+}
