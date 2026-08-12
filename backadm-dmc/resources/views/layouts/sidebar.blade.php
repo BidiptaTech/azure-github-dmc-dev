@@ -1303,7 +1303,7 @@
                         </li>
                         @endif
 
-                        @if(hasPermission('view agent'))
+                        @if(hasPermission('view agent') && Auth::user()->role_id != 1)
                         <li class="menu-item @if(Request::is('agents')) active @endif">
                             <a href="{{ route('agents.index') }}" class="menu-link">
                                 <div data-i18n="Add TA Contacts">Add TA Contacts</div>
