@@ -26,6 +26,7 @@ use App\Mail\DmcMail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class DriverController extends Controller
 {
@@ -444,7 +445,6 @@ class DriverController extends Controller
     */
     public function store(Request $request)
     {
-        
         // Validate the incoming request data
         $validated = $request->validate([
             'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
@@ -454,7 +454,12 @@ class DriverController extends Controller
             'state' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'name' => 'required|string',
-            'email' => 'required|email|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('drivers', 'email')->whereNull('deleted_at'),
+            ],
             'phone' => 'required|string|min:8|max:15',
             'license_no' => 'required',
             'license_exp_date' => 'required',
@@ -467,6 +472,8 @@ class DriverController extends Controller
             'bank_code' => 'nullable|string|max:50',
             'swift_code' => 'nullable|string|max:50',
             'master_image' => 'required|nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+        ], [
+            'email.unique' => 'This email is already registered for another driver.',
         ]);
 
         // Generate unique driver ID
@@ -719,7 +726,14 @@ class DriverController extends Controller
             'state' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'name' => 'required|string',
-            'email' => 'required|string',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('drivers', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($driver->id),
+            ],
             'phone' => 'required|string|min:8|max:15',
             // 'license_no' => [
             //                     'required',
@@ -733,8 +747,10 @@ class DriverController extends Controller
             'bank_name' => 'nullable|string|max:255',
             'bank_code' => 'nullable|string|max:50',
             'swift_code' => 'nullable|string|max:50',
+            'app_password' => 'nullable|string|max:255',
         ],[
-        'license_no.unique' => 'This license number is already taken by another driver.',
+            'license_no.unique' => 'This license number is already taken by another driver.',
+            'email.unique' => 'This email is already registered for another driver.',
         ]);
 
         $lastDriver = Driver::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -748,7 +764,7 @@ class DriverController extends Controller
             }
         }
 
-        $plainPassword = $request->app_password;
+        $plainPassword = trim((string) $request->input('app_password', ''));
 
         $driver->salutation = $validated['salutation'];
         $driver->driver_gender = $validated['driver_gender'];
@@ -771,13 +787,25 @@ class DriverController extends Controller
         $driver->bank_code = $request->input('bank_code');
         $driver->swift_code = $request->input('swift_code');
         $driver->image = $master_image;
-        $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
+
+        if ($plainPassword !== '') {
+            $driver->app_password = Hash::make($plainPassword);
+
+            // Invalidate existing Sanctum tokens for this driver
+            PersonalAccessToken::where('tokenable_type', Driver::class)
+                ->where('tokenable_id', $driver->id)
+                ->where(function ($query) {
+                    $query->whereNull('expires_at')
+                        ->orWhere('expires_at', '>', now());
+                })
+                ->update(['expires_at' => now()]);
+        }
 
         if ($driver->save()) {
             // LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
 
             // Send credentials email if email is provided
-            if ($driver->email && $plainPassword) {
+            if ($driver->email && $plainPassword !== '') {
                 try {
                     $this->sendDriverCredentialsEmail($driver, $plainPassword);
                 } catch (\Exception $e) {
