@@ -93,7 +93,7 @@ const MainFilterSearchBox = () => {
 
     setDateRange([startDate, endDate]);
   };
-  const handleLocationSelect = (location) => setSelectedLocation(location.name);
+  const handleLocationSelect = (location) => setSelectedLocation(location);
   // console.log(selectedLocation, "selceted location");
 
   // Add error state
@@ -103,8 +103,18 @@ const MainFilterSearchBox = () => {
   const defaultAdults = tourDetails?.adult > 0 ? tourDetails.adult : 1;
   const defaultChildren = tourDetails?.child || 0;
 
+  const resolveLocationString = (loc) => {
+    if (!loc) return null;
+    if (typeof loc === "string") return loc;
+    if (typeof loc === "object") {
+      return loc.address || loc.name || null;
+    }
+    return null;
+  };
+
   const handleSearch = () => {
     //dispatch(setHaveBooking(false));
+    const locationString = resolveLocationString(selectedLocation);
     dispatch(setSelectedCity(selectedLocation));
     dispatch(resetHotels());
 
@@ -116,21 +126,39 @@ const MainFilterSearchBox = () => {
       : null;
 
     // Check if location is selected before search
-    if (!selectedLocation) {
+    if (!locationString) {
       setLocationError(true);
       return;
     }
 
-    // console.log("Search with:", {
-    //   location: selectedLocation,
-    //   ucheckIn: parsedStartDate,
-    //   ucheckOut: parsedEndDate,
-    //   guests: guestsState,
-    // });
+    // #region agent log
+    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "8029bf",
+      },
+      body: JSON.stringify({
+        sessionId: "8029bf",
+        runId: "post-fix",
+        hypothesisId: "HOTEL_LOC",
+        location: "MainFilterSearchBox.jsx:handleSearch",
+        message: "Hotel search location payload",
+        data: {
+          locationType: typeof selectedLocation,
+          locationString,
+          hasAddress: !!(selectedLocation && selectedLocation.address),
+          hasName: !!(selectedLocation && selectedLocation.name),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     dispatch(
       updateSearchState({
-        location: selectedLocation,
+        // fetchHotels reads searchState.location and must receive a string/array, not an object
+        location: locationString,
         ucheckIn: parsedStartDate,
         ucheckOut: parsedEndDate,
         guests: guestsState,
@@ -139,7 +167,7 @@ const MainFilterSearchBox = () => {
 
     dispatch(
       fetchHotels({
-        location: selectedLocation.address, // Use the full address from the location object
+        location: locationString,
         ucheckIn: parsedStartDate,
         ucheckOut: parsedEndDate,
         start: 0,
@@ -153,49 +181,70 @@ const MainFilterSearchBox = () => {
     return current && (current < checkIn || current > checkOut);
   };
 
-  // Initialize searchState with data from tourDetails on component mount
+  // Sync search UI when tourDetails become available (including after refresh restore)
   useEffect(() => {
-    if (tourDetails && !previousSearchLocation.current) {
-      // console.log("Initializing from tourDetails:", tourDetails);
+    if (!tourDetails) return;
 
-      // Convert dates to the format expected by hotelSlice
-      let formattedCheckIn = null;
-      let formattedCheckOut = null;
+    const nextCheckIn =
+      tourDetails?.CheckInTime || tourDetails?.check_in_time || null;
+    const nextCheckOut =
+      tourDetails?.CheckOutTime || tourDetails?.check_out_time || null;
 
-      if (checkIn) {
-        const checkInDate = new DateObject({
-          date: checkIn,
-          format: "DD/MM/YYYY",
-        });
-        formattedCheckIn = checkInDate.format("YYYY-MM-DD");
-      }
-
-      if (checkOut) {
-        const checkOutDate = new DateObject({
-          date: checkOut,
-          format: "DD/MM/YYYY",
-        });
-        formattedCheckOut = checkOutDate.format("YYYY-MM-DD");
-      }
-
-      // Update hotelSlice searchState with data from tourDetails
-      dispatch(
-        updateSearchState({
-          location: tourDetails.destination || searchState.location,
-          ucheckIn: formattedCheckIn,
-          ucheckOut: formattedCheckOut,
-          guests: {
-            adults: tourDetails.adult || 1,
-            children: tourDetails.child || 0,
-            infant: tourDetails.infant || 0,
-          },
-        })
+    if (nextCheckIn && nextCheckOut) {
+      setDateRange([
+        new DateObject({ date: nextCheckIn, format: "DD/MM/YYYY" }),
+        new DateObject({ date: nextCheckOut, format: "DD/MM/YYYY" }),
+      ]);
+      setInitialMinDate(
+        new Date(parse(nextCheckIn, "dd/MM/yyyy", new Date()))
       );
-
-      // Mark that we've initialized
-      previousSearchLocation.current = true;
+      setInitialMaxDate(
+        new Date(parse(nextCheckOut, "dd/MM/yyyy", new Date()))
+      );
     }
-  }, [dispatch]); // Only run once on component mount
+
+    if (tourDetails.adult != null || tourDetails.child != null) {
+      setGuests({
+        adults: tourDetails.adult || 1,
+        children: tourDetails.child || 0,
+        infant: tourDetails.infant || 0,
+      });
+    }
+
+    if (previousSearchLocation.current) return;
+
+    let formattedCheckIn = null;
+    let formattedCheckOut = null;
+
+    if (nextCheckIn) {
+      formattedCheckIn = new DateObject({
+        date: nextCheckIn,
+        format: "DD/MM/YYYY",
+      }).format("YYYY-MM-DD");
+    }
+
+    if (nextCheckOut) {
+      formattedCheckOut = new DateObject({
+        date: nextCheckOut,
+        format: "DD/MM/YYYY",
+      }).format("YYYY-MM-DD");
+    }
+
+    dispatch(
+      updateSearchState({
+        location: tourDetails.destination || searchState.location,
+        ucheckIn: formattedCheckIn,
+        ucheckOut: formattedCheckOut,
+        guests: {
+          adults: tourDetails.adult || 1,
+          children: tourDetails.child || 0,
+          infant: tourDetails.infant || 0,
+        },
+      })
+    );
+
+    previousSearchLocation.current = true;
+  }, [dispatch, tourDetails]);
 
   // Listen for triggerSearch from Redux and call handleSearch when hotel step is triggered
   const searchTrigger = useSelector((state) => state.steps.triggerSearch);

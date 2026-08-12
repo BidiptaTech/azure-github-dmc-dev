@@ -47,6 +47,7 @@ import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSli
 import { setCity } from "../../../slice/common/citySlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import { fetchCitiesByCountry } from "../../../slice/common/citiesSlice";
+import { clearTourSession } from "@/utils/tourSession";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -237,6 +238,7 @@ const MainFilterSearchBox = () => {
     // Reset local step tracking for new search
     dispatch(resetSteps());
     dispatch(setTourIdd(null));
+    clearTourSession();
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;

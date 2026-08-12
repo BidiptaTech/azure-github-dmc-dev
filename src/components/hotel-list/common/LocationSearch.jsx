@@ -111,6 +111,40 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
         if (!selectedItem || selectedItem.id !== matchingCity.id) {
           onLocationSelect(matchingCity);
         }
+      } else if (cityName) {
+        // After refresh, city list may load later — still show the saved city name
+        const fallback = {
+          id: 0,
+          name: String(cityName).split(",")[0],
+          address: String(cityName),
+        };
+        initialSelectionRef.current = true;
+        setSelectedItem(fallback);
+        setSearchValue(fallback.name);
+        setIsDropdownOpen(false);
+        if (setError) setError(false);
+        onLocationSelect(fallback);
+        // #region agent log
+        fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "8029bf",
+          },
+          body: JSON.stringify({
+            sessionId: "8029bf",
+            runId: "post-fix",
+            hypothesisId: "CITY",
+            location: "LocationSearch.jsx:fallback-city",
+            message: "Applied saved city without city-list match",
+            data: {
+              cityName: fallback.name,
+              cityListSize: transformedCityData.length,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
       }
     }
   // Removed onLocationSelect from dependencies to prevent loops

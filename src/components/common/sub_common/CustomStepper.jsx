@@ -107,6 +107,9 @@ const LoadingDots = () => {
 export default function CustomStepper() {
   const id = useSelector((state) => state.hotels.id);
   const tourId = useSelector((state) => state.steps.id);
+  const authTourId = useSelector((state) => state.auth?.tourId);
+  const haveBooking = useSelector((state) => state.common?.haveBooking);
+  const { checkIn, checkOut } = useSelector((state) => state.bookings || {});
   const { currentStep, stepStatus1, localCurrentStep, localStepStatus } = useSelector(
     (state) => state.steps
   );
@@ -119,6 +122,39 @@ export default function CustomStepper() {
 
   // Get stepper button visibility state
   const { buttonVisibility } = useSelector((state) => state.stepperButton);
+
+  // #region agent log
+  React.useEffect(() => {
+    fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "8029bf",
+      },
+      body: JSON.stringify({
+        sessionId: "8029bf",
+        runId: "pre-fix",
+        hypothesisId: "B,E",
+        location: "CustomStepper.jsx:mount-state",
+        message: "CustomStepper tour context",
+        data: {
+          stepsTourId: tourId ?? null,
+          authTourId: authTourId ?? null,
+          hotelsId: id ?? null,
+          haveBooking: !!haveBooking,
+          checkIn: checkIn || "",
+          checkOut: checkOut || "",
+          effectiveCurrentStep,
+          navType:
+            typeof performance !== "undefined" && performance.getEntriesByType
+              ? performance.getEntriesByType("navigation")[0]?.type || "unknown"
+              : "unknown",
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [tourId, authTourId, id, haveBooking, checkIn, checkOut, effectiveCurrentStep]);
+  // #endregion
 
   const steps = useMemo(
     () => [
