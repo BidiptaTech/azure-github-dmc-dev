@@ -176,6 +176,50 @@
             background-color: #e3f2fd;
         }
 
+        /* City-aware Places suggestions (selected City dropdown respected) */
+        .gmaps-city-suggestions {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 2px);
+            z-index: 10050;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
+        }
+        .gmaps-city-suggestions.is-open {
+            display: block;
+        }
+        .gmaps-city-suggestion-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            font-size: 0.875rem;
+            line-height: 1.35;
+        }
+        .gmaps-city-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .gmaps-city-suggestion-item:hover,
+        .gmaps-city-suggestion-item.is-active {
+            background-color: #e3f2fd;
+        }
+        .gmaps-city-suggestion-item .main-text {
+            font-weight: 600;
+            color: #212529;
+        }
+        .gmaps-city-suggestion-item .secondary-text {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        body.gmaps-city-suggest-open .pac-container {
+            display: none !important;
+        }
+
         .location-input {
             position: relative;
         }
@@ -24099,88 +24143,595 @@
         return customer_info;
     }
 
-    // Google Maps Autocomplete Functionality for Local Transfer Point-to-Point
-    window.initializeGoogleMapsAutocomplete = function() {
-        console.log('Initializing Google Maps Autocomplete for Local Transfer Point-to-Point...');
-        
-        // Get selected country and city for location bias
-        const selectedCountry = '{{ $tour->country ?? "" }}';
-        const selectedCity = '{{ $tour->city ?? "" }}';
-        
-        // Create location bias for better search results
-        let locationBias = null;
-        if (selectedCountry && selectedCity) {
-            locationBias = selectedCity + ', ' + selectedCountry;
-        } else if (selectedCountry) {
-            locationBias = selectedCountry;
+    // Cache geocoded city bounds for soft location bias (ranking only, not hard restriction).
+    window._gmapsCityBoundsCache = window._gmapsCityBoundsCache || {};
+
+    // Resolve the city dropdown tied to a Google Maps location input (editform modals / day transport).
+    window.resolveCitySelectForAutocompleteInput = function(input) {
+        if (!input) return null;
+        const inputId = input.id || '';
+        let citySelect = null;
+
+        // day1_transport_2_pickup_location / day1_transport_2_hourly_pickup_location
+        let match = inputId.match(/^day(\d+)_transport_(\d+)_(?:hourly_)?(?:pickup|dropoff)_location$/);
+        if (match) {
+            citySelect = document.getElementById(`day${match[1]}_transport_city_${match[2]}`);
+        } else {
+            match = inputId.match(/^day(\d+)_transport_(?:hourly_)?(?:pickup|dropoff)_location$/);
+            if (match) {
+                citySelect = document.getElementById(`day${match[1]}_transport_city_0`);
+            }
         }
-        
-        // Initialize autocomplete for local transfer location inputs
+
+        if (!citySelect) {
+            if (inputId.startsWith('local_transfer_')) {
+                citySelect = document.getElementById('modal_local_transfer_city');
+            } else if (inputId.startsWith('modal_dropoff_transport_')) {
+                citySelect = document.getElementById('modal_exitport_transport_city');
+            } else if (inputId.startsWith('modal_transport_')) {
+                citySelect = document.getElementById('modal_entryport_transport_city');
+            } else if (inputId.includes('_entry_')) {
+                citySelect = document.getElementById('modal_entryport_transport_city') ||
+                    document.getElementById('modal_local_transfer_city');
+            } else if (inputId.includes('_exit_')) {
+                citySelect = document.getElementById('modal_exitport_transport_city') ||
+                    document.getElementById('modal_exit_city');
+            }
+        }
+
+        return citySelect || null;
+    };
+
+    window.resolveCityForAutocompleteInput = function(input) {
+        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+        if (!citySelect) {
+            // Fall back to tour city when no modal city is bound
+            return String('{{ $tour->city ?? "" }}').trim();
+        }
+
+        const opt = citySelect.options?.[citySelect.selectedIndex];
+        const fromData = (opt?.getAttribute?.('data-city-name') || '').trim();
+        const fromText = (opt?.textContent || '').trim().split('(')[0].trim();
+        const fromValue = String(citySelect.value || '').trim();
+        return fromData || fromText || fromValue;
+    };
+
+    // Prefer the country on the city option tied to this input (destination-aware),
+    // then fall back to the tour/package country. Never hardcode India.
+    window.resolveCountryForAutocompleteInput = function(input) {
+        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+        if (citySelect) {
+            try {
+                if (typeof $ !== 'undefined' && $(citySelect).length && $(citySelect).data('select2')) {
+                    const d = $(citySelect).select2('data');
+                    const fromSelect2 = d?.[0]?.country != null ? String(d[0].country).trim() : '';
+                    if (fromSelect2) return fromSelect2;
+                }
+            } catch (e) {}
+            const opt = citySelect.options?.[citySelect.selectedIndex];
+            const fromOpt = (opt?.getAttribute?.('data-country') || '').trim();
+            if (fromOpt) return fromOpt;
+        }
+
+        if (typeof window.resolveSelectedCountryNameForAutocomplete === 'function') {
+            const resolved = window.resolveSelectedCountryNameForAutocomplete() || '';
+            if (resolved) return resolved;
+        }
+
+        const tourCountry = String('{{ $tour->country ?? "" }}').trim();
+        if (tourCountry) return tourCountry;
+        return document.getElementById('user_country')?.value || '';
+    };
+
+    /**
+     * Build a contextual Places query.
+     * - "Hotel Verge" + Launceston/Australia => "Hotel Verge, Launceston, Australia"
+     * - Already-complete queries (contain city/country or commas) are left unchanged.
+     */
+    window.buildContextualPlacesQuery = function(rawQuery, cityName, countryName) {
+        const q = String(rawQuery || '').trim();
+        if (!q) return q;
+
+        const lower = q.toLowerCase();
+        const city = String(cityName || '').trim();
+        const country = String(countryName || '').trim();
+
+        if (city && lower.includes(city.toLowerCase())) return q;
+        if (country && lower.includes(country.toLowerCase())) return q;
+        if (q.indexOf(',') !== -1) return q;
+
+        if (city && country) return `${q}, ${city}, ${country}`;
+        if (city) return `${q}, ${city}`;
+        if (country) return `${q}, ${country}`;
+        return q;
+    };
+
+    // Geocode city (+ country) and apply SOFT viewport bias to Autocomplete.
+    window.applyCityBoundsToAutocomplete = function(autocomplete, cityName, countryName) {
+        if (!autocomplete || !cityName || typeof google === 'undefined' || !google.maps?.Geocoder) {
+            return;
+        }
+
+        const cacheKey = `${String(cityName).trim().toLowerCase()}|${String(countryName || '').trim().toLowerCase()}`;
+        const applyBounds = (bounds) => {
+            if (!bounds) return;
+            try {
+                autocomplete.setBounds(bounds);
+                autocomplete.setOptions({ strictBounds: false });
+            } catch (e) {
+                console.warn('Failed to apply city bounds to autocomplete', e);
+            }
+        };
+
+        if (window._gmapsCityBoundsCache[cacheKey]) {
+            applyBounds(window._gmapsCityBoundsCache[cacheKey]);
+            return;
+        }
+
+        const geocoder = new google.maps.Geocoder();
+        const address = countryName ? `${cityName}, ${countryName}` : cityName;
+        geocoder.geocode({ address: address }, function(results, status) {
+            if (status !== 'OK' || !results?.[0]) {
+                console.warn('City geocode failed for autocomplete bias:', address, status);
+                return;
+            }
+            const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+            if (!bounds) return;
+            window._gmapsCityBoundsCache[cacheKey] = bounds;
+            applyBounds(bounds);
+        });
+    };
+
+    window.applyDestinationOptionsToAutocomplete = function(autocomplete, input) {
+        if (!autocomplete || !input) return;
+        const cityName = window.resolveCityForAutocompleteInput(input);
+        const countryName = window.resolveCountryForAutocompleteInput(input);
+        const countryCode = (typeof window.getCountryCode === 'function')
+            ? window.getCountryCode(countryName)
+            : '';
+
+        const options = { strictBounds: false };
+        if (cityName && countryCode) {
+            options.componentRestrictions = { country: countryCode };
+        } else {
+            options.componentRestrictions = null;
+        }
+        try {
+            autocomplete.setOptions(options);
+        } catch (e) {
+            console.warn('Failed to update autocomplete destination options', e);
+        }
+
+        if (cityName) {
+            window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+        } else if (countryName && typeof google !== 'undefined' && google.maps?.Geocoder) {
+            window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+        }
+    };
+
+    window.hideCityAwarePlaceSuggestions = function(input) {
+        const box = input && input._citySuggestBox;
+        if (box) {
+            box.classList.remove('is-open');
+            box.innerHTML = '';
+        }
+        document.body.classList.remove('gmaps-city-suggest-open');
+    };
+
+    window.renderCityAwarePlaceSuggestions = function(input, predictions, onSelect) {
+        if (!input) return;
+        let parent = input.parentElement;
+        if (!parent) return;
+        if (getComputedStyle(parent).position === 'static') {
+            parent.style.position = 'relative';
+        }
+
+        let box = input._citySuggestBox;
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'gmaps-city-suggestions';
+            box.setAttribute('role', 'listbox');
+            parent.appendChild(box);
+            input._citySuggestBox = box;
+        }
+
+        if (!predictions || !predictions.length) {
+            window.hideCityAwarePlaceSuggestions(input);
+            return;
+        }
+
+        box.innerHTML = predictions.map(function(p, idx) {
+            return '<div class="gmaps-city-suggestion-item" data-index="' + idx + '" role="option">' +
+                '<div class="main-text"></div>' +
+                '<div class="secondary-text"></div>' +
+                '</div>';
+        }).join('');
+
+        Array.from(box.querySelectorAll('.gmaps-city-suggestion-item')).forEach(function(item, idx) {
+            const p = predictions[idx];
+            const mainEl = item.querySelector('.main-text');
+            const secEl = item.querySelector('.secondary-text');
+            const main = (p.structured_formatting && p.structured_formatting.main_text)
+                ? p.structured_formatting.main_text
+                : (p.description || '');
+            const secondary = (p.structured_formatting && p.structured_formatting.secondary_text)
+                ? p.structured_formatting.secondary_text
+                : '';
+            if (mainEl) mainEl.textContent = main;
+            if (secEl) {
+                if (secondary) {
+                    secEl.textContent = secondary;
+                } else {
+                    secEl.remove();
+                }
+            }
+
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof onSelect === 'function') onSelect(p);
+                window.hideCityAwarePlaceSuggestions(input);
+            });
+        });
+
+        box.classList.add('is-open');
+        document.body.classList.add('gmaps-city-suggest-open');
+    };
+
+    window.fetchCityAwarePlacePredictions = function(input, rawQuery, callback) {
+        if (typeof google === 'undefined' || !google.maps?.places?.AutocompleteService) {
+            callback([]);
+            return;
+        }
+        const city = window.resolveCityForAutocompleteInput(input);
+        const country = window.resolveCountryForAutocompleteInput(input);
+        if (!city) {
+            callback([]);
+            return;
+        }
+
+        const contextual = window.buildContextualPlacesQuery(rawQuery, city, country);
+        const service = new google.maps.places.AutocompleteService();
+        const req = { input: contextual };
+        const countryCode = (typeof window.getCountryCode === 'function')
+            ? window.getCountryCode(country)
+            : '';
+        if (countryCode) {
+            req.componentRestrictions = { country: countryCode };
+        }
+        const cacheKey = `${String(city || '').trim().toLowerCase()}|${String(country || '').trim().toLowerCase()}`;
+        if (window._gmapsCityBoundsCache[cacheKey]) {
+            req.bounds = window._gmapsCityBoundsCache[cacheKey];
+        }
+
+        if (!window._gmapsCityBoundsCache[cacheKey] && google.maps?.Geocoder) {
+            const geocoder = new google.maps.Geocoder();
+            const address = country ? `${city}, ${country}` : city;
+            geocoder.geocode({ address: address }, function(results, status) {
+                if (status === 'OK' && results?.[0]) {
+                    const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                    if (bounds) window._gmapsCityBoundsCache[cacheKey] = bounds;
+                }
+            });
+        }
+
+        console.log('City-aware Places query:', contextual, { city, country, countryCode });
+        service.getPlacePredictions(req, function(predictions, status) {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions?.length) {
+                if (req.componentRestrictions) {
+                    delete req.componentRestrictions;
+                    service.getPlacePredictions(req, function(predictions2, status2) {
+                        if (status2 !== google.maps.places.PlacesServiceStatus.OK || !predictions2?.length) {
+                            callback([]);
+                            return;
+                        }
+                        callback(predictions2);
+                    });
+                    return;
+                }
+                callback([]);
+                return;
+            }
+            callback(predictions);
+        });
+    };
+
+    window.placeMatchesSelectedCity = function(place, cityName) {
+        if (!cityName || !place) return true;
+        const needle = String(cityName).trim().toLowerCase();
+        if (!needle) return true;
+        const parts = [
+            place.formatted_address || '',
+            place.name || '',
+            ...((place.address_components || []).map(c => `${c.long_name || ''} ${c.short_name || ''}`))
+        ];
+        return parts.join(' ').toLowerCase().includes(needle);
+    };
+
+    window.refreshAutocompleteCityBounds = function(citySelectEl) {
+        if (!citySelectEl) return;
+        const selectId = citySelectEl.id || '';
+
+        let ids = [];
+        const dayMatch = selectId.match(/^day(\d+)_transport_city_(\d+)$/);
+        if (dayMatch) {
+            const day = dayMatch[1];
+            const index = parseInt(dayMatch[2], 10) || 0;
+            ids = index === 0
+                ? [
+                    `day${day}_transport_pickup_location`,
+                    `day${day}_transport_dropoff_location`,
+                    `day${day}_transport_hourly_pickup_location`
+                ]
+                : [
+                    `day${day}_transport_${index}_pickup_location`,
+                    `day${day}_transport_${index}_dropoff_location`,
+                    `day${day}_transport_${index}_hourly_pickup_location`
+                ];
+        } else if (selectId === 'modal_local_transfer_city') {
+            ids = [
+                'local_transfer_point_pickup_location',
+                'local_transfer_point_dropoff_location',
+                'local_transfer_hourly_pickup_location'
+            ];
+        } else if (selectId === 'modal_entryport_transport_city') {
+            ids = ['modal_transport_pickup_location', 'modal_transport_dropoff_location'];
+        } else if (selectId === 'modal_exitport_transport_city') {
+            ids = ['modal_dropoff_transport_pickup_location', 'modal_dropoff_transport_dropoff_location'];
+        } else {
+            return;
+        }
+
+        ids.forEach(function(id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            if (input.value) {
+                input.value = '';
+                const latField = document.getElementById(id.replace('_location', '_lat'));
+                const lngField = document.getElementById(id.replace('_location', '_lng'));
+                const placeIdField = document.getElementById(id.replace('_location', '_place_id'));
+                if (latField) latField.value = '';
+                if (lngField) lngField.value = '';
+                if (placeIdField) placeIdField.value = '';
+            }
+            if (input._placesAutocomplete) {
+                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+            } else {
+                input.removeAttribute('data-autocomplete-initialized');
+            }
+        });
+
+        setTimeout(function() {
+            if (typeof window.initializeGoogleMapsAutocomplete === 'function') {
+                window.initializeGoogleMapsAutocomplete();
+            }
+        }, 50);
+    };
+
+    // Google Maps Autocomplete Functionality (worldwide)
+    // Uses: google.maps.places.Autocomplete (+ Geocoder soft bias)
+    // Assist: AutocompleteService / PlacesService.findPlaceFromQuery for contextual short queries
+    window.initializeGoogleMapsAutocomplete = function() {
+        console.log('Initializing Google Maps Autocomplete...');
+
+        const resolveSelectedCountryName = () => {
+            const tourCountry = String('{{ $tour->country ?? "" }}').trim();
+            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
+
+            const citySelectIds = [
+                'single_city',
+                'modal_city_select',
+                'modal_local_transfer_city',
+                'modal_entryport_transport_city',
+                'modal_exitport_transport_city'
+            ];
+            for (const id of citySelectIds) {
+                const sel = document.getElementById(id);
+                if (!sel) continue;
+                try {
+                    if (typeof $ !== 'undefined' && $(sel).length && $(sel).data('select2')) {
+                        const d = $(sel).select2('data');
+                        const fromSelect2 = d?.[0]?.country != null ? String(d[0].country).trim() : '';
+                        if (fromSelect2 && getCountryCode(fromSelect2)) return fromSelect2;
+                    }
+                } catch (e) {}
+                const opt = sel.options && sel.options[sel.selectedIndex];
+                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
+                if (dc && getCountryCode(dc)) return dc;
+            }
+
+            return document.getElementById('user_country')?.value || tourCountry || '';
+        };
+        window.resolveSelectedCountryNameForAutocomplete = resolveSelectedCountryName;
+
         document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
-                
-                // Create autocomplete instance. Only restrict by country when a valid ISO code exists,
-                // otherwise Google throws InvalidValueError and no suggestions appear.
+
+                const cityName = window.resolveCityForAutocompleteInput(input);
+                const countryName = window.resolveCountryForAutocompleteInput(input);
+
+                // City-respected Autocomplete: soft bounds + destination country when City is selected
                 const autocompleteOptions = {
-                    types: ['establishment', 'geocode'],
-                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components'],
+                    strictBounds: false
                 };
-                const countryCode = getCountryCode(selectedCountry);
-                if (countryCode) {
+                const countryCode = (typeof window.getCountryCode === 'function')
+                    ? window.getCountryCode(countryName)
+                    : '';
+                if (cityName && countryCode) {
                     autocompleteOptions.componentRestrictions = { country: countryCode };
                 }
+
                 const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
-                
-                // Add place_changed event listener
+                input._placesAutocomplete = autocomplete;
+
+                if (cityName) {
+                    window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+                } else if (countryName) {
+                    window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+                }
+
+                if (!input._placesContextualAssistBound) {
+                    input._placesContextualAssistBound = true;
+                    let assistTimer = null;
+
+                    const resolvePlacesService = function() {
+                        if (!input._placesService && typeof google !== 'undefined' && google.maps?.places?.PlacesService) {
+                            input._placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                        }
+                        return input._placesService || null;
+                    };
+
+                    const fillPlaceFields = function(place) {
+                        if (!place?.geometry?.location) return;
+                        const lat = place.geometry.location.lat();
+                        const lng = place.geometry.location.lng();
+                        const latField = document.getElementById(input.id.replace('_location', '_lat'));
+                        const lngField = document.getElementById(input.id.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id || '';
+                        input.value = place.formatted_address || place.name || input.value;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (typeof checkLocalTransferFormCompletion === 'function') {
+                            checkLocalTransferFormCompletion();
+                        }
+                        if (typeof checkHourlyFormCompletion === 'function') {
+                            checkHourlyFormCompletion();
+                        }
+                    };
+
+                    const selectPrediction = function(prediction) {
+                        const placesService = resolvePlacesService();
+                        if (!placesService || !prediction?.place_id) return;
+                        placesService.getDetails({
+                            placeId: prediction.place_id,
+                            fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                        }, function(place, status) {
+                            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+                                input.value = prediction.description || input.value;
+                                return;
+                            }
+                            fillPlaceFields(place);
+                        });
+                    };
+
+                    input.addEventListener('input', function() {
+                        const raw = String(input.value || '').trim();
+                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                        if (placeIdField) placeIdField.value = '';
+
+                        clearTimeout(assistTimer);
+                        if (raw.length < 2) {
+                            window.hideCityAwarePlaceSuggestions(input);
+                            return;
+                        }
+
+                        assistTimer = setTimeout(function() {
+                            const city = window.resolveCityForAutocompleteInput(input);
+                            if (input._placesAutocomplete) {
+                                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+                            }
+
+                            if (city) {
+                                window.fetchCityAwarePlacePredictions(input, raw, function(predictions) {
+                                    window.renderCityAwarePlaceSuggestions(input, predictions, selectPrediction);
+                                });
+                            } else {
+                                window.hideCityAwarePlaceSuggestions(input);
+                            }
+                        }, 220);
+                    });
+
+                    input.addEventListener('blur', function() {
+                        setTimeout(function() {
+                            window.hideCityAwarePlaceSuggestions(input);
+                            const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                            if (placeIdField && placeIdField.value) return;
+                            const raw = String(input.value || '').trim();
+                            if (raw.length < 3) return;
+
+                            const city = window.resolveCityForAutocompleteInput(input);
+                            const country = window.resolveCountryForAutocompleteInput(input);
+                            const contextual = window.buildContextualPlacesQuery(raw, city, country);
+                            const shouldResolve = !!city || (contextual !== raw) || raw.indexOf(',') !== -1;
+                            if (!shouldResolve) return;
+
+                            const placesService = resolvePlacesService();
+                            if (!placesService || !placesService.findPlaceFromQuery) return;
+
+                            placesService.findPlaceFromQuery({
+                                query: contextual,
+                                fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                            }, function(results, status) {
+                                if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.[0]) {
+                                    console.log('findPlaceFromQuery miss for', contextual, status);
+                                    return;
+                                }
+                                if (String(input.value || '').trim() !== raw) return;
+                                console.log('findPlaceFromQuery hit:', contextual, results[0]);
+                                fillPlaceFields(results[0]);
+                            });
+                        }, 220);
+                    });
+
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            window.hideCityAwarePlaceSuggestions(input);
+                        }
+                    });
+                }
+
                 autocomplete.addListener('place_changed', function() {
                     const place = autocomplete.getPlace();
-                    
+
                     if (!place.geometry) {
                         console.log('No geometry found for selected place');
                         return;
                     }
-                    
+
+                    window.hideCityAwarePlaceSuggestions(input);
+
+                    const selectedCityForInput = window.resolveCityForAutocompleteInput(input);
+                    if (selectedCityForInput && !window.placeMatchesSelectedCity(place, selectedCityForInput)) {
+                        console.warn('Selected place may be outside the chosen city (allowed):', selectedCityForInput, place.formatted_address);
+                    }
+
                     console.log('Place selected:', place);
-                    
-                    // Extract coordinates
+
                     const lat = place.geometry.location.lat();
                     const lng = place.geometry.location.lng();
-                    
-                    // Update hidden fields based on input ID
                     const inputId = input.id;
-                    
-                    // Handle local transfer point-to-point fields
-                    if (inputId.includes('pickup')) {
+
+                    if (inputId.includes('pickup') || inputId.includes('dropoff')) {
                         const latField = document.getElementById(inputId.replace('_location', '_lat'));
                         const lngField = document.getElementById(inputId.replace('_location', '_lng'));
                         const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
+
                         if (latField) latField.value = lat;
                         if (lngField) lngField.value = lng;
                         if (placeIdField) placeIdField.value = place.place_id;
-                        
-                        console.log(`Updated pickup coordinates: ${lat}, ${lng}`);
-                    } else if (inputId.includes('dropoff')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                        
-                        console.log(`Updated dropoff coordinates: ${lat}, ${lng}`);
                     }
-                    
-                    // Update input value with formatted address
+
                     input.value = place.formatted_address || place.name || input.value;
-                    
-                    // Enable search button if both pickup and dropoff are filled
-                    checkLocalTransferFormCompletion();
+
+                    if (typeof checkLocalTransferFormCompletion === 'function') {
+                        checkLocalTransferFormCompletion();
+                    }
+                    if (typeof checkHourlyFormCompletion === 'function') {
+                        checkHourlyFormCompletion();
+                    }
+
+                    console.log('Updated location:', {
+                        lat: lat,
+                        lng: lng,
+                        placeId: place.place_id,
+                        address: place.formatted_address
+                    });
                 });
-                
-                // Mark as initialized
+
                 input.setAttribute('data-autocomplete-initialized', 'true');
             }
         });
@@ -24188,6 +24739,10 @@
     
     // Helper function to get country code from country name
     window.getCountryCode = function(countryName) {
+        if (!countryName) return null;
+        if (typeof countryName === 'string' && /^[A-Za-z]{2}$/.test(countryName.trim())) {
+            return countryName.trim().toUpperCase();
+        }
         const countryCodes = {
             'India': 'IN',
             'United States': 'US',
@@ -24240,7 +24795,15 @@
             'Brazil': 'BR',
             'Argentina': 'AR',
             'Mexico': 'MX',
-            // Add more countries as needed
+            'New Zealand': 'NZ',
+            'United Arab Emirates': 'AE',
+            'Saudi Arabia': 'SA',
+            'Qatar': 'QA',
+            'Bahrain': 'BH',
+            'Oman': 'OM',
+            'Kuwait': 'KW',
+            'South Africa': 'ZA',
+            'Egypt': 'EG'
         };
         
         return countryCodes[countryName] || '';
@@ -24303,118 +24866,6 @@
     }
 
     
-    // Google Maps Autocomplete Functionality
-    window.initializeGoogleMapsAutocomplete = function() {
-        console.log('Initializing Google Maps Autocomplete...');
-        
-        // Resolve the selected country. NOTE: #user_country holds the tour's `destination`, which is often a
-        // CITY name (e.g. "Batam"), not a country. Passing an unmapped value produced
-        // `componentRestrictions: { country: '' }`, which makes Google throw InvalidValueError and breaks
-        // autocomplete entirely (this is why edit failed but create worked). So resolve from real country
-        // sources and only apply the restriction when we have a valid ISO code.
-        const resolveSelectedCountryName = () => {
-            // A hardcoded tour country (most reliable when present)
-            const tourCountry = '{{ $tour->country ?? "" }}'.trim();
-            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
-
-            // Fall back to the data-country of any selected city dropdown
-            const citySelectIds = ['single_city', 'modal_city_select', 'modal_local_transfer_city', 'modal_entryport_transport_city', 'modal_exitport_transport_city'];
-            for (const id of citySelectIds) {
-                const sel = document.getElementById(id);
-                if (!sel) continue;
-                const opt = sel.options && sel.options[sel.selectedIndex];
-                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
-                if (dc && getCountryCode(dc)) return dc;
-            }
-
-            // Last resort: whatever is in #user_country (may be a city, may map to nothing)
-            return document.getElementById('user_country')?.value || '';
-        };
-
-        const selectedCountry = resolveSelectedCountryName();
-        const selectedCity = document.getElementById('city')?.value || '';
-        
-        // Create location bias for better search results
-        let locationBias = null;
-        if (selectedCountry && selectedCity) {
-            // Use the city as the center point for location bias
-            locationBias = selectedCity + ', ' + selectedCountry;
-        } else if (selectedCountry) {
-            locationBias = selectedCountry;
-        }
-        
-        // Initialize autocomplete for all transport location inputs
-        document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
-            if (input && !input.hasAttribute('data-autocomplete-initialized')) {
-                console.log('Initializing autocomplete for:', input.id);
-                
-                // Create autocomplete instance. Only restrict by country when we have a valid ISO code,
-                // otherwise Google throws InvalidValueError and no suggestions appear.
-                const autocompleteOptions = {
-                    types: ['establishment', 'geocode'],
-                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                };
-                const countryCode = getCountryCode(selectedCountry);
-                if (countryCode) {
-                    autocompleteOptions.componentRestrictions = { country: countryCode };
-                }
-                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
-                
-                // Add place_changed event listener
-                autocomplete.addListener('place_changed', function() {
-                    const place = autocomplete.getPlace();
-                    
-                    if (!place.geometry) {
-                        console.log('No geometry found for selected place');
-                        return;
-                    }
-                    
-                    console.log('Place selected:', place);
-                    
-                    // Extract coordinates
-                    const lat = place.geometry.location.lat();
-                    const lng = place.geometry.location.lng();
-                    
-                    // Update hidden fields based on input ID
-                    const inputId = input.id;
-                    
-                    // Update the corresponding hidden fields
-                    if (inputId.includes('pickup')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                    } else if (inputId.includes('dropoff')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                    }
-                    
-                    // Enable search button if all fields are filled
-                    checkLocalTransferFormCompletion();
-                    checkHourlyFormCompletion();
-                    
-                    console.log('Updated location:', {
-                        lat: lat,
-                        lng: lng,
-                        placeId: place.place_id,
-                        address: place.formatted_address
-                    });
-                });
-                
-                // Mark as initialized
-                input.setAttribute('data-autocomplete-initialized', 'true');
-            }
-        });
-    };
-    
     // Function to reinitialize autocomplete when modal opens
     window.reinitializeAutocomplete = function() {
         console.log('Reinitializing autocomplete for local transfer modal...');
@@ -24442,6 +24893,22 @@
                     initializeGoogleMapsAutocomplete();
                 }
             });
+        }
+    });
+
+    // Refresh soft destination bias when modal city dropdowns change
+    document.addEventListener('change', function(e) {
+        const citySelectIds = [
+            'modal_local_transfer_city',
+            'modal_entryport_transport_city',
+            'modal_exitport_transport_city'
+        ];
+        if (e.target && citySelectIds.includes(e.target.id)) {
+            setTimeout(function() {
+                if (typeof window.refreshAutocompleteCityBounds === 'function') {
+                    window.refreshAutocompleteCityBounds(e.target);
+                }
+            }, 100);
         }
     });
 
