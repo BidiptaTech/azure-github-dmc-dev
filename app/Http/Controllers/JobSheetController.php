@@ -1439,10 +1439,10 @@ class JobSheetController extends Controller
                     }
                     $order->OrderGuide = $orderGuide;
                     
-                    // Attach guide info from jobsheet
-                    if ($jobsheet) {
+                    // Attach guide info from jobsheet only (not order booking guide)
+                    if ($jobsheet && !empty($jobsheet->guide_id)) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first() : null;
+                        $order->guide = Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first();
                     } else {
                         $order->assigned_guide_id = null;
                         $order->guide = null;
@@ -2777,14 +2777,13 @@ class JobSheetController extends Controller
                     }
                     $order->OrderGuide = $orderGuide;
                     
-                    // Attach guide info: use orderData guide_id if it doesn't match jobsheet
-                    $orderDataGuideId = $dataItem['guide_id'] ?? $order->guide_id;
-                    if ($jobsheet) {
+                    // Assign Guide column: only from jobsheets table (not order booking guide)
+                    if ($jobsheet && !empty($jobsheet->guide_id)) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first() : null;
+                        $order->guide = Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first();
                     } else {
-                        $order->assigned_guide_id = $orderDataGuideId ?: $order->guide_id;
-                        $order->guide = $order->assigned_guide_id ? Guide::where('guide_id', $order->assigned_guide_id)->with('languages')->first() : null;
+                        $order->assigned_guide_id = null;
+                        $order->guide = null;
                     }
                     
                     // Add zone information for pickup and dropoff
