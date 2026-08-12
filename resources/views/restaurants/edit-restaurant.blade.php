@@ -263,17 +263,16 @@
                             </div>
                         <!-- password-->
                         <div class="col-md-3 mb-3">
-                                <label for="password" class="form-label"><strong>Password</strong><span class="text-danger">*</span></label>
+                                <label for="password" class="form-label"><strong>Password</strong></label>
                                 <div class="input-group">
                                     <input
                                         id="password"
                                         type="password"
                                         class="form-control"
                                         name="password"
-                                        placeholder="Enter Password"
+                                        placeholder="Leave blank to keep current password"
                                         value=""
-                                        autocomplete="new-password"
-                                        required>
+                                        autocomplete="new-password">
                                     <!-- Show / Hide -->
                                     <button type="button"id="togglePasswordBtn" class="btn btn-outline-secondary  btn-sm px-2" onclick="togglePassword()">
                                         <i id="eyeIcon" class="bi bi-eye-slash"></i>
@@ -283,6 +282,7 @@
                                         🔐
                                     </button>
                                 </div>
+                                <small class="text-muted">Fill only if you want to change the password.</small>
                                 @error('password')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
