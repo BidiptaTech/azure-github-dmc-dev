@@ -1554,7 +1554,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1610,6 +1610,12 @@
                             <li class="menu-item @if(Request::is('app-management')) active @endif">
                                 <a href="{{ route('app-management.index') }}" class="menu-link">
                                     <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item @if(Request::is('dmc-func-app*')) active @endif">
+                                <a href="{{ route('dmc-func-app.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Func App">DMC Func App</div>
                                 </a>
                             </li>
 
