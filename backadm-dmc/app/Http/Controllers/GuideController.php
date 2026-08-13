@@ -24,7 +24,6 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class GuideController extends Controller
 {
@@ -955,14 +954,11 @@ class GuideController extends Controller
         if ($plainPassword !== '') {
             $guide->app_password = Hash::make($plainPassword);
 
-            // Invalidate existing Sanctum tokens for this guide
-            PersonalAccessToken::where('tokenable_type', Guide::class)
-                ->where('tokenable_id', $guide->id)
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->update(['expires_at' => now()]);
+            // Invalidate all tokens for this guide (id and/or guide_id)
+            CommonHelper::invalidateAccessTokens(Guide::class, [
+                $guide->id,
+                $guide->guide_id,
+            ]);
         }
         $guide->description = $request->input('about');
         $guide->country = $request->input('country', $guide->country);

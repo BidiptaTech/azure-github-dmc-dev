@@ -26,7 +26,6 @@ use App\Mail\DmcMail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class DriverController extends Controller
 {
@@ -791,14 +790,11 @@ class DriverController extends Controller
         if ($plainPassword !== '') {
             $driver->app_password = Hash::make($plainPassword);
 
-            // Invalidate existing Sanctum tokens for this driver
-            PersonalAccessToken::where('tokenable_type', Driver::class)
-                ->where('tokenable_id', $driver->id)
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->update(['expires_at' => now()]);
+            // Invalidate all tokens for this driver (id and/or driver_id)
+            CommonHelper::invalidateAccessTokens(Driver::class, [
+                $driver->id,
+                $driver->driver_id,
+            ]);
         }
 
         if ($driver->save()) {
