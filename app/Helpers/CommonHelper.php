@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use App\Models\EmailsSetup;
+use App\Models\DmcFuncApp;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use App\Models\Invoice;
@@ -1737,6 +1738,248 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ]);
             return null;
         }
+    }
+
+    /**
+     * Resolve Azure/function-app method name assigned to a DMC.
+     */
+    public static function getDmcFuncAppName($dmcId): ?string
+    {
+        $settings = self::getDmcFuncAppSettings($dmcId);
+
+        return $settings['func_name'] !== '' ? $settings['func_name'] : null;
+    }
+
+    /**
+     * DMC Func App assignment for a DMC (from /dmc-func-app).
+     *
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function getDmcFuncAppSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcFuncAppSettings();
+        }
+
+        $settings = DmcFuncApp::settingsForDmc($dmcId);
+
+        return [
+            'func_name' => trim((string) ($settings['function_name'] ?? '')),
+            'func_limit' => isset($settings['maximum_limit']) && $settings['maximum_limit'] !== null
+                ? (int) $settings['maximum_limit']
+                : null,
+        ];
+    }
+
+    /**
+     * Mail / IMAP / AI identity settings for a DMC (from /mail/settings).
+     * Falls back to the master DMC row when the child DMC has no emails_setup.
+     *
+     * @return array{
+     *     ai_email: string,
+     *     ai_from_name: string,
+     *     smtp_host: string,
+     *     smtp_port: int|null,
+     *     smtp_security: string,
+     *     smtp_user: string,
+     *     smtp_pass: string,
+     *     imap_host: string,
+     *     imap_port: int|null,
+     *     imap_security: string,
+     *     imap_user: string,
+     *     imap_pass: string,
+     *     support_email: string,
+     *     support_phone: string
+     * }
+     */
+    public static function getDmcMailSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcMailSettings();
+        }
+
+        $map = self::getDmcMailSettingsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? self::emptyDmcMailSettings();
+    }
+
+    /** @var array<int, array<string, mixed>> */
+    private static array $dmcAzureRootFieldsCache = [];
+
+    /**
+     * Combined root-level Azure/day-level JSON fields for one DMC.
+     *
+     * @return array<string, mixed>
+     */
+    public static function getDmcAzureRootFields($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+        }
+
+        $map = self::getDmcAzureRootFieldsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+    }
+
+    /**
+     * Batch loader for day-level Azure JSON export.
+     *
+     * @param  list<int|string>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcAzureRootFieldsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        $missing = [];
+
+        foreach ($dmcIds as $id) {
+            if (array_key_exists($id, self::$dmcAzureRootFieldsCache)) {
+                $result[$id] = self::$dmcAzureRootFieldsCache[$id];
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing !== []) {
+            $funcMap = DmcFuncApp::settingsForMany($missing);
+            $mailMap = self::getDmcMailSettingsForMany($missing);
+
+            foreach ($missing as $id) {
+                $func = $funcMap[$id] ?? ['function_name' => null, 'maximum_limit' => null];
+                $fields = array_merge(
+                    [
+                        'func_name' => trim((string) ($func['function_name'] ?? '')),
+                        'func_limit' => isset($func['maximum_limit']) && $func['maximum_limit'] !== null
+                            ? (int) $func['maximum_limit']
+                            : null,
+                    ],
+                    $mailMap[$id] ?? self::emptyDmcMailSettings()
+                );
+                self::$dmcAzureRootFieldsCache[$id] = $fields;
+                $result[$id] = $fields;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<int>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcMailSettingsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        foreach ($dmcIds as $id) {
+            $result[$id] = self::emptyDmcMailSettings();
+        }
+
+        if ($dmcIds === []) {
+            return $result;
+        }
+
+        $setups = EmailsSetup::query()
+            ->whereIn('dmcId', $dmcIds)
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        $missing = [];
+        foreach ($dmcIds as $id) {
+            if ($setups->has($id)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($setups->get($id));
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing === []) {
+            return $result;
+        }
+
+        $masterByDmc = User::query()
+            ->whereIn('userId', $missing)
+            ->pluck('master_dmc_id', 'userId');
+
+        $masterIds = array_values(array_unique(array_filter(array_map('intval', $masterByDmc->all()))));
+        $masterSetups = $masterIds === []
+            ? collect()
+            : EmailsSetup::query()
+                ->whereIn('dmcId', $masterIds)
+                ->get()
+                ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        foreach ($missing as $id) {
+            $masterId = (int) ($masterByDmc->get($id) ?? $masterByDmc->get((string) $id) ?? 0);
+            if ($masterId > 0 && $masterSetups->has($masterId)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($masterSetups->get($masterId));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function emptyDmcFuncAppSettings(): array
+    {
+        return [
+            'func_name' => '',
+            'func_limit' => null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function emptyDmcMailSettings(): array
+    {
+        return [
+            'ai_email' => '',
+            'ai_from_name' => '',
+            'smtp_host' => '',
+            'smtp_port' => null,
+            'smtp_security' => '',
+            'smtp_user' => '',
+            'smtp_pass' => '',
+            'imap_host' => '',
+            'imap_port' => null,
+            'imap_security' => '',
+            'imap_user' => '',
+            'imap_pass' => '',
+            'support_email' => '',
+            'support_phone' => '',
+        ];
+    }
+
+    private static function mapEmailsSetupToMailFields(?EmailsSetup $setup): array
+    {
+        if (! $setup) {
+            return self::emptyDmcMailSettings();
+        }
+
+        return [
+            'ai_email' => trim((string) ($setup->From_Email ?? '')),
+            'ai_from_name' => trim((string) ($setup->From_Name ?? '')),
+            'smtp_host' => trim((string) ($setup->SMTP_Host ?? '')),
+            'smtp_port' => $setup->SMTP_Port !== null && $setup->SMTP_Port !== '' ? (int) $setup->SMTP_Port : null,
+            'smtp_security' => trim((string) ($setup->SMTP_Encrypt ?? '')),
+            'smtp_user' => trim((string) ($setup->SMTP_User ?? '')),
+            'smtp_pass' => (string) ($setup->SMTP_Pass ?? ''),
+            'imap_host' => trim((string) ($setup->IMAP_Host ?? '')),
+            'imap_port' => $setup->IMAP_Port !== null && $setup->IMAP_Port !== '' ? (int) $setup->IMAP_Port : null,
+            'imap_security' => trim((string) ($setup->IMAP_Encrypt ?? '')),
+            'imap_user' => trim((string) ($setup->IMAP_User ?? '')),
+            'imap_pass' => (string) ($setup->IMAP_Pass ?? ''),
+            'support_email' => trim((string) ($setup->support_email ?? '')),
+            'support_phone' => trim((string) ($setup->support_phone ?? '')),
+        ];
     }
 
     /**

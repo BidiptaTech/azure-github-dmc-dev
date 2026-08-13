@@ -17,6 +17,11 @@ class EmailsSetup extends Model
         'SMTP_Encrypt',
         'SMTP_User',
         'SMTP_Pass',
+        'IMAP_Host',
+        'IMAP_Port',
+        'IMAP_Encrypt',
+        'IMAP_User',
+        'IMAP_Pass',
         'support_email',
         'support_phone',
         'email_footer',
@@ -26,6 +31,7 @@ class EmailsSetup extends Model
     protected $casts = [
         'dmcId' => 'integer',
         'SMTP_Port' => 'integer',
+        'IMAP_Port' => 'integer',
         'created_By' => 'integer',
     ];
 }
