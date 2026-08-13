@@ -739,6 +739,11 @@ class MailController extends Controller
             'smtp_encryption' => $setup->SMTP_Encrypt ?? 'tls',
             'smtp_username' => $setup->SMTP_User ?? '',
             'smtp_password' => $setup->SMTP_Pass ?? '',
+            'imap_host' => $setup->IMAP_Host ?? '',
+            'imap_port' => $setup->IMAP_Port ?? '',
+            'imap_encryption' => $setup->IMAP_Encrypt ?? 'ssl',
+            'imap_username' => $setup->IMAP_User ?? '',
+            'imap_password' => $setup->IMAP_Pass ?? '',
             'from_email' => $setup->From_Email ?? '',
             'from_name' => $setup->From_Name ?? '',
             'support_email' => $setup->support_email ?? '',
@@ -779,6 +784,11 @@ class MailController extends Controller
             'smtp_encryption' => 'required|string|in:tls,ssl,none',
             'smtp_username' => 'required|string|max:255',
             'smtp_password' => 'required|string|max:255',
+            'imap_host' => 'nullable|string|max:255',
+            'imap_port' => 'nullable|numeric',
+            'imap_encryption' => 'nullable|string|in:tls,ssl,none',
+            'imap_username' => 'nullable|string|max:255',
+            'imap_password' => 'nullable|string|max:255',
             'from_email' => 'required|email|max:255',
             'from_name' => 'required|string|max:255',
             'support_email' => 'required|email|max:255',
@@ -795,6 +805,16 @@ class MailController extends Controller
 
         $validated = $request->validate($rules);
 
+        $setup = EmailsSetup::where('dmcId', $dmcId)
+            ->where('created_By', $user->userId)
+            ->first();
+
+        $imapHost = trim((string) ($validated['imap_host'] ?? ''));
+        $imapPassword = $validated['imap_password'] ?? '';
+        if ($imapHost !== '' && $imapPassword === '' && $setup) {
+            $imapPassword = $setup->IMAP_Pass;
+        }
+
         $payload = [
             'dmcId' => (int) $dmcId,
             'From_Email' => $validated['from_email'],
@@ -804,15 +824,16 @@ class MailController extends Controller
             'SMTP_Encrypt' => $validated['smtp_encryption'],
             'SMTP_User' => $validated['smtp_username'],
             'SMTP_Pass' => $validated['smtp_password'],
+            'IMAP_Host' => $imapHost !== '' ? $imapHost : null,
+            'IMAP_Port' => $imapHost !== '' && !empty($validated['imap_port']) ? (int) $validated['imap_port'] : null,
+            'IMAP_Encrypt' => $imapHost !== '' ? ($validated['imap_encryption'] ?? 'ssl') : null,
+            'IMAP_User' => $imapHost !== '' ? ($validated['imap_username'] ?? null) : null,
+            'IMAP_Pass' => $imapHost !== '' && $imapPassword !== '' ? $imapPassword : null,
             'support_email' => $validated['support_email'],
             'support_phone' => $validated['support_phone'],
             'email_footer' => $validated['footer_text'] ?? null,
             'created_By' => (int) $user->userId,
         ];
-
-        $setup = EmailsSetup::where('dmcId', $dmcId)
-            ->where('created_By', $user->userId)
-            ->first();
 
         if ($setup) {
             $setup->update($payload);

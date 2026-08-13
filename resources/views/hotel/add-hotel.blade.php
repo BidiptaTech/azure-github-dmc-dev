@@ -363,7 +363,9 @@
                                 <select class="form-control" id="country" name="country" required>
                                     <option value="">Select Country</option>
                                     @foreach($country as $c)
-                                        <option value="{{ $c->name }}" {{ old('country') == $c->name ? 'selected' : '' }}>
+                                        <option value="{{ $c->name }}"
+                                            data-country-code="{{ ltrim((string) ($c->country_code ?? ''), '+') }}"
+                                            {{ old('country') == $c->name ? 'selected' : '' }}>
                                             {{ $c->name }}
                                         </option>
                                     @endforeach
@@ -449,8 +451,13 @@
                             <div class="input-group">
                                 <select class="form-control" id="country_code" name="country_code" required style="max-width: 40%;">
                                     <option value="">Select</option>
-                                    @foreach ($country_code as $code => $name)
-                                    <option value="{{ $code }}" {{ old('country_code') == $code ? 'selected' : '' }}> {{ $name }}</option>
+                                    @foreach ($country as $c)
+                                        @php $dialCode = ltrim((string) ($c->country_code ?? ''), '+'); @endphp
+                                        @if($dialCode !== '')
+                                            <option value="{{ $dialCode }}" {{ old('country_code') == $dialCode || old('country_code') == $c->country_code ? 'selected' : '' }}>
+                                                {{ $c->name }} ({{ $dialCode }})
+                                            </option>
+                                        @endif
                                     @endforeach
                                 </select>
                                 <input type="text" class="form-control" id="phone" name="phone" 
@@ -1115,25 +1122,39 @@
 </script>
 <script>
     $(document).ready(function() {
-        // Function to update country code based on country name
-        function updateCountryCode(countryName) {
-            if (!countryName) return;
-            
-            // Convert country name to lowercase for case-insensitive comparison
-            const countryNameLower = countryName.toLowerCase().trim();
+        // Function to update country code from countries.country_code on selected country
+        function updateCountryCode() {
+            const selectedOption = $('#country option:selected');
             const countryCodeSelect = document.getElementById('country_code');
-            
-            // Loop through all options in the country code dropdown
+            if (!countryCodeSelect) return;
+
+            if (!selectedOption.length || !selectedOption.val()) {
+                countryCodeSelect.value = '';
+                return;
+            }
+
+            const dialCode = String(selectedOption.attr('data-country-code') || '').trim();
+            if (!dialCode) {
+                countryCodeSelect.value = '';
+                return;
+            }
+
+            // Ensure the dial code exists in the country code dropdown
+            let matched = false;
             for (let i = 0; i < countryCodeSelect.options.length; i++) {
-                const option = countryCodeSelect.options[i];
-                const optionText = option.text.toLowerCase().trim();
-                
-                // If country name is found in the option text, select it
-                if (optionText.includes(countryNameLower)) {
-                    countryCodeSelect.value = option.value;
+                if (String(countryCodeSelect.options[i].value) === dialCode) {
+                    matched = true;
                     break;
                 }
             }
+            if (!matched) {
+                const opt = document.createElement('option');
+                opt.value = dialCode;
+                opt.textContent = dialCode;
+                countryCodeSelect.appendChild(opt);
+            }
+
+            countryCodeSelect.value = dialCode;
         }
         
         // NEW: Fetch and populate city list based on selected country -----------------------------
@@ -1183,19 +1204,20 @@
             const selectedCountryValue = $(this).val();
             
             if (!selectedCountryValue || selectedCountryValue === '') {
-                // Country cleared, disable city field
+                // Country cleared, disable city field and reset country code
+                updateCountryCode();
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
                 return;
             }
             
-            updateCountryCode(selectedCountryName);
+            updateCountryCode();
             loadCitiesByCountry(selectedCountryName);
         });
 
         // For DMC and similar role users, update country code when page loads
         if ([11, 35, 77, 84, 139, 140].includes({{ auth()->user()->role_id }})) {
             const initDmcCountryName = $('#country option:selected').text().trim();
-            updateCountryCode(initDmcCountryName);
+            updateCountryCode();
             loadCitiesByCountry(initDmcCountryName);
         }
 
@@ -1211,7 +1233,7 @@
                     success: function(response) {
                         if (response.country) {
                             $('#country').val(response.country).trigger('change');
-                            updateCountryCode(response.country);
+                            updateCountryCode();
                             loadCitiesByCountry(response.country);
                         }
                     }
@@ -1226,7 +1248,7 @@
         // Initialize on page load - update country code & cities if a country is pre-selected
         if ($('#country').val()) {
             const initialCountryName = $('#country option:selected').text().trim();
-            updateCountryCode(initialCountryName);
+            updateCountryCode();
             loadCitiesByCountry(initialCountryName);
         }
     });

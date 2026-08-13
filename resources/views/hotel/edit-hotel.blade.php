@@ -341,7 +341,9 @@
                                     <select class="form-control" id="country" name="country" required>
                                         <option value="">Select Country</option>
                                         @foreach($country as $c)
-                                            <option value="{{ $c->name }}" @if(old('country', $hotel->country ?? '') == $c->name) selected @endif>
+                                            <option value="{{ $c->name }}"
+                                                data-country-code="{{ ltrim((string) ($c->country_code ?? ''), '+') }}"
+                                                @if(old('country', $hotel->country ?? '') == $c->name) selected @endif>
                                                 {{ $c->name }}
                                             </option>
                                         @endforeach
@@ -435,15 +437,28 @@
                                     <label for="country_code" class="form-label"><strong>Country Code</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select class="form-control" id="country_code" name="country_code" required
-                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                                    @php
+                                        $isCountryCodeDisabled = Auth::user()->role_id != 1 && Auth::user()->role_id != 20;
+                                        $selectedCountryCode = ltrim((string) old('country_code', $hotel->country_code ?? ''), '+');
+                                    @endphp
+                                    <select class="form-control" id="country_code"
+                                            @if(!$isCountryCodeDisabled) name="country_code" @endif
+                                            required
+                                            @if($isCountryCodeDisabled) disabled @endif>
                                         <option value="">Select Country</option>
-                                        @foreach ($country_code as $code => $name)
-                                        <option value="{{ $code }}"
-                                            {{ old('country_code', $hotel->country_code) == $code ? 'selected' : '' }}>
-                                            {{ $name }}</option>
+                                        @foreach ($country as $c)
+                                            @php $dialCode = ltrim((string) ($c->country_code ?? ''), '+'); @endphp
+                                            @if($dialCode !== '')
+                                                <option value="{{ $dialCode }}"
+                                                    {{ $selectedCountryCode == $dialCode ? 'selected' : '' }}>
+                                                    {{ $c->name }} ({{ $dialCode }})
+                                                </option>
+                                            @endif
                                         @endforeach
                                     </select>
+                                    @if($isCountryCodeDisabled)
+                                        <input type="hidden" id="country_code_hidden" name="country_code" value="{{ $selectedCountryCode }}">
+                                    @endif
                                 </div>
 
                                 <!-- Phone Number -->
@@ -1072,29 +1087,44 @@
 </script>
 
 <script>
-    document.getElementById('country').addEventListener('input', function() {
-    var inputValue = this.value.toLowerCase();  // Get the input value in lowercase
-    var countryCodes = {!! json_encode($country_code) !!}; // Pass the country codes from PHP to JavaScript
-    var select = document.getElementById('country_code');
-    
-    // Loop through all the options in the country code dropdown
-    for (var option of select.options) {
-        var optionText = option.text.toLowerCase();
-        var optionValue = option.value;
-        
-        // Check if the country input matches the country name in the dropdown
-        if (optionText.includes(inputValue)) {
-            select.value = optionValue; // Set the value of the select to the matched country code
-            return; // Stop looping once a match is found
-        }
-    }
-    });
-
-</script>
-
-<script>
-    // Make City a dependent dropdown of Country
     $(document).ready(function () {
+        function updateCountryCode() {
+            const selectedOption = $('#country option:selected');
+            const countryCodeSelect = document.getElementById('country_code');
+            const countryCodeHidden = document.getElementById('country_code_hidden');
+            if (!countryCodeSelect) return;
+
+            if (!selectedOption.length || !selectedOption.val()) {
+                countryCodeSelect.value = '';
+                if (countryCodeHidden) countryCodeHidden.value = '';
+                return;
+            }
+
+            const dialCode = String(selectedOption.attr('data-country-code') || '').trim();
+            if (!dialCode) {
+                countryCodeSelect.value = '';
+                if (countryCodeHidden) countryCodeHidden.value = '';
+                return;
+            }
+
+            let matched = false;
+            for (let i = 0; i < countryCodeSelect.options.length; i++) {
+                if (String(countryCodeSelect.options[i].value) === dialCode) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                const opt = document.createElement('option');
+                opt.value = dialCode;
+                opt.textContent = dialCode;
+                countryCodeSelect.appendChild(opt);
+            }
+
+            countryCodeSelect.value = dialCode;
+            if (countryCodeHidden) countryCodeHidden.value = dialCode;
+        }
+
         function loadCitiesByCountry(countryName) {
             if (!countryName) {
                 $('#citySelect').empty()
@@ -1133,10 +1163,15 @@
             });
         }
 
-        // Reload city list whenever the country selection changes
+        // Reload city list and country code whenever the country selection changes
         $('#country').on('change', function () {
+            updateCountryCode();
             loadCitiesByCountry($(this).val());
         });
+
+        if ($('#country').val()) {
+            updateCountryCode();
+        }
     });
 </script>
 

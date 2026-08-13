@@ -2202,7 +2202,9 @@ class DayLevel extends Model
         $list = array_values($byPackageId);
         usort($list, fn ($a, $b) => strcmp((string) ($b['package_id'] ?? ''), (string) ($a['package_id'] ?? '')));
 
-        return self::hydrateFlatExportDmcEmails($list);
+        return self::hydrateFlatExportDmcRootFields(
+            self::hydrateFlatExportDmcEmails($list)
+        );
     }
 
     /**
@@ -2241,6 +2243,36 @@ class DayLevel extends Model
             }
             $entry['DMC_email'] = $email;
             $entries[$i] = self::orderFlatPackageExportKeys($entry);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Attach Func App + mail/IMAP/AI settings to each flat package export by DMC_id.
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private static function hydrateFlatExportDmcRootFields(array $entries): array
+    {
+        $dmcIds = [];
+        foreach ($entries as $entry) {
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            if ($dmcId > 0) {
+                $dmcIds[$dmcId] = true;
+            }
+        }
+
+        $fieldsByDmc = \App\Helpers\CommonHelper::getDmcAzureRootFieldsForMany(array_keys($dmcIds));
+
+        foreach ($entries as $i => $entry) {
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            $fields = $fieldsByDmc[$dmcId] ?? array_merge(
+                \App\Helpers\CommonHelper::emptyDmcFuncAppSettings(),
+                \App\Helpers\CommonHelper::emptyDmcMailSettings()
+            );
+            $entries[$i] = self::orderFlatPackageExportKeys(array_merge($entry, $fields));
         }
 
         return $entries;
@@ -2334,6 +2366,8 @@ class DayLevel extends Model
             $rawAllServicesJson = '{}';
         }
 
+        $dmcRootFields = \App\Helpers\CommonHelper::getDmcAzureRootFields($dmcId);
+
         $entries = [];
         foreach ($packages as $package) {
             if (! is_array($package)) {
@@ -2355,7 +2389,7 @@ class DayLevel extends Model
                 continue;
             }
 
-            $entry = [
+            $entry = array_merge([
                 'id'               => $packageId,
                 'country'          => $country,
                 'city'             => $cityNames,
@@ -2366,7 +2400,7 @@ class DayLevel extends Model
                 'is_inclusion'     => (bool) $this->is_inclusion ? 1 : 0,
                 'raw_package'      => $rawPackageJson,
                 'raw_all_services' => $rawAllServicesJson,
-            ];
+            ], $dmcRootFields);
             if ($email !== '') {
                 $entry['DMC_email'] = $email;
             }
@@ -2384,7 +2418,35 @@ class DayLevel extends Model
     private static function orderFlatPackageExportKeys(array $entry): array
     {
         $ordered = [];
-        foreach (['id', 'DMC_email', 'country', 'city', 'total_days', 'Master_DMC_id', 'DMC_id', 'package_id', 'is_inclusion', 'raw_package', 'raw_all_services'] as $key) {
+        foreach ([
+            'id',
+            'DMC_email',
+            'country',
+            'city',
+            'total_days',
+            'Master_DMC_id',
+            'DMC_id',
+            'package_id',
+            'func_name',
+            'func_limit',
+            'ai_email',
+            'ai_from_name',
+            'smtp_host',
+            'smtp_port',
+            'smtp_security',
+            'smtp_user',
+            'smtp_pass',
+            'imap_host',
+            'imap_port',
+            'imap_security',
+            'imap_user',
+            'imap_pass',
+            'support_email',
+            'support_phone',
+            'is_inclusion',
+            'raw_package',
+            'raw_all_services',
+        ] as $key) {
             if (array_key_exists($key, $entry)) {
                 $ordered[$key] = $entry[$key];
             }

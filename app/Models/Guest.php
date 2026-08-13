@@ -115,21 +115,15 @@ class Guest extends Model
     ];
 
     /**
-     * Expire active Sanctum tokens for this guest (e.g. after app password change).
+     * Expire Sanctum tokens for this guest after app password change.
+     * Matches both guests.id and guests.guest_id as tokenable_id.
      */
-    public function invalidateAccessTokens(): void
+    public function invalidateAccessTokens(): int
     {
-        if (!$this->id) {
-            return;
-        }
-
-        \Laravel\Sanctum\PersonalAccessToken::where('tokenable_type', self::class)
-            ->where('tokenable_id', $this->id)
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->update(['expires_at' => now()]);
+        return \App\Helpers\CommonHelper::invalidateAccessTokens(self::class, [
+            $this->id,
+            $this->guest_id,
+        ]);
     }
 
     /**

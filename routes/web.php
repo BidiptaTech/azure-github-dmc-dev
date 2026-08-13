@@ -74,6 +74,7 @@ use App\Http\Controllers\DayLevelController;
 use App\Http\Controllers\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 use App\Http\Controllers\AiConfigController;
+use App\Http\Controllers\DmcFuncAppController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -107,6 +108,12 @@ Route::get('/clear', function () {
             Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
             Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
             Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
+
+            Route::get('/dmc-func-app', [DmcFuncAppController::class, 'index'])->name('dmc-func-app.index');
+            Route::post('/dmc-func-app', [DmcFuncAppController::class, 'store'])->name('dmc-func-app.store');
+            Route::get('/dmc-func-app/{dmc_func_app}/edit', [DmcFuncAppController::class, 'edit'])->name('dmc-func-app.edit');
+            Route::put('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'update'])->name('dmc-func-app.update');
+            Route::delete('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'destroy'])->name('dmc-func-app.destroy');
 
             Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
             Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');

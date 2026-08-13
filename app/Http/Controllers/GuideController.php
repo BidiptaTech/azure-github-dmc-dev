@@ -24,7 +24,6 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class GuideController extends Controller
 {
@@ -228,7 +227,11 @@ class GuideController extends Controller
         'contact_no' => 'required|string|min:8|max:15',
         'email' => 'required|email|max:255',
         'languages' => 'required|array',
-        'about' => 'required',
+        'about' => ['required', 'string', function ($attribute, $value, $fail) {
+            if (trim(strip_tags($value ?? '')) === '') {
+                $fail('About is required. Please fill in this field.');
+            }
+        }],
         // 'license_no' => 'required|string',
         'license_no' => [
                                 'required',
@@ -496,7 +499,11 @@ class GuideController extends Controller
                 'service_type' => 'required|integer',
                 'guide_age' => 'required',
                 'wp_number' => 'required|numeric',
-                'about' => 'required|string',
+                'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags($value ?? '')) === '') {
+                        $fail('About is required. Please fill in this field.');
+                    }
+                }],
                 'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'day_rate' => 'nullable|numeric',
@@ -890,7 +897,11 @@ class GuideController extends Controller
                     ->ignore($guide->id),
             ],
             'languages' => 'array',
-            'about' => 'required',
+            'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('About is required. Please fill in this field.');
+                }
+            }],
             // 'license_no' => 'required|string',
             // 'license_no' => [
             //                     'required',
@@ -955,14 +966,11 @@ class GuideController extends Controller
         if ($plainPassword !== '') {
             $guide->app_password = Hash::make($plainPassword);
 
-            // Invalidate existing Sanctum tokens for this guide
-            PersonalAccessToken::where('tokenable_type', Guide::class)
-                ->where('tokenable_id', $guide->id)
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->update(['expires_at' => now()]);
+            // Invalidate all tokens for this guide (id and/or guide_id)
+            CommonHelper::invalidateAccessTokens(Guide::class, [
+                $guide->id,
+                $guide->guide_id,
+            ]);
         }
         $guide->description = $request->input('about');
         $guide->country = $request->input('country', $guide->country);
