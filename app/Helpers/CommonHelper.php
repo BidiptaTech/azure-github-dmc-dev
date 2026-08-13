@@ -66,6 +66,72 @@ class CommonHelper
     }
 
     /**
+     * Parse package_bookings.travel_dates JSON into Y-m-d start/end.
+     *
+     * Expected shape:
+     * { "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "duration_days": int }
+     *
+     * Also accepts legacy check_in / check_out keys. Empty strings are ignored.
+     * If end_date is missing and duration_days is set, end_date = start_date + duration_days - 1.
+     *
+     * @return array{start_date: ?string, end_date: ?string, duration_days: int}
+     */
+    public static function parsePackageTravelDates($value): array
+    {
+        $td = self::normalizeJsonArray($value);
+        $pick = static function (array $src, array $keys): ?string {
+            foreach ($keys as $key) {
+                $v = $src[$key] ?? null;
+                if (is_string($v) && trim($v) !== '') {
+                    return trim($v);
+                }
+            }
+            return null;
+        };
+
+        $startRaw = $pick($td, ['start_date', 'startDate', 'check_in', 'check_in_date']);
+        $endRaw = $pick($td, ['end_date', 'endDate', 'check_out', 'check_out_date']);
+        $duration = (int) ($td['duration_days'] ?? $td['duration'] ?? 0);
+
+        $start = null;
+        $end = null;
+        try {
+            if ($startRaw) {
+                $start = \Carbon\Carbon::parse($startRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $start = null;
+        }
+        try {
+            if ($endRaw) {
+                $end = \Carbon\Carbon::parse($endRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $end = null;
+        }
+
+        if ($start && !$end && $duration > 0) {
+            try {
+                $end = \Carbon\Carbon::parse($start)->addDays(max(0, $duration - 1))->toDateString();
+            } catch (\Throwable $e) {
+                $end = $start;
+            }
+        }
+        if ($start && !$end) {
+            $end = $start;
+        }
+        if ($end && !$start) {
+            $start = $end;
+        }
+
+        return [
+            'start_date' => $start,
+            'end_date' => $end,
+            'duration_days' => $duration,
+        ];
+    }
+
+    /**
      * Load package booking services JSON by booking_id (+ optional dmc scope).
      *
      * Returns normalized arrays for:
