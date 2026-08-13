@@ -1589,7 +1589,7 @@
                                     <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
                                         @php
-                                            $country_cod = App\Models\Country::where('is_active', 1)->get();
+                                            $country_cod = App\Models\Country::get();
                                             $singapore = $country_cod->firstWhere('name', 'Singapore');
                                             $defaultCountryCode = $singapore ? $singapore->country_code : ($country_cod->first()->country_code ?? '');
                                         @endphp
