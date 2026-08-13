@@ -138,15 +138,8 @@
                 </div>
                 @php
                     $pkgTravelDateYmd = function ($booking) {
-                        $td = is_array($booking->travel_dates ?? null)
-                            ? ($booking->travel_dates ?? [])
-                            : (is_string($booking->travel_dates ?? null) ? (json_decode($booking->travel_dates, true) ?: []) : []);
-                        $rawIn = $td['check_in'] ?? $td['check_in_date'] ?? $td['start_date'] ?? $td['startDate'] ?? null;
-                        try {
-                            return $rawIn ? \Carbon\Carbon::parse($rawIn)->toDateString() : null;
-                        } catch (\Throwable $e) {
-                            return null;
-                        }
+                        $parsed = \App\Helpers\CommonHelper::parsePackageTravelDates($booking->travel_dates ?? null);
+                        return $parsed['start_date'] ?? null;
                     };
                     $pkgCheckInToday = $bookings->filter(function ($b) use ($pkgTravelDateYmd) {
                         return $pkgTravelDateYmd($b) === now()->toDateString();
@@ -208,20 +201,41 @@
                     </select>
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">Start Date</label>
+                    <label class="form-label mb-0 small text-muted">Travel Start Date</label>
                     @php
                         $pkgToday = \Carbon\Carbon::today();
                         $pkgDateMin = $pkgToday->copy()->subYear()->toDateString();
                         $pkgDateMax = $pkgToday->copy()->addYear()->toDateString();
-                        $pkgDefaultStart = $pkgToday->toDateString();
-                        $pkgDefaultEnd = $pkgToday->copy()->addDays(30)->toDateString();
+                        $pkgTravelStarts = [];
+                        $pkgTravelEnds = [];
+                        foreach ($bookings as $pkgFilterBooking) {
+                            $pkgTd = \App\Helpers\CommonHelper::parsePackageTravelDates($pkgFilterBooking->travel_dates ?? null);
+                            if (!empty($pkgTd['start_date'])) {
+                                $pkgTravelStarts[] = $pkgTd['start_date'];
+                            }
+                            if (!empty($pkgTd['end_date'])) {
+                                $pkgTravelEnds[] = $pkgTd['end_date'];
+                            }
+                        }
+                        $pkgTodayStr = $pkgToday->toDateString();
+                        $pkgPlus30Str = $pkgToday->copy()->addDays(30)->toDateString();
+                        $pkgDefaultStart = $pkgTravelStarts
+                            ? max($pkgDateMin, min($pkgTodayStr, min($pkgTravelStarts)))
+                            : $pkgTodayStr;
+                        $pkgDefaultEnd = $pkgTravelEnds
+                            ? min($pkgDateMax, max($pkgPlus30Str, max($pkgTravelEnds)))
+                            : $pkgPlus30Str;
+                        if ($pkgDefaultStart > $pkgDefaultEnd) {
+                            $pkgDefaultStart = $pkgDateMin;
+                            $pkgDefaultEnd = $pkgDateMax;
+                        }
                     @endphp
                     <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter"
                            min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
                            value="{{ $pkgDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
-                    <label class="form-label mb-0 small text-muted">End Date</label>
+                    <label class="form-label mb-0 small text-muted">Travel End Date</label>
                     <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter"
                            min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
                            value="{{ $pkgDefaultEnd }}">
@@ -488,8 +502,8 @@
             $('#packageBookingsTable').DataTable().destroy();
         }
 
-        // Date range filter by package check-in / check-out (YYYY-MM-DD)
-        // Register BEFORE DataTable init so the first draw applies today → today+30 default.
+        // Date range filter by travel_dates JSON (start_date / end_date, YYYY-MM-DD)
+        // Register BEFORE DataTable init so the first draw applies the default range.
         if (!window.__pkgBookingDateSearchRegistered) {
             $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
                 if (!settings.nTable || settings.nTable.id !== 'packageBookingsTable') return true;
@@ -500,14 +514,14 @@
 
                 const api = new $.fn.dataTable.Api(settings);
                 const rowNode = api.row(dataIndex).node();
-                const checkIn = (rowNode?.getAttribute('data-check-in') || '').trim();
-                const checkOut = (rowNode?.getAttribute('data-check-out') || checkIn || '').trim();
-                if (!checkIn && !checkOut) return false;
+                const travelStart = (rowNode?.getAttribute('data-travel-start') || rowNode?.getAttribute('data-check-in') || '').trim();
+                const travelEnd = (rowNode?.getAttribute('data-travel-end') || rowNode?.getAttribute('data-check-out') || travelStart || '').trim();
+                if (!travelStart && !travelEnd) return false;
 
-                const tourStart = checkIn || checkOut;
-                const tourEnd = checkOut || checkIn;
+                const tourStart = travelStart || travelEnd;
+                const tourEnd = travelEnd || travelStart;
 
-                // Overlap: booking [tourStart, tourEnd] intersects filter [start, end]
+                // Overlap: booking travel_dates [start_date, end_date] intersects filter [start, end]
                 if (start && tourEnd && tourEnd < start) return false;
                 if (end && tourStart && tourStart > end) return false;
                 return true;
@@ -585,6 +599,8 @@
                 minStr: toYmd(minDate),
                 maxStr: toYmd(maxDate),
                 endPlus30Str: toYmd(endPlus30),
+                defaultStart: @json($pkgDefaultStart),
+                defaultEnd: @json($pkgDefaultEnd),
             };
         }
 
@@ -620,7 +636,7 @@
             if (pkgTable) pkgTable.draw();
         });
 
-        // Apply default today → today+30 date filter + renumber (# starts at 1)
+        // Apply default travel_dates range filter + renumber (# starts at 1)
         pkgTable.draw();
 
         @if(!empty($showBookingStatusColumn))
@@ -707,7 +723,7 @@
         if (a) a.value = '';
         if (st) st.value = '';
 
-        // Reset date range to today → today + 30 days (within ±1 year bounds)
+        // Reset date range to travel_dates span (within ±1 year bounds)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const pad = (n) => String(n).padStart(2, '0');
@@ -716,22 +732,21 @@
         minDate.setFullYear(minDate.getFullYear() - 1);
         const maxDate = new Date(today);
         maxDate.setFullYear(maxDate.getFullYear() + 1);
-        const endPlus30 = new Date(today);
-        endPlus30.setDate(endPlus30.getDate() + 30);
-        const todayStr = toYmd(today);
         const minStr = toYmd(minDate);
         const maxStr = toYmd(maxDate);
-        const endPlus30Str = toYmd(endPlus30);
+        const defaultStart = @json($pkgDefaultStart ?? $pkgToday->toDateString());
+        const defaultEnd = @json($pkgDefaultEnd ?? $pkgToday->copy()->addDays(30)->toDateString());
 
         if (sd) {
             sd.setAttribute('min', minStr);
             sd.setAttribute('max', maxStr);
-            sd.value = todayStr;
+            sd.value = defaultStart;
         }
         if (ed) {
-            ed.setAttribute('min', todayStr);
+            const endMin = defaultStart && defaultStart > minStr ? defaultStart : minStr;
+            ed.setAttribute('min', endMin);
             ed.setAttribute('max', maxStr);
-            ed.value = endPlus30Str;
+            ed.value = defaultEnd;
         }
 
         if (pkgTable) {

@@ -286,4 +286,12 @@ class CountryController extends Controller
             'count' => $formattedResults->count()
         ]);
     }
+
+    public function getCountry(){
+        $country = Country::select('name', 'country_code')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($country);
+    }
 }

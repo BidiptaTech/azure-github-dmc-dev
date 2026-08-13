@@ -6046,14 +6046,17 @@
                                                 <div class="col-md-2">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
                                                     @php
-                                                        $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
+                                                        $allCountriesForCode = \App\Models\Country::query()
+                                                            ->orderBy('name')
+                                                            ->get(['name', 'country_code']);
+                                                        $tourCountryForCode = $allCountriesForCode->firstWhere('name', $tour->destination ?? '');
                                                         $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
                                                     @endphp
                                                     <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
                                                         <option value="">Select</option>
-                                                        @foreach($countries as $country)
+                                                        @foreach($allCountriesForCode as $country)
                                                             @if(!empty($country->country_code))
-                                                                <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                                <option value="{{ $country->country_code }}" {{ (string) $defaultCountryCode === (string) $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
                                                             @endif
                                                         @endforeach
                                                     </select>
