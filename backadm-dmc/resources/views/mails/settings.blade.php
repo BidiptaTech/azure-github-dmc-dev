@@ -16,6 +16,35 @@
                             @csrf
                             <x-alert />
 
+                            <!-- AI Auto Email -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card shadow-none bg-light border">
+                                        <div class="card-header bg-transparent">
+                                            <h6 class="mb-0"><i class="ri-robot-2-line me-2"></i>AI Auto Email</h6>
+                                        </div>
+                                        <div class="card-body pb-0">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <div class="form-floating mb-3">
+                                                        <input type="email" class="form-control" id="from_email" name="from_email" placeholder="noreply@example.com" value="{{ $settings->from_email ?? '' }}">
+                                                        <label for="from_email">AI Auto Email</label>
+                                                        <div class="form-text">The email address used as the From identity for AI automated emails.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-floating mb-3">
+                                                        <input type="text" class="form-control" id="from_name" name="from_name" placeholder="Your Company Name" value="{{ $settings->from_name ?? '' }}">
+                                                        <label for="from_name">From Name</label>
+                                                        <div class="form-text">The name that will appear alongside the email address.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- SMTP Configuration -->
                             <div class="row mb-4">
                                 <div class="col-12">
@@ -65,27 +94,48 @@
                                 </div>
                             </div>
 
-                            <!-- Email Identity -->
+                            <!-- IMAP Configuration -->
                             <div class="row mb-4">
                                 <div class="col-12">
                                     <div class="card shadow-none bg-light border">
                                         <div class="card-header bg-transparent">
-                                            <h6 class="mb-0"><i class="ri-at-line me-2"></i>Email Identity</h6>
+                                            <h6 class="mb-0"><i class="ri-inbox-line me-2"></i>IMAP Configuration</h6>
                                         </div>
                                         <div class="card-body pb-0">
                                             <div class="row g-3">
                                                 <div class="col-md-6">
                                                     <div class="form-floating mb-3">
-                                                        <input type="email" class="form-control" id="from_email" name="from_email" placeholder="noreply@example.com" value="{{ $settings->from_email ?? '' }}">
-                                                        <label for="from_email">From Email</label>
-                                                        <div class="form-text">The email address that will appear in the "From" field.</div>
+                                                        <input type="text" class="form-control" id="imap_host" name="imap_host" placeholder="imap.example.com" value="{{ $settings->imap_host ?? '' }}">
+                                                        <label for="imap_host">IMAP Host</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-floating mb-3">
+                                                        <input type="number" class="form-control" id="imap_port" name="imap_port" placeholder="993" value="{{ $settings->imap_port ?? '' }}">
+                                                        <label for="imap_port">IMAP Port</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="form-floating mb-3">
+                                                        <select class="form-select" id="imap_encryption" name="imap_encryption">
+                                                            <option value="ssl" {{ isset($settings->imap_encryption) && $settings->imap_encryption == 'ssl' ? 'selected' : '' }}>SSL</option>
+                                                            <option value="tls" {{ isset($settings->imap_encryption) && $settings->imap_encryption == 'tls' ? 'selected' : '' }}>TLS</option>
+                                                            <option value="none" {{ isset($settings->imap_encryption) && $settings->imap_encryption == 'none' ? 'selected' : '' }}>None</option>
+                                                        </select>
+                                                        <label for="imap_encryption">Encryption</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <div class="form-floating mb-3">
-                                                        <input type="text" class="form-control" id="from_name" name="from_name" placeholder="Your Company Name" value="{{ $settings->from_name ?? '' }}">
-                                                        <label for="from_name">From Name</label>
-                                                        <div class="form-text">The name that will appear alongside the email address.</div>
+                                                        <input type="text" class="form-control" id="imap_username" name="imap_username" placeholder="mail@example.com" value="{{ $settings->imap_username ?? '' }}">
+                                                        <label for="imap_username">IMAP Username</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-floating mb-3">
+                                                        <input type="password" class="form-control" id="imap_password" name="imap_password" placeholder="Password" value="{{ $settings->imap_password ?? '' }}">
+                                                        <label for="imap_password">IMAP Password</label>
+                                                        <div class="form-text">Leave blank to keep the current password.</div>
                                                     </div>
                                                 </div>
                                             </div>
