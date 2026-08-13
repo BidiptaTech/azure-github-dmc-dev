@@ -58,6 +58,7 @@ import profileReducer from "../slice/common/profileSlice";
 import dmcReducer from "../slice/dmc/dmcSlice";
 import stepperButtonReducer from "../slice/common/stepperButtonSlice";
 import { loadTourSession } from "@/utils/tourSession";
+import { resolveCountryName } from "@/utils/locationFormat";
 
 export const store = configureStore({
   reducer: {
@@ -117,8 +118,24 @@ export const store = configureStore({
     if (saved.selectedCity != null) {
       dispatch(setSelectedCity(saved.selectedCity));
     }
+
+    const countryDestination = resolveCountryName(
+      (typeof saved.tourdetails?.destination === "string" &&
+        saved.tourdetails.destination) ||
+        (typeof saved.tourdetails?.country === "string" &&
+          saved.tourdetails.country) ||
+        saved.searchLocation ||
+        "",
+      []
+    );
+
     if (Array.isArray(saved.cityList) && saved.cityList.length) {
-      dispatch(setCity(saved.cityList));
+      dispatch(
+        setCity({
+          cities: saved.cityList,
+          country: countryDestination,
+        })
+      );
     }
     if (saved.guests) {
       dispatch(setGuest(saved.guests));
@@ -138,10 +155,8 @@ export const store = configureStore({
             saved.checkOut ||
             "",
           destination:
-            saved.tourdetails?.destination ||
-            saved.tourdetails?.country ||
-            saved.selectedCity ||
-            undefined,
+            countryDestination || saved.tourdetails?.destination || "",
+          country: countryDestination || saved.tourdetails?.country || "",
         })
       );
     }

@@ -19,11 +19,20 @@ const SearchBar = ({ setPickUpLocation, pickUpLocation }) => {
 
   // Transform city data into expected format - memoize to prevent recreation on every render
   const transformedCityData = useMemo(() => {
-    return cityData.map((city, index) => ({
-      id: index + 1,
-      name: city.split(",")[0].trim(), // Extract and clean city name
-      address: city, // Full address
-    }));
+    return (Array.isArray(cityData) ? cityData : [])
+      .map((city, index) => {
+        const address =
+          typeof city === "string"
+            ? city
+            : city?.address || city?.name || city?.city || "";
+        if (!address) return null;
+        return {
+          id: index + 1,
+          name: String(address).split(",")[0].trim(),
+          address: String(address),
+        };
+      })
+      .filter(Boolean);
   }, [cityData]);
 
   // Filter cities based on user input - memoize to prevent recreation on every render

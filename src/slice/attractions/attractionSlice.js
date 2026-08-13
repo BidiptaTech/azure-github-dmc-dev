@@ -9,6 +9,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
 import { setId } from "@/slice/hotel/hotelSlice";
+import { parseCityCountry } from "@/utils/locationFormat";
 
 // Async thunk to fetch attractions
 export const fetchAttractions = createAsyncThunk(
@@ -48,23 +49,13 @@ export const fetchAttractions = createAsyncThunk(
         queryParams.append("date", "{}");
       }
 
-      // Parse city if it contains both city and country in format "City, (Country)"
-      let cityName = city;
-      let countryName = country;
-      
-      if (city && city.includes(",")) {
-        // Split "Singapore, (Singapore)" into city and country
-        const parts = city.split(",").map(p => p.trim());
-        cityName = parts[0]; // "Singapore"
-        if (parts[1]) {
-          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
-        }
-      }
-      
-      // If country is still not set, use cityName as country (common for city-states like Singapore)
-      if (!countryName && cityName) {
-        countryName = cityName;
-      }
+      // Prefer tour destination as country when caller didn't pass one
+      const tourCountry =
+        country ||
+        state.hotels?.tourdetails?.destination ||
+        state.hotels?.tourdetails?.country ||
+        "";
+      const { cityName, countryName } = parseCityCountry(city, tourCountry);
 
       console.log("🌍 Attraction API params:", { cityName, countryName, date, tour_id });
 

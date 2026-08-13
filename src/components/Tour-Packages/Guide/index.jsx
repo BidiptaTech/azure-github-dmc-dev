@@ -1252,7 +1252,20 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       setIsGuideListingEnabled(false);
       
       // Dispatch fetchGuides API call
-      dispatch(fetchGuides({ city: `${city.name}, (${country})`, date: bookingDate, tour_id: numericTourId }))
+      const resolvedCountry =
+        (typeof country === "string" && country) ||
+        country?.name ||
+        country?.label ||
+        city?.country ||
+        "";
+      dispatch(
+        fetchGuides({
+          city: city.address || city.name,
+          country: resolvedCountry,
+          date: bookingDate,
+          tour_id: numericTourId,
+        })
+      )
         .then((result) => {
           console.log("fetchGuides API result:", result);
           if (result.error) {

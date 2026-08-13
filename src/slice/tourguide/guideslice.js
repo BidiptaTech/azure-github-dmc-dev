@@ -8,6 +8,7 @@ import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
 import { setId } from "@/slice/hotel/hotelSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { parseCityCountry } from "@/utils/locationFormat";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -26,23 +27,12 @@ export const fetchGuides = createAsyncThunk(
         return rejectWithValue({ message: "City is required" });
       }
 
-      // Parse city if it contains both city and country in format "City, (Country)"
-      let cityName = city;
-      let countryName = params?.country;
-      
-      if (city && city.includes(",")) {
-        // Split "Singapore, (Singapore)" into city and country
-        const parts = city.split(",").map(p => p.trim());
-        cityName = parts[0]; // "Singapore"
-        if (parts[1]) {
-          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
-        }
-      }
-      
-      // If country is still not set, use cityName as country
-      if (!countryName && cityName) {
-        countryName = cityName;
-      }
+      const tourCountry =
+        params?.country ||
+        state.hotels?.tourdetails?.destination ||
+        state.hotels?.tourdetails?.country ||
+        "";
+      const { cityName, countryName } = parseCityCountry(city, tourCountry);
 
       const response = await axios.get(`${BASE_URL}/guide`, {
         headers: {

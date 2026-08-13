@@ -7,6 +7,7 @@ import { updateServiceResponse } from "../common/stepperButtonSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
 import { setId } from "@/slice/hotel/hotelSlice";
+import { parseCityCountry } from "@/utils/locationFormat";
 // We no longer pre-create tours; include tour meta in booking payload
 
 export const fetchRestaurants = createAsyncThunk(
@@ -31,23 +32,12 @@ export const fetchRestaurants = createAsyncThunk(
 
       const queryParams = new URLSearchParams();
 
-      // Parse city if it contains both city and country in format "City, (Country)"
-      let cityName = city;
-      let countryName = country;
-      
-      if (city && city.includes(",")) {
-        // Split "Singapore, (Singapore)" into city and country
-        const parts = city.split(",").map(p => p.trim());
-        cityName = parts[0]; // "Singapore"
-        if (parts[1]) {
-          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
-        }
-      }
-      
-      // If country is still not set, use cityName as country
-      if (!countryName && cityName) {
-        countryName = cityName;
-      }
+      const tourCountry =
+        country ||
+        state.hotels?.tourdetails?.destination ||
+        state.hotels?.tourdetails?.country ||
+        "";
+      const { cityName, countryName } = parseCityCountry(city, tourCountry);
 
       if (cityName) queryParams.append("city", cityName);
       if (countryName) queryParams.append("country", countryName);

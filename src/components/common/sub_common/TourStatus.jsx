@@ -48,6 +48,9 @@ import {
   saveTourSession,
   loadTourSession,
 } from "@/utils/tourSession";
+import {
+  resolveCountryName,
+} from "@/utils/locationFormat";
 
 export default function TourStatus() {
   const [selectedDate, setSelectedDate] = useState(null); // Track selected date
@@ -128,6 +131,15 @@ export default function TourStatus() {
 
   const hydrateDestination = (destination, checkInValue, checkOutValue) => {
     if (!destination) return;
+    // Destination must be country name/code — never a city object
+    if (typeof destination === "object" && !Array.isArray(destination)) {
+      destination =
+        destination.country ||
+        destination.name ||
+        destination.label ||
+        "";
+      if (!destination) return;
+    }
 
     const nameToCode = {};
     const codeToName = {};
@@ -151,26 +163,23 @@ export default function TourStatus() {
 
     const countryCodeArray = destinationArray
       .map((item) => {
-        let code = nameToCode[item];
-        if (!code) {
-          const name = codeToName[item];
-          if (name) code = nameToCode[name];
+        let code = nameToCode[item] || nameToCode[String(item).toLowerCase()];
+        if (!code && codeToName[item]) {
+          // Already a code
+          code = item;
         }
         return code || item;
       })
-      .filter(Boolean);
-
-    const destinationNames = destinationArray
-      .map((item) => codeToName[item] || item)
       .filter(Boolean);
 
     if (countryCodeArray.length) {
       dispatch(setSearchLocation(countryCodeArray));
     }
 
+    // Destination from API/tour is country — do NOT put it into selectedCity
+    // or hotel search location (those are city fields). Only sync dates here.
     dispatch(
       updateSearchState({
-        location: destinationNames,
         ...(checkInValue
           ? {
               ucheckIn: checkInValue.includes("/")
@@ -187,10 +196,6 @@ export default function TourStatus() {
           : {}),
       })
     );
-
-    if (destinationNames.length > 0) {
-      dispatch(setSelectedCity(destinationNames[0]));
-    }
 
     dispatch(
       settourdetails({
@@ -257,8 +262,25 @@ export default function TourStatus() {
     if (saved.selectedCity != null) {
       dispatch(setSelectedCity(saved.selectedCity));
     }
+
+    // destination/country must stay as country NAME — never selectedCity / codes only
+    const countryDestination = resolveCountryName(
+      (typeof saved.tourdetails?.destination === "string" &&
+        saved.tourdetails.destination) ||
+        (typeof saved.tourdetails?.country === "string" &&
+          saved.tourdetails.country) ||
+        saved.searchLocation ||
+        "",
+      userCountry
+    );
+
     if (Array.isArray(saved.cityList) && saved.cityList.length) {
-      dispatch(setCity(saved.cityList));
+      dispatch(
+        setCity({
+          cities: saved.cityList,
+          country: countryDestination,
+        })
+      );
     }
     if (saved.guests) {
       dispatch(setGuest(saved.guests));
@@ -278,23 +300,27 @@ export default function TourStatus() {
             saved.checkOut ||
             "",
           destination:
-            saved.tourdetails?.destination ||
-            saved.tourdetails?.country ||
-            saved.selectedCity ||
-            saved.tourdetails?.destination,
+            countryDestination || saved.tourdetails?.destination || "",
+          country: countryDestination || saved.tourdetails?.country || "",
         })
       );
     }
     if (saved.searchState) {
       dispatch(updateSearchState(saved.searchState));
-    } else if (saved.checkIn || saved.checkOut || saved.selectedCity) {
+    } else if (saved.checkIn || saved.checkOut) {
+      // Hotel search location should be city address/name, not country object
+      const cityLocation =
+        typeof saved.selectedCity === "string"
+          ? saved.selectedCity
+          : saved.selectedCity?.address ||
+            saved.selectedCity?.name ||
+            (Array.isArray(saved.searchState?.location)
+              ? saved.searchState.location
+              : saved.searchState?.location) ||
+            [];
       dispatch(
         updateSearchState({
-          location:
-            saved.searchState?.location ||
-            saved.tourdetails?.destination ||
-            saved.selectedCity ||
-            [],
+          location: cityLocation,
           ucheckIn: saved.checkIn
             ? saved.checkIn.includes("/")
               ? saved.checkIn.split("/").reverse().join("-")
@@ -360,14 +386,8 @@ export default function TourStatus() {
       (Array.isArray(svc.travelZone) && svc.travelZone.length > 0);
 
     // Prefer cached services after refresh. Only hit edit-tour when cache is empty.
+    // Do NOT call hydrateDestination here — it overwrites selectedCity with country.
     if (hasCachedServices) {
-      if (saved.tourdetails?.destination || saved.tourdetails?.country) {
-        hydrateDestination(
-          saved.tourdetails.destination || saved.tourdetails.country,
-          saved.checkIn,
-          saved.checkOut
-        );
-      }
       // #region agent log
       fetch("http://127.0.0.1:7539/ingest/9c7af5d8-43d0-4cfe-81fd-7c964daf146e", {
         method: "POST",

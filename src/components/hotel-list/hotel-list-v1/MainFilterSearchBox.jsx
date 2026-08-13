@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { DateObject } from "react-multi-date-picker";
 import { setSelectedCity, setHaveBooking } from "@/slice/common/commonSlice";
 import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
+import { toCityOnly } from "@/utils/locationFormat";
 
 const MainFilterSearchBox = () => {
   const dispatch = useDispatch();
@@ -104,12 +105,9 @@ const MainFilterSearchBox = () => {
   const defaultChildren = tourDetails?.child || 0;
 
   const resolveLocationString = (loc) => {
-    if (!loc) return null;
-    if (typeof loc === "string") return loc;
-    if (typeof loc === "object") {
-      return loc.address || loc.name || null;
-    }
-    return null;
+    // Hotel API needs city only — strip country from "City, Country"
+    const cityOnly = toCityOnly(loc);
+    return cityOnly || null;
   };
 
   const handleSearch = () => {
@@ -232,7 +230,7 @@ const MainFilterSearchBox = () => {
 
     dispatch(
       updateSearchState({
-        location: tourDetails.destination || searchState.location,
+        // Keep hotel location as city — never overwrite with country destination
         ucheckIn: formattedCheckIn,
         ucheckOut: formattedCheckOut,
         guests: {

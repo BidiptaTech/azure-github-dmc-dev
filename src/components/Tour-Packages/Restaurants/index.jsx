@@ -772,8 +772,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         fromMainSearch: false
       });
       
+      const resolvedCountry =
+        (typeof country === "string" && country) ||
+        country?.name ||
+        country?.label ||
+        tour?.destination ||
+        tour?.country ||
+        city?.country ||
+        "";
+
       dispatch(fetchRestaurants({ 
-        city: `${city.name}, (${country})`, 
+        city: city.address || city.name,
+        country: resolvedCountry,
         date: bookingDate, 
         adults: tour.adult,
         children: tour.child,

@@ -48,7 +48,27 @@ const MainFilterSearchBox2 = ({ Location }) => {
   //const [selectedPort, setSelectedPort] = useState("Entry Port"); // Default selection
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
   const TourId = useSelector((state) => state.hotels.id);
-  const country = useSelector((state) => state.hotels.tourdetails.destination);
+  const tourDestination = useSelector(
+    (state) => state.hotels.tourdetails?.destination
+  );
+  const searchLocation = useSelector((state) => state.bookings?.searchLocation);
+  const userCountry = useSelector((state) => state.auth?.user_country);
+  const country =
+    (typeof tourDestination === "string" && tourDestination) ||
+    (Array.isArray(searchLocation)
+      ? searchLocation
+          .map((loc) => {
+            const match = (userCountry || []).find(
+              (c) =>
+                c?.code === loc ||
+                c?.code?.toLowerCase() === String(loc).toLowerCase() ||
+                c?.name === loc
+            );
+            return match?.name || loc;
+          })
+          .join(", ")
+      : "") ||
+    "";
   console.log("country", country);
 
   // Check port city API status

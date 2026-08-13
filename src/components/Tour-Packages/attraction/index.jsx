@@ -1480,11 +1480,27 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         fromMainSearch: false
       });
       
-      dispatch(fetchAttractions({ city: `${city.name}, (${country})`, date: bookingDate, adults: tour.adult,
-        children: tour.child,
-        tour_id: tour.tour_id, // Use tour_id from packageData
-        selectedDate: bookingDate,
-        fromMainSearch: false, }))
+      const resolvedCountry =
+        (typeof country === "string" && country) ||
+        country?.name ||
+        country?.label ||
+        tour?.destination ||
+        tour?.country ||
+        city?.country ||
+        "";
+
+      dispatch(
+        fetchAttractions({
+          city: city.address || city.name,
+          country: resolvedCountry,
+          date: bookingDate,
+          adults: tour.adult,
+          children: tour.child,
+          tour_id: tour.tour_id, // Use tour_id from packageData
+          selectedDate: bookingDate,
+          fromMainSearch: false,
+        })
+      )
         .then((result) => {
           console.log("fetchAttractions API result:", result);
           if (result.error) {

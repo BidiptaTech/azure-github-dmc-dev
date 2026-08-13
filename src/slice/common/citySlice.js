@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { normalizeCityList } from "@/utils/locationFormat";
 
 const citySlice = createSlice({
   name: "city",
@@ -7,8 +8,18 @@ const citySlice = createSlice({
   },
   reducers: {
     setCity: (state, action) => {
-      console.log("City Data being set srk:", action.payload);
-    state.city = action.payload;
+      // Always store "City, Country" style strings when possible
+      const payload = action.payload;
+      if (
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        Array.isArray(payload.cities)
+      ) {
+        state.city = normalizeCityList(payload.cities, payload.country || "");
+      } else {
+        state.city = normalizeCityList(payload);
+      }
     },
   },
 });

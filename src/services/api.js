@@ -99,6 +99,25 @@ export const endpoints = {
       });
   },
 
+  // Country dial-code list for customer forms
+  getCountries: () => {
+    const authToken = Cookies.get("authToken");
+    const AgentId = Cookies.get("AgentId");
+
+    if (!authToken) {
+      return Promise.reject(new Error("No auth token found"));
+    }
+
+    const headers = {
+      Authorization: `Bearer ${authToken}`,
+    };
+    if (AgentId) {
+      headers["agent-id"] = AgentId;
+    }
+
+    return api.get("/get-country", { headers });
+  },
+
   // Package endpoints
   fetchPackages: (params) =>
     api.get("/packages", { params: transformParams(params) }),

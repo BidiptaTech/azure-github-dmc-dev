@@ -40,15 +40,12 @@ import {
   setBookingResponse,
 } from "../../../slice/common/customerInfo";
 import { setIsNavigating } from "@/slice/common/commonSlice";
-
-const countryCodes = [
-  { code: "US", name: "United States", dialCode: "+1" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44" },
-  { code: "IN", name: "India", dialCode: "+91" },
-  { code: "AU", name: "Australia", dialCode: "+61" },
-  { code: "SG", name: "Singapore", dialCode: "+65" },
-  // Add more country codes as needed
-];
+import CircularProgress from "@mui/material/CircularProgress";
+import {
+  MANUAL_COUNTRY_VALUE,
+  fetchCountryDialCodes,
+  sanitizeDialCode,
+} from "@/utils/countryCodes";
 
 const CustomerInfo = ({
   image,
@@ -75,19 +72,19 @@ const CustomerInfo = ({
     countryCode: "+1", // Default to the first country code
   });
 
-  // State for selected country and dynamic validation
+  // Countries from /get-country
+  const [countries, setCountries] = useState([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [dialMinLength, setDialMinLength] = useState(8);
   const [dialMaxLength, setDialMaxLength] = useState(15);
+  const [isManualCountryCode, setIsManualCountryCode] = useState(false);
+  const countryManuallyOverriddenRef = useRef(false);
+  const hasInitializedCountryRef = useRef(false);
 
   const countryCodeFromRedux = useSelector((state) => state.auth.countryCode);
-  // const dialMaxLength = useSelector((state) => state.auth.dialMaxLength);
-  // const dialMinLength = useSelector((state) => state.auth.dialMinLength);
-  const user_country = useSelector((state) => state.auth.user_country);
-  console.log("user_country", user_country);
+  const searchLocation = useSelector((state) => state.bookings.searchLocation);
   console.log("countryCode from Redux:", countryCodeFromRedux);
-  // console.log("dialMaxLength from Redux:", dialMaxLength);
-  // console.log("dialMinLength from Redux:", dialMinLength);
   const mode =
     type === "guide"
       ? useSelector((state) => state.tourguide.selectedGuide?.mode)
@@ -99,51 +96,114 @@ const CustomerInfo = ({
       ? useSelector((state) => state.localtour.selectedVehicle?.mode)
       : "dmc";
   console.log("mode88", mode);
-  // Set the initial country code based on Redux state
-  // Initialize selected country from user_country array
+  // Load countries from /get-country
   useEffect(() => {
-    if (user_country && user_country.length > 0) {
-      // Set default to first country in the array
-      const defaultCountry = user_country[0];
-      setSelectedCountry(defaultCountry);
-      setDialMinLength(defaultCountry.contact_min_length);
-      setDialMaxLength(defaultCountry.contact_max_length);
-      setForm((prevForm) => ({
-        ...prevForm,
-        countryCode: defaultCountry.country_code,
-      }));
-    }
-  }, [user_country]);
+    let cancelled = false;
+    const load = async () => {
+      setCountriesLoading(true);
+      try {
+        const list = await fetchCountryDialCodes();
+        if (!cancelled) setCountries(list);
+      } catch (error) {
+        console.error("Failed to fetch /get-country:", error);
+        if (!cancelled) {
+          setCountries([]);
+          toast.error("Failed to load country codes");
+        }
+      } finally {
+        if (!cancelled) setCountriesLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  // Handler for country selection
+  // Initialize selected country once list is ready
+  useEffect(() => {
+    if (countryManuallyOverriddenRef.current) return;
+    if (!countries.length || hasInitializedCountryRef.current) return;
+
+    let defaultCountry = null;
+    if (searchLocation?.[0]) {
+      defaultCountry = countries.find(
+        (c) =>
+          String(c.code).toLowerCase() ===
+          String(searchLocation[0]).toLowerCase()
+      );
+    }
+    if (!defaultCountry && form.countryCode) {
+      defaultCountry = countries.find(
+        (c) => c.country_code === form.countryCode
+      );
+    }
+    if (!defaultCountry) defaultCountry = countries[0];
+
+    hasInitializedCountryRef.current = true;
+    setSelectedCountry(defaultCountry);
+    setIsManualCountryCode(false);
+    setDialMinLength(defaultCountry.contact_min_length || 8);
+    setDialMaxLength(defaultCountry.contact_max_length || 15);
+    setForm((prevForm) => ({
+      ...prevForm,
+      countryCode: prevForm.countryCode || defaultCountry.country_code,
+    }));
+  }, [countries, searchLocation]);
+
+  // Handler for country selection (dropdown or Other)
   const handleCountryChange = (event) => {
     const selectedCountryCode = event.target.value;
-    const country = user_country.find(c => c.code === selectedCountryCode);
-    
+
+    if (selectedCountryCode === MANUAL_COUNTRY_VALUE) {
+      countryManuallyOverriddenRef.current = true;
+      setIsManualCountryCode(true);
+      setSelectedCountry(null);
+      setDialMinLength(8);
+      setDialMaxLength(15);
+      const updated = {
+        ...form,
+        countryCode: form.countryCode?.startsWith("+")
+          ? form.countryCode
+          : "+",
+      };
+      setForm(updated);
+      onFormChange(updated);
+      return;
+    }
+
+    const country = countries.find((c) => c.code === selectedCountryCode);
+
     if (country) {
+      countryManuallyOverriddenRef.current = false;
+      setIsManualCountryCode(false);
       setSelectedCountry(country);
-      setDialMinLength(country.contact_min_length);
-      setDialMaxLength(country.contact_max_length);
-      setForm((prevForm) => ({
-        ...prevForm,
+      setDialMinLength(country.contact_min_length || 8);
+      setDialMaxLength(country.contact_max_length || 15);
+      const updated = {
+        ...form,
         countryCode: country.country_code,
-      }));
-      
-      // Update parent component
-      onFormChange({ 
-        ...form, 
-        countryCode: country.country_code 
-      });
-      
-      // Re-validate phone if it's already touched
+      };
+      setForm(updated);
+      onFormChange(updated);
+
       if (touched.phone && form.phone) {
-        const phoneError = validateField('phone', form.phone);
+        const phoneError = validateField("phone", form.phone);
         setErrors((prevErrors) => ({
           ...prevErrors,
           phone: phoneError,
         }));
       }
     }
+  };
+
+  const handleManualCountryCodeChange = (e) => {
+    const value = sanitizeDialCode(e.target.value);
+    countryManuallyOverriddenRef.current = true;
+    setIsManualCountryCode(true);
+    const updated = { ...form, countryCode: value };
+    setForm(updated);
+    onFormChange(updated);
   };
 
   // Ensure hooks are called in the same order
@@ -788,45 +848,88 @@ const CustomerInfo = ({
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <FormControl 
-                      variant="standard" 
-                      sx={{ 
-                        minWidth: 80,
-                        marginRight: 1,
-                        '& .MuiInput-underline:before': { display: 'none' },
-                        '& .MuiInput-underline:after': { display: 'none' },
-                        '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
-                      }}
-                    >
-                      <Select
-                        value={selectedCountry?.code || ''}
-                        onChange={handleCountryChange}
-                        disableUnderline
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mr: 1 }}>
+                      <FormControl
+                        variant="standard"
                         sx={{
-                          fontSize: '0.875rem',
-                          '& .MuiSelect-select': {
-                            paddingRight: '20px !important',
-                            paddingLeft: 0,
-                            paddingTop: 0,
-                            paddingBottom: 0,
-                            display: 'flex',
-                            alignItems: 'center'
+                          minWidth: isManualCountryCode ? 72 : 80,
+                          "& .MuiInput-underline:before": { display: "none" },
+                          "& .MuiInput-underline:after": { display: "none" },
+                          "& .MuiInput-underline:hover:not(.Mui-disabled):before": {
+                            display: "none",
                           },
-                          '& .MuiSvgIcon-root': {
-                            fontSize: '1rem'
-                          }
                         }}
                       >
-                        {user_country && user_country.map((country) => (
-                          <MenuItem key={country.code} value={country.code}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
-                              <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
-                            </Box>
+                        <Select
+                          value={
+                            isManualCountryCode
+                              ? MANUAL_COUNTRY_VALUE
+                              : selectedCountry?.code || ""
+                          }
+                          onChange={handleCountryChange}
+                          disableUnderline
+                          disabled={countriesLoading}
+                          displayEmpty
+                          sx={{
+                            fontSize: "0.875rem",
+                            "& .MuiSelect-select": {
+                              paddingRight: "20px !important",
+                              paddingLeft: 0,
+                              paddingTop: 0,
+                              paddingBottom: 0,
+                              display: "flex",
+                              alignItems: "center",
+                            },
+                            "& .MuiSvgIcon-root": {
+                              fontSize: "1rem",
+                            },
+                          }}
+                        >
+                          {countriesLoading && (
+                            <MenuItem value="" disabled>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <CircularProgress size={14} />
+                                Loading...
+                              </Box>
+                            </MenuItem>
+                          )}
+                          {!countriesLoading &&
+                            countries.map((country) => (
+                              <MenuItem key={country.code} value={country.code}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <span style={{ fontWeight: "bold" }}>
+                                    {country.country_code}
+                                  </span>
+                                  <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                                    ({country.code})
+                                  </span>
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          <MenuItem value={MANUAL_COUNTRY_VALUE}>
+                            <span style={{ fontWeight: "bold" }}>Other</span>
                           </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        </Select>
+                      </FormControl>
+                      {isManualCountryCode && (
+                        <TextField
+                          variant="standard"
+                          value={form.countryCode || "+"}
+                          onChange={handleManualCountryCodeChange}
+                          placeholder="+XX"
+                          inputProps={{
+                            "aria-label": "Manual country dial code",
+                            style: {
+                              width: 52,
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              padding: 0,
+                            },
+                          }}
+                          InputProps={{ disableUnderline: true }}
+                        />
+                      )}
+                    </Box>
                   </InputAdornment>
                 ),
               }}

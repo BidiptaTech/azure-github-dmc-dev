@@ -29,7 +29,17 @@ export function saveTourSession(context) {
     haveBooking: !!context.haveBooking,
     searchLocation: safeClone(context.searchLocation || [], []),
     selectedCity: safeClone(context.selectedCity ?? null, null),
-    cityList: safeClone(context.cityList || [], []),
+    // Persist city list as plain strings only
+    cityList: safeClone(
+      (Array.isArray(context.cityList) ? context.cityList : [])
+        .map((c) =>
+          typeof c === "string"
+            ? c
+            : c?.address || c?.name || c?.city || ""
+        )
+        .filter(Boolean),
+      []
+    ),
     guests: safeClone(context.guests || null, null),
     tourdetails: safeClone(context.tourdetails || null, null),
     searchState: safeClone(context.searchState || null, null),

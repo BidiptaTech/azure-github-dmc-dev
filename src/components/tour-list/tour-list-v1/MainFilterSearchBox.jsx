@@ -69,7 +69,8 @@ const MainFilterSearchBox = () => {
 
     dispatch(
       fetchAttractions({
-        city: selectedLocation?.address,
+        city: selectedLocation?.address || selectedLocation?.name,
+        country: tourdetails?.destination || tourdetails?.country || "",
         date: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
         adults: guestCounts.Adults,
         children: guestCounts.Children,
