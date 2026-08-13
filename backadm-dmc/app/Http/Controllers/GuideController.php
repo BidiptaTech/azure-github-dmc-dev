@@ -227,7 +227,11 @@ class GuideController extends Controller
         'contact_no' => 'required|string|min:8|max:15',
         'email' => 'required|email|max:255',
         'languages' => 'required|array',
-        'about' => 'required',
+        'about' => ['required', 'string', function ($attribute, $value, $fail) {
+            if (trim(strip_tags($value ?? '')) === '') {
+                $fail('About is required. Please fill in this field.');
+            }
+        }],
         // 'license_no' => 'required|string',
         'license_no' => [
                                 'required',
@@ -495,7 +499,11 @@ class GuideController extends Controller
                 'service_type' => 'required|integer',
                 'guide_age' => 'required',
                 'wp_number' => 'required|numeric',
-                'about' => 'required|string',
+                'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags($value ?? '')) === '') {
+                        $fail('About is required. Please fill in this field.');
+                    }
+                }],
                 'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'day_rate' => 'nullable|numeric',
@@ -889,7 +897,11 @@ class GuideController extends Controller
                     ->ignore($guide->id),
             ],
             'languages' => 'array',
-            'about' => 'required',
+            'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('About is required. Please fill in this field.');
+                }
+            }],
             // 'license_no' => 'required|string',
             // 'license_no' => [
             //                     'required',
