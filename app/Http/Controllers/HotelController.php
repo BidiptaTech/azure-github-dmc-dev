@@ -238,7 +238,7 @@ class HotelController extends Controller
         $categories = HotelCategory::get();
         $facilities = Facility::all();
         $country_code = User::countryCodes();
-        $country = Country::where('is_active', 1)->get();
+        $country = Country::where('is_active', 1)->orderBy('name')->get();
         $authuser = auth()->user();
         if($authuser->role_id == 25){
             $master_dmc = User::where('created_by', $authuser->userId)->first();
@@ -600,7 +600,7 @@ class HotelController extends Controller
         $hotel_categories = [];
         $hotel_categories = HotelCategory::all();
         $hotel = Hotel::where('hotel_unique_id',$id)->first();
-        $country = Country::where('is_active', 1)->get();
+        $country = Country::where('is_active', 1)->orderBy('name')->get();
         $city = City::where('country', $hotel->country)->get();
         $entry_data = json_decode($hotel->port_of_entry, true) ?? [];
         $exit_data = json_decode($hotel->port_of_exit, true) ?? [];
