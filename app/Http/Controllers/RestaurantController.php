@@ -24,7 +24,6 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use Laravel\Sanctum\PersonalAccessToken;
 
 
 class RestaurantController extends Controller
@@ -788,18 +787,11 @@ class RestaurantController extends Controller
         if ($plainPassword !== '') {
             $restaurant->password = Hash::make($plainPassword);
 
-            // Invalidate existing Sanctum tokens for this restaurant
-            // Tokens in this app use restaurant_id as tokenable_id
-            PersonalAccessToken::where('tokenable_type', Restaurant::class)
-                ->where(function ($query) use ($restaurant) {
-                    $query->where('tokenable_id', $restaurant->restaurant_id)
-                        ->orWhere('tokenable_id', $restaurant->id);
-                })
-                ->where(function ($query) {
-                    $query->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                })
-                ->update(['expires_at' => now()]);
+            // Invalidate all tokens for this restaurant (id and/or restaurant_id)
+            CommonHelper::invalidateAccessTokens(Restaurant::class, [
+                $restaurant->id,
+                $restaurant->restaurant_id,
+            ]);
         }
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->description = $request->input('description');

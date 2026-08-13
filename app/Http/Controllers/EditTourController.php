@@ -1022,7 +1022,10 @@ class EditTourController extends Controller
             // Update password
             $existingGuest->app_password = Hash::make($plainPassword);
             $existingGuest->save();
-            $existingGuest->invalidateAccessTokens();
+            CommonHelper::invalidateAccessTokens(Guest::class, [
+                $existingGuest->id,
+                $existingGuest->guest_id,
+            ]);
             return $existingGuest;
         }
 
@@ -1095,7 +1098,10 @@ class EditTourController extends Controller
                 $existingGuest->email = $email;
             }
             $existingGuest->save();
-            $existingGuest->invalidateAccessTokens();
+            CommonHelper::invalidateAccessTokens(Guest::class, [
+                $existingGuest->id,
+                $existingGuest->guest_id,
+            ]);
             return $existingGuest;
         }
 
