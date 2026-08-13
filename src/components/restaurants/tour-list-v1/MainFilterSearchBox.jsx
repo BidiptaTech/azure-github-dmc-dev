@@ -84,7 +84,8 @@ const handleSearch = () => {
   dispatch({ type: 'restaurants/clearRestaurants' });
 
   dispatch(fetchRestaurants({
-    city: selectedLocation?.address,
+    city: selectedLocation?.address || selectedLocation?.name,
+    country: tourdetails?.destination || tourdetails?.country || "",
     date: formattedDate,
     adults: guestCounts.Adults,
     children: guestCounts.Children,

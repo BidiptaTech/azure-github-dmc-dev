@@ -312,12 +312,15 @@ const MainFilterSearchBox = () => {
     );
     dispatch(setId(0));
 
-    // Set cities from API response
+    // Set cities from API response — store as "City, Country" for service APIs
     if (citiesResult.payload && Array.isArray(citiesResult.payload)) {
       console.log("Cities fetched from API:", citiesResult.payload);
-      dispatch(setCity(citiesResult.payload));
-      // Optionally set first city as selected, or keep null for user to select
-      // dispatch(setSelectedCity(citiesResult.payload[0]));
+      dispatch(
+        setCity({
+          cities: citiesResult.payload,
+          country: destinationName,
+        })
+      );
     } else {
       console.log("No cities fetched, clearing city state");
       dispatch(setCity([]));

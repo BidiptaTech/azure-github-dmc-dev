@@ -11,6 +11,7 @@ import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
 import { setHaveBooking } from "@/slice/common/commonSlice";
 import { setTourId, updateStepStatus, statusUpdate, setType } from "@/slice/common/stepsSlice";
 import { setTourIdd } from "@/slice/common/authSlices";
+import { toCityOnly } from "@/utils/locationFormat";
 // Note: We no longer ensure/create tour here; tour is created during booking
 
 // Selector to get DMC ID from dmc slice
@@ -25,25 +26,13 @@ export const fetchHotels = createAsyncThunk(
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
      const selectedDmcId = selectDmcId(state);
-    //  console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
-     
-    //  console.log( state.hotels.searchState,"hotel details>>>>>");
-     
-    //  console.log(ucheckIn,"start date");
-    //  console.log(ucheckOut,"endDate");
-     
-     
 
      const { adults, children, infant } = guests;
 
-      // Ensure stateSearchLocation is an array/string and join it into a string
+      // Hotel /location API expects city only (not "City, Country")
       let formattedLocation = Array.isArray(location)
-        ? location.join(",")
-        : location;
-      if (formattedLocation && typeof formattedLocation === "object") {
-        formattedLocation =
-          formattedLocation.address || formattedLocation.name || "";
-      }
+        ? location.map((item) => toCityOnly(item)).filter(Boolean).join(",")
+        : toCityOnly(location);
        const dateRange=[ucheckIn,ucheckOut]
      
    
@@ -351,12 +340,15 @@ const hotelSlice = createSlice({
     updateSearchState: (state, action) => {
       const updatedState = { ...action.payload };
 
-      // Normalize location to string/array — objects break /location API
-      if (updatedState.location != null && typeof updatedState.location === "object" && !Array.isArray(updatedState.location)) {
-        updatedState.location =
-          updatedState.location.address ||
-          updatedState.location.name ||
-          "";
+      // Hotel location must be city only (not "City, Country")
+      if (updatedState.location != null) {
+        if (Array.isArray(updatedState.location)) {
+          updatedState.location = updatedState.location
+            .map((item) => toCityOnly(item))
+            .filter(Boolean);
+        } else {
+          updatedState.location = toCityOnly(updatedState.location);
+        }
       }
 
       // Handle check-in date

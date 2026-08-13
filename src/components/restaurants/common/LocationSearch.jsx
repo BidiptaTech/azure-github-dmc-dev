@@ -16,11 +16,20 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
   const cityData = useSelector((state) => state.city.city);
   console.log("cityData from restaurants", cityData);
 
-  const transformedCityData = cityData.map((city, index) => ({
-    id: index + 1,
-    name: city.split(",")[0],
-    address: city,
-  }));
+  const transformedCityData = (Array.isArray(cityData) ? cityData : [])
+    .map((city, index) => {
+      const address =
+        typeof city === "string"
+          ? city
+          : city?.address || city?.name || city?.city || "";
+      if (!address) return null;
+      return {
+        id: index + 1,
+        name: String(address).split(",")[0].trim(),
+        address: String(address),
+      };
+    })
+    .filter(Boolean);
 
   const filteredCities = transformedCityData.filter((item) =>
     item.name.toLowerCase().includes((searchValue || "").toString().toLowerCase())

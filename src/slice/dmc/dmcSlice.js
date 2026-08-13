@@ -7,22 +7,27 @@ import { BASE_URL } from '../../services/api';
 // Async thunk for fetching DMCs by country
 export const fetchDMCsByCountry = createAsyncThunk(
   'dmc/fetchDMCsByCountry',
-  async (countries, { rejectWithValue }) => {
+  async (countries, { getState, rejectWithValue }) => {
     try {
       const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
+      const state = getState();
+      const AgentId =
+        Cookies.get("AgentId") ||
+        state.auth?.agentId ||
+        state.editing?.agentId ||
+        null;
 
       if (!authToken) {
         throw new Error("No auth token found");
       }
+      if (!AgentId) {
+        throw new Error("agent_id is required — please log in again");
+      }
 
       const headers = {
         Authorization: `Bearer ${authToken}`,
+        "agent-id": AgentId,
       };
-
-      if (AgentId) {
-        headers["agent-id"] = AgentId;
-      }
 
       // Convert countries array to JSON string format
       const countryParam = JSON.stringify(countries);
@@ -30,14 +35,18 @@ export const fetchDMCsByCountry = createAsyncThunk(
       const response = await axios.get(`${BASE_URL}/get-dmcs`, {
         headers,
         params: {
-          country: countryParam
+          country: countryParam,
+          agent_id: AgentId,
         }
       });
 
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || error.message || 'Failed to fetch DMCs'
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Failed to fetch DMCs'
       );
     }
   }
@@ -46,31 +55,44 @@ export const fetchDMCsByCountry = createAsyncThunk(
 // Async thunk for fetching DMC count
 export const fetchDMCCount = createAsyncThunk(
   'dmc/fetchDMCCount',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
       const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
+      const state = getState();
+      // Cookie can be missing after refresh; fall back to Redux auth/editing
+      const AgentId =
+        Cookies.get("AgentId") ||
+        state.auth?.agentId ||
+        state.editing?.agentId ||
+        null;
 
       if (!authToken) {
         throw new Error("No auth token found");
       }
+      if (!AgentId) {
+        throw new Error("agent_id is required — please log in again");
+      }
 
       const headers = {
         Authorization: `Bearer ${authToken}`,
+        "agent-id": AgentId,
       };
-
-      if (AgentId) {
-        headers["agent-id"] = AgentId;
-      }
       
       const response = await axios.get(`${BASE_URL}/dmc-count`, {
-        headers
+        headers,
+        // Backend error text uses agent_id — send as query too for compatibility
+        params: {
+          agent_id: AgentId,
+        },
       });
 
       return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || error.message || 'Failed to fetch DMC count'
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Failed to fetch DMC count'
       );
     }
   }

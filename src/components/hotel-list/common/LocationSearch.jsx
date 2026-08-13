@@ -33,12 +33,21 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
   const cityData = useSelector((state) => state.city.city);
   //console.log("City Data:", cityData);
 
-  // Transform city data into expected format
-  const transformedCityData = cityData.map((city, index) => ({
-    id: index + 1,
-    name: city.split(",")[0], // Extract city name
-    address: city, // Full address
-  }));
+  // Transform city data into expected format (API/session may return strings or objects)
+  const transformedCityData = (Array.isArray(cityData) ? cityData : [])
+    .map((city, index) => {
+      const address =
+        typeof city === "string"
+          ? city
+          : city?.address || city?.name || city?.city || "";
+      if (!address) return null;
+      return {
+        id: index + 1,
+        name: String(address).split(",")[0].trim(),
+        address: String(address),
+      };
+    })
+    .filter(Boolean);
 
   // Filter cities based on user input
   const filteredCities = transformedCityData.filter((item) =>
@@ -92,12 +101,17 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
   
   useEffect(() => {
     if (selectedCityFromSlice && !userInteracted && !initialSelectionRef.current) {
-      const cityName = typeof selectedCityFromSlice === 'object' && selectedCityFromSlice.name
-        ? selectedCityFromSlice.name
-        : selectedCityFromSlice;
+      const cityName =
+        typeof selectedCityFromSlice === "string"
+          ? selectedCityFromSlice
+          : selectedCityFromSlice?.name ||
+            selectedCityFromSlice?.address ||
+            selectedCityFromSlice?.city ||
+            "";
       
       const matchingCity = transformedCityData.find(
-        city => city.name.toLowerCase() === (cityName || '').toString().toLowerCase()
+        city => city.name.toLowerCase() === (cityName || '').toString().toLowerCase() ||
+          city.address.toLowerCase() === (cityName || '').toString().toLowerCase()
       );
       
       if (matchingCity) {
@@ -115,7 +129,7 @@ const SearchBar = ({ onLocationSelect, hasError, setError }) => {
         // After refresh, city list may load later — still show the saved city name
         const fallback = {
           id: 0,
-          name: String(cityName).split(",")[0],
+          name: String(cityName).split(",")[0].trim(),
           address: String(cityName),
         };
         initialSelectionRef.current = true;

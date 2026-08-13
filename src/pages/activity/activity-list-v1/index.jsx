@@ -25,6 +25,7 @@ import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
+import { toCityOnly } from "@/utils/locationFormat";
 
 const metadata = {
   title: "Tour Guide List || Travclicks - Travel Technology Transformed",
@@ -45,6 +46,10 @@ const ActivityListPage1 = () => {
   const status = useSelector(selectGuidesStatus);
   const error = useSelector(selectGuidesError);
   const Location = useSelector((state) => state.bookings.searchLocation);
+  // Actual city comes from guide search / selected city — not country codes in searchLocation
+  const selectedCity = useSelector((state) => state.common.selectedCity);
+  const entrypickup = useSelector((state) => state.tourguide.entrypickup);
+  const userCountry = useSelector((state) => state.auth?.user_country || []);
 
   console.log("Country Names:", Location);
 
@@ -145,27 +150,36 @@ const ActivityListPage1 = () => {
     const guideMode = mode[guides.id]?.mode || "dmc"; // ✅ Get correct mode
     const dmcId = mode[guides.id]?.dmcId || guides.dmc_id; // ✅ Get correct dmcId
     dispatch(setSelectedGuide({ id: guides.id, mode: guideMode, dmcId }));
-    
-    // Get the location from the array and handle different data structures
-    let city = "";
-    if (Array.isArray(Location)) {
-      // If Location is an array of country codes, we need to get the city from somewhere else
-      // For now, we'll use Singapore as the default city for SG
-      if (Location.includes('SG')) {
-        city = "Singapore";
-      } else {
-        console.error("Error: Location array does not contain valid city data", Location);
-        return; // Exit early if we don't have valid location data
-      }
-    } else if (typeof Location === 'object' && Location !== null) {
-      city = Location.city || Location.name || "";
-    } else if (typeof Location === 'string') {
-      city = Location;
+
+    // Resolve city for pickup — prefer searched/selected city over country codes
+    let city =
+      toCityOnly(entrypickup) ||
+      toCityOnly(selectedCity) ||
+      "";
+
+    if (!city && Array.isArray(Location) && Location.length) {
+      // searchLocation holds country codes/names — map to a usable label if needed
+      const loc = Location[0];
+      const matched = (userCountry || []).find(
+        (c) =>
+          c?.code === loc ||
+          String(c?.code || "").toLowerCase() === String(loc).toLowerCase() ||
+          c?.name === loc
+      );
+      // City-state fallback (e.g. SG -> Singapore); otherwise use country name
+      city = matched?.name || (typeof loc === "string" ? loc : "");
+    } else if (!city && typeof Location === "object" && Location !== null && !Array.isArray(Location)) {
+      city = toCityOnly(Location);
+    } else if (!city && typeof Location === "string") {
+      city = toCityOnly(Location);
     }
 
     if (!city) {
-      console.error("Error: No valid city found in location data. Location data:", Location);
-      return; // Exit early if we don't have a city
+      console.error(
+        "Error: No valid city found for guide booking. entrypickup/selectedCity/Location:",
+        { entrypickup, selectedCity, Location }
+      );
+      return;
     }
 
     // Get the required parameters from state
@@ -174,9 +188,9 @@ const ActivityListPage1 = () => {
       mode: guideMode,
       dmc_id: dmcId,
       pickup: city,
-      date: pickupdate || new Date().toISOString().split('T')[0]
+      date: pickupdate || new Date().toISOString().split("T")[0],
     };
-    
+
     dispatch(fetchGuideDetails(searchParams))
       .unwrap()
       .then((guide) => {
