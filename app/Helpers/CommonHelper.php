@@ -43,6 +43,53 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 class CommonHelper
 {
     /**
+     * Invalidate Sanctum personal access tokens for a model.
+     * Matches tokenable_id against both primary key and business id (e.g. driver_id),
+     * because mobile apps may store either value.
+     *
+     * Sets expires_at to now so existing tokens are rejected and the DB clearly shows expiry.
+     *
+     * @param  class-string  $tokenableType  e.g. App\Models\Driver::class
+     * @param  array<int|string|null>  $tokenableIds
+     * @return int  Number of token rows updated
+     */
+    public static function invalidateAccessTokens(string $tokenableType, array $tokenableIds): int
+    {
+        $ids = [];
+        foreach ($tokenableIds as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $expiresAt = Carbon::now();
+
+        $affected = DB::table('personal_access_tokens')
+            ->where('tokenable_type', $tokenableType)
+            ->whereIn('tokenable_id', $ids)
+            ->update([
+                'expires_at' => $expiresAt,
+                'updated_at' => $expiresAt,
+            ]);
+
+        Log::info('Invalidated personal access tokens', [
+            'tokenable_type' => $tokenableType,
+            'tokenable_ids' => $ids,
+            'expires_at' => $expiresAt->toDateTimeString(),
+            'affected' => $affected,
+        ]);
+
+        return (int) $affected;
+    }
+
+    /**
      * Safely normalize a JSON field into an array.
      *
      * @param mixed $value
