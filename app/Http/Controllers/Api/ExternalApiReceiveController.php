@@ -1353,13 +1353,15 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Email the sender (sender_email) using the DMC ai_response setting (QTN / ITN).
+     * Email the API sender_email using the DMC ai_response setting (QTN / ITN).
+     * To = sender_email only. ai_email is for IMAP fetch, never the recipient.
      * Non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
     protected function notifySender(Tour $tour, array $payload, Collection $orders): array
     {
+        // Recipient is always the enquiry sender — never ai_email / SMTP mailbox.
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
@@ -1397,6 +1399,18 @@ class ExternalApiReceiveController extends Controller
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
             $threadFields = $this->resolveEmailThreadPayloadFields($payload);
+            $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig($primaryDmc, $payload);
+
+            // API values are preferred. Fall back to this DMC's stored mail settings
+            // when an older API response does not yet contain all required SMTP fields.
+            if ($runtimeMailConfig === null && $dmcUser) {
+                $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig(
+                    CommonHelper::getDmcMailSettings((int) $dmcUser->userId)
+                );
+            }
+            $mailContext = $runtimeMailConfig !== null
+                ? ['_mail_config' => $runtimeMailConfig]
+                : [];
 
             if ($aiResponse === 'QTN') {
                 $emailData = null;
@@ -1443,13 +1457,13 @@ class ExternalApiReceiveController extends Controller
                 if ($emailData) {
                     $emailData['email_uuid'] = $emailUuid;
                     $emailData['subject'] = $emailSubject;
-                    $emailData = array_merge($emailData, $threadFields);
+                    $emailData = array_merge($emailData, $threadFields, $mailContext);
                 }
 
                 $sent = CommonHelper::sendTourQuotationEmail($senderEmail, $emailData ?: array_merge([
                     'email_uuid' => $emailUuid,
                     'subject' => $emailSubject,
-                ], $threadFields));
+                ], $threadFields, $mailContext));
             } else {
                 $bookedServices = $this->buildBookedServicesForEmail($orders);
                 $totalEstimation = round(array_sum(array_map(
@@ -1487,7 +1501,7 @@ class ExternalApiReceiveController extends Controller
                     'booked_services' => $bookedServices,
                     'total_estimation' => $totalEstimation,
                     'currency_code' => $this->resolveItineraryCurrency($payload, $primaryDmc),
-                ], $threadFields), $dmcUser);
+                ], $threadFields, $mailContext), $dmcUser);
             }
 
             if ($sent !== true) {
@@ -1515,7 +1529,8 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveSenderNotificationEmail(array $payload): ?string
     {
-        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'email'], ''));
+        // Do not use generic "email" / "ai_email" — those can be DMC mailbox fields.
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
@@ -1532,17 +1547,38 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
+    /**
+     * Parent Message-ID used for In-Reply-To / References so the reply stays in
+     * the original mail thread. The AI payload sends `message_id` (real RFC id)
+     * and `uuid`; `message_id` wins when both are present.
+     */
     protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailUuidFromContext([
-            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+            'email_uuid' => $this->payloadValue($payload, [
+                'email_uuid',
+                'emailUuid',
+                'message_id',
+                'messageId',
+                'Message-ID',
+                'Message-Id',
+                'message-id',
+                'uuid',
+            ], ''),
         ]);
     }
 
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailSubjectFromContext([
-            'subject' => $this->payloadValue($payload, ['subject'], ''),
+            'subject' => $this->payloadValue($payload, [
+                'subject',
+                'email_subject',
+                'mail_subject',
+                'original_subject',
+                'thread_subject',
+                'Subject',
+            ], ''),
             'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
         ]);
     }
@@ -1557,6 +1593,8 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
+                'in_reply_to',
+                'In-Reply-To',
             ], ''),
             'cc' => $this->resolvePayloadEmailList($payload, [
                 'cc',
@@ -1606,6 +1644,8 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
+                'in_reply_to',
+                'In-Reply-To',
             ], ''),
         ]);
     }
