@@ -2079,8 +2079,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Convert AI/SMTP fields received in an external API payload to Laravel's
-     * runtime SMTP configuration. Returns null unless the required values are valid.
+     * Convert SMTP fields from an external API / DMC package payload into Laravel
+     * runtime SMTP config used when *sending* mail.
+     *
+     * Roles:
+     * - To: always the API `sender_email` (resolved by the caller) — never ai_email
+     * - From: SMTP auth mailbox (`smtp_user`) for deliverability alignment
+     * - From name: `ai_from_name` display name when present
+     * - `ai_email`: IMAP / inbound fetch only — not used as To or From here
      *
      * @param  array<string, mixed>  $primaryDmc
      * @param  array<string, mixed>  $payload
@@ -2090,7 +2096,6 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     {
         // DMC-level values take precedence over payload-level fallbacks.
         $source = array_merge($payload, $primaryDmc);
-        $fromEmail = trim((string) ($source['ai_email'] ?? ''));
         $host = trim((string) ($source['smtp_host'] ?? ''));
         $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 65535],
@@ -2100,8 +2105,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $username = trim((string) ($source['smtp_user'] ?? ''));
         $password = (string) ($source['smtp_pass'] ?? '');
 
+        // From must match the SMTP login mailbox (never ai_email — that is for fetch).
+        $fromEmail = filter_var($username, FILTER_VALIDATE_EMAIL)
+            ? $username
+            : '';
+
         if (
-            ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
+            $fromEmail === ''
             || $host === ''
             || $port === false
             || ! in_array($security, ['tls', 'ssl', 'none'], true)
