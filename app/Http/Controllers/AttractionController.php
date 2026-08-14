@@ -305,6 +305,11 @@ class AttractionController extends Controller
                 // 'adult_price' => 'required|numeric|min:0',
                 // 'child_price' => 'required|numeric|min:0',
                 'description' => 'required|string',
+                'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags($value ?? '')) === '') {
+                        $fail('Terms & Conditions is required. Please fill in this field.');
+                    }
+                }],
                 'location' => 'required|string|max:255',
                 'master_image' => 'required|file|image',
                 'all_images' => 'nullable|array',
@@ -328,6 +333,7 @@ class AttractionController extends Controller
                 // 'child_price.numeric' => 'Child price must be a number',
                 // 'child_price.min' => 'Child price cannot be negative',
                 'description.required' => 'Description is required',
+                'terms_conditions.required' => 'Terms & Conditions is required. Please fill in this field.',
                 //'description.max' => 'Description cannot exceed 1000 characters',
                 'location.required' => 'Location is required',
                 'master_image.required' => 'Master image is required',
@@ -505,7 +511,11 @@ class AttractionController extends Controller
             // 'adult_price' => 'required|numeric|min:0',
             // 'child_price' => 'required|numeric|min:0',
             'description' => 'required|string',
-            'terms_conditions' => 'required|string',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
             'city' => 'required|string|max:255',
             'all_images.*' => 'nullable|file|image|mimes:jpeg,png,jpg,gif',
             'latitude' => 'required|numeric|min:0',
@@ -514,6 +524,8 @@ class AttractionController extends Controller
             'afternoon_opening' => 'required',
             'night_opening' => 'required',
             'evening_opening' => 'required',
+        ], [
+            'terms_conditions.required' => 'Terms & Conditions is required. Please fill in this field.',
         ]);
 
         $allImages = $request->all_images;

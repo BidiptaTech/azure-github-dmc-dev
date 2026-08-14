@@ -394,6 +394,7 @@
                         <div class="col-md-12 mb-3">
                             <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
                             <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions...">{{ old('terms_conditions') }}</textarea>
+                            <div id="terms_conditions_error" class="text-danger small mt-1 d-none"></div>
                             @error('terms_conditions')
                             <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -476,6 +477,47 @@
                 }
             }
         });
+
+        // Summernote hides the textarea, so HTML5 required does not work.
+        function getTermsConditionsText() {
+            return $('<div>').html($('#terms_conditions').summernote('code')).text().trim();
+        }
+        function setTermsConditionsError(message) {
+            var errorEl = document.getElementById('terms_conditions_error');
+            var editor = $('#terms_conditions').next('.note-editor');
+            if (!errorEl) return;
+            if (message) {
+                errorEl.textContent = message;
+                errorEl.classList.remove('d-none');
+                editor.css('border-color', '#dc3545');
+            } else {
+                errorEl.classList.add('d-none');
+                errorEl.textContent = '';
+                editor.css('border-color', '');
+            }
+        }
+        $('#attractionForm').on('submit', function (e) {
+            if (getTermsConditionsText() === '') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setTermsConditionsError('Terms & Conditions is required. Please fill in this field.');
+                var errorEl = document.getElementById('terms_conditions_error');
+                if (errorEl) {
+                    errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+            setTermsConditionsError('');
+        });
+        $('#terms_conditions').on('summernote.change', function () {
+            if (getTermsConditionsText() !== '') {
+                setTermsConditionsError('');
+            }
+        });
+        @error('terms_conditions')
+            setTermsConditionsError(@json($message));
+        @enderror
+
         // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
             placeholder: "Select Country First",

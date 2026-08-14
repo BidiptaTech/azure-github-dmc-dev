@@ -801,6 +801,7 @@
                                 <label for="about" class="form-label"><strong>About</strong><span class="text-danger">*</span></label>
                                 <textarea
                                 id="summernote" name="about" class="form-control" rows="10" placeholder="Write About Guide..." required>{{old('about', htmlspecialchars_decode($guide->description))}}</textarea>
+                                <div id="about_error" class="text-danger small mt-1 d-none"></div>
                                 @error('about')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -843,6 +844,47 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
+
+        // Summernote hides the textarea, so HTML5 required does not work.
+        function getAboutText() {
+            return $('<div>').html($('#summernote').summernote('code')).text().trim();
+        }
+        function setAboutError(message) {
+            var errorEl = document.getElementById('about_error');
+            var editor = $('#summernote').next('.note-editor');
+            if (!errorEl) return;
+            if (message) {
+                errorEl.textContent = message;
+                errorEl.classList.remove('d-none');
+                editor.css('border-color', '#dc3545');
+            } else {
+                errorEl.classList.add('d-none');
+                errorEl.textContent = '';
+                editor.css('border-color', '');
+            }
+        }
+        $('#guideForm').on('submit', function (e) {
+            if (getAboutText() === '') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setAboutError('About is required. Please fill in this field.');
+                var errorEl = document.getElementById('about_error');
+                if (errorEl) {
+                    errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+            setAboutError('');
+        });
+        $('#summernote').on('summernote.change', function () {
+            if (getAboutText() !== '') {
+                setAboutError('');
+            }
+        });
+        @error('about')
+            setAboutError(@json($message));
+        @enderror
+
         $('#country').select2({
             placeholder: "Search and Select Country",
             allowClear: true,
