@@ -3563,7 +3563,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' - Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
             $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
@@ -3637,7 +3637,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' - Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
             $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
