@@ -68,10 +68,14 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-door-open-line me-1"></i>Room Type</label>
+                                <label class="form-label fw-semibold mb-1 d-flex align-items-center gap-1" style="font-size: 0.8rem;">
+                                    <i class="ri-door-open-line me-1"></i>Room Type
+                                    <span class="spinner-border spinner-border-sm text-primary d-none" id="onlineRoomLoadingSpinner" role="status" aria-hidden="true" style="width: 0.7rem; height: 0.7rem;"></span>
+                                </label>
                                 <select class="form-select form-select-sm" id="onlineRoomTypeSelect" disabled>
                                     <option value="">Room Type</option>
                                 </select>
+                                <small class="text-muted d-block mt-1" id="onlineRoomStatus" style="font-size: 0.72rem;"></small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-bed-line me-1"></i>Bed Type</label>
@@ -262,14 +266,21 @@
     }
 
     const fetchUrl = @json(route('fetch-online-hotels'));
+    const roomsUrl = @json(route('fetch-online-hotel-rooms'));
     const csrfToken = @json(csrf_token());
 
     let onlineHotelsCache = [];
     let onlineSelectedNights = [];
     let onlineCurrentRooms = [];
     let onlineLastSupplierCode = '';
-    let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '' };
+    let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '', paxInfo: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
+    // Two-step suppliers (MG Bedbank) list their whole catalogue first, then price one hotel on demand.
+    let onlineTwoStep = false;
+    let onlineRoomsLoading = false;
+    let onlineSelectedHotelDetail = null;
+    let onlineSelectedRoom = null;
+    let onlineRoomsRequestId = 0;
 
     function initOnlineHotelSelect2(disabled) {
         if (typeof jQuery === 'undefined' || !jQuery.fn.select2) {
@@ -901,6 +912,13 @@
         if (price > 0) {
             label += ' - ' + currency + ' ' + price.toFixed(2);
         }
+        // Catalogue listings have no rate yet, so locality is what makes entries distinguishable.
+        if (price <= 0) {
+            const where = String(h.area || '').trim() || String(h.address || '').trim();
+            if (where) {
+                label += ' — ' + (where.length > 60 ? where.slice(0, 60) + '…' : where);
+            }
+        }
         return label;
     }
 
@@ -947,13 +965,42 @@
         return [];
     }
 
+    function setOnlineRoomStatus(message, tone) {
+        const el = document.getElementById('onlineRoomStatus');
+        if (!el) return;
+        el.textContent = message || '';
+        el.className = 'd-block mt-1 ' + (tone === 'error' ? 'text-danger' : (tone === 'success' ? 'text-success' : 'text-muted'));
+        el.style.fontSize = '0.72rem';
+    }
+
+    function setOnlineRoomsLoading(isLoading) {
+        onlineRoomsLoading = !!isLoading;
+        document.getElementById('onlineRoomLoadingSpinner')?.classList.toggle('d-none', !isLoading);
+        const roomSel = document.getElementById('onlineRoomTypeSelect');
+        if (roomSel && isLoading) {
+            roomSel.disabled = true;
+            roomSel.innerHTML = '<option value="">Checking availability...</option>';
+        }
+        validateOnlineAddBtn();
+    }
+
     function populateOnlineHotels(hotels) {
         onlineHotelsCache = Array.isArray(hotels) ? hotels.slice() : [];
-        onlineHotelsCache.sort(function (a, b) {
-            const pa = hotelLowestPrice(a) || Infinity;
-            const pb = hotelLowestPrice(b) || Infinity;
-            return pa - pb;
-        });
+        onlineSelectedHotelDetail = null;
+        onlineSelectedRoom = null;
+
+        if (onlineTwoStep) {
+            // No rates yet at this point, so alphabetical is the only useful ordering.
+            onlineHotelsCache.sort(function (a, b) {
+                return String(hotelLabel(a)).localeCompare(String(hotelLabel(b)));
+            });
+        } else {
+            onlineHotelsCache.sort(function (a, b) {
+                const pa = hotelLowestPrice(a) || Infinity;
+                const pb = hotelLowestPrice(b) || Infinity;
+                return pa - pb;
+            });
+        }
 
         const sel = document.getElementById('onlineHotelSelect');
         sel.innerHTML = '<option value="">Select hotel</option>';
@@ -963,6 +1010,9 @@
             opt.textContent = hotelSelectLabel(h);
             opt.dataset.index = String(idx);
             opt.dataset.price = String(hotelLowestPrice(h));
+            // The supplier code is what SearchHotel is called with on selection.
+            opt.dataset.code = hotelId(h);
+            opt.dataset.name = hotelLabel(h);
             sel.appendChild(opt);
         });
 
@@ -972,8 +1022,14 @@
         document.getElementById('onlineBedTypeSelect').innerHTML = '<option value="">Bed Type</option>';
         document.getElementById('onlineRoomTypeSelect').disabled = true;
         document.getElementById('onlineBedTypeSelect').disabled = true;
+        setOnlineRoomStatus(onlineHotelsCache.length && onlineTwoStep ? 'Select a hotel to load live rates.' : '');
 
-        if (typeof jQuery !== 'undefined' && onlineHotelsCache.length > 0) {
+        if (onlineTwoStep) {
+            // Selecting a hotel costs a supplier call, so let the user choose rather than auto-pricing.
+            if (typeof jQuery !== 'undefined') {
+                jQuery('#onlineHotelSelect').val(null).trigger('change.select2');
+            }
+        } else if (typeof jQuery !== 'undefined' && onlineHotelsCache.length > 0) {
             const firstVal = hotelId(onlineHotelsCache[0]) || '0';
             jQuery('#onlineHotelSelect').val(firstVal).trigger('change');
         } else if (onlineHotelsCache.length > 0) {
@@ -984,6 +1040,72 @@
         }
 
         validateOnlineAddBtn();
+    }
+
+    /**
+     * Two-step suppliers: price the picked hotel (SearchHotel) and swap in the live rooms.
+     */
+    function loadOnlineHotelRooms(hotel) {
+        const hotelCode = hotelId(hotel);
+        if (!hotelCode) {
+            setOnlineRoomStatus('This hotel has no supplier code.', 'error');
+            return;
+        }
+
+        const requestId = ++onlineRoomsRequestId;
+        onlineSelectedHotelDetail = null;
+        onlineSelectedRoom = null;
+        onlineCurrentRooms = [];
+        setOnlineRoomsLoading(true);
+        setOnlineRoomStatus('Checking live availability...');
+
+        fetch(roomsUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                city: onlineHotelLastSearch.city,
+                checkIn: onlineHotelLastSearch.checkIn,
+                checkOut: onlineHotelLastSearch.checkOut,
+                paxInfo: onlineHotelLastSearch.paxInfo || buildPaxInfo(),
+                hotelCode: hotelCode
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (requestId !== onlineRoomsRequestId) {
+                return; // A newer hotel was picked while this was in flight.
+            }
+
+            if (!data || !data.success || !data.hotel) {
+                populateOnlineRooms({ rooms: [] });
+                setOnlineRoomStatus(data?.message || 'No rooms available for these dates.', 'error');
+                return;
+            }
+
+            // Keep the catalogue content (images, description) that the live response lacks.
+            onlineSelectedHotelDetail = Object.assign({}, hotel, data.hotel);
+            onlineSelectedHotelDetail.sessionId = data.session_id || null;
+            populateOnlineRooms(onlineSelectedHotelDetail);
+
+            const count = data.total_rooms || (data.rooms || []).length;
+            setOnlineRoomStatus(count > 0 ? count + ' room option(s) available.' : 'No rooms available for these dates.', count > 0 ? 'success' : 'error');
+        })
+        .catch(function (err) {
+            if (requestId !== onlineRoomsRequestId) return;
+            console.error(err);
+            populateOnlineRooms({ rooms: [] });
+            setOnlineRoomStatus('Could not load rooms for this hotel.', 'error');
+        })
+        .finally(function () {
+            if (requestId !== onlineRoomsRequestId) return;
+            setOnlineRoomsLoading(false);
+            validateOnlineAddBtn();
+        });
     }
 
     function hideOnlineHotelSelectionPanel() {
@@ -1040,8 +1162,11 @@
     }
 
     function resetOnlineHotelFetchResults() {
+        onlineRoomsRequestId++;
+        setOnlineRoomsLoading(false);
         hideOnlineHotelSelectionPanel();
         populateOnlineHotels([]);
+        setOnlineRoomStatus('');
         const statusEl = document.getElementById('onlineHotelFetchStatus');
         if (statusEl) {
             statusEl.textContent = '';
@@ -1101,7 +1226,87 @@
         bedSel.value = bedTypes[0];
     }
 
+    function roomOptionLabel(room, idx) {
+        const name = room.roomName || room.room_name || room.roomType || room.room_type || room.name || room.type || ('Room ' + (idx + 1));
+        if (!onlineTwoStep) {
+            return name;
+        }
+
+        const parts = [name];
+        const meal = String(room.mealPlanName || room.meal_plan || '').trim();
+        if (meal) parts.push(meal);
+        const policy = String(room.booking?.room?.cancellation_policy_type || '').trim();
+        if (policy) parts.push(policy);
+        const price = roomDisplayPrice(room);
+        if (price > 0) {
+            parts.push(String(room.currency || 'SGD') + ' ' + price.toFixed(2));
+        }
+        return parts.join(' • ');
+    }
+
+    /**
+     * Everything needed to confirm this booking with the supplier later: the session and
+     * rate keys from SearchHotel plus the choices the agent made in this modal.
+     */
+    function buildOnlineBookingRecord(hotel, selection) {
+        const room = onlineSelectedRoom || onlineCurrentRooms[0] || null;
+        const supplied = (room && room.booking) ? room.booking : null;
+
+        if (!supplied && !room) {
+            return null;
+        }
+
+        const record = supplied
+            ? JSON.parse(JSON.stringify(supplied))
+            : {
+                supplier_code: onlineLastSupplierCode || hotel.supplier_code || 'online',
+                session_id: hotel.sessionId || hotel.session_id || null,
+                currency: hotelCurrency(hotel),
+                check_in: onlineHotelLastSearch.checkIn,
+                check_out: onlineHotelLastSearch.checkOut,
+                search: {
+                    city_name: onlineHotelLastSearch.city,
+                    pax_info: onlineHotelLastSearch.paxInfo || buildPaxInfo()
+                },
+                hotel: {
+                    code: hotelId(hotel),
+                    name: hotelLabel(hotel),
+                    rating: hotel.starRating || hotel.star_rating || '',
+                    address: hotel.address || '',
+                    image: (hotel.images && hotel.images[0]) || '',
+                    check_in_time: hotel.check_in_time || '',
+                    check_out_time: hotel.check_out_time || ''
+                },
+                room: {
+                    code: room.roomId || room.room_id || '',
+                    name: room.roomName || room.room_name || '',
+                    meal_plan_name: room.mealPlanName || room.meal_plan || '',
+                    rate_key: room.rateKey || room.rate_plan_id || '',
+                    net_price: roomDisplayPrice(room),
+                    cancellation_policies: room.cancellationPolicy || room.cancellation_policy || []
+                },
+                raw_room: room.raw || room,
+                fetched_at: new Date().toISOString()
+            };
+
+        record.selection = {
+            room_type: selection.roomType || '',
+            bed_type: selection.bedType || '',
+            meal_plan: selection.mealPlan || '',
+            persons: selection.selectedPersons || 1,
+            number_of_rooms: selection.numberOfRooms || 1,
+            price: selection.price || 0,
+            nights: selection.nights || [],
+            stay_check_in: selection.checkIn || '',
+            stay_check_out: selection.checkOut || '',
+            remarks: selection.remarks || ''
+        };
+
+        return record;
+    }
+
     function applySelectedRoomDetails(room) {
+        onlineSelectedRoom = room || null;
         if (!room) return;
 
         const price = roomDisplayPrice(room);
@@ -1127,12 +1332,13 @@
 
         const rooms = hotel.rooms || hotel.roomTypes || hotel.room_types || [];
         onlineCurrentRooms = Array.isArray(rooms) ? rooms : [];
+        onlineSelectedRoom = null;
         if (Array.isArray(rooms) && rooms.length) {
             rooms.forEach(function (room, idx) {
                 const opt = document.createElement('option');
                 const name = room.roomName || room.room_name || room.roomType || room.room_type || room.name || room.type || ('Room ' + (idx + 1));
                 opt.value = name;
-                opt.textContent = name;
+                opt.textContent = roomOptionLabel(room, idx);
                 opt.dataset.index = String(idx);
                 const price = roomDisplayPrice(room);
                 if (price > 0) {
@@ -1166,7 +1372,11 @@
 
     function validateOnlineAddBtn() {
         const btn = document.getElementById('onlineHotelAddBtn');
-        const ok = onlineHotelSelectHasValue() && onlineSelectedNights.length > 0;
+        let ok = onlineHotelSelectHasValue() && onlineSelectedNights.length > 0;
+        if (onlineTwoStep) {
+            // Without a priced room there is no rate key to book against.
+            ok = ok && !onlineRoomsLoading && !!onlineSelectedRoom;
+        }
         if (btn) btn.disabled = !ok;
     }
 
@@ -1218,7 +1428,7 @@
         setOnlineHotelFetchLoading(true);
         if (statusEl) statusEl.textContent = '';
 
-        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city };
+        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo };
         const fetchedNightPlan = { start: checkIn, nights: countDaysBetween(checkIn, checkOut) };
 
         fetch(fetchUrl, {
@@ -1235,13 +1445,15 @@
         .then(data => {
             if (data && data.success) {
                 onlineLastSupplierCode = data.supplier_code || data.supplier_name || '';
+                onlineTwoStep = !!data.two_step;
                 const hotels = extractHotelsFromResponse(data);
                 populateOnlineHotels(hotels);
 
                 if (hotels.length > 0) {
                     showOnlineHotelSelectionPanel(fetchedNightPlan.nights > 0 ? fetchedNightPlan : null);
                     if (statusEl) {
-                        statusEl.textContent = hotels.length + ' hotel(s) found.';
+                        statusEl.textContent = hotels.length + ' hotel(s) found.'
+                            + (onlineTwoStep ? ' Pick one to load live rates.' : '');
                     }
                     if (typeof showNotification === 'function') {
                         showNotification('Online hotels loaded successfully.', 'success');
@@ -1284,10 +1496,25 @@
 
     function onOnlineHotelSelectChange() {
         const idx = getOnlineHotelSelectIndex();
-        const hotel = idx >= 0 ? onlineHotelsCache[idx] : null;
-        if (hotel) {
+        const hotel = (idx >= 0 && onlineHotelSelectHasValue()) ? onlineHotelsCache[idx] : null;
+
+        if (!hotel) {
+            onlineRoomsRequestId++;
+            onlineSelectedHotelDetail = null;
+            onlineSelectedRoom = null;
+            populateOnlineRooms({ rooms: [] });
+            setOnlineRoomsLoading(false);
+            setOnlineRoomStatus(onlineTwoStep && onlineHotelsCache.length ? 'Select a hotel to load live rates.' : '');
+            validateOnlineAddBtn();
+            return;
+        }
+
+        if (onlineTwoStep) {
+            loadOnlineHotelRooms(hotel);
+        } else {
             populateOnlineRooms(hotel);
         }
+
         validateOnlineAddBtn();
     }
 
@@ -1303,9 +1530,13 @@
         const room = roomIdx >= 0 ? onlineCurrentRooms[roomIdx] : null;
         if (room) {
             applySelectedRoomDetails(room);
-        } else if (opt && opt.dataset.price) {
-            document.getElementById('onlineRoomPriceDisplay').value = parseFloat(opt.dataset.price).toFixed(2);
+        } else {
+            onlineSelectedRoom = null;
+            if (opt && opt.dataset.price) {
+                document.getElementById('onlineRoomPriceDisplay').value = parseFloat(opt.dataset.price).toFixed(2);
+            }
         }
+        validateOnlineAddBtn();
     });
 
     document.getElementById('onlineHotelAddBtn')?.addEventListener('click', function () {
@@ -1326,8 +1557,13 @@
         }
 
         const idx = getOnlineHotelSelectIndex();
-        const hotelRaw = idx >= 0 ? onlineHotelsCache[idx] : null;
+        const hotelRaw = onlineSelectedHotelDetail || (idx >= 0 ? onlineHotelsCache[idx] : null);
         if (!hotelRaw) return;
+
+        if (onlineTwoStep && !onlineSelectedRoom) {
+            alert('Please select a room with live availability before adding this hotel.');
+            return;
+        }
 
         const nightNumbers = onlineSelectedNights.slice().sort((a, b) => a - b);
         const startNight = Math.min(...nightNumbers);
@@ -1345,10 +1581,24 @@
         const cityName = document.getElementById('onlineHotelCity')?.selectedOptions?.[0]?.textContent || '';
         const remarks = document.getElementById('onlineHotelRemarks')?.value || '';
 
+        const booking = buildOnlineBookingRecord(hotelRaw, {
+            roomType: roomType,
+            bedType: bedType,
+            mealPlan: mealPlan,
+            selectedPersons: selectedPersons,
+            numberOfRooms: numberOfRooms,
+            price: price,
+            nights: nightNumbers,
+            checkIn: checkInDateStr,
+            checkOut: checkOutDateStr,
+            remarks: remarks
+        });
+
         const hotelData = {
             id: hotelId(hotelRaw) || ('online-' + Date.now()),
             name: hotelLabel(hotelRaw),
             roomType: roomType,
+            roomId: (booking && booking.room && booking.room.code) ? booking.room.code : null,
             bedType: bedType || null,
             selectedPersons: selectedPersons,
             price: price,
@@ -1366,6 +1616,7 @@
             isOnlineHotel: true,
             onlineHotelSource: onlineLastSupplierCode || hotelRaw.supplier_code || 'online',
             onlineHotelRaw: hotelRaw,
+            onlineHotelBooking: booking,
             city: cityName,
             pricePerNight: nightNumbers.length ? price / nightNumbers.length : price
         };

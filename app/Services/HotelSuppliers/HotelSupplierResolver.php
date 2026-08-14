@@ -15,6 +15,9 @@ class HotelSupplierResolver
     ) {}
 
     /**
+     * `country_id` is the `countries.id` primary key, not `countries.country_id`,
+     * because `suppliers_master.country_id` is a foreign key against `countries.id`.
+     *
      * @return array{
      *     city: City,
      *     country_id: int,
@@ -66,11 +69,9 @@ class HotelSupplierResolver
             return null;
         }
 
-        $query = City::query();
-
         if (ctype_digit($cityName)) {
-            return $query->where('id', (int) $cityName)
-                ->orWhere('city_id', (int) $cityName)
+            return City::query()
+                ->where('city_id', (int) $cityName)
                 ->first();
         }
 

@@ -3004,15 +3004,19 @@
                                     checkInTime: selectedHotelInfo.check_in_time || "",
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
-                                } : {
-                                    hotel_id: hotel.id,
-                                    hotel_name: hotel.name,
-                                    image: "",
-                                    location: "Location not specified",
-                                    checkInTime: hotel.check_in_time || "",
-                                    checkOutTime: hotel.check_out_time || "",
-                                    cancellation_charge: null
-                                },
+                                } : (() => {
+                                    // Online hotels are not in the local hotels table, so use the supplier payload.
+                                    const online = hotel.onlineHotelBooking?.hotel || {};
+                                    return {
+                                        hotel_id: hotel.id,
+                                        hotel_name: hotel.name,
+                                        image: online.image || "",
+                                        location: online.address || hotel.city || "Location not specified",
+                                        checkInTime: online.check_in_time || hotel.check_in_time || "",
+                                        checkOutTime: online.check_out_time || hotel.check_out_time || "",
+                                        cancellation_charge: null
+                                    };
+                                })(),
                                 
                                 // Price mode information
                                 priceMode: hotel.priceMode || 'dmc',
@@ -3203,7 +3207,9 @@
                                 breakfast_included_room: hotel.breakfast_included_room ? 1 : 0,
                                 isOnlineHotel: !!hotel.isOnlineHotel,
                                 hotelSourceType: hotel.isOnlineHotel ? 'online' : 'offline',
-                                onlineHotelSource: hotel.onlineHotelSource || null
+                                onlineHotelSource: hotel.onlineHotelSource || null,
+                                // Supplier session, rate keys, room and meal details needed to confirm the booking
+                                onlineHotelBooking: hotel.onlineHotelBooking || null
                             };
                         });
                         

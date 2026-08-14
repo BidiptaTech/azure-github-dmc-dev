@@ -2664,6 +2664,55 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Proxy: live availability for one hotel from the mapped supplier, used after the
+     * guest picks a hotel from the list returned by fetchOnlineHotels().
+     */
+    public function fetchOnlineHotelRooms(Request $request, OnlineHotelAggregator $aggregator)
+    {
+        $request->validate([
+            'checkIn' => 'required|date',
+            'checkOut' => 'required|date|after:checkIn',
+            'city' => 'required|string|max:255',
+            'paxInfo' => 'required|string|max:50',
+            'hotelCode' => 'required|string|max:100',
+        ]);
+
+        try {
+            return response()->json(
+                $aggregator->rooms(
+                    $request->input('city'),
+                    $request->input('hotelCode'),
+                    $request->input('checkIn'),
+                    $request->input('checkOut'),
+                    $request->input('paxInfo'),
+                )
+            );
+        } catch (\RuntimeException $e) {
+            Log::warning('Online hotel room search failed', [
+                'city' => $request->input('city'),
+                'hotel_code' => $request->input('hotelCode'),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Online hotel room search exception', [
+                'city' => $request->input('city'),
+                'hotel_code' => $request->input('hotelCode'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching hotel rooms: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Proxy: fetch attractions from country-mapped online attraction supplier (adapter layer).
      */
     public function fetchOnlineAttractions(Request $request, OnlineAttractionAggregator $aggregator)
@@ -4462,8 +4511,11 @@ class SingleTourPackageController extends Controller
                                         'priceMode' => $hotelBooking['priceMode'] ?? 'dmc',
                                         'priceModeId' => $hotelBooking['priceModeId'] ?? 0,
                                         
-                                        // Rooms data - fix room_id to use actual numeric ID from database
-                                        'rooms' => $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
+                                        // Rooms data - fix room_id to use actual numeric ID from database.
+                                        // Online hotels have supplier room codes with no local row to map to.
+                                        'rooms' => ! empty($hotelBooking['isOnlineHotel'])
+                                            ? ($hotelBooking['rooms'] ?? [])
+                                            : $this->fixRoomIds($hotelBooking['rooms'] ?? [], $hotelBooking['hotelDetails']['hotel_id'] ?? $hotelBooking['hotel_id'] ?? null),
                                         
                                         // Total price
                                         'totalPrice' => $hotelBooking['totalPrice'] ?? 0,
@@ -4497,6 +4549,11 @@ class SingleTourPackageController extends Controller
                                         'isOnlineHotel' => (bool) ($hotelBooking['isOnlineHotel'] ?? false),
                                         'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
                                         'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
+
+                                        // Supplier session, rate keys, room/meal and cancellation terms for confirming the booking
+                                        'onlineHotelBooking' => is_array($hotelBooking['onlineHotelBooking'] ?? null)
+                                            ? $hotelBooking['onlineHotelBooking']
+                                            : null,
                                     ];
 
                                     [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);

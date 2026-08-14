@@ -18,6 +18,7 @@ class HotelSupplierFactory
             'mybeds' => app(MyBedsHotelAdapter::class),
             'mg_bedbank' => app(MgBedbankHotelAdapter::class),
             'hotelbeds' => app(HotelbedsHotelAdapter::class),
+            
             default => throw new InvalidArgumentException("Unsupported hotel supplier [{$code}]."),
         };
     }
