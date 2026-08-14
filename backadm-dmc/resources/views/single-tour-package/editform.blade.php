@@ -6662,7 +6662,7 @@
 
 <!-- Hotel Booking Modal -->
 <div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $displayCurrency }}">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 960px;">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
                 <div class="d-flex align-items-center">
@@ -6675,7 +6675,7 @@
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body text-start" style="padding: 0.6rem 0.75rem; background: #ffffff; max-height: 72vh; overflow-y: auto;">
+            <div class="modal-body text-start" style="padding: 0.85rem 1rem; background: #ffffff; max-height: 80vh; overflow-y: auto;">
                 <form id="hotelBookingForm" class="text-start">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
@@ -6963,9 +6963,11 @@
                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
                     Cancel
                 </button>
-                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
-                    <i class="ri-check-line me-1"></i>Book Hotels
-                </button>
+                <span class="d-inline-block" tabindex="0" id="proceed_hotel_wrap" title="Please click Get Price before booking">
+                    <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                        <i class="ri-check-line me-1"></i>Book Hotels
+                    </button>
+                </span>
             </div>
         </div>
     </div>
@@ -18906,13 +18908,17 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
         
         // Check if all required fields are selected
-        const isValid = citySelect && citySelect.value &&
+        const fieldsFilled = citySelect && citySelect.value &&
                         hotelSelect && hotelSelect.value &&
                         roomTypeSelect && roomTypeSelect.value &&
                         bedTypeSelect && bedTypeSelect.value &&
                         mealPlanSelect && mealPlanSelect.value;
+
+        // A booking must carry a rate that "Get Price" actually calculated.
+        const isValid = !!fieldsFilled && window.hotelModalPriceFetched === true;
         
         if (proceedBtn) {
             proceedBtn.disabled = !isValid;
@@ -18922,6 +18928,16 @@
             } else {
                 proceedBtn.classList.remove('btn-success');
                 proceedBtn.classList.add('btn-secondary');
+            }
+        }
+
+        if (proceedWrap) {
+            if (isValid) {
+                proceedWrap.removeAttribute('title');
+            } else if (!fieldsFilled) {
+                proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+            } else {
+                proceedWrap.setAttribute('title', 'Please click Get Price before booking');
             }
         }
         
@@ -19095,6 +19111,12 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
+
+        window.hotelModalPriceFetched = false;
+        if (proceedWrap) {
+            proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+        }
         
         if (roomTypeSelect) {
             roomTypeSelect.disabled = true;
@@ -19502,6 +19524,10 @@
     
     // Function to update hotel modal price based on room type, number of rooms, and dates
     function updateHotelModalPrice() {
+        // Any change to the booking invalidates the last "Get Price" result.
+        window.hotelModalPriceFetched = false;
+        validateHotelModalFields();
+
         const roomTypeSelect = document.getElementById('room_type');
         const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
         const priceInput = document.getElementById('total_price_modal');
@@ -20036,6 +20062,8 @@
                 const gridTotal = document.getElementById('hotel_modal_price_grid_total');
                 if (gridTotal) gridTotal.textContent = currencySymbol + finalTotal.toFixed(2);
 
+                window.hotelModalPriceFetched = true;
+
                 showNotification(
                     'Price calculated: ' + currencySymbol + finalTotal.toFixed(2) +
                     ' (Room: ' + Number(data.room_total).toFixed(2) + ', Meals: ' + Number(data.meal_total).toFixed(2) +
@@ -20043,11 +20071,15 @@
                     'success'
                 );
             } else {
+                window.hotelModalPriceFetched = false;
                 showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
             }
+            validateHotelModalFields();
         })
         .catch(error => {
             console.error('Error fetching modal hotel price:', error);
+            window.hotelModalPriceFetched = false;
+            validateHotelModalFields();
             showNotification('Error calculating hotel price.', 'error');
         })
         .finally(() => {
@@ -20219,6 +20251,11 @@
         
         if (!hotelId || !checkIn || !checkOut) {
             showNotification('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (window.hotelModalPriceFetched !== true) {
+            showNotification('Please click "Get Price" before booking.', 'warning');
             return;
         }
         
