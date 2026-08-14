@@ -190,7 +190,7 @@ const MainFilterSearchBox = ({ Location }) => {
                   Select the type..
                 </option>
               )}
-              <option value="Point To Point">Point To Point</option>
+              {/* <option value="Point To Point">Point To Point</option> */}
               <option value="Hourly">Hourly</option>
               {(zone_on === 1 && 
                 viewDetails && 
