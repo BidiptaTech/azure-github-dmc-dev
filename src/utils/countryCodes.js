@@ -38,10 +38,14 @@ export function normalizeCountriesFromApi(payload) {
       ).trim();
       if (dial && !dial.startsWith("+")) dial = `+${dial}`;
 
-      if (!code && !dial) return null;
+      if (!dial && !name) return null;
+
+      // Stable internal id for Select values (never shown in UI as C0/C1)
+      const id = code || `${dial || "dial"}-${name}-${index}`;
 
       return {
-        code: code || `C${index}`,
+        code: id,
+        iso: code || "",
         name,
         country_code: dial || "+1",
         contact_min_length:

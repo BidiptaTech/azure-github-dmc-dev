@@ -899,9 +899,11 @@ const CustomerInfo = ({
                                   <span style={{ fontWeight: "bold" }}>
                                     {country.country_code}
                                   </span>
-                                  <span style={{ fontSize: "0.75rem", color: "#666" }}>
-                                    ({country.code})
-                                  </span>
+                                  {country.name ? (
+                                    <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                                      {country.name}
+                                    </span>
+                                  ) : null}
                                 </Box>
                               </MenuItem>
                             ))}

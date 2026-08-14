@@ -88,11 +88,20 @@ const BookingSlice = createSlice({
   },
   reducers: {
     setSearchLocation: (state, action) => {
-      console.log('Booking Slice',action.payload);
-      
-      state.searchLocation = Array.isArray(action.payload)
-        ? action.payload
-        : [action.payload];
+      const payload = action.payload;
+      const next = Array.isArray(payload)
+        ? payload.filter(Boolean)
+        : payload != null && payload !== ""
+          ? [payload]
+          : [];
+
+      // Do not wipe a valid location with an empty value
+      if (!next.length) {
+        return;
+      }
+
+      console.log('Booking Slice', next);
+      state.searchLocation = next;
     },
     setCheckIn: (state, action) => {
       state.checkIn = action.payload;

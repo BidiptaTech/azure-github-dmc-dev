@@ -18,6 +18,7 @@ import { setbookedGuide } from "../tourguide/guideslice";
 import { logoutUser } from "../common/authSlices";
 import { setHotelBooking, setHotelService } from "../hotel/hotelSlice";
 import { BASE_URL } from "@/services/api";
+import { setSearchLocation } from "./BookingSlice";
 
 // 🟢 Async thunk to fetch tour edit data
 export const fetchEditid = createAsyncThunk(
@@ -62,7 +63,9 @@ export const fetchEditid = createAsyncThunk(
       if (agent_id) {
         dispatch(setAgentId(agent_id));
       }
-
+      if (data?.short_code) {
+        dispatch(setSearchLocation(data.short_code));
+      }
       // Safely dispatch hotel service data (do not wipe existing with undefined)
       if (Array.isArray(data?.service?.hotel)) {
         dispatch(setHotelService(data.service.hotel));
