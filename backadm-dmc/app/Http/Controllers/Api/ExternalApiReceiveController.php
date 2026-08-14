@@ -1568,9 +1568,14 @@ class ExternalApiReceiveController extends Controller
         ]);
     }
 
+    /**
+     * Original inbound subject, used to send "Re: <subject>". Gmail groups a
+     * conversation by References *and* subject, so a reply carrying only
+     * In-Reply-To but a brand-new subject still shows up as a new conversation.
+     */
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
-        return CommonHelper::resolveEmailSubjectFromContext([
+        $subject = CommonHelper::resolveEmailSubjectFromContext([
             'subject' => $this->payloadValue($payload, [
                 'subject',
                 'email_subject',
@@ -1581,6 +1586,62 @@ class ExternalApiReceiveController extends Controller
             ], ''),
             'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
         ]);
+
+        if ($subject !== null) {
+            return $subject;
+        }
+
+        // Newer payloads may omit the subject; recover it from an earlier
+        // receive belonging to the same mail thread.
+        return $this->lookupThreadSubjectFromHistory($payload);
+    }
+
+    /**
+     * Last known subject stored for the same Message-ID in external_api_receives.
+     */
+    protected function lookupThreadSubjectFromHistory(array $payload): ?string
+    {
+        $messageId = $this->resolveEmailUuidFromPayload($payload);
+        if ($messageId === null) {
+            return null;
+        }
+
+        try {
+            $needle = addcslashes(trim($messageId, '<>'), '%_\\');
+
+            $rows = ExternalApiReceive::query()
+                ->where('payload', 'like', '%'.$needle.'%')
+                ->orderByDesc('id')
+                ->limit(5)
+                ->pluck('payload');
+        } catch (Throwable $e) {
+            Log::warning('External API: thread subject lookup failed', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            $stored = $this->unwrapPayload($this->normalizeToArray($row));
+            $subject = CommonHelper::resolveEmailSubjectFromContext([
+                'subject' => $this->payloadValue($stored, [
+                    'subject',
+                    'email_subject',
+                    'mail_subject',
+                    'original_subject',
+                    'thread_subject',
+                    'Subject',
+                ], ''),
+            ]);
+
+            if ($subject !== null) {
+                return $subject;
+            }
+        }
+
+        return null;
     }
 
     /**
