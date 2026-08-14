@@ -365,7 +365,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         // Set all necessary data in Redux
         dispatch(setDateService(response.service.date_service));
         dispatch(setRestaurantsService(response.service.data));
-        dispatch(setUserInfo(response.service.data));
+        dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
         dispatch(setHaveBooking(true));
@@ -509,7 +509,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         // Set all necessary data in Redux
         dispatch(setDateService(response.service.date_service));
         dispatch(setRestaurantsService(response.service.data));
-        dispatch(setUserInfo(response.service.data));
+        dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
         dispatch(setHaveBooking(true));

@@ -586,9 +586,8 @@ const CustomerInfo = ({
           // toast.success(response.message, { position: "top-center", autoClose: 3000 });
         }
 
-        // Store user info and booking response
-        // dispatch(setUserInfo(formData));
-        dispatch(setUserInfo(response?.service?.data));
+        // Store customer form for next service booking (not service booking records)
+        dispatch(setUserInfo(form));
         dispatch(setBookingResponse(response));
 
         // Navigate to the Thank You page after a short delay to ensure Redux updates
@@ -709,15 +708,15 @@ const CustomerInfo = ({
         dispatch(setDateService(response.service.date_service));
       }
 
-      // Handle user info data safely
-      if (response.service && response.service.data) {
+      // Handle user info data safely — prefer form fields for next-service reuse
+      if (form?.fullName) {
+        dispatch(setUserInfo(form));
+      } else if (response.service && response.service.data) {
         try {
-          // Check if data is an array or object
           const userData = Array.isArray(response.service.data)
             ? response.service.data[0]
             : response.service.data;
 
-          // Make sure userData is an object before dispatching
           if (userData && typeof userData === "object") {
             dispatch(setUserInfo(userData));
           } else {
