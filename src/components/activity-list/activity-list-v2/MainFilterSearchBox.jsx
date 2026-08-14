@@ -32,7 +32,7 @@ import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 const MainFilterSearchBox = ({ Location }) => {
   console.log('🔍 Port MainFilterSearchBox - Component rendered/mounted');
   const dispatch = useDispatch();
-
+ console.log('🔍 Port MainFilterSearchBox - Location:', Location);
   // State for storing the pickup and dropoff locations
   const [pickUpLocation, setPickUpLocation] = useState("");
   const [dropOffLocation, setDropOffLocation] = useState("");
