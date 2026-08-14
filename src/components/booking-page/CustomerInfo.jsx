@@ -550,18 +550,16 @@ const CustomerInfo = forwardRef(
                                         <span style={{ fontWeight: "bold" }}>
                                           {country.country_code}
                                         </span>
-                                        <span
-                                          style={{
-                                            fontSize: "0.75rem",
-                                            color: "#666",
-                                          }}
-                                        >
-                                          ({country.code}
-                                          {country.name
-                                            ? ` · ${country.name}`
-                                            : ""}
-                                          )
-                                        </span>
+                                        {country.name ? (
+                                          <span
+                                            style={{
+                                              fontSize: "0.75rem",
+                                              color: "#666",
+                                            }}
+                                          >
+                                            {country.name}
+                                          </span>
+                                        ) : null}
                                       </Box>
                                     </MenuItem>
                                   ))}
