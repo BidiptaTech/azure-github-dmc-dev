@@ -7980,7 +7980,9 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 referenceId: hotelData.reference_id || null,
                 actualDueDate: hotelData.actual_due_date || null,
                 displayDueDate: hotelData.display_due_date || null,
-                approvalFile: hotelData.approval_file || null
+                approvalFile: hotelData.approval_file || null,
+                // orders.order_type: online | offline | null
+                orderType: hotelData.order_type || null
             };
             
             console.log('✅ Hotel booking data prepared for display', hotelBooking);

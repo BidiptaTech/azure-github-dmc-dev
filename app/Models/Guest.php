@@ -115,6 +115,18 @@ class Guest extends Model
     ];
 
     /**
+     * Expire Sanctum tokens for this guest after app password change.
+     * Matches both guests.id and guests.guest_id as tokenable_id.
+     */
+    public function invalidateAccessTokens(): int
+    {
+        return \App\Helpers\CommonHelper::invalidateAccessTokens(self::class, [
+            $this->id,
+            $this->guest_id,
+        ]);
+    }
+
+    /**
      * The attributes that should be mutated to dates.
      *
      * @var array

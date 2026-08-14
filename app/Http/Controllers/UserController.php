@@ -1107,7 +1107,20 @@ class UserController extends Controller
         $ipAddress = request()->ip();
         $usercountryCode = CommonHelper::getCountryInfo($ipAddress);
         $user_countryCode = $usercountryCode['country_code'];
-        $countryCodes = User::countryCodes();
+        $countryCodes = Country::query()
+            ->where('is_active', 1)
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->orderBy('name')
+            ->get(['name', 'country_code'])
+            ->mapWithKeys(function ($country) {
+                $code = ltrim(trim((string) $country->country_code), '+');
+                if ($code === '') {
+                    return [];
+                }
+                return [$code => $country->name . ' (' . $code . ')'];
+            })
+            ->toArray();
         $authUserType =  $this->auth_user->user_type; 
 
         $userTypes = array_filter(User::getUserTypes(), function($key) use ($authUserType) {
@@ -1664,6 +1677,51 @@ class UserController extends Controller
         //     $users->country_names = $countriesArray;
         // }
 
+        // Prefill location fields from the parent DMC (role_id 11) for eligible roles.
+        $dmcLocationPrefill = [
+            'user_country' => null,
+            'city' => null,
+            'address' => null,
+            'country_code' => null,
+        ];
+        $prefillLocationRoleIds = [
+            11, 12, 33, 34, 35, 36, 37, 38,
+            64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
+            81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123,
+            124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138,
+        ];
+        if (in_array((int) $this->auth_user->role_id, $prefillLocationRoleIds, true)) {
+            $dmcId = CommonHelper::getDmcId($this->auth_user);
+            if (!$dmcId) {
+                $dmcId = $this->auth_user->dmcId ?: null;
+            }
+            if (!$dmcId && (int) $this->auth_user->role_id === 11) {
+                $dmcId = $this->auth_user->userId;
+            }
+
+            if ($dmcId) {
+                $dmcUser = User::where('role_id', 11)
+                    ->where(function ($query) use ($dmcId) {
+                        $query->where('userId', (int) $dmcId)
+                            ->orWhere('dmcId', (int) $dmcId);
+                    })
+                    ->first();
+
+                if ($dmcUser) {
+                    $countryParts = preg_split('/\s*,\s*/', (string) ($dmcUser->country ?? '')) ?: [];
+                    $prefillCountry = trim((string) ($countryParts[0] ?? ''));
+                    $prefillCode = ltrim(trim((string) ($dmcUser->country_code ?? '')), '+');
+
+                    $dmcLocationPrefill = [
+                        'user_country' => $prefillCountry !== '' ? $prefillCountry : null,
+                        'city' => trim((string) ($dmcUser->city ?? '')) ?: null,
+                        'address' => trim((string) ($dmcUser->address ?? '')) ?: null,
+                        'country_code' => $prefillCode !== '' ? $prefillCode : null,
+                    ];
+                }
+            }
+        }
+
         return view('users.add-user', compact(
             'adminSalesManager',
             'countriesArray',
@@ -1675,7 +1733,8 @@ class UserController extends Controller
             'roles',
             'user_countryCode',
             'master_dmc',
-            'dmcs'
+            'dmcs',
+            'dmcLocationPrefill'
         ));
     }
 
@@ -1888,7 +1947,20 @@ class UserController extends Controller
         $ipAddress = request()->ip();
         $usercountryCode = CommonHelper::getCountryInfo($ipAddress);
         $user_countryCode = $usercountryCode['country_code'];
-        $countryCodes = User::countryCodes();
+        $countryCodes = Country::query()
+            ->where('is_active', 1)
+            ->whereNotNull('country_code')
+            ->where('country_code', '!=', '')
+            ->orderBy('name')
+            ->get(['name', 'country_code'])
+            ->mapWithKeys(function ($country) {
+                $code = ltrim(trim((string) $country->country_code), '+');
+                if ($code === '') {
+                    return [];
+                }
+                return [$code => $country->name . ' (' . $code . ')'];
+            })
+            ->toArray();
         $authUserType = $this->auth_user->user_type;
 
         // Get appropriate roles based on auth user type and role_id - matching create function logic

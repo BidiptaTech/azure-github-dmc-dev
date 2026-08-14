@@ -227,7 +227,11 @@ class GuideController extends Controller
         'contact_no' => 'required|string|min:8|max:15',
         'email' => 'required|email|max:255',
         'languages' => 'required|array',
-        'about' => 'required',
+        'about' => ['required', 'string', function ($attribute, $value, $fail) {
+            if (trim(strip_tags($value ?? '')) === '') {
+                $fail('About is required. Please fill in this field.');
+            }
+        }],
         // 'license_no' => 'required|string',
         'license_no' => [
                                 'required',
@@ -495,7 +499,11 @@ class GuideController extends Controller
                 'service_type' => 'required|integer',
                 'guide_age' => 'required',
                 'wp_number' => 'required|numeric',
-                'about' => 'required|string',
+                'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags($value ?? '')) === '') {
+                        $fail('About is required. Please fill in this field.');
+                    }
+                }],
                 'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'day_rate' => 'nullable|numeric',
@@ -880,9 +888,20 @@ class GuideController extends Controller
             'guide_gender' => 'required|in:Male,Female,Other',
             'name' => 'required|string|max:255',
             'contact_no' => 'required|string|min:8|max:15',
-            'email' => 'required|email|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('guides', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($guide->id),
+            ],
             'languages' => 'array',
-            'about' => 'required',
+            'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('About is required. Please fill in this field.');
+                }
+            }],
             // 'license_no' => 'required|string',
             // 'license_no' => [
             //                     'required',
@@ -913,8 +932,10 @@ class GuideController extends Controller
             'eight_hour_cost_price' => 'required|numeric',
             'ten_hour_cost_price' => 'required|numeric',
             'twelve_hour_cost_price' => 'required|numeric',
+            'app_password' => 'nullable|string|max:255',
         ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
+            'email.unique' => 'This email is already registered for another guide.',
         ]);
 
         //process license image
@@ -935,12 +956,22 @@ class GuideController extends Controller
             }
         }
 
+        $plainPassword = trim((string) $request->input('app_password', ''));
+
         $guide->salutation = $validated['salutation'];
         $guide->guide_gender = $validated['guide_gender'];
         $guide->name = $request->input('name');
         $guide->contact_no = $request->input('contact_no');
         $guide->email = $request->input('email');
-        $guide->app_password = Hash::make($request->app_password);
+        if ($plainPassword !== '') {
+            $guide->app_password = Hash::make($plainPassword);
+
+            // Invalidate all tokens for this guide (id and/or guide_id)
+            CommonHelper::invalidateAccessTokens(Guide::class, [
+                $guide->id,
+                $guide->guide_id,
+            ]);
+        }
         $guide->description = $request->input('about');
         $guide->country = $request->input('country', $guide->country);
         $guide->city = $request->city;

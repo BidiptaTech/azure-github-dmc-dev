@@ -69,38 +69,22 @@
                     $userInfo = is_array($b->user_info ?? null) ? ($b->user_info ?? []) : (is_string($b->user_info ?? null) ? (json_decode($b->user_info, true) ?: []) : []);
                     $customerName = $userInfo['name'] ?? ($b->bookedBy->name ?? '—');
                     $customerEmail = $userInfo['email'] ?? ($b->bookedBy->email ?? null);
-                    $travelDates = is_array($b->travel_dates ?? null) ? ($b->travel_dates ?? []) : (is_string($b->travel_dates ?? null) ? (json_decode($b->travel_dates, true) ?: []) : []);
-                    $rawCheckIn = $travelDates['check_in']
-                        ?? $travelDates['check_in_date']
-                        ?? $travelDates['start_date']
-                        ?? $travelDates['startDate']
-                        ?? null;
-                    $rawCheckOut = $travelDates['check_out']
-                        ?? $travelDates['check_out_date']
-                        ?? $travelDates['end_date']
-                        ?? $travelDates['endDate']
-                        ?? null;
+                    $parsedTravel = \App\Helpers\CommonHelper::parsePackageTravelDates($b->travel_dates ?? null);
+                    $checkInYmd = (string) ($parsedTravel['start_date'] ?? '');
+                    $checkOutYmd = (string) ($parsedTravel['end_date'] ?? $checkInYmd);
+                    $travelDurationDays = (int) ($parsedTravel['duration_days'] ?? 0);
                     $startDate = null;
                     $endDate = null;
-                    $checkInYmd = '';
-                    $checkOutYmd = '';
                     try {
-                        if ($rawCheckIn) {
-                            $startDate = \Carbon\Carbon::parse($rawCheckIn);
-                            $checkInYmd = $startDate->toDateString();
+                        if ($checkInYmd) {
+                            $startDate = \Carbon\Carbon::parse($checkInYmd);
                         }
-                        if ($rawCheckOut) {
-                            $endDate = \Carbon\Carbon::parse($rawCheckOut);
-                            $checkOutYmd = $endDate->toDateString();
+                        if ($checkOutYmd) {
+                            $endDate = \Carbon\Carbon::parse($checkOutYmd);
                         }
                     } catch (\Throwable $e) {
                         $startDate = null;
                         $endDate = null;
-                        $checkInYmd = '';
-                        $checkOutYmd = '';
-                    }
-                    if ($checkInYmd && !$checkOutYmd) {
-                        $checkOutYmd = $checkInYmd;
                     }
                     $statusValue = data_get($b, $statusColumn) ?? '—';
                     $bookingComments = ($packageComments ?? collect([]))
@@ -182,7 +166,7 @@
                     );
                     $canFinancePkgPayment = $u && in_array((int) ($u->role_id ?? 0), [36, 129, 131, 133, 134, 136, 137, 138, 126, 127], true);
                 @endphp
-                <tr data-check-in="{{ $checkInYmd }}" data-check-out="{{ $checkOutYmd }}" data-created-at="{{ optional($b->created_at)->toDateString() }}" @if($__showBookingStatus)data-booking-status="{{ e((string) $statusValue) }}"@endif>
+                <tr data-check-in="{{ $checkInYmd }}" data-check-out="{{ $checkOutYmd }}" data-travel-start="{{ $checkInYmd }}" data-travel-end="{{ $checkOutYmd }}" data-duration-days="{{ $travelDurationDays }}" data-created-at="{{ optional($b->created_at)->toDateString() }}" @if($__showBookingStatus)data-booking-status="{{ e((string) $statusValue) }}"@endif>
                     <td class="align-top pkg-row-num">{{ $loop->iteration }}</td>
                     <td class="align-top">
                         <div class="d-flex flex-column gap-1">
@@ -203,11 +187,11 @@
 
                             <div class="d-flex flex-column">
                                 <small class="text-muted">
-                                    <span class="fw-semibold">Check-in:</span>
+                                    <span class="fw-semibold">Start:</span>
                                     {{ $startDate ? $startDate->format('M d, Y') : '—' }}
                                 </small>
                                 <small class="text-muted">
-                                    <span class="fw-semibold">Check-out:</span>
+                                    <span class="fw-semibold">End:</span>
                                     {{ $endDate ? $endDate->format('M d, Y') : '—' }}
                                 </small>
                             </div>
@@ -236,11 +220,11 @@
                                 <small class="text-muted">{{ $customerEmail }}</small>
                             @endif
                             <small class="text-muted">
-                                <span class="fw-semibold">Check-in:</span>
+                                <span class="fw-semibold">Start:</span>
                                 {{ $startDate ? $startDate->format('M d, Y') : '—' }}
                             </small>
                             <small class="text-muted">
-                                <span class="fw-semibold">Check-out:</span>
+                                <span class="fw-semibold">End:</span>
                                 {{ $endDate ? $endDate->format('M d, Y') : '—' }}
                             </small>
                         </div>

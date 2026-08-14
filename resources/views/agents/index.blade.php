@@ -167,7 +167,7 @@
                           </div>
                       @endif
                       
-                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc->userId == $user->dmcId)
+                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc && $dmc->userId == $user->dmcId)
                       <span class="badge bg-primary text-white me-1">
                           {{ $user->company_name }}
                       </span>
@@ -211,7 +211,7 @@
                   <div class="d-flex gap-2">
                     <!-- Edit Button -->
                     {{-- @if(hasPermission('edit agents')) --}}
-                    @if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19 || $user->role_id == 20 || $dmc->userId == $user->dmcId)
+                    @if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19 || $user->role_id == 20 || ($dmc && $dmc->userId == $user->dmcId))
                       <a href="{{ route('agents.edit', Crypt::encrypt($agent->agent_id)) }}"
                         class="btn btn-primary btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                         style="width: 28px; height: 28px; padding: 0;">

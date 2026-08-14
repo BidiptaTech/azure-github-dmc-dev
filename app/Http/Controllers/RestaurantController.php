@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 
 class RestaurantController extends Controller
@@ -469,8 +470,14 @@ class RestaurantController extends Controller
             'description' => 'required',
             'terms_conditions' => 'required|string',
             'remarks' => 'nullable|string',
-            'restaurant_email' => 'required|email|unique:restaurants,email', //email added
+            'restaurant_email' => [
+                'required',
+                'email',
+                Rule::unique('restaurants', 'email')->whereNull('deleted_at'),
+            ],
             'password' => 'required|string|min:8', //password added 
+        ], [
+            'restaurant_email.unique' => 'This email is already registered for another restaurant.',
         ]);
 
         
@@ -711,6 +718,23 @@ class RestaurantController extends Controller
         $img_path = array_merge($existingImages, $imagePaths);
 
         $restaurant = Restaurant::where('restaurant_id',$id)->first();
+        if (!$restaurant) {
+            return redirect()->back()->with('error', 'Restaurant not found.');
+        }
+
+        $request->validate([
+            'restaurant_email' => [
+                'required',
+                'email',
+                Rule::unique('restaurants', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($restaurant->id),
+            ],
+            'password' => 'nullable|string|min:8',
+        ], [
+            'restaurant_email.unique' => 'This email is already registered for another restaurant.',
+        ]);
+
         // Process master image
         $master_image = $restaurant->master_image ?? '';
 
@@ -733,6 +757,8 @@ class RestaurantController extends Controller
                 $master_image = $masterImagePath['master_value'];
             }
         }
+
+        $plainPassword = trim((string) $request->input('password', ''));
 
         $restaurant->name = $request->input('name');
         $restaurant->phone = $request->input('phone');
@@ -758,7 +784,15 @@ class RestaurantController extends Controller
         $restaurant->dinner_price = $request->input('dinner_price');
         $restaurant->property = $request->input('property');
         $restaurant->email = $request->input('restaurant_email');    //email added
-        $restaurant->password = Hash::make($request->input('password'));    //password added
+        if ($plainPassword !== '') {
+            $restaurant->password = Hash::make($plainPassword);
+
+            // Invalidate all tokens for this restaurant (id and/or restaurant_id)
+            CommonHelper::invalidateAccessTokens(Restaurant::class, [
+                $restaurant->id,
+                $restaurant->restaurant_id,
+            ]);
+        }
         $restaurant->is_active = $request->input('restaurant_status') == 1 ? 1 : 0;
         $restaurant->description = $request->input('description');
         $restaurant->remarks = $request->input('remarks');
@@ -771,6 +805,7 @@ class RestaurantController extends Controller
         } catch (ValidationException $e) {
             return redirect()->back()
                 ->withInput()
+                ->withErrors($e->errors())
                 ->with('error', $e->getMessage());
         }
         catch (QueryException $e) {

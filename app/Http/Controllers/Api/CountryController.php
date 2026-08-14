@@ -207,49 +207,53 @@ class CountryController extends Controller
     }
 
     public function dmcCount(Request $request){
-        $user = auth()->user();
-        $agentCreatedBy = $user->sales_manager_dmc;
-        if(!$agentCreatedBy){
+        $agentId = $request->input('agent_id');
+        if (!$agentId) {
+            return response()->json(['error' => 'agent_id is required'], 400);
+        }
+
+        $agent = Agent::where('agent_id', $agentId)->first();
+        if (!$agent) {
             return response()->json(['error' => 'Agent not found'], 404);
         }
-        $agency = Agency::where('agency_id', $user->agency_id)->first();
+
+        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+        if (!$agency) {
+            return response()->json(['error' => 'Agency not found'], 404);
+        }
+
         $agentDmcIds = $agency->dmc_id;
-        
+
         // Handle JSON array or comma-separated string
         if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
-            // It's a JSON array, decode it
             $agentDmcIds = json_decode($agentDmcIds, true);
         } else if (is_string($agentDmcIds)) {
-            // It's a comma-separated string, explode it
             $agentDmcIds = explode(',', $agentDmcIds);
         }
-        
-        // Ensure all values are integers
-        $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
-        $dmc_count = count($agentDmcIds);
-        
-        if($user->role_id == 20){
-            $dmc_count = $dmc_count - 1;
+
+        if (!is_array($agentDmcIds)) {
+            $agentDmcIds = $agentDmcIds ? [$agentDmcIds] : [];
         }
-        $dmc_id = null; 
-        $dmc_logo = null;
-        $dmc_company_name = null;  
-        $dmc_name = null;
-        if($dmc_count == 1 && count($agentDmcIds) == 1){
-            $dmcuser = User::where('userId', $agentDmcIds[0])->first();
-            $dmc_id = $agentDmcIds[0];
-            $dmc_logo = $dmcuser->logo;
-            $dmc_company_name = $dmcuser->company_name;
-            $dmc_name = $dmcuser->name;  
+
+        $agentDmcIds = array_values(array_map('intval', array_filter($agentDmcIds)));
+
+        $dmcs = [];
+        $dmcCount = 1;
+        foreach ($agentDmcIds as $dmcId) {
+            $dmcUsers = User::where('dmcId', $dmcId)->where('role_id', 11)->get();
+            foreach ($dmcUsers as $dmcUser) {
+                $dmcs[] = [
+                    'dmc_count' => $dmcCount++,
+                    'dmc_id' => $dmcUser->dmcId,
+                    'dmc_logo' => $dmcUser->logo,
+                    'dmc_company_name' => $dmcUser->company_name,
+                    'dmc_name' => $dmcUser->name,
+                    'dmc_country' => $dmcUser->country,
+                ];
+            }
         }
-        elseif($dmc_count == 1 && count($agentDmcIds) == 2){
-            $dmc_id = $agentDmcIds[1];
-            $dmc_logo = null;
-            $dmc_company_name = null;  
-            $dmc_name = null;  
-        }
-        return response()->json(['dmc_count' => $dmc_count, 'dmc_id' => $dmc_id, 'dmc_logo' => $dmc_logo, 
-        'dmc_company_name' => $dmc_company_name, 'dmc_name' => $dmc_name]);
+
+        return response()->json($dmcs);
     }
 
     public function cityCountry(Request $request){
@@ -281,5 +285,13 @@ class CountryController extends Controller
             'results' => $formattedResults,
             'count' => $formattedResults->count()
         ]);
+    }
+
+    public function getCountry(){
+        $country = Country::select('name', 'country_code')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($country);
     }
 }

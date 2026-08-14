@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use App\Models\EmailsSetup;
+use App\Models\DmcFuncApp;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
 use App\Models\Invoice;
@@ -33,6 +34,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Config;
+// use Illuminate\Support\Facades\Cache;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -40,6 +42,53 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 
 class CommonHelper
 {
+    /**
+     * Invalidate Sanctum personal access tokens for a model.
+     * Matches tokenable_id against both primary key and business id (e.g. driver_id),
+     * because mobile apps may store either value.
+     *
+     * Sets expires_at to now so existing tokens are rejected and the DB clearly shows expiry.
+     *
+     * @param  class-string  $tokenableType  e.g. App\Models\Driver::class
+     * @param  array<int|string|null>  $tokenableIds
+     * @return int  Number of token rows updated
+     */
+    public static function invalidateAccessTokens(string $tokenableType, array $tokenableIds): int
+    {
+        $ids = [];
+        foreach ($tokenableIds as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $expiresAt = Carbon::now();
+
+        $affected = DB::table('personal_access_tokens')
+            ->where('tokenable_type', $tokenableType)
+            ->whereIn('tokenable_id', $ids)
+            ->update([
+                'expires_at' => $expiresAt,
+                'updated_at' => $expiresAt,
+            ]);
+
+        Log::info('Invalidated personal access tokens', [
+            'tokenable_type' => $tokenableType,
+            'tokenable_ids' => $ids,
+            'expires_at' => $expiresAt->toDateTimeString(),
+            'affected' => $affected,
+        ]);
+
+        return (int) $affected;
+    }
+
     /**
      * Safely normalize a JSON field into an array.
      *
@@ -62,6 +111,72 @@ class CommonHelper
             return is_array($decoded) ? $decoded : [];
         }
         return [];
+    }
+
+    /**
+     * Parse package_bookings.travel_dates JSON into Y-m-d start/end.
+     *
+     * Expected shape:
+     * { "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "duration_days": int }
+     *
+     * Also accepts legacy check_in / check_out keys. Empty strings are ignored.
+     * If end_date is missing and duration_days is set, end_date = start_date + duration_days - 1.
+     *
+     * @return array{start_date: ?string, end_date: ?string, duration_days: int}
+     */
+    public static function parsePackageTravelDates($value): array
+    {
+        $td = self::normalizeJsonArray($value);
+        $pick = static function (array $src, array $keys): ?string {
+            foreach ($keys as $key) {
+                $v = $src[$key] ?? null;
+                if (is_string($v) && trim($v) !== '') {
+                    return trim($v);
+                }
+            }
+            return null;
+        };
+
+        $startRaw = $pick($td, ['start_date', 'startDate', 'check_in', 'check_in_date']);
+        $endRaw = $pick($td, ['end_date', 'endDate', 'check_out', 'check_out_date']);
+        $duration = (int) ($td['duration_days'] ?? $td['duration'] ?? 0);
+
+        $start = null;
+        $end = null;
+        try {
+            if ($startRaw) {
+                $start = \Carbon\Carbon::parse($startRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $start = null;
+        }
+        try {
+            if ($endRaw) {
+                $end = \Carbon\Carbon::parse($endRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $end = null;
+        }
+
+        if ($start && !$end && $duration > 0) {
+            try {
+                $end = \Carbon\Carbon::parse($start)->addDays(max(0, $duration - 1))->toDateString();
+            } catch (\Throwable $e) {
+                $end = $start;
+            }
+        }
+        if ($start && !$end) {
+            $end = $start;
+        }
+        if ($end && !$start) {
+            $start = $end;
+        }
+
+        return [
+            'start_date' => $start,
+            'end_date' => $end,
+            'duration_days' => $duration,
+        ];
     }
 
     /**
@@ -1689,6 +1804,248 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ]);
             return null;
         }
+    }
+
+    /**
+     * Resolve Azure/function-app method name assigned to a DMC.
+     */
+    public static function getDmcFuncAppName($dmcId): ?string
+    {
+        $settings = self::getDmcFuncAppSettings($dmcId);
+
+        return $settings['func_name'] !== '' ? $settings['func_name'] : null;
+    }
+
+    /**
+     * DMC Func App assignment for a DMC (from /dmc-func-app).
+     *
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function getDmcFuncAppSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcFuncAppSettings();
+        }
+
+        $settings = DmcFuncApp::settingsForDmc($dmcId);
+
+        return [
+            'func_name' => trim((string) ($settings['function_name'] ?? '')),
+            'func_limit' => isset($settings['maximum_limit']) && $settings['maximum_limit'] !== null
+                ? (int) $settings['maximum_limit']
+                : null,
+        ];
+    }
+
+    /**
+     * Mail / IMAP / AI identity settings for a DMC (from /mail/settings).
+     * Falls back to the master DMC row when the child DMC has no emails_setup.
+     *
+     * @return array{
+     *     ai_email: string,
+     *     ai_from_name: string,
+     *     smtp_host: string,
+     *     smtp_port: int|null,
+     *     smtp_security: string,
+     *     smtp_user: string,
+     *     smtp_pass: string,
+     *     imap_host: string,
+     *     imap_port: int|null,
+     *     imap_security: string,
+     *     imap_user: string,
+     *     imap_pass: string,
+     *     support_email: string,
+     *     support_phone: string
+     * }
+     */
+    public static function getDmcMailSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcMailSettings();
+        }
+
+        $map = self::getDmcMailSettingsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? self::emptyDmcMailSettings();
+    }
+
+    /** @var array<int, array<string, mixed>> */
+    private static array $dmcAzureRootFieldsCache = [];
+
+    /**
+     * Combined root-level Azure/day-level JSON fields for one DMC.
+     *
+     * @return array<string, mixed>
+     */
+    public static function getDmcAzureRootFields($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+        }
+
+        $map = self::getDmcAzureRootFieldsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+    }
+
+    /**
+     * Batch loader for day-level Azure JSON export.
+     *
+     * @param  list<int|string>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcAzureRootFieldsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        $missing = [];
+
+        foreach ($dmcIds as $id) {
+            if (array_key_exists($id, self::$dmcAzureRootFieldsCache)) {
+                $result[$id] = self::$dmcAzureRootFieldsCache[$id];
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing !== []) {
+            $funcMap = DmcFuncApp::settingsForMany($missing);
+            $mailMap = self::getDmcMailSettingsForMany($missing);
+
+            foreach ($missing as $id) {
+                $func = $funcMap[$id] ?? ['function_name' => null, 'maximum_limit' => null];
+                $fields = array_merge(
+                    [
+                        'func_name' => trim((string) ($func['function_name'] ?? '')),
+                        'func_limit' => isset($func['maximum_limit']) && $func['maximum_limit'] !== null
+                            ? (int) $func['maximum_limit']
+                            : null,
+                    ],
+                    $mailMap[$id] ?? self::emptyDmcMailSettings()
+                );
+                self::$dmcAzureRootFieldsCache[$id] = $fields;
+                $result[$id] = $fields;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<int>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcMailSettingsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        foreach ($dmcIds as $id) {
+            $result[$id] = self::emptyDmcMailSettings();
+        }
+
+        if ($dmcIds === []) {
+            return $result;
+        }
+
+        $setups = EmailsSetup::query()
+            ->whereIn('dmcId', $dmcIds)
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        $missing = [];
+        foreach ($dmcIds as $id) {
+            if ($setups->has($id)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($setups->get($id));
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing === []) {
+            return $result;
+        }
+
+        $masterByDmc = User::query()
+            ->whereIn('userId', $missing)
+            ->pluck('master_dmc_id', 'userId');
+
+        $masterIds = array_values(array_unique(array_filter(array_map('intval', $masterByDmc->all()))));
+        $masterSetups = $masterIds === []
+            ? collect()
+            : EmailsSetup::query()
+                ->whereIn('dmcId', $masterIds)
+                ->get()
+                ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        foreach ($missing as $id) {
+            $masterId = (int) ($masterByDmc->get($id) ?? $masterByDmc->get((string) $id) ?? 0);
+            if ($masterId > 0 && $masterSetups->has($masterId)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($masterSetups->get($masterId));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function emptyDmcFuncAppSettings(): array
+    {
+        return [
+            'func_name' => '',
+            'func_limit' => null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function emptyDmcMailSettings(): array
+    {
+        return [
+            'ai_email' => '',
+            'ai_from_name' => '',
+            'smtp_host' => '',
+            'smtp_port' => null,
+            'smtp_security' => '',
+            'smtp_user' => '',
+            'smtp_pass' => '',
+            'imap_host' => '',
+            'imap_port' => null,
+            'imap_security' => '',
+            'imap_user' => '',
+            'imap_pass' => '',
+            'support_email' => '',
+            'support_phone' => '',
+        ];
+    }
+
+    private static function mapEmailsSetupToMailFields(?EmailsSetup $setup): array
+    {
+        if (! $setup) {
+            return self::emptyDmcMailSettings();
+        }
+
+        return [
+            'ai_email' => trim((string) ($setup->From_Email ?? '')),
+            'ai_from_name' => trim((string) ($setup->From_Name ?? '')),
+            'smtp_host' => trim((string) ($setup->SMTP_Host ?? '')),
+            'smtp_port' => $setup->SMTP_Port !== null && $setup->SMTP_Port !== '' ? (int) $setup->SMTP_Port : null,
+            'smtp_security' => trim((string) ($setup->SMTP_Encrypt ?? '')),
+            'smtp_user' => trim((string) ($setup->SMTP_User ?? '')),
+            'smtp_pass' => (string) ($setup->SMTP_Pass ?? ''),
+            'imap_host' => trim((string) ($setup->IMAP_Host ?? '')),
+            'imap_port' => $setup->IMAP_Port !== null && $setup->IMAP_Port !== '' ? (int) $setup->IMAP_Port : null,
+            'imap_security' => trim((string) ($setup->IMAP_Encrypt ?? '')),
+            'imap_user' => trim((string) ($setup->IMAP_User ?? '')),
+            'imap_pass' => (string) ($setup->IMAP_Pass ?? ''),
+            'support_email' => trim((string) ($setup->support_email ?? '')),
+            'support_phone' => trim((string) ($setup->support_phone ?? '')),
+        ];
     }
 
     /**
