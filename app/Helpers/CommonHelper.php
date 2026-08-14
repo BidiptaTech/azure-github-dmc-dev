@@ -2078,6 +2078,50 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
     }
 
+    /**
+     * Convert AI/SMTP fields received in an external API payload to Laravel's
+     * runtime SMTP configuration. Returns null unless the required values are valid.
+     *
+     * @param  array<string, mixed>  $primaryDmc
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = []): ?array
+    {
+        // DMC-level values take precedence over payload-level fallbacks.
+        $source = array_merge($payload, $primaryDmc);
+        $fromEmail = trim((string) ($source['ai_email'] ?? ''));
+        $host = trim((string) ($source['smtp_host'] ?? ''));
+        $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535],
+        ]);
+        $security = strtolower(trim((string) ($source['smtp_security'] ?? '')));
+        $security = $security === 'starttls' ? 'tls' : $security;
+        $username = trim((string) ($source['smtp_user'] ?? ''));
+        $password = (string) ($source['smtp_pass'] ?? '');
+
+        if (
+            ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
+            || $host === ''
+            || $port === false
+            || ! in_array($security, ['tls', 'ssl', 'none'], true)
+            || $username === ''
+            || $password === ''
+        ) {
+            return null;
+        }
+
+        return [
+            'host' => $host,
+            'port' => (int) $port,
+            'encryption' => $security,
+            'username' => $username,
+            'password' => $password,
+            'from_email' => $fromEmail,
+            'from_name' => trim((string) ($source['ai_from_name'] ?? '')) ?: config('app.name'),
+        ];
+    }
+
     public static function getDmcId($auth_user){
         if($auth_user->agent_id){
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
@@ -3197,49 +3241,77 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         ?string $threadSubject = null,
         array $referenceMessageIds = [],
         array $ccEmails = [],
-        array $bccEmails = []
+        array $bccEmails = [],
+        ?array $runtimeMailConfig = null
     ): void {
-        // Use DMC-specific SMTP from emails_setup (not .env)
-        self::applyEmailsSetupMailConfig();
+        $previousMailConfig = null;
+        if ($runtimeMailConfig !== null) {
+            $previousMailConfig = [
+                'default' => Config::get('mail.default'),
+                'smtp' => Config::get('mail.mailers.smtp'),
+                'from' => Config::get('mail.from'),
+            ];
+            self::applyRuntimeMailConfig($runtimeMailConfig);
+            $fromEmail = $fromEmail ?: ($runtimeMailConfig['from_email'] ?? null);
+            $fromName = $fromName ?: ($runtimeMailConfig['from_name'] ?? null);
+        } else {
+            // Use DMC-specific SMTP from emails_setup for normal sends.
+            self::applyEmailsSetupMailConfig();
+        }
 
-        if ($emailUuid !== null && $emailUuid !== '') {
-            $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
-            $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+        try {
+            if ($emailUuid !== null && $emailUuid !== '') {
+                $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+                $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
 
-            Mail::to($recipientEmail)->send(new AutomatedMail(
+                Mail::to($recipientEmail)->send(new AutomatedMail(
+                    $html,
+                    $finalSubject,
+                    $emailUuid,
+                    $fromEmail,
+                    $fromName,
+                    $replyToEmail,
+                    $referenceChain,
+                    $ccEmails,
+                    $bccEmails,
+                    $runtimeMailConfig
+                ));
+
+                Log::info('Threaded email sent', [
+                    'to' => $recipientEmail,
+                    'cc' => $ccEmails,
+                    'bcc' => $bccEmails,
+                    'in_reply_to' => $emailUuid,
+                    'references' => $referenceChain,
+                    'subject' => $finalSubject,
+                    'thread_subject' => $threadSubject,
+                ]);
+
+                return;
+            }
+
+            Mail::to($recipientEmail)->send(new DmcMail(
                 $html,
-                $finalSubject,
-                $emailUuid,
+                $subject,
                 $fromEmail,
                 $fromName,
                 $replyToEmail,
-                $referenceChain,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             ));
-
-            Log::info('Threaded email sent', [
-                'to' => $recipientEmail,
-                'cc' => $ccEmails,
-                'bcc' => $bccEmails,
-                'in_reply_to' => $emailUuid,
-                'references' => $referenceChain,
-                'subject' => $finalSubject,
-                'thread_subject' => $threadSubject,
-            ]);
-
-            return;
+        } finally {
+            if ($previousMailConfig !== null) {
+                Config::set('mail.default', $previousMailConfig['default']);
+                Config::set('mail.mailers.smtp', $previousMailConfig['smtp']);
+                Config::set('mail.from', $previousMailConfig['from']);
+                try {
+                    app('mail.manager')->purge('smtp');
+                } catch (\Throwable $e) {
+                    // Mail manager may not be bound in some contexts.
+                }
+            }
         }
-
-        Mail::to($recipientEmail)->send(new DmcMail(
-            $html,
-            $subject,
-            $fromEmail,
-            $fromName,
-            $replyToEmail,
-            $ccEmails,
-            $bccEmails
-        ));
     }
 
     /**
@@ -3484,11 +3556,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
-            $fromEmail = (string) config('mail.from.address');
-            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            $fromEmail = (string) ($runtimeMailConfig['from_email'] ?? config('mail.from.address'));
+            $fromName = trim((string) ($runtimeMailConfig['from_name'] ?? config('mail.from.name', 'Travclicks')));
             $dmcLabel = trim((string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? ''));
-            if ($dmcLabel !== '' && $dmcLabel !== 'DMC') {
+            if ($runtimeMailConfig === null && $dmcLabel !== '' && $dmcLabel !== 'DMC') {
                 $fromName = $dmcLabel.' via '.$fromName;
             }
             $replyTo = ($dmcContactEmail !== '' && filter_var($dmcContactEmail, FILTER_VALIDATE_EMAIL))
@@ -3506,7 +3581,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Booking confirmation email sent', [
@@ -3554,18 +3630,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             self::sendHtmlEmail(
                 $recipientEmail,
                 $html,
                 trim($subject),
-                null,
-                null,
-                null,
+                $runtimeMailConfig['from_email'] ?? null,
+                $runtimeMailConfig['from_name'] ?? null,
+                $runtimeMailConfig['from_email'] ?? null,
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Quotation email sent', [
