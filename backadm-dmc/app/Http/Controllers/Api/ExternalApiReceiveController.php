@@ -1547,17 +1547,38 @@ class ExternalApiReceiveController extends Controller
         return null;
     }
 
+    /**
+     * Parent Message-ID used for In-Reply-To / References so the reply stays in
+     * the original mail thread. The AI payload sends `message_id` (real RFC id)
+     * and `uuid`; `message_id` wins when both are present.
+     */
     protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailUuidFromContext([
-            'email_uuid' => $this->payloadValue($payload, ['email_uuid', 'emailUuid'], ''),
+            'email_uuid' => $this->payloadValue($payload, [
+                'email_uuid',
+                'emailUuid',
+                'message_id',
+                'messageId',
+                'Message-ID',
+                'Message-Id',
+                'message-id',
+                'uuid',
+            ], ''),
         ]);
     }
 
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
         return CommonHelper::resolveEmailSubjectFromContext([
-            'subject' => $this->payloadValue($payload, ['subject'], ''),
+            'subject' => $this->payloadValue($payload, [
+                'subject',
+                'email_subject',
+                'mail_subject',
+                'original_subject',
+                'thread_subject',
+                'Subject',
+            ], ''),
             'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
         ]);
     }
@@ -1572,6 +1593,8 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
+                'in_reply_to',
+                'In-Reply-To',
             ], ''),
             'cc' => $this->resolvePayloadEmailList($payload, [
                 'cc',
@@ -1621,6 +1644,8 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
+                'in_reply_to',
+                'In-Reply-To',
             ], ''),
         ]);
     }
