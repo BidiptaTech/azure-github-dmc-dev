@@ -216,7 +216,6 @@ const MainFilterSearchBox = () => {
     const citiesResult = await dispatch(fetchCitiesByCountry(destinationName));
     
     // Step 2: Dispatch Redux actions to update the search state
-    dispatch(setSearchLocation(selectedLocation));
     dispatch(setCheckIn(formattedCheckIn));
     dispatch(setCheckOut(formattedCheckOut));
     dispatch(resetHotels());

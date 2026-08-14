@@ -413,7 +413,11 @@ export default function Pending() {
 
           console.log("Country code array:", countryCodeArray);
 
-          dispatch(setSearchLocation(countryCodeArray));
+          if (countryCodeArray.length) {
+            dispatch(setSearchLocation(countryCodeArray));
+          } else if (data.short_code) {
+            dispatch(setSearchLocation(data.short_code));
+          }
 
           const formattedCheckIn = data.CheckInTime
             ? dayjs(data.CheckInTime, "DD/MM/YYYY").format("YYYY-MM-DD")

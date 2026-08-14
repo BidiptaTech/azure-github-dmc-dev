@@ -605,6 +605,7 @@ export const fetchLocalZone = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const agentID = state.editing?.agentId;
       const userRole = state.auth?.userRole;
+      const selectedDmcId = selectDmcId(state);
 
       // Corrected conditional statement
       let AgentId;
@@ -627,6 +628,7 @@ export const fetchLocalZone = createAsyncThunk(
         params: {
           id,
           type,
+          dmc_id: selectedDmcId,
         },
         headers: {
           Authorization: `Bearer ${authToken}`,

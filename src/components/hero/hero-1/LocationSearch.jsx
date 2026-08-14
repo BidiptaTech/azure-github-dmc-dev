@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchCityCountry, addSelectedCity, removeSelectedCity } from '@/slice/common/citiesSlice';
+import { setSearchLocation } from "@/slice/common/BookingSlice";
 
 const SearchBar = ({ onLocationSelect }) => {
   const [searchValue, setSearchValue] = useState("");
@@ -107,6 +108,7 @@ const SearchBar = ({ onLocationSelect }) => {
     // Pass the city's country name to onLocationSelect
     if (onLocationSelect) {
       onLocationSelect(item.country);
+      dispatch(setSearchLocation(item.country_code));
       dispatch(addSelectedCity(item));
     }
     

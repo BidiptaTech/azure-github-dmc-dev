@@ -874,8 +874,12 @@ export default function Pending({ filters = {} }) {
 
           //console.log("Country code array:", countryCodeArray);
 
-          // Use country codes for search
-          dispatch(setSearchLocation(countryCodeArray));
+          // Keep EditSlice short_code if destination→code mapping is empty
+          if (countryCodeArray.length) {
+            dispatch(setSearchLocation(countryCodeArray));
+          } else if (data.short_code) {
+            dispatch(setSearchLocation(data.short_code));
+          }
 
           // Convert destination to full country names for display
           const destinationNames = destinationArray
@@ -2979,7 +2983,7 @@ export default function Pending({ filters = {} }) {
                               
 
                                 {/* Third button - Negotiate for enquiry type, Update for others */}
-                                {list.booking_type === "enquiry" && userRole === "Agent" ? (
+                                {/* {list.booking_type === "enquiry" && userRole === "Agent" ? (
                                   <Tooltip title="Negotiate" arrow>
                                     <IconButton
                                       size="small"
@@ -3015,7 +3019,7 @@ export default function Pending({ filters = {} }) {
                                       <Update sx={{ fontSize: "14px" }} />
                                     </IconButton>
                                   </Tooltip>
-                                )}
+                                )} */}
 
                                 {/* 3 dots menu for additional actions */}
                                 <Tooltip title="More Actions" arrow>
@@ -4093,12 +4097,12 @@ export default function Pending({ filters = {} }) {
         )}
 
         {/* Show Update if not already in first 3 buttons and status doesn't start with "Cancel" */}
-        {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
+        {/* {selectedListItem && !selectedListItem.tour_status?.toLowerCase().startsWith("cancel") && (
           <MenuItem onClick={() => handleMenuAction('update')} sx={{ fontSize: "14px", py: 1 }}>
             <Update sx={{ fontSize: "10px", mr: 1, color: "#f57c00" }} />
             Update Tour Plan
           </MenuItem>
-        )}
+        )} */}
 
 
         {/* Always show Delete in menu */}

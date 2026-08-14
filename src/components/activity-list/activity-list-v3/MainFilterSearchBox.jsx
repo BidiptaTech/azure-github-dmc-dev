@@ -38,7 +38,7 @@ import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
-
+  console.log('🔍 Location MainFilterSearchBox12', Location);
   // State for storing the pickup and dropoff locations
   const [pickUpLocation, setPickUpLocation] = useState("");
   const [pickUpZone, setPickUpZone] = useState("");
@@ -190,7 +190,7 @@ const MainFilterSearchBox = ({ Location }) => {
                   Select the type..
                 </option>
               )}
-              <option value="Point To Point">Point To Point</option>
+              {/* <option value="Point To Point">Point To Point</option> */}
               <option value="Hourly">Hourly</option>
               {(zone_on === 1 && 
                 viewDetails && 
