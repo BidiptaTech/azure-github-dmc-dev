@@ -1353,13 +1353,15 @@ class ExternalApiReceiveController extends Controller
         };
     }
     /**
-     * Email the sender (sender_email) using the DMC ai_response setting (QTN / ITN).
+     * Email the API sender_email using the DMC ai_response setting (QTN / ITN).
+     * To = sender_email only. ai_email is for IMAP fetch, never the recipient.
      * Non-fatal by design.
      *
      * @return array{sent: bool, email: ?string}
      */
     protected function notifySender(Tour $tour, array $payload, Collection $orders): array
     {
+        // Recipient is always the enquiry sender — never ai_email / SMTP mailbox.
         $senderEmail = $this->resolveSenderNotificationEmail($payload);
 
         if ($senderEmail === null) {
@@ -1527,7 +1529,8 @@ class ExternalApiReceiveController extends Controller
 
     protected function resolveSenderNotificationEmail(array $payload): ?string
     {
-        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail', 'email'], ''));
+        // Do not use generic "email" / "ai_email" — those can be DMC mailbox fields.
+        $email = trim((string) $this->payloadValue($payload, ['sender_email', 'senderEmail'], ''));
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $email;
