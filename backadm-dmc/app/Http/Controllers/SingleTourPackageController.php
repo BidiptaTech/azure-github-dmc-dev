@@ -4198,7 +4198,7 @@ class SingleTourPackageController extends Controller
 
     /**
      * Resolve country + currency for an order (multi-country / multi-city tracking).
-     * Prefer service payload city/country, then request, then tour destination.
+     * A stay-level request country/city wins over leftover payload defaults (e.g. "Singapore").
      *
      * @param  array<string, mixed>|null  $servicePayload
      * @return array{country: ?string, currency: ?string, city: ?string}
@@ -4220,14 +4220,16 @@ class SingleTourPackageController extends Controller
         }
 
         $payload = is_array($servicePayload) ? $servicePayload : [];
-        if ($requestCountry !== '' && empty($payload['country'])) {
+        // Multi-city posts one stay at a time. Request geo is the stay; payload often still
+        // has hardcoded Singapore city/country even when currency is INR/AUD.
+        if ($requestCountry !== '') {
             $payload['country'] = $requestCountry;
+        }
+        if ($requestCity !== '') {
+            $payload['city'] = $requestCity;
         }
         if ($requestCurrency !== '' && empty($payload['currency'])) {
             $payload['currency'] = $requestCurrency;
-        }
-        if ($requestCity !== '' && empty($payload['city'])) {
-            $payload['city'] = $requestCity;
         }
 
         $geo = $this->resolveOrderGeoFromServicePayload($payload, $fallbackDestination);
@@ -4256,19 +4258,20 @@ class SingleTourPackageController extends Controller
     {
         $geo = $this->resolveOrderCountryCurrency($request, $tourId, $serviceRow);
 
-        if (!empty($geo['country']) && (empty($serviceRow['country']) || $this->isInvalidOrderCountry((string) ($serviceRow['country'] ?? '')))) {
+        if (!empty($geo['country'])) {
             $serviceRow['country'] = $geo['country'];
         }
-        if (!empty($geo['city']) && empty($serviceRow['city'])) {
+        if (!empty($geo['city'])) {
             $serviceRow['city'] = $geo['city'];
         }
         if (!empty($geo['currency'])) {
             $serviceRow['currency'] = $geo['currency'];
         }
         if (!empty($geo['country']) && is_array($serviceRow['hotelDetails'] ?? null)) {
-            if (empty($serviceRow['hotelDetails']['country']) || $this->isInvalidOrderCountry((string) ($serviceRow['hotelDetails']['country'] ?? ''))) {
-                $serviceRow['hotelDetails']['country'] = $geo['country'];
-            }
+            $serviceRow['hotelDetails']['country'] = $geo['country'];
+        }
+        if (!empty($geo['city']) && is_array($serviceRow['hotelDetails'] ?? null)) {
+            $serviceRow['hotelDetails']['city'] = $geo['city'];
         }
 
         return [$serviceRow, $geo];

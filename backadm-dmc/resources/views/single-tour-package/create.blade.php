@@ -1747,6 +1747,68 @@
                         return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
                     };
 
+                    /** City + country for the stay currently being edited (multi-city plan or single city). */
+                    window.getActiveServiceGeo = function () {
+                        const geo = { city: '', country: '' };
+                        const fromOption = function (opt, fallbackValue) {
+                            const out = { city: '', country: '' };
+                            if (!opt) {
+                                out.city = String(fallbackValue || '').trim();
+                                return out;
+                            }
+                            out.city = String(opt.getAttribute('data-city-name') || '').trim()
+                                || String(opt.textContent || '').split('(')[0].trim()
+                                || String(fallbackValue || '').trim();
+                            out.country = String(opt.getAttribute('data-country') || '').trim();
+                            if (!out.country) {
+                                const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                                if (m && m[1]) out.country = String(m[1]).trim();
+                            }
+                            return out;
+                        };
+                        try {
+                            const modeEl = document.querySelector('input[name="city_mode"]:checked');
+                            const isMulti = modeEl && modeEl.value === 'multi';
+                            if (isMulti) {
+                                const bundle = document.getElementById('segmentServicesBundle');
+                                const seg = bundle ? bundle.closest('.segment') : null;
+                                const sel = seg ? seg.querySelector('.city-select') : null;
+                                if (sel && sel.selectedIndex >= 0) {
+                                    const parsed = fromOption(sel.options[sel.selectedIndex], sel.value);
+                                    if (parsed.city || parsed.country) return parsed;
+                                }
+                            }
+
+                            const sc = document.getElementById('single_city');
+                            if (sc && String(sc.value || '').trim()) {
+                                let parsed = fromOption(sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null, sc.value);
+                                try {
+                                    if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                        const d = $(sc).select2('data');
+                                        if (d && d[0]) {
+                                            if (!parsed.city && d[0].text) parsed.city = String(d[0].text).split('(')[0].trim();
+                                            if (!parsed.country && d[0].country) parsed.country = String(d[0].country).trim();
+                                        }
+                                    }
+                                } catch (e) { /* ignore */ }
+                                if (parsed.city || parsed.country) {
+                                    geo.city = parsed.city;
+                                    geo.country = parsed.country;
+                                }
+                            }
+                            if (!geo.country) {
+                                geo.country = String(document.getElementById('user_country')?.value || '').trim();
+                            }
+                        } catch (e) { /* ignore */ }
+                        return geo;
+                    };
+                    window.getActiveServiceCity = function () {
+                        return String((window.getActiveServiceGeo() || {}).city || '').trim();
+                    };
+                    window.getActiveServiceCountry = function () {
+                        return String((window.getActiveServiceGeo() || {}).country || '').trim();
+                    };
+
                     // ==============================
                     // Additional Guests Management
                     // ==============================
@@ -3016,6 +3078,8 @@
                                 id: null,
                                 bookingType: 'enquiry',
                                 bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
+                                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || (selectedHotelInfo && selectedHotelInfo.city) || hotel.city || '',
+                                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (selectedHotelInfo && selectedHotelInfo.country) || hotel.country || '',
                                 
                                 // Hotel Details
                                 hotelDetails: selectedHotelInfo ? {
@@ -3023,6 +3087,8 @@
                                     hotel_name: selectedHotelInfo.name,
                                     image: selectedHotelInfo.main_image,
                                     location: selectedHotelInfo.city,
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || selectedHotelInfo.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || selectedHotelInfo.city || '',
                                     checkInTime: selectedHotelInfo.check_in_time || "",
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
@@ -3030,7 +3096,9 @@
                                     hotel_id: hotel.id,
                                     hotel_name: hotel.name,
                                     image: "",
-                                    location: "Location not specified",
+                                    location: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || "Location not specified",
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || hotel.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || '',
                                     checkInTime: hotel.check_in_time || "",
                                     checkOutTime: hotel.check_out_time || "",
                                     cancellation_charge: null
@@ -3444,6 +3512,8 @@
                                         
                                         // Attraction Information
                                         bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_attraction_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_attraction_city_${index}`)?.options[document.getElementById(`day${day}_attraction_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: timeSlot || "10:00-00:00",
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -3702,8 +3772,8 @@
                                         bookingDate: guideDate,
                                         dayIndex: parseInt(day),
                                         Tax: "7.00", // Default tax value
-                                        city: "Singapore", // Default city
-                                        country: "Singapore", // Default country
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                         languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
                                         experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
                                         remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
@@ -3883,6 +3953,8 @@
                                         
                                         // Restaurant Information
                                         bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_restaurant_city_${index}`)?.options[document.getElementById(`day${day}_restaurant_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: formatVisitTime(timeSlot),
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -4067,8 +4139,9 @@
                                                 const citySelect = document.getElementById('modal_local_transfer_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4191,8 +4264,9 @@
                                                 const citySelect = document.getElementById('modal_exit_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4333,10 +4407,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4429,10 +4503,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4610,7 +4684,7 @@
                                                 document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
                                             Night_Start_Time: nightStartTime || null,
                                             Night_End_Time: nightEndTime || null,
-                                            country: pickupZone.dataset.country || "Singapore",
+                                            country: pickupZone.dataset.country || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -4746,8 +4820,9 @@
                                             // Get country from city select option's data-country attribute, or from user_country field
                                             const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                             const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                             const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                             
                                             const transportData = {
                                                 id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -4862,8 +4937,9 @@
                                                     const citySelect = document.getElementById('modal_exit_city');
                                                     const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                     const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                     const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                     return countryValue || pickupZone.dataset.country || "";
                                                 })(),
                                                 fullName: customerData.fullName,
@@ -5025,16 +5101,17 @@
                                                         // Get city from the city select field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "Singapore";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
-                                                        return countryValue || "Singapore";
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
+                                                        return countryValue || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '');
                                                     })(),
                                                                     bookingType: "enquiry",
                                                                     vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
@@ -5191,15 +5268,16 @@
                                                         // Get city from the exit city select field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from exit city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                         return countryValue || "";
                                                     })(),
                                                     userInfo: {
@@ -7267,7 +7345,11 @@
                     });
 
                     if (matchedVal === null) {
-                        $dd.append($('<option></option>').attr('value', needle).text(needle));
+                        const geo = (typeof window.getActiveServiceGeo === 'function') ? window.getActiveServiceGeo() : {};
+                        const $opt = $('<option></option>').attr('value', needle).text(needle);
+                        if (geo.country) $opt.attr('data-country', geo.country);
+                        if (geo.city) $opt.attr('data-city-name', geo.city);
+                        $dd.append($opt);
                         matchedVal = needle;
                     }
 
@@ -7438,7 +7520,11 @@
                 master.forEach(function (id) {
                     const label = labelById[id] || id;
                     const cityName = String(label).split('(')[0].trim();
-                    const ctry = countryById[id] || '';
+                    let ctry = countryById[id] || '';
+                    if (!ctry) {
+                        const m = String(label).match(/\(([^)]+)\)\s*$/);
+                        if (m && m[1]) ctry = String(m[1]).trim();
+                    }
                     html += `<option value="${id}" data-city-name="${escAttr(cityName)}" data-country="${escAttr(ctry)}">${label}</option>`;
                 });
 
@@ -7475,6 +7561,13 @@
                 $clone.find('[id]').removeAttr('id');
                 $clone.find('label[for]').removeAttr('for');
 
+                // Show native selected values instead of empty Select2 chrome in the snapshot.
+                $clone.find('.select2-container').remove();
+                $clone.find('select.select2-hidden-accessible')
+                    .removeClass('select2-hidden-accessible')
+                    .removeAttr('data-select2-id')
+                    .css({ width: '100%', display: 'block' });
+
                 // Make it read-only (visual snapshot).
                 $clone.find('input, select, textarea, button').prop('disabled', true);
                 $clone.addClass('segment-services-frozen');
@@ -7488,6 +7581,26 @@
                 );
 
                 $segment.find('.segment-services').append($clone);
+
+                const key = String($segment.data('index') || '');
+                if (key) {
+                    if (!window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
+                    window.__segmentFrozenHtmlByIdx[key] = $clone.prop('outerHTML');
+                }
+            }
+
+            function restoreFrozenSnapshotsIfMissing() {
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($s.find('.segment-services-frozen').length) return;
+                    const key = String($s.data('index') || '');
+                    const html = key && window.__segmentFrozenHtmlByIdx ? window.__segmentFrozenHtmlByIdx[key] : '';
+                    if (!html) return;
+                    $s.find('.segment-services').append(html);
+                    $s.find('.segment-body-collapse').addClass('show');
+                    $s.find('.segment-services-banner').removeClass('d-none');
+                    $s.find('.segment-header').removeClass('d-none');
+                });
             }
 
             /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
@@ -7689,6 +7802,40 @@
                 }
             }
 
+            /** Move the live services bundle home without deleting other city plans' frozen snapshots. */
+            function detachLiveServicesBundleKeepSnapshots() {
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                }
+            }
+
+            function deleteSegmentStoredState(rmKey) {
+                if (!rmKey) return;
+                if (window.__segmentServiceState) delete window.__segmentServiceState[rmKey];
+                if (window.__segmentServiceMeta) delete window.__segmentServiceMeta[rmKey];
+                if (window.__segmentLastValidRange) delete window.__segmentLastValidRange[rmKey];
+                if (window.__segmentBundleDomByIdx) delete window.__segmentBundleDomByIdx[rmKey];
+                if (window.__segmentFrozenHtmlByIdx) delete window.__segmentFrozenHtmlByIdx[rmKey];
+            }
+
+            function findNextCompleteCityPlan($except) {
+                let $found = $();
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($except && $except.length && $s.is($except)) return;
+                    const city = $s.find('.city-select').val();
+                    const start = $s.find('.start-date').val();
+                    const end = $s.find('.end-date').val();
+                    if (city && start && end) {
+                        $found = $s;
+                        return false;
+                    }
+                });
+                return $found;
+            }
+
             function refreshAllOnCityModeSwitch() {
                 ensureServicesBundleAtHome();
 
@@ -7763,6 +7910,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7789,6 +7937,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7974,15 +8123,31 @@
             $(document).on('click', '.removeSegment', function () {
                 const $seg = $(this).closest('.segment');
                 const rmKey = $seg.length ? String($seg.data('index')) : '';
-                if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
-                    delete window.__segmentServiceState[rmKey];
-                }
-                if ($seg.find('#segmentServicesBundle').length) {
-                    ensureServicesBundleAtHome();
+                const hadLiveBundle = $seg.find('#segmentServicesBundle').length > 0;
+
+                deleteSegmentStoredState(rmKey);
+
+                if (hadLiveBundle) {
+                    // Keep other city plans' frozen snapshots. Do not re-open the previous
+                    // plan as live — that rebuilds daily services and drops attractions,
+                    // guides, restaurants and transport (hotels survive via JS arrays).
+                    detachLiveServicesBundleKeepSnapshots();
                     clearMultiSegmentStayContext();
+                    if (typeof window.clearAllSelectedServices === 'function') {
+                        window.clearAllSelectedServices();
+                    }
+                    if (typeof window.resetServicesBundleFormControls === 'function') {
+                        window.resetServicesBundleFormControls();
+                    }
                 }
+
                 $seg.remove();
+                restoreFrozenSnapshotsIfMissing();
                 refreshGlobalServicesVisibility();
+
+                if (typeof window.scheduleTourSubmitButtonUpdate === 'function') {
+                    window.scheduleTourSubmitButtonUpdate();
+                }
             });
 
             // When master list changes, update all segment dropdown options
@@ -18212,7 +18377,12 @@
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
-            const container = document.getElementById('dailyServicesContainer');
+            const liveBundle = document.getElementById('segmentServicesBundle');
+            const container = (liveBundle && liveBundle.querySelector('#dailyServicesContainer'))
+                || document.getElementById('dailyServicesContainer');
+            if (!container || container.closest('.segment-services-frozen')) {
+                return;
+            }
 
             const useSeg = window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
                 typeof $ !== 'undefined' &&
@@ -32445,8 +32615,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore", // Default city
-                    country: "Singapore" // Default country
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32527,8 +32697,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: passengers,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "entry_port"
             };
             
@@ -32582,8 +32752,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32657,8 +32827,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_exit_0_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "exit_port"
             };
             
@@ -32727,8 +32897,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32804,8 +32974,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_transport_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "transport"
             };
             
@@ -34719,6 +34889,10 @@
                         
                         // Package-level country fallback (city-driven flows may leave this empty).
                         const resolveSelectedCountryName = () => {
+                            if (typeof window.getActiveServiceCountry === 'function') {
+                                const fromStay = window.getActiveServiceCountry();
+                                if (fromStay) return fromStay;
+                            }
                             const fromCountryField = document.getElementById('user_country')?.value || '';
                             if (fromCountryField) return fromCountryField;
                             
