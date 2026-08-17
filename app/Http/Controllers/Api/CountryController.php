@@ -67,7 +67,15 @@ class CountryController extends Controller
 
     public function getDmcs(Request $request)
     {
-        $user = auth()->user();
+        $agentId = $request->input('agent_id');
+        if (!$agentId) {
+            return response()->json(['error' => 'agent_id is required'], 400);
+        }
+
+        $user = Agent::where('agent_id', $agentId)->first();
+        if (!$user) {
+            return response()->json(['error' => 'Agent not found'], 404);
+        }
         $agentDmcIds = [];
         $restrictToAgencyDmcs = false;
 
