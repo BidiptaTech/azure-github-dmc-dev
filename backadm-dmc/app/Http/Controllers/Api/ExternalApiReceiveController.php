@@ -1399,15 +1399,27 @@ class ExternalApiReceiveController extends Controller
             $emailUuid = $this->resolveEmailUuidFromPayload($payload);
             $emailSubject = $this->resolveEmailSubjectFromPayload($payload);
             $threadFields = $this->resolveEmailThreadPayloadFields($payload);
-            $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig($primaryDmc, $payload);
+            // API SMTP values win; this DMC's stored /mail/settings fill any gap.
+            // The API does not send smtp_pass, so the stored password is what
+            // makes authenticated sending from the DMC mailbox possible.
+            $storedMailSettings = $dmcUser
+                ? CommonHelper::getDmcMailSettings((int) $dmcUser->userId)
+                : [];
+            $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig(
+                $primaryDmc,
+                $payload,
+                $storedMailSettings
+            );
 
-            // API values are preferred. Fall back to this DMC's stored mail settings
-            // when an older API response does not yet contain all required SMTP fields.
-            if ($runtimeMailConfig === null && $dmcUser) {
-                $runtimeMailConfig = CommonHelper::resolveApiRuntimeMailConfig(
-                    CommonHelper::getDmcMailSettings((int) $dmcUser->userId)
-                );
+            if ($runtimeMailConfig === null) {
+                Log::warning('External API: DMC SMTP incomplete, falling back to default mailer', [
+                    'tour_id' => $tour->tour_id,
+                    'dmc_id' => $dmcUser?->userId,
+                    'smtp_user' => $this->payloadValue($payload, ['smtp_user'], ''),
+                    'has_stored_password' => trim((string) ($storedMailSettings['smtp_pass'] ?? '')) !== '',
+                ]);
             }
+
             $mailContext = $runtimeMailConfig !== null
                 ? ['_mail_config' => $runtimeMailConfig]
                 : [];
@@ -1548,9 +1560,9 @@ class ExternalApiReceiveController extends Controller
     }
 
     /**
-     * Parent Message-ID used for In-Reply-To / References so the reply stays in
-     * the original mail thread. The AI payload sends `message_id` (real RFC id)
-     * and `uuid`; `message_id` wins when both are present.
+     * Parent Message-ID for In-Reply-To / References. Older payloads send it as
+     * `email_uuid`; newer ones send the RFC id as `message_id` plus a bare
+     * `uuid`, so `message_id` is preferred when both are present.
      */
     protected function resolveEmailUuidFromPayload(array $payload): ?string
     {
@@ -1560,88 +1572,17 @@ class ExternalApiReceiveController extends Controller
                 'emailUuid',
                 'message_id',
                 'messageId',
-                'Message-ID',
-                'Message-Id',
-                'message-id',
                 'uuid',
             ], ''),
         ]);
     }
 
-    /**
-     * Original inbound subject, used to send "Re: <subject>". Gmail groups a
-     * conversation by References *and* subject, so a reply carrying only
-     * In-Reply-To but a brand-new subject still shows up as a new conversation.
-     */
     protected function resolveEmailSubjectFromPayload(array $payload): ?string
     {
-        $subject = CommonHelper::resolveEmailSubjectFromContext([
-            'subject' => $this->payloadValue($payload, [
-                'subject',
-                'email_subject',
-                'mail_subject',
-                'original_subject',
-                'thread_subject',
-                'Subject',
-            ], ''),
+        return CommonHelper::resolveEmailSubjectFromContext([
+            'subject' => $this->payloadValue($payload, ['subject'], ''),
             'mail_received' => $this->payloadValue($payload, ['mail_received'], ''),
         ]);
-
-        if ($subject !== null) {
-            return $subject;
-        }
-
-        // Newer payloads may omit the subject; recover it from an earlier
-        // receive belonging to the same mail thread.
-        return $this->lookupThreadSubjectFromHistory($payload);
-    }
-
-    /**
-     * Last known subject stored for the same Message-ID in external_api_receives.
-     */
-    protected function lookupThreadSubjectFromHistory(array $payload): ?string
-    {
-        $messageId = $this->resolveEmailUuidFromPayload($payload);
-        if ($messageId === null) {
-            return null;
-        }
-
-        try {
-            $needle = addcslashes(trim($messageId, '<>'), '%_\\');
-
-            $rows = ExternalApiReceive::query()
-                ->where('payload', 'like', '%'.$needle.'%')
-                ->orderByDesc('id')
-                ->limit(5)
-                ->pluck('payload');
-        } catch (Throwable $e) {
-            Log::warning('External API: thread subject lookup failed', [
-                'message_id' => $messageId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-
-        foreach ($rows as $row) {
-            $stored = $this->unwrapPayload($this->normalizeToArray($row));
-            $subject = CommonHelper::resolveEmailSubjectFromContext([
-                'subject' => $this->payloadValue($stored, [
-                    'subject',
-                    'email_subject',
-                    'mail_subject',
-                    'original_subject',
-                    'thread_subject',
-                    'Subject',
-                ], ''),
-            ]);
-
-            if ($subject !== null) {
-                return $subject;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -1654,8 +1595,6 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
-                'in_reply_to',
-                'In-Reply-To',
             ], ''),
             'cc' => $this->resolvePayloadEmailList($payload, [
                 'cc',
@@ -1705,8 +1644,6 @@ class ExternalApiReceiveController extends Controller
                 'references',
                 'email_references',
                 'References',
-                'in_reply_to',
-                'In-Reply-To',
             ], ''),
         ]);
     }
