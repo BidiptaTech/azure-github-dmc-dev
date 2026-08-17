@@ -2092,10 +2092,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>|null
      */
-    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = []): ?array
+    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = [], array $fallback = []): ?array
     {
-        // DMC-level values take precedence over payload-level fallbacks.
-        $source = array_merge($payload, $primaryDmc);
+        // Precedence: DMC entry > payload root > this DMC's stored mail settings.
+        // Empty values never mask a populated fallback, which is what lets the
+        // stored smtp_pass fill in when the API omits it.
+        $source = array_merge(
+            $fallback,
+            self::filterPopulatedMailFields($payload),
+            self::filterPopulatedMailFields($primaryDmc)
+        );
         $host = trim((string) ($source['smtp_host'] ?? ''));
         $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 65535],
@@ -2130,6 +2136,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'from_email' => $fromEmail,
             'from_name' => trim((string) ($source['ai_from_name'] ?? '')) ?: config('app.name'),
         ];
+    }
+
+    /**
+     * Drop null/blank entries so a lower-priority source can supply the value.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private static function filterPopulatedMailFields(array $fields): array
+    {
+        return array_filter(
+            $fields,
+            static fn ($value) => $value !== null && (! is_string($value) || trim($value) !== '')
+        );
     }
 
     public static function getDmcId($auth_user){
@@ -4135,7 +4155,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
 
-        return self::normalizeQuotationEmailData(array_merge($pdfData, [
+        return self::normalizeQuotationEmailData(array_merge($pdfData, self::buildTourTripSummaryFields($tour, $pdfData, $baseCurrency), [
             'dmc_name' => $dmcName,
             'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
             'dmc_label' => $dmcName,
@@ -4156,6 +4176,320 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'logoType' => 'dmc',
             'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
         ]));
+    }
+
+    /**
+     * City names for display, from the stored
+     * "Batam (Indonesia) [2026-08-14->2026-09-05], ..." format.
+     * Country suffixes, date ranges and cities already named by the
+     * destination are dropped so the summary reads "Indonesia - Batam".
+     */
+    protected static function formatTourCitiesLabel($rawCity, string $destination): string
+    {
+        $rawCity = trim((string) $rawCity);
+        if ($rawCity === '') {
+            return '';
+        }
+
+        $stripped = preg_replace(['/\[[^\]]*\]/u', '/\([^)]*\)/u'], '', $rawCity) ?? $rawCity;
+
+        $destinations = array_filter(array_map(
+            static fn ($part) => mb_strtolower(trim($part)),
+            explode(',', $destination)
+        ));
+
+        $cities = [];
+        foreach (explode(',', $stripped) as $part) {
+            $name = trim($part);
+            if ($name === '' || in_array(mb_strtolower($name), $destinations, true)) {
+                continue;
+            }
+            if (! in_array($name, $cities, true)) {
+                $cities[] = $name;
+            }
+        }
+
+        return implode(', ', $cities);
+    }
+
+    /**
+     * Flat "Trip summary" fields for the quotation/booking email header card.
+     *
+     * prepareEmailTemplateData() returns the PDF-shaped payload (tour object,
+     * bookingDetails, tourPrices), but the email card reads flat keys such as
+     * check_in_date / adults / country. Without this mapping the card renders
+     * N/A, 0 guest(s) and no value.
+     *
+     * @param  array<string, mixed>  $pdfData
+     * @return array<string, mixed>
+     */
+    protected static function buildTourTripSummaryFields(Tour $tour, array $pdfData, string $currencyCode): array
+    {
+        $bookingDetails = is_array($pdfData['bookingDetails'] ?? null) ? $pdfData['bookingDetails'] : [];
+
+        $adults = (int) ($bookingDetails['no_of_adults'] ?? $tour->adult ?? 0);
+        $children = (int) ($bookingDetails['no_of_children'] ?? $tour->child ?? 0);
+        $infants = (int) ($bookingDetails['no_of_infants'] ?? $tour->infant ?? 0);
+
+        $formatDate = static function ($value): string {
+            if (empty($value)) {
+                return 'N/A';
+            }
+
+            try {
+                return Carbon::parse($value)->format('M d, Y');
+            } catch (\Throwable $e) {
+                return 'N/A';
+            }
+        };
+
+        // tours has no country column; destination holds the country name.
+        $destination = trim((string) ($tour->destination ?? ''));
+        $city = self::formatTourCitiesLabel($tour->city ?? null, $destination);
+
+        $tourPrices = is_array($pdfData['tourPrices'] ?? null) ? $pdfData['tourPrices'] : [];
+        $estimatedTotal = self::estimateQuotationPackageTotal($tour, $tourPrices, $adults, $children, $infants);
+
+        return [
+            'country' => $destination,
+            'destination' => $destination !== '' ? $destination : 'N/A',
+            'cities_label' => $city,
+            'check_in_date' => $formatDate($tour->check_in_time ?? null),
+            'check_out_date' => $formatDate($tour->check_out_time ?? null),
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'total_guests' => $adults + $children + $infants,
+            'currency_code' => $currencyCode,
+            'total_estimation' => round($estimatedTotal, 2),
+        ];
+    }
+
+    /**
+     * Intelligent Est. Quotation Value for FIT / GROUP rooming scenarios.
+     *
+     * Hotel = nightly_room_rate × rooms × trip_nights
+     * Other = other_per_head × chargeable adults (not × nights, not × children)
+     *
+     * tourPrices hotel figures are per-head stay totals (nights already summed for
+     * the hotel booking). Convert to a nightly ROOM rate before × trip nights.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function estimateQuotationPackageTotal(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): float {
+        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
+        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
+        $hotelStaySingle = max(0, (float) ($tourPrices['single_sharing'] ?? 0) - $otherSingle);
+        $hotelStayDouble = max(0, (float) ($tourPrices['double_sharing'] ?? 0) - $otherDouble);
+        $hotelStayTriple = max(0, (float) ($tourPrices['triple_sharing'] ?? 0) - $otherSingle);
+
+        $tripNights = self::resolveTourNightCount($tour);
+        $hotelBookedNights = self::resolveHotelBookedNightCount($tour, $tourPrices, $tripNights);
+
+        $nightlyRoom = [
+            'single' => self::nightlyRoomRateFromStay($hotelStaySingle, $hotelBookedNights, 1),
+            'double' => self::nightlyRoomRateFromStay($hotelStayDouble, $hotelBookedNights, 2),
+            'triple' => self::nightlyRoomRateFromStay($hotelStayTriple, $hotelBookedNights, 3),
+        ];
+
+        $focSeats = strtoupper((string) ($tour->tour_type ?? 'FIT')) === 'GROUP'
+            ? max(0, (int) ($tour->foc_size ?? 0))
+            : 0;
+        $chargeableAdults = max(0, $adults - $focSeats);
+
+        $roomPlan = self::buildHotelRoomPlan(
+            $chargeableAdults,
+            $nightlyRoom['single'] > 0,
+            $nightlyRoom['double'] > 0,
+            $nightlyRoom['triple'] > 0
+        );
+
+        $hotelTotal = 0.0;
+        foreach ($roomPlan as $occupancy => $rooms) {
+            if ($rooms <= 0) {
+                continue;
+            }
+            $hotelTotal += $nightlyRoom[$occupancy] * $rooms * $tripNights;
+        }
+
+        $primaryOccupancy = $roomPlan['triple'] > 0 ? 'triple'
+            : ($roomPlan['double'] > 0 ? 'double' : 'single');
+        $otherPerHead = $primaryOccupancy === 'single'
+            ? $otherSingle
+            : ($otherDouble > 0 ? $otherDouble : $otherSingle);
+
+        return $hotelTotal + ($otherPerHead * $chargeableAdults);
+    }
+
+    /**
+     * Trip nights from tour check-in / check-out (minimum 1).
+     */
+    protected static function resolveTourNightCount(Tour $tour): int
+    {
+        try {
+            if (! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+                return max(1, (int) Carbon::parse($tour->check_in_time)->diffInDays(Carbon::parse($tour->check_out_time)));
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return 1;
+    }
+
+    /**
+     * Nights already baked into tourPrices hotel stay totals.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function resolveHotelBookedNightCount(Tour $tour, array $tourPrices, int $tripNights): int
+    {
+        $options = $tourPrices['hotel_price_options'] ?? [];
+        if (is_array($options)) {
+            $nights = 0;
+            foreach ($options as $option) {
+                if (! is_array($option)) {
+                    continue;
+                }
+                $range = (string) ($option['date_range'] ?? $option['booking_range'] ?? '');
+                if (preg_match('/(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/i', $range, $m)) {
+                    try {
+                        $nights += max(1, (int) Carbon::parse($m[1])->diffInDays(Carbon::parse($m[2])));
+                    } catch (\Throwable $e) {
+                        // ignore bad range
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        }
+
+        // Fall back to hotel order bookingDate ranges on this tour.
+        try {
+            $orders = Order::where('tour_id', $tour->tour_id)
+                ->where('status', 1)
+                ->where(function ($q) {
+                    $q->where('type', 'hotel')->orWhere('type', 'Hotel');
+                })
+                ->get();
+
+            $nights = 0;
+            foreach ($orders as $order) {
+                $raw = $order->data;
+                if (is_string($raw)) {
+                    $raw = json_decode($raw, true);
+                }
+                if (! is_array($raw) || $raw === []) {
+                    continue;
+                }
+                $items = isset($raw[0]) ? $raw : [$raw];
+                foreach ($items as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+                    $bookingDate = $item['bookingDate'] ?? null;
+                    if (is_array($bookingDate) && count($bookingDate) >= 2 && ! empty($bookingDate[0]) && ! empty($bookingDate[1])) {
+                        $nights += max(1, (int) Carbon::parse($bookingDate[0])->diffInDays(Carbon::parse($bookingDate[1])));
+                        continue;
+                    }
+                    $night = (int) ($item['night'] ?? $item['nights'] ?? 0);
+                    if ($night > 0) {
+                        $nights += $night;
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return max(1, $tripNights);
+    }
+
+    /**
+     * Convert a per-head stay total into a nightly ROOM rate.
+     */
+    protected static function nightlyRoomRateFromStay(float $stayPerHead, int $hotelBookedNights, int $headsPerRoom): float
+    {
+        if ($stayPerHead <= 0 || $headsPerRoom <= 0) {
+            return 0.0;
+        }
+
+        $nights = max(1, $hotelBookedNights);
+
+        return ($stayPerHead / $nights) * $headsPerRoom;
+    }
+
+    /**
+     * Allocate rooms for chargeable adults using the largest available occupancy.
+     *
+     * @return array{single: int, double: int, triple: int}
+     */
+    protected static function buildHotelRoomPlan(
+        int $adults,
+        bool $singleAvailable,
+        bool $doubleAvailable,
+        bool $tripleAvailable
+    ): array {
+        $plan = ['single' => 0, 'double' => 0, 'triple' => 0];
+        $remaining = max(0, $adults);
+
+        if ($remaining === 0) {
+            if ($singleAvailable) {
+                $plan['single'] = 1;
+            } elseif ($doubleAvailable) {
+                $plan['double'] = 1;
+            }
+
+            return $plan;
+        }
+
+        if ($tripleAvailable) {
+            $plan['triple'] = intdiv($remaining, 3);
+            $remaining %= 3;
+        }
+
+        if ($doubleAvailable) {
+            $plan['double'] = intdiv($remaining, 2);
+            $remaining %= 2;
+            if ($remaining === 1 && ! $singleAvailable) {
+                $plan['double']++;
+                $remaining = 0;
+            }
+        }
+
+        if ($remaining > 0) {
+            if ($singleAvailable) {
+                $plan['single'] += $remaining;
+            } elseif ($doubleAvailable) {
+                $plan['double'] += $remaining;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] += (int) ceil($remaining / 3);
+            }
+        }
+
+        if ($adults > 0 && ($plan['single'] + $plan['double'] + $plan['triple']) === 0) {
+            if ($doubleAvailable) {
+                $plan['double'] = max(1, (int) ceil($adults / 2));
+            } elseif ($singleAvailable) {
+                $plan['single'] = $adults;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] = max(1, (int) ceil($adults / 3));
+            } else {
+                $plan['double'] = 1;
+            }
+        }
+
+        return $plan;
     }
 
     /**
