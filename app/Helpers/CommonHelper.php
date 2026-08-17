@@ -9880,47 +9880,75 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $total = 0.0;
         foreach ($bookings as $booking) {
-            if (!in_array((int) $booking->status, [1, 3], true)) {
-                continue;
-            }
-            $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
-            if (!is_array($data)) {
-                continue;
-            }
-            $orderType = $booking->type ?? '';
-            foreach ($data as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
-
-                // Hotel: pickup total only - do NOT add transfer (transport added automatically).
-                $transferPrice = 0.0;
-                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
-                    if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
-                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
-                    } else {
-                        $transferPrice = (float) $item['transfer_options']['cost'];
-                    }
-                }
-
-                $guidePrice = 0.0;
-                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
-                    $gv = $item['guide_options']['total_price']
-                        ?? $item['guide_options']['cost']
-                        ?? $item['guide_options']['Cost']
-                        ?? $item['guide_options']['sell']
-                        ?? $item['guide_options']['Sell']
-                        ?? 0;
-                    if ($gv > 0) {
-                        $guidePrice = (float) $gv;
-                    }
-                }
-
-                $total += $itemPrice + $transferPrice + $guidePrice;
-            }
+            $total += self::calculateOrderGrossAmount($booking, $isPro);
         }
 
         return (float) ceil($total);
+    }
+
+    /**
+     * One order's contribution to the tour gross, unrounded.
+     *
+     * Split out of calculateTourGrossAmount so anything that needs the value of a
+     * single service (such as topping up a negotiated enquiry) uses the identical
+     * formula and can never drift from the tour total.
+     *
+     * @param  \App\Models\Order|null  $order
+     * @param  int|null  $isPro  tours.is_pro; looked up from the order's tour when omitted
+     */
+    public static function calculateOrderGrossAmount($order, ?int $isPro = null): float
+    {
+        if (!$order) {
+            return 0.0;
+        }
+        if (!in_array((int) $order->status, [1, 3], true)) {
+            return 0.0;
+        }
+
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        if ($isPro === null) {
+            $tour = Tour::where('tour_id', $order->tour_id)->first();
+            $isPro = (int) ($tour->is_pro ?? 0);
+        }
+
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+            // Hotel: pickup total only - do NOT add transfer (transport added automatically).
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 }

@@ -2633,7 +2633,6 @@ class TourController extends Controller
                     'tour_id' => $tour_id, 
                     'status' => 1,
                     'dmcId' => $tour->dmc_id,
-                    'enquiry_id' => $enquiryId,
                     'sender_id' => $userId,
                     'sender_type' => 'agent',
                     'receiver_id' => $currentEnquiry->sender_id ?? 0,
@@ -2644,6 +2643,7 @@ class TourController extends Controller
                     'comment' => $request->comment,
                     'status' => 1,
                 ]);
+                $enquiry->refresh();
                 
                 if ($enquiry) {
                     // Mark previous enquiry as inactive if it exists
