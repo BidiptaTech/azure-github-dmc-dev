@@ -68,141 +68,96 @@ class CountryController extends Controller
     public function getDmcs(Request $request)
     {
         $user = auth()->user();
-        $agentCreatedBy = $user->sales_manager_dmc;
-        if(!$agentCreatedBy){
-            return response()->json(['error' => 'Agent not found'], 404);
-        }
-        $createdByDmc = User::where('userId', $agentCreatedBy)->first();
-        if(!$createdByDmc){
-            return response()->json(['error' => 'Agent DMC not found'], 404);
-        }
-        $agentDmcIds = null;
-        if($user->agency_id){
-        $agency = Agency::where('agency_id', $user->agency_id)->first();
-            $agentDmcIds = $agency->dmc_id;
-        }
-        if(!$agentDmcIds){
-            $agentDmcIds = [];
-        }
-        else{
-            $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
-        }
-        if (empty($agentDmcIds)) {
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11);
+        $agentDmcIds = [];
+        $restrictToAgencyDmcs = false;
+
+        if ($user && $user->agency_id) {
+            $agency = Agency::where('agency_id', $user->agency_id)->first();
+            $restrictToAgencyDmcs = true;
+            $agentDmcIds = $agency ? $agency->dmc_id : [];
         }
 
-        else{
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
+        if (is_string($agentDmcIds) && str_starts_with(trim($agentDmcIds), '[')) {
+            $agentDmcIds = json_decode($agentDmcIds, true);
+        } elseif (is_string($agentDmcIds)) {
+            $agentDmcIds = explode(',', $agentDmcIds);
         }
 
-        // if (count($agentDmcIds) > 1 && $createdByDmc->role_id != 20) {
-            
-        // }
-        // elseif (count($agentDmcIds) == 1 && $createdByDmc->role_id != 20) {
-        //     $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] )->first();
-        //     if (!$dmcs) {
-        //         $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
-        //     }
-        //     else{
-        //         $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] );
-        //     }
-        // }
-        // elseif ($createdByDmc->role_id == 20) {
-        //     $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11);
-        // }
-        // else {
-        //     $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
-        // }
+        if (!is_array($agentDmcIds)) {
+            $agentDmcIds = $agentDmcIds ? [$agentDmcIds] : [];
+        }
 
-        // Apply country filter if provided
-        if ($request->has('country')) {
-            // Handle country as JSON string, array, or single string
+        $agentDmcIds = array_values(array_map('intval', array_filter($agentDmcIds, function ($id) {
+            return $id !== null && $id !== '' && (int) $id > 0;
+        })));
+
+        $dmcColumns = ['userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address', 'zone_on', 'price_hide'];
+        $dmcsQuery = User::select($dmcColumns)->where('role_id', 11);
+
+        if ($restrictToAgencyDmcs) {
+            $dmcsQuery->whereIn('userId', $agentDmcIds ?: [0]);
+        }
+
+        $requestCountries = [];
+        if ($request->filled('country')) {
             $countryParam = $request->country;
-            
-            if (is_string($countryParam) && strpos($countryParam, '[') === 0) {
-                // Clean the JSON string - remove extra quotes and fix common issues
-                $cleanedParam = str_replace("''", '"', $countryParam);
-                $cleanedParam = str_replace("'", '"', $cleanedParam);
-                
-                // It's a JSON string like ["Singapore", "India"]
+
+            if (is_string($countryParam) && str_starts_with(trim($countryParam), '[')) {
+                $cleanedParam = str_replace(["''", "'"], '"', $countryParam);
                 $requestCountries = json_decode($cleanedParam, true);
-                
-                // Check if JSON decode failed
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    return response()->json([
-                        'error' => 'Invalid country format',
-                        'debug' => [
-                            'originalCountryParam' => $countryParam,
-                            'cleanedParam' => $cleanedParam,
-                            'jsonError' => json_last_error_msg()
-                        ]
-                    ], 400);
+                    return response()->json(['error' => 'Invalid country format'], 400);
                 }
             } elseif (is_array($countryParam)) {
-                // It's already an array
                 $requestCountries = $countryParam;
             } else {
-                // It's a single string
                 $requestCountries = [$countryParam];
             }
-            
-            // Ensure we have a valid array and filter out null values
+
             if (!is_array($requestCountries)) {
                 $requestCountries = [$requestCountries];
             }
-            
-            // Filter out null values
-            $requestCountries = array_filter($requestCountries, function($country) {
-                return $country !== null && $country !== '';
-            });
-            
-            // If no valid countries, return error
+
+            $requestCountries = array_values(array_filter($requestCountries, function ($country) {
+                return $country !== null && trim((string) $country) !== '';
+            }));
+
             if (empty($requestCountries)) {
-                return response()->json([
-                    'error' => 'No valid countries provided',
-                    'debug' => [
-                        'originalCountryParam' => $countryParam,
-                        'processedCountries' => $requestCountries
-                    ]
-                ], 400);
+                return response()->json(['error' => 'No valid countries provided'], 400);
             }
-            
-            // Apply country filter to query
+
+            $normalizedCountries = array_map(function ($country) {
+                return preg_replace('/\s+/', '', (string) $country);
+            }, $requestCountries);
+
+            $quoted = array_map(function ($country) {
+                return '"' . str_replace('"', '\\"', $country) . '"';
+            }, $normalizedCountries);
+
             $dmcsQuery->whereRaw(
-                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
-                [ '{' . implode(',', $requestCountries) . '}' ]
+                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?",
+                ['{' . implode(',', $quoted) . '}']
             );
         }
-        
-        // Apply search if provided
-        if ($request->has('search')) {
+
+        if ($request->filled('search')) {
             $search = $request->search;
-            $dmcsQuery->where(function($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%");
+            $dmcsQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%");
             });
         }
-        // Apply pagination
-        $perPage = $request->input('per_page', 10); // Default 10 items per page
-        $page = $request->input('page', 1);
-        
-        // Get paginated results
+
+        $perPage = (int) $request->input('per_page', 10);
+        $page = (int) $request->input('page', 1);
         $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
 
-        if($dmcs->isEmpty() && $request->has('country')){
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11)->whereRaw(
-                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
-                [ '{' . implode(',', $requestCountries) . '}' ]
-            );
-            $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
-        }
-        
-        // Transform the response to ensure zone_on and price_hide are always included
         $dmcs->getCollection()->transform(function ($dmc) {
             $dmc->zone_on = $dmc->zone_on ?? false;
             $dmc->price_hide = $dmc->price_hide ?? false;
             return $dmc;
         });
-       
+
         return response()->json($dmcs);
     }
 

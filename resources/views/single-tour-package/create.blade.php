@@ -18603,6 +18603,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -18691,25 +18709,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Custom Price Field for Entry Port (Zone = 0) -->
-                                            <div class="col-12 mt-3 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
-                                                <div class="alert alert-warning">
-                                                    <div class="form-group mb-0">
-                                                        <label class="form-label fw-semibold mb-2">
-                                                            <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                        </label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                            <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
-                                                            <span class="input-group-text">.00</span>
-                                                        </div>
-                                                        <small class="form-text text-muted mt-1">
-                                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                                        </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 
                                                 <!-- Hidden fields for entry port pricing -->
                                             <div class="col-12">
@@ -25681,6 +25680,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -25767,24 +25785,6 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Custom Price Field for Additional Entry Port (Zone = 0) -->
-                            <div class="col-12 mt-2 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
-                                <div class="alert" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem 1rem;">
-                                    <div class="form-group mb-0">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.85rem;">
-                                            <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group" style="max-width: 200px;">
-                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">{{ $dmcCurrency }}</span>
-                                            <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
-                                        </div>
-                                        <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                        </small>
                                     </div>
                                 </div>
                             </div>
