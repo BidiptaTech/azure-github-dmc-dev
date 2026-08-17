@@ -2092,10 +2092,16 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>|null
      */
-    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = []): ?array
+    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = [], array $fallback = []): ?array
     {
-        // DMC-level values take precedence over payload-level fallbacks.
-        $source = array_merge($payload, $primaryDmc);
+        // Precedence: DMC entry > payload root > this DMC's stored mail settings.
+        // Empty values never mask a populated fallback, which is what lets the
+        // stored smtp_pass fill in when the API omits it.
+        $source = array_merge(
+            $fallback,
+            self::filterPopulatedMailFields($payload),
+            self::filterPopulatedMailFields($primaryDmc)
+        );
         $host = trim((string) ($source['smtp_host'] ?? ''));
         $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 65535],
@@ -2130,6 +2136,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'from_email' => $fromEmail,
             'from_name' => trim((string) ($source['ai_from_name'] ?? '')) ?: config('app.name'),
         ];
+    }
+
+    /**
+     * Drop null/blank entries so a lower-priority source can supply the value.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private static function filterPopulatedMailFields(array $fields): array
+    {
+        return array_filter(
+            $fields,
+            static fn ($value) => $value !== null && (! is_string($value) || trim($value) !== '')
+        );
     }
 
     public static function getDmcId($auth_user){
@@ -3563,7 +3583,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' - Travclicks';
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
             $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
@@ -3637,7 +3657,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' - Travclicks';
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
             $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
@@ -4135,7 +4155,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
 
-        return self::normalizeQuotationEmailData(array_merge($pdfData, [
+        return self::normalizeQuotationEmailData(array_merge($pdfData, self::buildTourTripSummaryFields($tour, $pdfData, $baseCurrency), [
             'dmc_name' => $dmcName,
             'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
             'dmc_label' => $dmcName,
@@ -4156,6 +4176,99 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'logoType' => 'dmc',
             'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
         ]));
+    }
+
+    /**
+     * City names for display, from the stored
+     * "Batam (Indonesia) [2026-08-14->2026-09-05], ..." format.
+     * Country suffixes, date ranges and cities already named by the
+     * destination are dropped so the summary reads "Indonesia - Batam".
+     */
+    protected static function formatTourCitiesLabel($rawCity, string $destination): string
+    {
+        $rawCity = trim((string) $rawCity);
+        if ($rawCity === '') {
+            return '';
+        }
+
+        $stripped = preg_replace(['/\[[^\]]*\]/u', '/\([^)]*\)/u'], '', $rawCity) ?? $rawCity;
+
+        $destinations = array_filter(array_map(
+            static fn ($part) => mb_strtolower(trim($part)),
+            explode(',', $destination)
+        ));
+
+        $cities = [];
+        foreach (explode(',', $stripped) as $part) {
+            $name = trim($part);
+            if ($name === '' || in_array(mb_strtolower($name), $destinations, true)) {
+                continue;
+            }
+            if (! in_array($name, $cities, true)) {
+                $cities[] = $name;
+            }
+        }
+
+        return implode(', ', $cities);
+    }
+
+    /**
+     * Flat "Trip summary" fields for the quotation/booking email header card.
+     *
+     * prepareEmailTemplateData() returns the PDF-shaped payload (tour object,
+     * bookingDetails, tourPrices), but the email card reads flat keys such as
+     * check_in_date / adults / country. Without this mapping the card renders
+     * N/A, 0 guest(s) and no value.
+     *
+     * @param  array<string, mixed>  $pdfData
+     * @return array<string, mixed>
+     */
+    protected static function buildTourTripSummaryFields(Tour $tour, array $pdfData, string $currencyCode): array
+    {
+        $bookingDetails = is_array($pdfData['bookingDetails'] ?? null) ? $pdfData['bookingDetails'] : [];
+
+        $adults = (int) ($bookingDetails['no_of_adults'] ?? $tour->adult ?? 0);
+        $children = (int) ($bookingDetails['no_of_children'] ?? $tour->child ?? 0);
+        $infants = (int) ($bookingDetails['no_of_infants'] ?? $tour->infant ?? 0);
+
+        $formatDate = static function ($value): string {
+            if (empty($value)) {
+                return 'N/A';
+            }
+
+            try {
+                return Carbon::parse($value)->format('M d, Y');
+            } catch (\Throwable $e) {
+                return 'N/A';
+            }
+        };
+
+        // tours has no country column; destination holds the country name.
+        $destination = trim((string) ($tour->destination ?? ''));
+        $city = self::formatTourCitiesLabel($tour->city ?? null, $destination);
+
+        // Estimated value = single-sharing per-head rate x chargeable pax.
+        // FOC seats on GROUP tours are excluded, matching the "No. of Pax" line.
+        $tourPrices = is_array($pdfData['tourPrices'] ?? null) ? $pdfData['tourPrices'] : [];
+        $perHeadRate = (float) ($tourPrices['single_sharing'] ?? 0);
+        $focSeats = strtoupper((string) ($tour->tour_type ?? 'FIT')) === 'GROUP'
+            ? max(0, (int) ($tour->foc_size ?? 0))
+            : 0;
+        $chargeablePax = max(0, $adults - $focSeats) + $children + $infants;
+
+        return [
+            'country' => $destination,
+            'destination' => $destination !== '' ? $destination : 'N/A',
+            'cities_label' => $city,
+            'check_in_date' => $formatDate($tour->check_in_time ?? null),
+            'check_out_date' => $formatDate($tour->check_out_time ?? null),
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'total_guests' => $adults + $children + $infants,
+            'currency_code' => $currencyCode,
+            'total_estimation' => round($perHeadRate * $chargeablePax, 2),
+        ];
     }
 
     /**
