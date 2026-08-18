@@ -3659,8 +3659,19 @@ class SingleTourPackageController extends Controller
                     $normalizedToZoneType = 'Port';
                 }
 
-                // Get vehicle mappings for both directions (bidirectional) with zone type matching
-                $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
+
+                // Get vehicle mappings for both directions (bidirectional) with zone type matching.
+                // Restrict to this DMC's vehicles. Do not use whereHas('vehicle'):
+                // vehicle_zone_mappings.vehicle_id is varchar, vehicles.vehicle_id is bigint,
+                // and Postgres refuses that comparison without an explicit cast.
+                $dmcVehicleIds = Vehicle::where('dmc_id', $dmcId)
+                    ->pluck('vehicle_id')
+                    ->map(fn ($id) => (string) $id)
+                    ->all();
+
+                $vehicleMappings = empty($dmcVehicleIds)
+                    ? collect()
+                    : VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
                     // Original direction: from -> to
                     $query->where(function($q) use ($actualFromZoneId, $actualToZoneId, $normalizedFromZoneType, $normalizedToZoneType) {
                         $q->where('from_zone_id', $actualFromZoneId)
@@ -3686,8 +3697,9 @@ class SingleTourPackageController extends Controller
                         }
                     });
                 })
+                ->whereIn('vehicle_id', $dmcVehicleIds)
                 ->get();
-                
+
                 // Map vehicles with zone mapping prices and deduplicate by vehicle_id
                 $vehiclesMap = [];
                 $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
