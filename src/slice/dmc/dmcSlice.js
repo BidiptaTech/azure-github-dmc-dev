@@ -35,7 +35,7 @@ export const fetchDMCsByCountry = createAsyncThunk(
       const response = await axios.get(`${BASE_URL}/get-dmcs`, {
         headers,
         params: {
-          country: countryParam,
+          country: countries,
           agent_id: AgentId,
         }
       });

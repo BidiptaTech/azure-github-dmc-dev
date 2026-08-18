@@ -782,7 +782,7 @@ export default function Index2() {
         )}
 
         {/* Show Make an Enquiry button only if mode is "dmc" AND bookingType is "enquiry" */}
-        {mode === "dmc" && bookingType === "enquiry" && (
+        {bookingType === "enquiry" && (
           <Button
             variant="outlined"
             onClick={handleEnquirySubmit}

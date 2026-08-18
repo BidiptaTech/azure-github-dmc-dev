@@ -43,8 +43,8 @@ const TravelHourlyBooking = ({
   console.log("staxx", sgdTax);
   const usdTax = useSelector((state) => state.auth.usdTax);
   console.log("utax", usdTax);
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector((state) => state.dmc.selectedDmcCompanyName);
+  const DmcLogo = useSelector((state) => state.dmc.selectedDmcLogo);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   if (!bookingDetails) return null;

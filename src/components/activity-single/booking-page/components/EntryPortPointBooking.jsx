@@ -45,8 +45,8 @@ const EntryPortPointBooking = ({
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   // Get DMC info from Redux
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector((state) => state.dmc.selectedDmcCompanyName);
+  const DmcLogo = useSelector((state) => state.dmc.selectedDmcLogo);
 
   // Format price with commas
   const formatPrice = (price) => {

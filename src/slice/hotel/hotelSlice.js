@@ -376,7 +376,7 @@ const hotelSlice = createSlice({
     },
     settourdetails: (state, action) => {
       state.tourdetails = action.payload;
-      // console.log("tdetails", state.tourdetails);
+       console.log("tdetails", state.tourdetails);
     },
     resetHotels: (state) => {
       state.hotels = [];

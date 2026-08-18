@@ -155,6 +155,7 @@ export const createBooking = createAsyncThunk(
         });
       }
 
+      const country = state.hotels.tourdetails?.destination;
       const searchLocation = bookings.searchLocation || [];
       const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
         .map((loc) => countryCodeToName[loc] || loc)
@@ -196,7 +197,7 @@ export const createBooking = createAsyncThunk(
 
       // Only add tour meta if no tour_id exists
       if (!hasTourId) {
-        updatedBookingDetails.destination = destination;
+        updatedBookingDetails.destination = country;
         updatedBookingDetails.check_in = check_in;
         updatedBookingDetails.check_out = check_out;
         updatedBookingDetails.adult = adult;

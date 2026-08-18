@@ -308,6 +308,7 @@ export const Localtourslice = createAsyncThunk(
         });
       }
 
+      const country = state.hotels.tourdetails?.destination;
       const searchLocation = bookings.searchLocation || [];
       const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
         .map((loc) => countryCodeToName[loc] || loc)
@@ -350,7 +351,7 @@ export const Localtourslice = createAsyncThunk(
 
         // Only add tour meta if no tour_id exists
         if (!hasTourId) {
-          formData.destination = destination;
+          formData.destination = country;
           formData.check_in = check_in;
           formData.check_out = check_out;
           formData.adult = adultMeta;
@@ -383,7 +384,7 @@ export const Localtourslice = createAsyncThunk(
 
         // Only add tour meta if no tour_id exists
         if (!hasTourId) {
-          formData1.destination = destination;
+          formData1.destination = country;
           formData1.check_in = check_in;
           formData1.check_out = check_out;
           formData1.adult = adultMeta;

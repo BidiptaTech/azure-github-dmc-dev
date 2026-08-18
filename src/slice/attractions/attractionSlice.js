@@ -187,7 +187,7 @@ export const createBooking = createAsyncThunk(
             }
           });
         }
-
+        const country = state.hotels.tourdetails?.destination;
         const searchLocation = bookings.searchLocation || [];
         const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
           .map((loc) => countryCodeToName[loc] || loc)
@@ -198,7 +198,7 @@ export const createBooking = createAsyncThunk(
         
         tourMeta = {
           tour_id: "",
-          destination,
+          destination: country,
           check_in,
           check_out,
           adult: bGuests.adults ?? 1,
