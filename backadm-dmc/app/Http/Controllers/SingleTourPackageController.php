@@ -1782,15 +1782,22 @@ class SingleTourPackageController extends Controller
         $cityName = $request->input('city');
 
         // Arrival/departure need every port in the country, not only the selected city.
+        // Create/edit JS sends the country *name* as country_id (e.g. "Indonesia").
+        // Country::find() on Postgres bigint ids throws if that value is not numeric.
         $portsCountryName = null;
         if (!empty($countryId)) {
-            $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
-            $portsCountryName = $country ? $country->name : (is_numeric($countryId) ? null : $countryId);
+            if (is_numeric($countryId)) {
+                $country = Country::find($countryId);
+                $portsCountryName = $country ? $country->name : null;
+            } else {
+                $country = Country::where('name', $countryId)->first();
+                $portsCountryName = $country ? $country->name : $countryId;
+            }
         }
 
         if ($portsCountryName === null && !empty($cityName)) {
             $cityRow = City::where('name', $cityName)->first(['country']);
-            $portsCountryName = $cityRow->country ?: null;
+            $portsCountryName = $cityRow->country ?? null;
         }
 
         if ($portsCountryName === null) {
@@ -1802,7 +1809,7 @@ class SingleTourPackageController extends Controller
                 'id' => $port->id,
                 'port_id' => $port->port_id,
                 'port_name' => $port->port_name,
-                'country' => $port->country,
+                'country' => $port->getAttribute('country'),
                 'city_id' => $port->city_id ?? null,
             ])
             ->values();
