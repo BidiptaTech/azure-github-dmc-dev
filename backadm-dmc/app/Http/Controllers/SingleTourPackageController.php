@@ -38,6 +38,7 @@ use App\Models\MultiRestaurant;
 use App\Models\PackagedAttraction;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
+use App\Services\EnquiryAmountTopUpService;
 
 class SingleTourPackageController extends Controller
 {
@@ -5079,6 +5080,26 @@ class SingleTourPackageController extends Controller
     }
 
     /** All Add more services modal submission handling from below */
+    /**
+     * Add a freshly booked service on top of the tour's negotiated enquiry amount.
+     *
+     * No-op when the tour was never negotiated. Never allowed to fail the booking —
+     * the order row is already committed by the time this runs.
+     */
+    private function topUpEnquiryAmount(Order $order): void
+    {
+        try {
+            app(EnquiryAmountTopUpService::class)->addOrder($order);
+        } catch (\Throwable $e) {
+            Log::warning('Enquiry amount top-up failed', [
+                'tour_id' => $order->tour_id ?? null,
+                'booking_id' => $order->booking_id ?? null,
+                'type' => $order->type ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     public function orderSelectHotel(Request $request)
     {
         $bookingData = json_decode($request->input('booking_data'), true);
@@ -5138,6 +5159,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
         // Only auto-fill destination when the tour doesn't have one yet.
         // Never overwrite an existing (possibly multi-country) destination with a single
         // hotel's location — that used to wipe out other countries on multi-city tours
@@ -5231,6 +5253,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -5318,6 +5341,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -5396,6 +5420,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null) {
             $firstItem = is_array($bookingData) && isset($bookingData[0]) ? $bookingData[0] : $bookingData;
@@ -5497,6 +5522,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
             $firstItem = $transportData[0];
@@ -5585,6 +5611,7 @@ class SingleTourPackageController extends Controller
         ]);
         $order->refresh();
         $bookingId = $order->booking_id;
+        $this->topUpEnquiryAmount($order);
 
         $tourStatus = $tour->tour_status;
         if ($tourStatus !== null && is_array($transportData) && count($transportData) > 0) {
@@ -6527,6 +6554,5 @@ class SingleTourPackageController extends Controller
         
         return $fixedRooms;
     }
-    
     
 }
