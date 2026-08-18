@@ -231,7 +231,7 @@ class SingleTourPackageController extends Controller
 
         $userDmcId = CommonHelper::getDmcId(Auth::user());
 
-        $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
+        $UserDmc = User::select('userId','zone_on','thirdparty')->where('userId', $userDmcId)->first();
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
 
         // Multi Restaurant (Buffet) packages for this DMC – one package per DMC, show at top of restaurant section
@@ -831,7 +831,15 @@ class SingleTourPackageController extends Controller
                 $request->input('discount_amount', 0)
             ) ?: 0));
             // Persist new DB column `city_type` ("single" / "multi")
-            $tour->city_type = $request->city_type ?? ($request->city_mode ?? 'single');
+            $cityType = $request->city_type ?? ($request->city_mode ?? 'single');
+            $operatingDmcId = (int) ($request->dmc_id ?: CommonHelper::getDmcId(Auth::user()));
+            if ($operatingDmcId > 0) {
+                $operatingDmc = User::select('thirdparty')->where('userId', $operatingDmcId)->first();
+                if ($operatingDmc && strtolower(trim((string) ($operatingDmc->thirdparty ?? 'no'))) === 'yes') {
+                    $cityType = 'single';
+                }
+            }
+            $tour->city_type = $cityType;
             // $tour->tour_id = $tourId;
             $tour->male_count = $request->male;
             $tour->female_count = $request->female;
@@ -1778,31 +1786,23 @@ class SingleTourPackageController extends Controller
         $countryId = $request->input('country_id');
         $cityName = $request->input('city');
 
-        // A city is enough on its own: it determines both cities.city_id (for ports.city_id)
-        // and its own country, so the country field is optional on city-driven pages.
-        $cityId = null;
+        // Arrival/departure need every port in the country, not only the selected city.
         $portsCountryName = null;
-        if (!empty($cityName)) {
-            $cityRow = City::where('name', $cityName)->first(['city_id', 'country']);
-            if ($cityRow) {
-                $cityId = $cityRow->city_id;
-                $portsCountryName = $cityRow->country ?: null;
-            }
-        }
-
-        // Fall back to the country field when no city was supplied (original behaviour).
-        if ($portsCountryName === null) {
-            if (!$countryId) {
-                return response()->json(['ports' => []]);
-            }
+        if (!empty($countryId)) {
             $country = Country::find($countryId) ?? Country::where('name', $countryId)->first();
-            if (!$country) {
-                return response()->json(['ports' => []]);
-            }
-            $portsCountryName = $country->name;
+            $portsCountryName = $country ? $country->name : (is_numeric($countryId) ? null : $countryId);
         }
 
-        $ports = $this->getPortsForDmc($portsCountryName, $cityId !== null ? (int) $cityId : null)
+        if ($portsCountryName === null && !empty($cityName)) {
+            $cityRow = City::where('name', $cityName)->first(['country']);
+            $portsCountryName = $cityRow->country ?: null;
+        }
+
+        if ($portsCountryName === null) {
+            return response()->json(['ports' => []]);
+        }
+
+        $ports = $this->getPortsForDmc($portsCountryName, null)
             ->map(fn ($port) => [
                 'id' => $port->id,
                 'port_id' => $port->port_id,
