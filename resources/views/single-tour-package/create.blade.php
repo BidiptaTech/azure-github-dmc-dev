@@ -371,6 +371,12 @@
             color: #fff;
         }
 
+        .city-toggle.is-thirdparty-disabled {
+            opacity: 0.65;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
         /* Guest Selector Modal Button Hover Effects */
         #mainGuestSelectorModal .btn:hover {
             transform: translateY(-1px);
@@ -797,6 +803,8 @@
                     $dmcUser = \App\Models\User::where('userId', $finalDmcId)->first();
                 }
 
+                $isThirdPartyDmc = strtolower(trim((string) (optional($dmcUser)->thirdparty ?? 'no'))) === 'yes';
+
                 $dmcCurrency = strtoupper(trim((string) (
                     optional($dmcUser)->currency
                     ?? auth()->user()->currency
@@ -835,16 +843,22 @@
                                             <span class="slider"></span>
                                         </div>
                                     </div>
-                                    <div class="ms-3" style="min-width: 230px;">
-                                        <div class="city-toggle">
+                                    <div class="ms-3 d-flex align-items-center flex-wrap gap-2" style="min-width: 230px;">
+                                        <div class="city-toggle{{ !empty($isThirdPartyDmc) ? ' is-thirdparty-disabled' : '' }}" @if(!empty($isThirdPartyDmc)) title="Multi City cannot be accessed for 3rd party DMC." @endif>
                                             <input type="radio" name="city_mode" id="city_mode_single" value="single" checked>
                                             <label for="city_mode_single">Single City</label>
 
-                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi">
+                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi" @if(!empty($isThirdPartyDmc)) disabled @endif>
                                             <label for="city_mode_multi">Multi City</label>
 
                                             <span class="slider"></span>
                                         </div>
+                                        @if(!empty($isThirdPartyDmc))
+                                            <div class="d-flex align-items-center px-2 py-1" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; color: #fff; font-size: 0.72rem; line-height: 1.25; max-width: 220px;">
+                                                <i class="ri-information-line me-1" style="font-size: 0.9rem;"></i>
+                                                <span>Multi City cannot be accessed for 3rd party DMC.</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -1734,6 +1748,7 @@
                     
                     // DMC User data for zone handling
                     const UserDmc = @json($dmcUser);
+                    window.IS_THIRD_PARTY_DMC = @json(!empty($isThirdPartyDmc));
 
                     window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
                     window.getTourCurrency = function () {
@@ -5996,7 +6011,10 @@
                             return null;
                         };
                         let tourId = resolveTourId();
-                        const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        let cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        if (window.IS_THIRD_PARTY_DMC) {
+                            cityMode = 'single';
+                        }
                         const isMultiCity = (cityMode === 'multi');
                         const enquiry = @json($enquiry);
                         const csrfToken = document.querySelector('input[name="_token"]').value;
@@ -7690,6 +7708,12 @@
             }
 
             function setCityMode(mode) {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    mode = 'single';
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    $('.city-toggle').addClass('is-thirdparty-disabled');
+                }
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
@@ -7981,7 +8005,12 @@
             }
 
             $(document).on('change', 'input[name="city_mode"]', function () {
-                const mode = $(this).val();
+                let mode = $(this).val();
+                if (window.IS_THIRD_PARTY_DMC) {
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    mode = 'single';
+                }
                 resetTourPackageCityMode(mode);
                 setCityMode(mode);
                 window.syncSingleCityToAllServices();
@@ -8041,6 +8070,10 @@
             });
 
             $('#addCityPlan').on('click', function () {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    alert('This is a 3rd party DMC. Multi City cannot be accessed.');
+                    return;
+                }
                 const master = getMasterCities();
                 if (!master.length) {
                     alert('Please select cities in the master list first.');
@@ -28765,8 +28798,46 @@
             });
     }
 
-    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
-    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    // Arrival/departure ports come from the city's country, not only that city.
+    window.getCountryForPortCity = function(cityName, selectId) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value === cityName && selected.getAttribute('data-country')) {
+                return selected.getAttribute('data-country');
+            }
+            const match = Array.from(select.options).find(function (o) { return o.value === cityName; });
+            if (match && match.getAttribute('data-country')) {
+                return match.getAttribute('data-country');
+            }
+        }
+        if (Array.isArray(window.allCitiesData)) {
+            const city = window.allCitiesData.find(function (c) { return c && c.name === cityName; });
+            if (city && city.country) {
+                return city.country;
+            }
+        }
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect && countrySelect.value) {
+            return countrySelect.value;
+        }
+        const hidden = document.getElementById('country_id');
+        return (hidden && hidden.value) || '';
+    };
+
+    window.buildPortsByCountryUrl = function(cityName, selectId) {
+        const params = new URLSearchParams();
+        const country = window.getCountryForPortCity(cityName, selectId);
+        if (country) {
+            params.set('country_id', country);
+        }
+        if (cityName) {
+            params.set('city', cityName);
+        }
+        return `{{ route('fetch-ports-by-country-single-tour') }}?${params.toString()}`;
+    };
+
+    // Fetch all ports in the selected city's country and fill the arrival pickup dropdown.
     window.loadEntryPickupPortsForCity = function(cityName) {
         const pickupSelect = document.getElementById('entry_pickup_port_select');
         if (!pickupSelect) return;
@@ -28776,25 +28847,16 @@
             return;
         }
 
-        // Send country too when we can (harmless), but city is what matters.
-        const countrySelect = document.getElementById('user_country');
-        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
-        if (!country && countrySelect && countrySelect.value) {
-            const opt = countrySelect.options[countrySelect.selectedIndex];
-            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
-        }
-
         pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
         $.ajax({
-            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            url: window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'),
             type: "GET",
-            data: { country_id: country, city: cityName },
             dataType: 'json'
         }).done(function(response) {
             const ports = (response && response.ports) ? response.ports : [];
             pickupSelect.innerHTML = ports.length
                 ? '<option value="">Select pickup port</option>'
-                : '<option value="">No ports for this city</option>';
+                : '<option value="">No ports for this country</option>';
             ports.forEach(function(port) {
                 const option = document.createElement('option');
                 option.value = port.port_id;
@@ -28861,7 +28923,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
@@ -28873,7 +28935,7 @@
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            // Add Ports first — all ports in the selected city's country
             const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
@@ -29012,7 +29074,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_exit_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
@@ -29021,13 +29083,13 @@
             console.log('Restaurants:', restaurantsData);
             console.log('Ports:', portsData);
 
-            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            // Departure drop off ports — all ports in the selected city's country
             const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
             if (exitDropoffSelect) {
                 const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
                 exitDropoffSelect.innerHTML = exitPorts.length
                     ? '<option value="">Select dropoff port</option>'
-                    : '<option value="">No ports for this city</option>';
+                    : '<option value="">No ports for this country</option>';
                 exitPorts.forEach(function(port) {
                     const option = document.createElement('option');
                     option.value = port.port_id;
@@ -29424,7 +29486,7 @@
                 </select>
             `;
             
-            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
+            // Dropoff field (ports) — country-wide: filled by loadExitPortsForCity from the city's country.
             dropoffContainer.innerHTML = `
                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
