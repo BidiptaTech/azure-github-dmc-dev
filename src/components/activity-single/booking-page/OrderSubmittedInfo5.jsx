@@ -24,8 +24,8 @@ const OrderSubmittedInfo5 = () => {
   const usdTax = useSelector((state) => state.auth.usdTax);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   const dispatch = useDispatch();
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector((state) => state.dmc.selectedDmcCompanyName);
+  const DmcLogo = useSelector((state) => state.dmc.selectedDmcLogo);
   if (!bookingResponse) {
     return <p>Loading booking details...</p>;
   }

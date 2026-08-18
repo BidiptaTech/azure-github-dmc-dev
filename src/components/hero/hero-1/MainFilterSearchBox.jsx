@@ -48,6 +48,7 @@ import { setCity } from "../../../slice/common/citySlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import { fetchCitiesByCountry } from "../../../slice/common/citiesSlice";
 import { clearTourSession } from "@/utils/tourSession";
+import { clearViewDetails } from "@/slice/common/ViewDetails";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -171,7 +172,7 @@ const MainFilterSearchBox = () => {
 
     // Clear previous selected city
     dispatch(setSelectedCity(null));
-
+    dispatch(clearViewDetails());
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
     dispatch(setHaveBooking(false));

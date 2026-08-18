@@ -52,7 +52,13 @@ const viewDetailsSlice = createSlice({
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearViewDetails: (state) => {
+      state.bookings = [];
+      state.status = "idle";
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchViewDetails.pending, (state) => {
@@ -71,4 +77,5 @@ const viewDetailsSlice = createSlice({
   },
 });
 
+export const { clearViewDetails } = viewDetailsSlice.actions;
 export default viewDetailsSlice.reducer;

@@ -45,8 +45,8 @@ const GuideBooking = ({
   console.log("utax", usdTax);
 
   // Get DMC info from Redux
-  const DmcName = useSelector((state) => state.auth.DmcName);
-  const DmcLogo = useSelector((state) => state.auth.DmcLogo);
+  const DmcName = useSelector((state) => state.dmc.selectedDmcCompanyName);
+  const DmcLogo = useSelector((state) => state.dmc.selectedDmcLogo);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   if (!bookingDetails) return null;
