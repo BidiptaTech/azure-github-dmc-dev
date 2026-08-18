@@ -1282,7 +1282,8 @@
                         <div class="field-item">
                             <i class="ri-calendar-check-line field-icon"></i>
                             <span class="detail-label">Start:</span>
-                            <input type="date" class="form-control form-control-sm beautiful-input" value="{{ $initialData['tour_start_date'] ?? '' }}" id="tourStartDate" name="tour_start_date" onchange="updateStartDate()" autocomplete="off">
+                            {{-- Tour cannot start today — earliest selectable start is tomorrow --}}
+                            <input type="date" class="form-control form-control-sm beautiful-input" value="{{ $initialData['tour_start_date'] ?? '' }}" min="{{ \Carbon\Carbon::now()->addDay()->format('Y-m-d') }}" id="tourStartDate" name="tour_start_date" onchange="updateStartDate()" autocomplete="off">
                         </div>
                         <div class="field-item">
                             <i class="ri-calendar-close-line field-icon"></i>
@@ -1376,6 +1377,61 @@
             </div>
         </div>
         -->
+
+        <!-- City-wise service date windows -->
+        <style>
+            #cityDateRangeSection .city-stay-hint {
+                display: flex; align-items: center; gap: 6px; font-size: 10px; color: #667085;
+                background: #f8f9fc; border: 1px solid #eceff4; border-radius: 5px;
+                padding: 5px 8px; margin-bottom: 8px;
+            }
+            #cityDateRangeSection .city-stay-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+            #cityDateRangeSection .city-stay-col { flex: 1 1 250px; min-width: 235px; }
+            #cityDateRangeSection .city-stay-card {
+                height: 100%; background: #fff; border: 1px solid #e4e7ec; border-left: 3px solid #6f42c1;
+                border-radius: 6px; padding: 8px 10px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+            }
+            #cityDateRangeSection .city-stay-card.is-locked { background: #f7f8fa; border-left-color: #98a2b3; }
+            #cityDateRangeSection .city-stay-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+            #cityDateRangeSection .city-stay-seq {
+                width: 17px; height: 17px; border-radius: 50%; background: #6f42c1; color: #fff;
+                font-size: 9px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;
+            }
+            #cityDateRangeSection .city-stay-card.is-locked .city-stay-seq { background: #98a2b3; }
+            #cityDateRangeSection .city-stay-name {
+                flex: 1; font-size: 11px; font-weight: 600; color: #344054;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            }
+            #cityDateRangeSection .city-stay-nights {
+                font-size: 9px; font-weight: 600; color: #6f42c1; background: #f2ecfb;
+                border-radius: 10px; padding: 1px 7px; white-space: nowrap;
+            }
+            #cityDateRangeSection .city-stay-card.is-locked .city-stay-nights { color: #475467; background: #eceff3; }
+            #cityDateRangeSection .city-stay-card-body { display: flex; align-items: flex-end; gap: 6px; }
+            #cityDateRangeSection .city-stay-field { flex: 1; min-width: 0; }
+            #cityDateRangeSection .city-stay-field label {
+                display: block; font-size: 8.5px; letter-spacing: .04em; text-transform: uppercase;
+                color: #98a2b3; margin-bottom: 2px;
+            }
+            #cityDateRangeSection .city-stay-field input { font-size: 10px; height: 27px; padding: 3px 6px; }
+            #cityDateRangeSection .city-stay-field input:disabled { background: #f2f4f7; color: #667085; }
+            #cityDateRangeSection .city-stay-arrow { color: #cbd2dc; font-size: 12px; padding-bottom: 6px; }
+            #cityDateRangeSection .city-stay-note { margin-top: 5px; font-size: 9px; color: #98a2b3; }
+        </style>
+        <div class="section-card" id="cityDateRangeSection" data-readonly="0" style="display:none;">
+            <div class="section-header">
+                <span><i class="ri-calendar-event-line me-1"></i>City Stay Dates</span>
+                <small class="text-white-50">Every service follows its city's window</small>
+            </div>
+            <div class="section-body">
+                <div class="city-stay-hint">
+                    <i class="ri-information-line"></i>
+                    <span>Set each city's check-out date &mdash; the next city starts on that day. Service dates are then limited to the selected city's window.</span>
+                </div>
+                <div id="cityDateRangeRows" class="city-stay-grid"></div>
+                <div id="cityDateRangeError" class="text-danger mt-1" style="font-size:10px;display:none;"></div>
+            </div>
+        </div>
 
         <!-- Accommodation Section -->
         <div class="section-card">
@@ -5809,6 +5865,7 @@
         updateHiddenInput();
         filterPortsBySelectedCountries();
         syncHeaderCitiesToServiceModals();
+        if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
         if (typeof window.resolveActiveDefaultValues === 'function') {
             window.resolveActiveDefaultValues(destination);
         }
@@ -5821,6 +5878,7 @@
         updateHiddenInput();
         filterPortsBySelectedCountries();
         syncHeaderCitiesToServiceModals();
+        if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
     }
     
     // filterPortsBySelectedCountries / getSelectedCityIdsFromCities: see city-destination-scripts partial
@@ -7687,6 +7745,21 @@
                 });
             }, 100);
         }
+
+        const cityRangeContext = {
+            accommodation: ['hotelDestination', 'accommodation'],
+            tour: ['tourDestination', 'tour'],
+            meal: ['mealDestination', 'meal'],
+            guide: ['guideDestination', 'guide'],
+            misc: ['miscDestination', 'misc'],
+            transfer: ['localDestination', 'local']
+        }[modalType];
+        if (cityRangeContext && typeof applyCityDateRangeToContext === 'function') {
+            applyCityDateRangeToContext(
+                document.getElementById(cityRangeContext[0])?.value || '',
+                cityRangeContext[1]
+            );
+        }
     }
     
     // FOC header controls: sync the visible foc_size / "Free" toggle into the hidden inputs
@@ -8539,12 +8612,27 @@
     
     // ==================== DATE FUNCTIONALITY ====================
     
+    /** Local YYYY-MM-DD (avoids UTC shift from toISOString). */
+    function toLocalDateString(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    
+    /** Tour can start from tomorrow onwards — today and past dates are not selectable. */
+    function getMinTourStartDate() {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 1);
+        return toLocalDateString(d);
+    }
+    
     function updateStartDate() {
         const startDateInput = getHeaderStartInput();
         const endDateInput = getHeaderEndInput();
-        const startDateISO = parseDisplayToISO(startDateInput.value);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        let startDateISO = parseDisplayToISO(startDateInput.value);
+        const minStartISO = getMinTourStartDate();
         updateHeaderDisplays();
         
         // Skip validation if being updated by service date management
@@ -8556,17 +8644,11 @@
             console.log('✓ Skipping start date validation (set by service)');
         } else {
             console.log('→ Manual change detected, applying validation...');
-            // Validate start date is not less than today (only for manual changes)
-            if (startDateISO) {
-                const selectedDate = new Date(startDateISO);
-                selectedDate.setHours(0, 0, 0, 0);
-                
-                if (selectedDate < today) {
-                    alert('Start date cannot be less than today');
-                    const todayIso = today.toISOString().split('T')[0];
-                    setHeaderInputValue(startDateInput, todayIso);
-                    return;
-                }
+            // Tour must begin tomorrow or later (only for manual changes)
+            if (startDateISO && startDateISO < minStartISO) {
+                alert('Start date must be tomorrow or later');
+                startDateISO = minStartISO;
+                setHeaderInputValue(startDateInput, minStartISO);
             }
         }
         
@@ -8603,9 +8685,8 @@
                 calculateNights();
             }
         } else {
-            // Reset end date minimum to today if start date is cleared
-            const todayStr = today.toISOString().split('T')[0];
-            endDateInput.setAttribute('min', todayStr);
+            // Reset end date minimum when start date is cleared
+            endDateInput.setAttribute('min', addDaysToDateString(minStartISO, 1));
             endDateInput.value = '';
             hideNightsDisplay();
         }
@@ -8703,6 +8784,7 @@
         
         // Update arrival/departure date ranges when tour dates change
         updateArrivalDepartureDateRanges();
+        if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
     }
     
     // Update arrival/departure date ranges based on tour start/end dates
@@ -8724,14 +8806,18 @@
             departureDateTime.setAttribute('min', todayDateTimeStr);
             departureDateTime.removeAttribute('max');
         }
+        if (typeof applyOpenServiceCityDateRanges === 'function') {
+            applyOpenServiceCityDateRanges();
+        }
     }
     
     // Update all service date ranges (tours, guides, meals) based on tour start/end dates
     function updateAllServiceDateRanges() {
         // Get all service date/time inputs
         const tourDateTime = document.getElementById('tourDateTime');
-        const guideModalDateTime = document.getElementById('guideModalDateTime');
+        const guideModalDateTime = document.getElementById('guideDate');
         const mealDateTime = document.getElementById('mealDateTime');
+        const miscDate = document.getElementById('miscDate');
         const checkInDate = document.getElementById('checkInDate');
         const checkOutDate = document.getElementById('checkOutDate');
         const arrivalDateTime = document.getElementById('arrivalDateTime');
@@ -8765,6 +8851,11 @@
             mealDateTime.setAttribute('min', todayStr);
             mealDateTime.removeAttribute('max');
         }
+
+        if (miscDate) {
+            miscDate.setAttribute('min', todayStr);
+            miscDate.removeAttribute('max');
+        }
         
         if (checkInDate) {
             checkInDate.setAttribute('min', todayDateStr);
@@ -8797,6 +8888,9 @@
             } else {
                 localDateTime.removeAttribute('max');
             }
+        }
+        if (typeof applyOpenServiceCityDateRanges === 'function') {
+            applyOpenServiceCityDateRanges();
         }
     }
     
@@ -9174,21 +9268,23 @@
             return;
         }
         
-        // Don't set min date restrictions - allow past dates for flexibility
-        // Services might have dates in the past, and we want to accommodate them
-        console.log('initializeDates: Skipping min date restrictions to allow flexible date selection');
+        // Tour start is limited to tomorrow onwards; end date stays flexible for services
+        const minStartISO = getMinTourStartDate();
+        console.log('initializeDates: Minimum selectable start date:', minStartISO);
         console.log('initializeDates: Initial start date value:', startDateInput.value);
         console.log('initializeDates: Initial end date value:', endDateInput.value);
         
-        // Remove any existing min/max constraints
-        startDateInput.removeAttribute('min');
+        startDateInput.setAttribute('min', minStartISO);
         startDateInput.removeAttribute('max');
         endDateInput.removeAttribute('min');
         endDateInput.removeAttribute('max');
 
         // Normalize any initial ISO values into dd-mm-yyyy display + dataset
         if (startDateInput.value) {
-            const iso = normalizeDateToYYYYMMDD(startDateInput.value);
+            let iso = normalizeDateToYYYYMMDD(startDateInput.value);
+            if (iso && iso < minStartISO) {
+                iso = minStartISO;
+            }
             setHeaderInputValue(startDateInput, iso);
         }
         if (endDateInput.value) {
@@ -9909,6 +10005,7 @@
             
             filterPortsBySelectedCountries();
             syncHeaderCitiesToServiceModals();
+            if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
         }, 100);
         
         // Sync popup dates to header dates when they change
@@ -12524,6 +12621,10 @@
 
     // Save arrival/departure only (without accommodation)
     async function saveArrivalDepartureOnly() {
+        if (typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('arrivalDepartureCity', 'arrivalDateTime', 'departureDateTime', 'Arrival/departure')) {
+            return;
+        }
         console.log('========================================');
         console.log('saveArrivalDepartureOnly() called');
         console.log('========================================');
@@ -13709,6 +13810,11 @@
 
     // Save selected hotels to main accommodation table
     async function saveSelectedHotels() {
+        if (!window.isArrivalDepartureOnlyMode
+            && typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('hotelDestination', 'checkInDate', 'checkOutDate', 'Accommodation')) {
+            return;
+        }
         // Check if we're in arrival/departure only mode
         if (window.isArrivalDepartureOnlyMode) {
             if (typeof ensureAccommodationPricingReady === 'function') {
@@ -17592,6 +17698,10 @@
     
     // Save and close attractions
     async function saveAndCloseAttractions() {
+        if (typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('tourDestination', 'tourDateTime', null, 'Tour service')) {
+            return;
+        }
         const selectedRows = document.querySelectorAll('.attraction-checkbox:checked');
         
         if (selectedRows.length === 0) {
@@ -18770,6 +18880,8 @@
     
     // Open Guide Modal
     function openGuideModal() {
+        window.editingGuideIndex = null;
+
         // Reset destination select
         const destinationSelect = document.getElementById('guideDestination');
         if (destinationSelect) {
@@ -19006,6 +19118,10 @@
     
     // Save and close guides
     function saveAndCloseGuides() {
+        if (typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('guideDestination', 'guideDate', null, 'Guide service')) {
+            return;
+        }
         const selectedRows = document.querySelectorAll('.guide-checkbox:checked');
         
         if (selectedRows.length === 0) {
@@ -19709,6 +19825,10 @@
     
     // Save and close miscellaneous modal
     function saveAndCloseMisc() {
+        if (typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('miscDestination', 'miscDate', null, 'Miscellaneous service')) {
+            return;
+        }
         console.log('========================================');
         console.log('saveAndCloseMisc() called');
         console.log('========================================');
@@ -20831,9 +20951,11 @@
         // Clear existing rows
         mealsTableBody.innerHTML = '';
         
-        // Get number of nights from header to use as default meal count
-        const nightsEl = document.getElementById('nightsDisplay');
-        const defaultMealCount = parseInt(nightsEl?.textContent) || 1;
+        // Default meal count follows the selected city's nights, not the full tour length.
+        const mealCity = document.getElementById('mealDestination')?.value || '';
+        const defaultMealCount = (typeof getDefaultMealCountForCity === 'function')
+            ? getDefaultMealCountForCity(mealCity)
+            : (parseInt(document.getElementById('nightsDisplay')?.textContent, 10) || 1);
         
         // Count meals by type for summary
         let buffetCount = 0, setMenuCount = 0;
@@ -21116,6 +21238,10 @@
     
     // Save and close meals
     async function saveAndCloseMeals() {
+        if (typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('mealDestination', 'mealDateTime', null, 'Meal service')) {
+            return;
+        }
         // Check if we're editing an existing meal
         const isEditing = window.editingMealIndex !== undefined && window.editingMealIndex !== null;
         
@@ -21821,9 +21947,8 @@
                 // Guide entries are pushed per meal in the meal loop below (one guide per meal with distributed date)
             }
             
-            // For date distribution: get tour start date and time part from modal dateTime
-            const tourStartInput = getHeaderStartInput();
-            const tourStartISO = tourStartInput ? getHeaderInputISO(tourStartInput) : null;
+            // Spread copies across the selected city's window, starting from the modal date.
+            const mealCity = document.getElementById('mealDestination')?.value || '';
             let timePart = '12:00';
             if (dateTime && (dateTime.indexOf('T') !== -1)) {
                 const t = dateTime.split('T')[1];
@@ -21899,10 +22024,9 @@
                 // Add mealCount entries for this meal row
                 const rowIds = mealIdsPerRow[index];
                 for (let mc = 0; mc < mealCount; mc++) {
-                    // Distributed date: meal 0 = tour start, meal 1 = start+1 day, etc.
-                    const dateTimeForMc = (tourStartISO && timePart)
-                        ? (addDaysToDateString(tourStartISO, mc) + 'T' + timePart)
-                        : dateTime;
+                    const dateTimeForMc = (typeof getCityAnchoredDateTime === 'function')
+                        ? getCityAnchoredDateTime(mealCity, dateTime, mc, timePart)
+                        : (dateTime || '');
                     
                     let thisTransferId = null;
                     let thisTransferInfo = null;
@@ -22152,15 +22276,27 @@
         emptyMessage.style.display = 'none';
         
         tbody.innerHTML = mealList.map((meal, index) => {
-            // Ensure dateTime has time component, if not add default time based on meal type
-            let dateTimeValue = meal.dateTime || '';
+            const mealType = (meal.mealType || '').toLowerCase();
+            let defaultTime = '12:00';
+            if (mealType.includes('breakfast')) defaultTime = '08:00';
+            else if (mealType.includes('dinner')) defaultTime = '19:00';
+            let dateTimeValue = (typeof normalizeDateTimeLocal === 'function')
+                ? normalizeDateTimeLocal(meal.dateTime)
+                : (meal.dateTime || '');
+            if (!dateTimeValue && meal.dateTime) {
+                dateTimeValue = String(meal.dateTime);
+            }
             if (dateTimeValue && !dateTimeValue.includes('T')) {
-                // Default times: Breakfast 08:00, Lunch 12:00, Dinner 19:00
-                const mealType = (meal.mealType || '').toLowerCase();
-                let defaultTime = '12:00'; // Default to lunch time
-                if (mealType.includes('breakfast')) defaultTime = '08:00';
-                else if (mealType.includes('dinner')) defaultTime = '19:00';
-                dateTimeValue = dateTimeValue + 'T' + defaultTime;
+                dateTimeValue = dateTimeValue.substring(0, 10) + 'T' + defaultTime;
+            } else if (dateTimeValue) {
+                dateTimeValue = dateTimeValue.substring(0, 16);
+            }
+            if (typeof getCityAnchoredDateTime === 'function' && meal.destination) {
+                const anchored = getCityAnchoredDateTime(meal.destination, dateTimeValue || meal.dateTime, 0, defaultTime);
+                if (anchored) {
+                    dateTimeValue = anchored.substring(0, 16);
+                    meal.dateTime = dateTimeValue;
+                }
             }
             
             // Format meal type for display (capitalize first letter) - show Breakfast/Lunch/Dinner
@@ -23931,6 +24067,12 @@
     
     // Save Transfer Package
     async function saveTransferPackage() {
+        const cityTransferMode = document.querySelector('input[name="transferMode"]:checked')?.value || 'local';
+        if (cityTransferMode === 'local'
+            && typeof ensureModalServiceDateWithinCity === 'function'
+            && !ensureModalServiceDateWithinCity('localDestination', 'localDateTime', null, 'Local transfer')) {
+            return;
+        }
         // Get selected transport mode
         const transportModeRadio = document.querySelector('input[name="transferMode"]:checked');
         const transportMode = transportModeRadio ? transportModeRadio.value : 'local';
@@ -28028,6 +28170,16 @@
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
             return;
         }
+        const cityRangeValidation = (typeof validateCityDateRanges === 'function')
+            ? validateCityDateRanges({ showError: true })
+            : { valid: true, ranges: [] };
+        if (!cityRangeValidation.valid) {
+            alert(cityRangeValidation.message);
+            document.getElementById('cityDateRangeSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
+            return;
+        }
         if (!agentId || !agencyId) {
             alert('Please select agency and agent');
             window._enquiryProSubmitting = false;
@@ -28056,6 +28208,7 @@
         if (city) formData.append('city', city);
         const cityTypeOut = (typeof selectedDestinations !== 'undefined' && selectedDestinations.length > 1) ? 'multi' : 'single';
         formData.append('city_type', cityTypeOut);
+        formData.append('city_date_ranges', JSON.stringify(cityRangeValidation.ranges || []));
         if (childAges) formData.append('child_ages', childAges);
         
         // Add markup and discount values
