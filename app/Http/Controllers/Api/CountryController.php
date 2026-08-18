@@ -72,18 +72,21 @@ class CountryController extends Controller
             return response()->json(['error' => 'agent_id is required'], 400);
         }
 
-        $user = Agent::where('agent_id', $agentId)->first();
-        if (!$user) {
+        $agent = Agent::where('agent_id', $agentId)->first();
+        if (!$agent) {
             return response()->json(['error' => 'Agent not found'], 404);
         }
-        $agentDmcIds = [];
-        $restrictToAgencyDmcs = false;
 
-        if ($user && $user->agency_id) {
-            $agency = Agency::where('agency_id', $user->agency_id)->first();
-            $restrictToAgencyDmcs = true;
-            $agentDmcIds = $agency ? $agency->dmc_id : [];
+        if (!$agent->agency_id) {
+            return response()->json(['error' => 'Agency not found'], 404);
         }
+
+        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+        if (!$agency) {
+            return response()->json(['error' => 'Agency not found'], 404);
+        }
+
+        $agentDmcIds = $agency->dmc_id;
 
         if (is_string($agentDmcIds) && str_starts_with(trim($agentDmcIds), '[')) {
             $agentDmcIds = json_decode($agentDmcIds, true);
@@ -95,16 +98,14 @@ class CountryController extends Controller
             $agentDmcIds = $agentDmcIds ? [$agentDmcIds] : [];
         }
 
-        $agentDmcIds = array_values(array_map('intval', array_filter($agentDmcIds, function ($id) {
+        $agentDmcIds = array_values(array_unique(array_map('intval', array_filter($agentDmcIds, function ($id) {
             return $id !== null && $id !== '' && (int) $id > 0;
-        })));
+        }))));
 
         $dmcColumns = ['userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address', 'zone_on', 'price_hide'];
-        $dmcsQuery = User::select($dmcColumns)->where('role_id', 11);
-
-        if ($restrictToAgencyDmcs) {
-            $dmcsQuery->whereIn('userId', $agentDmcIds ?: [0]);
-        }
+        $dmcsQuery = User::select($dmcColumns)
+            ->where('role_id', 11)
+            ->whereIn('dmcId', $agentDmcIds ?: [0]);
 
         $requestCountries = [];
         if ($request->filled('country')) {
