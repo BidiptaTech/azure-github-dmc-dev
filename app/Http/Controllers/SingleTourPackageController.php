@@ -1443,18 +1443,13 @@ class SingleTourPackageController extends Controller
                         });
                     }
                 });
-                if ($portsCountry) {
-                    $portsQuery->where(function ($q) use ($portsCountry) {
-                        $q->where('country', $portsCountry)
-                            ->orWhereRaw('LOWER(country) = ?', [strtolower((string) $portsCountry)]);
-                    });
-                }
                 $ports = $portsQuery->orderBy('port_name')->get();
             } else {
                 $ports = collect();
             }
         } else {
-            $ports = $this->getPortsForDmc($portsCountry ?: null);
+            // All DMC countries so multi-city arrival/departure can pick ports by the city's country.
+            $ports = $this->getPortsForDmc(null);
         }
 
         // Agencies / agents: always owned by this operating DMC id — never by shared country.

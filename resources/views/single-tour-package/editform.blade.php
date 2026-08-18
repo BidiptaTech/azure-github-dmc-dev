@@ -3539,10 +3539,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadArrivalRowCountryPorts({{ $order->booking_id }}); fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select city</option>
                                                     @foreach($cities as $city)
-                                                        <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                        <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                     @endforeach
                                                     @if($cityValue && !$cities->contains('name', $cityValue))
                                                         <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -5792,10 +5792,10 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                            <select class="form-select border-2" style="height: 35px;" name="city">
+                                                            <select class="form-select border-2" id="departure_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadDepartureRowCountryPorts({{ $order->booking_id }});">
                                                                 <option value="">Select city</option>
                                                                 @foreach($cities as $city)
-                                                                    <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                                    <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                                 @endforeach
                                                                 @if($cityValue && !$cities->contains('name', $cityValue))
                                                                     <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -5835,7 +5835,7 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2 departure-dropoff-location" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
+                                                            <select class="form-select border-2 departure-dropoff-location" id="departure_dropoff_{{ $order->booking_id }}" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->port_name }}" 
@@ -8428,7 +8428,7 @@
                                 <select class="form-select modern-select" id="modal_entryport_transport_city" name="city" style="height: 36px; font-size: 0.8rem;">
                                     <option value="">Select city</option>
                                     @foreach($cities as $city)
-                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -9132,7 +9132,7 @@
                                             <select class="form-select border-2" id="modal_exitport_transport_city" name="city" style="padding-left: 45px;">
                                                 <option value="">Select city</option>
                                                 @foreach($cities as $city)
-                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                                 @endforeach
                                             </select>
                                             <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -14709,6 +14709,26 @@
             dropoffZoneSelect.addEventListener('change', checkDropoffFormCompletion);
         }
         
+        const exitCitySelect = document.getElementById('modal_exitport_transport_city');
+        if (exitCitySelect && !exitCitySelect.dataset.cityChangeWired) {
+            exitCitySelect.dataset.cityChangeWired = '1';
+            exitCitySelect.addEventListener('change', function () {
+                if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                    window.loadDropoffModalCountryPorts();
+                }
+            });
+            if (typeof jQuery !== 'undefined') {
+                jQuery(exitCitySelect).on('select2:select select2:change', function () {
+                    if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                        window.loadDropoffModalCountryPorts();
+                    }
+                });
+            }
+        }
+        if (typeof window.loadDropoffModalCountryPorts === 'function') {
+            window.loadDropoffModalCountryPorts();
+        }
+
         const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
         if (pickupTimeInput) {
             pickupTimeInput.addEventListener('input', () => {
@@ -14766,6 +14786,113 @@
         });
     }
 
+    window.ALL_TOUR_PORTS = @json($ports ?? []);
+
+    function getCountryFromCitySelect(selectEl) {
+        if (!selectEl) return '';
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (!opt || !opt.value) return '';
+        let country = (opt.getAttribute('data-country') || '').toString().trim();
+        if (!country) {
+            try {
+                const cityData = JSON.parse(opt.getAttribute('data-city') || '{}');
+                country = (cityData.country || '').toString().trim();
+            } catch (e) { /* ignore */ }
+        }
+        return country;
+    }
+
+    function fillPortSelectOptions(selectEl, ports, options) {
+        if (!selectEl) return;
+        options = options || {};
+        const useName = !!options.useName;
+        const placeholder = options.placeholder || (useName ? 'Select pickup port' : 'Select location');
+        const selectedValue = options.selectedValue != null ? String(options.selectedValue) : String(selectEl.value || '');
+        selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        (ports || []).forEach(function (port) {
+            const opt = document.createElement('option');
+            const portId = port.port_id || port.id || '';
+            const portName = port.port_name || '';
+            opt.value = useName ? portName : portId;
+            opt.textContent = portName;
+            opt.setAttribute('data-type', 'Port');
+            opt.setAttribute('data-zone-id', portId);
+            opt.setAttribute('data-port-id', portId);
+            opt.setAttribute('data-port', JSON.stringify(port));
+            if (selectedValue && (String(opt.value) === selectedValue || String(portName) === selectedValue || String(portId) === selectedValue)) {
+                opt.selected = true;
+            }
+            selectEl.appendChild(opt);
+        });
+        if (typeof jQuery !== 'undefined' && jQuery(selectEl).data('select2')) {
+            jQuery(selectEl).trigger('change.select2');
+        }
+    }
+
+    window.loadCountryPortsThen = function (cityName, country, cb) {
+        const done = typeof cb === 'function' ? cb : function () {};
+        const params = new URLSearchParams();
+        if (country) params.set('country_id', country);
+        if (cityName) params.set('city', cityName);
+        const fallback = function () {
+            const all = window.ALL_TOUR_PORTS || [];
+            const c = String(country || '').toLowerCase();
+            done(!c ? all : all.filter(function (p) {
+                return String(p.country || '').toLowerCase() === c;
+            }));
+        };
+        if (!cityName && !country) {
+            done([]);
+            return;
+        }
+        fetch('{{ route("fetch-ports-by-country-single-tour") }}?' + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                const ports = (data && data.ports) ? data.ports : [];
+                done(ports);
+            })
+            .catch(fallback);
+    };
+
+    window.loadArrivalRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('arrival_city_' + bookingId);
+        const pickupEl = document.getElementById('arrival_pickup_' + bookingId);
+        if (!cityEl || !pickupEl) return;
+        const selected = pickupEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(pickupEl, ports, { useName: true, placeholder: 'Select pickup port', selectedValue: selected });
+            if (typeof fetchArrivalVehiclesForRow === 'function') {
+                fetchArrivalVehiclesForRow(bookingId);
+            }
+        });
+    };
+
+    window.loadDepartureRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('departure_city_' + bookingId);
+        const dropoffEl = document.getElementById('departure_dropoff_' + bookingId);
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: true, placeholder: 'Select dropoff port', selectedValue: selected });
+            if (typeof updateDepartureVehicles === 'function') {
+                updateDepartureVehicles(bookingId);
+            }
+        });
+    };
+
+    window.loadDropoffModalCountryPorts = function () {
+        const cityEl = document.getElementById('modal_exitport_transport_city');
+        const dropoffEl = document.getElementById('modal_dropoff_transport_dropoff_zone');
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: false, placeholder: 'Select dropoff location', selectedValue: selected });
+            if (typeof window.refreshSelect2 === 'function') {
+                window.refreshSelect2(dropoffEl);
+            }
+        });
+    };
+
     function getTransportModalCityContext() {
         const citySelect = document.getElementById('modal_entryport_transport_city');
         if (!citySelect || !citySelect.value) {
@@ -14816,21 +14943,25 @@
         }
 
         // Backend data
-        const allPorts = @json($ports ?? []);
+        const allPorts = window.ALL_TOUR_PORTS || @json($ports ?? []);
         const allHotels = @json($hotels ?? []);
         const allRestaurants = @json($restaurants ?? []);
         const allAttractions = @json($attractions ?? []);
         const cityCtx = getTransportModalCityContext();
+        const citySelect = document.getElementById('modal_entryport_transport_city');
+        const country = getCountryFromCitySelect(citySelect);
         const filterByCity = function(list) {
             if (!cityCtx.cityName && cityCtx.cityId == null) return list;
             const filtered = list.filter(function(item) { return recordMatchesTransportCity(item, cityCtx); });
             return filtered.length ? filtered : list;
         };
-        const ports = filterByCity(allPorts);
         const hotels = filterByCity(allHotels);
         const restaurants = filterByCity(allRestaurants);
         const attractions = filterByCity(allAttractions);
+        const pickupSelected = pickupSelect.value;
+        const dropoffSelected = dropoffSelect.value;
 
+        const applyPortLists = function (ports) {
         // Helper to build port options
         const buildPortOptions = () => {
             let html = '<option value="">Select location</option>';
@@ -14907,24 +15038,31 @@
             // Pickup: Hotels + Restaurants
             pickupSelect.innerHTML = buildHotelRestaurantOptions();
 
-            // Dropoff: Ports
+            // Dropoff: Ports (country-wide)
             dropoffSelect.innerHTML = buildPortOptions();
         } else {
             console.log('Configuring transport modal for ARRIVAL (entry_port): pickup = ports, dropoff = hotels/attractions/restaurants');
 
-            // Pickup: Ports
+            // Pickup: Ports (country-wide)
             pickupSelect.innerHTML = buildPortOptions();
 
-            // Dropoff: Hotels + Attractions + Restaurants (original behaviour)
+            // Dropoff: Hotels + Attractions + Restaurants (city-filtered)
             dropoffSelect.innerHTML = buildArrivalDropoffOptions();
         }
 
-        // Reset selects to default value
         pickupSelect.value = '';
         dropoffSelect.value = '';
+        if (pickupSelected && Array.from(pickupSelect.options).some(function (o) { return o.value === pickupSelected; })) {
+            pickupSelect.value = pickupSelected;
+        }
+        if (dropoffSelected && Array.from(dropoffSelect.options).some(function (o) { return o.value === dropoffSelected; })) {
+            dropoffSelect.value = dropoffSelected;
+        }
 
-        // Select2 caches options on init; refresh after innerHTML changes (live server timing can init before this runs)
         refreshTransportModalZoneSelects();
+        };
+
+        window.loadCountryPortsThen(cityCtx.cityName, country, applyPortLists);
     }
     
     function loadZonesForPickup() {
@@ -24154,6 +24292,19 @@
                 }
             });
         }
+
+        document.querySelectorAll('[id^="arrival_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('arrival_city_', '');
+            if (bookingId && el.value && typeof window.loadArrivalRowCountryPorts === 'function') {
+                window.loadArrivalRowCountryPorts(bookingId);
+            }
+        });
+        document.querySelectorAll('[id^="departure_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('departure_city_', '');
+            if (bookingId && el.value && typeof window.loadDepartureRowCountryPorts === 'function') {
+                window.loadDepartureRowCountryPorts(bookingId);
+            }
+        });
     });
 
     function getCustomerInfo(){
