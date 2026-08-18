@@ -274,6 +274,537 @@
     }
     window.groupHotelsByServiceCity = groupHotelsByServiceCity;
 
+    // ==================== CITY-WISE TOUR DATE WINDOWS ====================
+    window.enquiryProInitialCityDateRanges = @json($initialData['city_date_ranges'] ?? []);
+    window.enquiryProCityDateRanges = Array.isArray(window.enquiryProInitialCityDateRanges)
+        ? window.enquiryProInitialCityDateRanges.map(function (range) {
+            return {
+                city: String(range.city || '').trim(),
+                start_date: String(range.start_date || range.start || '').substring(0, 10),
+                end_date: String(range.end_date || range.end || '').substring(0, 10)
+            };
+        })
+        : [];
+
+    function enquiryProDateOnly(value) {
+        return String(value || '').substring(0, 10);
+    }
+
+    function enquiryProIsoDateToUtc(value) {
+        const parts = enquiryProDateOnly(value).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(function (n) { return !Number.isFinite(n); })) return null;
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    }
+
+    function enquiryProUtcDateString(date) {
+        return date ? date.toISOString().substring(0, 10) : '';
+    }
+
+    function enquiryProTourDateBounds() {
+        const startInput = (typeof getHeaderStartInput === 'function')
+            ? getHeaderStartInput()
+            : document.querySelector('input#tourStartDate');
+        const endInput = (typeof getHeaderEndInput === 'function')
+            ? getHeaderEndInput()
+            : document.querySelector('input#tourEndDate');
+        return {
+            start: enquiryProDateOnly(startInput?.value),
+            end: enquiryProDateOnly(endInput?.value)
+        };
+    }
+
+    function enquiryProShiftDate(value, days) {
+        const date = enquiryProIsoDateToUtc(value);
+        if (!date) return '';
+        return enquiryProUtcDateString(new Date(date.getTime() + (days * 86400000)));
+    }
+
+    function enquiryProNightCount(start, end) {
+        const from = enquiryProIsoDateToUtc(start);
+        const to = enquiryProIsoDateToUtc(end);
+        if (!from || !to) return 0;
+        return Math.max(0, Math.round((to.getTime() - from.getTime()) / 86400000));
+    }
+
+    function enquiryProBuildDefaultCityRanges(cities, tourStart, tourEnd) {
+        const start = enquiryProIsoDateToUtc(tourStart);
+        const end = enquiryProIsoDateToUtc(tourEnd);
+        if (!start || !end || end <= start || !cities.length) return [];
+        const totalNights = Math.round((end.getTime() - start.getTime()) / 86400000);
+        if (totalNights < cities.length) return [];
+
+        return cities.map(function (city, index) {
+            const from = new Date(start.getTime() + Math.round((totalNights * index) / cities.length) * 86400000);
+            const to = new Date(start.getTime() + Math.round((totalNights * (index + 1)) / cities.length) * 86400000);
+            return { city: city, start_date: enquiryProUtcDateString(from), end_date: enquiryProUtcDateString(to) };
+        });
+    }
+
+    function getCityDateRange(city) {
+        const key = serviceCityKey(city);
+        if (!key) return null;
+        return (window.enquiryProCityDateRanges || []).find(function (range) {
+            return serviceCityKey(range.city) === key;
+        }) || null;
+    }
+    window.getCityDateRange = getCityDateRange;
+
+    function getDefaultMealCountForCity(city) {
+        const range = getCityDateRange(city);
+        if (range && range.start_date && range.end_date) {
+            const nights = enquiryProNightCount(range.start_date, range.end_date);
+            if (nights > 0) return nights;
+        }
+        const fallback = parseInt(document.getElementById('nightsDisplay')?.textContent, 10);
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 1;
+    }
+    window.getDefaultMealCountForCity = getDefaultMealCountForCity;
+
+    function getCityAnchoredDateTime(city, dateTime, offsetDays, fallbackTime) {
+        const timePart = (String(dateTime || '').split('T')[1] || fallbackTime || '12:00').substring(0, 5);
+        const range = getCityDateRange(city);
+        let start = enquiryProDateOnly(dateTime);
+        if (!start && range && range.start_date) start = range.start_date;
+        if (!start) start = enquiryProTourDateBounds().start || '';
+        if (!start) return dateTime || '';
+
+        let target = enquiryProShiftDate(start, offsetDays || 0) || start;
+        if (range && range.start_date && target < range.start_date) target = range.start_date;
+        if (range && range.end_date && target > range.end_date) target = range.end_date;
+        return target + 'T' + timePart;
+    }
+    window.getCityAnchoredDateTime = getCityAnchoredDateTime;
+
+    function syncCityDateRangePanel(options) {
+        options = options || {};
+        const section = document.getElementById('cityDateRangeSection');
+        const rows = document.getElementById('cityDateRangeRows');
+        if (!section || !rows) return;
+
+        const cities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+            ? selectedDestinations.map(function (city) { return String(city || '').trim(); }).filter(Boolean)
+            : [];
+        const bounds = enquiryProTourDateBounds();
+        const readOnly = section.dataset.readonly === '1';
+        section.style.display = cities.length ? '' : 'none';
+        if (!cities.length) {
+            rows.innerHTML = '';
+            window.enquiryProCityDateRanges = [];
+            return;
+        }
+
+        const existingByCity = {};
+        (window.enquiryProCityDateRanges || []).forEach(function (range) {
+            existingByCity[serviceCityKey(range.city)] = range;
+        });
+        const defaults = enquiryProBuildDefaultCityRanges(cities, bounds.start, bounds.end);
+        const defaultByCity = {};
+        defaults.forEach(function (range) { defaultByCity[serviceCityKey(range.city)] = range; });
+
+        // Rebuild the ranges: keep existing cities' windows, redistribute remaining nights
+        // evenly among new cities so adding/removing a city always produces a valid chain.
+        const hasExisting = cities.some(function (c) { return !!existingByCity[serviceCityKey(c)]; });
+        if (!hasExisting) {
+            // First time: use the even-split defaults for all cities.
+            window.enquiryProCityDateRanges = defaults.length ? defaults : cities.map(function (c) {
+                return { city: c, start_date: '', end_date: '' };
+            });
+        } else if (readOnly) {
+            window.enquiryProCityDateRanges = cities.map(function (city) {
+                const current = existingByCity[serviceCityKey(city)];
+                return current ? { ...current, city: city } : { city: city, start_date: '', end_date: '' };
+            });
+        } else {
+            // Separate cities that already have a range from brand-new ones.
+            const kept = [];
+            const newCityIndices = [];
+            cities.forEach(function (city, index) {
+                const current = existingByCity[serviceCityKey(city)];
+                if (current && current.start_date && current.end_date
+                    && current.start_date >= bounds.start && current.end_date <= bounds.end) {
+                    kept.push({ index: index, range: { ...current, city: city } });
+                } else {
+                    newCityIndices.push(index);
+                }
+            });
+
+            // Build the result array, inserting new cities into the gaps.
+            const result = new Array(cities.length);
+            kept.forEach(function (item) { result[item.index] = item.range; });
+
+            const totalNights = enquiryProNightCount(bounds.start, bounds.end);
+            const keptNights = kept.reduce(function (sum, item) {
+                return sum + enquiryProNightCount(item.range.start_date, item.range.end_date);
+            }, 0);
+
+            if (newCityIndices.length) {
+                const nightsForNew = Math.max(newCityIndices.length, totalNights - keptNights);
+                const nightsPerNew = Math.max(1, Math.floor(nightsForNew / newCityIndices.length));
+
+                // If existing cities take up too many nights, shrink them proportionally.
+                if (keptNights + newCityIndices.length > totalNights && kept.length) {
+                    const targetKept = totalNights - (newCityIndices.length * 1);
+                    let assignedKept = 0;
+                    kept.forEach(function (item, i) {
+                        const oldN = enquiryProNightCount(item.range.start_date, item.range.end_date);
+                        const share = i === kept.length - 1
+                            ? targetKept - assignedKept
+                            : Math.max(1, Math.round(oldN * targetKept / keptNights));
+                        item.newNights = share;
+                        assignedKept += share;
+                    });
+                }
+            }
+
+            // Walk left-to-right and stitch the chain: each city starts where the previous ended.
+            let cursor = bounds.start;
+            for (let i = 0; i < cities.length; i++) {
+                if (result[i]) {
+                    const item = kept.find(function (k) { return k.index === i; });
+                    const nights = item.newNights !== undefined
+                        ? item.newNights
+                        : enquiryProNightCount(item.range.start_date, item.range.end_date);
+                    result[i].start_date = cursor;
+                    result[i].end_date = enquiryProShiftDate(cursor, nights);
+                    cursor = result[i].end_date;
+                } else {
+                    const isLast = i === cities.length - 1;
+                    const nightsPerNew = Math.max(1, Math.floor(
+                        Math.max(newCityIndices.length, totalNights - keptNights) / newCityIndices.length));
+                    const nights = isLast
+                        ? enquiryProNightCount(cursor, bounds.end) || nightsPerNew
+                        : nightsPerNew;
+                    result[i] = {
+                        city: cities[i],
+                        start_date: cursor,
+                        end_date: enquiryProShiftDate(cursor, nights)
+                    };
+                    cursor = result[i].end_date;
+                }
+            }
+            // Last city always reaches the tour end.
+            result[cities.length - 1].end_date = bounds.end;
+
+            window.enquiryProCityDateRanges = result;
+        }
+
+        const total = window.enquiryProCityDateRanges.length;
+        rows.innerHTML = '';
+        window.enquiryProCityDateRanges.forEach(function (range, index) {
+            // Every city needs at least one night, so each side of the chain reserves a day per remaining city.
+            const startMin = enquiryProShiftDate(bounds.start, index) || bounds.start;
+            const startMax = enquiryProShiftDate(bounds.end, -(total - index)) || bounds.end;
+            const endMin = enquiryProShiftDate(bounds.start, index + 1) || bounds.end;
+            const endMax = enquiryProShiftDate(bounds.end, -(total - index - 1)) || bounds.end;
+            const nights = enquiryProNightCount(range.start_date, range.end_date);
+            const lockStart = index === 0;
+            const lockEnd = index === total - 1;
+
+            const col = document.createElement('div');
+            col.className = 'city-stay-col';
+            col.innerHTML = `
+                <div class="city-stay-card${readOnly ? ' is-locked' : ''}">
+                    <div class="city-stay-card-head">
+                        <span class="city-stay-seq">${index + 1}</span>
+                        <span class="city-stay-name" title="${range.city}">${range.city}</span>
+                        <span class="city-stay-nights">${nights} ${nights === 1 ? 'Night' : 'Nights'}</span>
+                    </div>
+                    <div class="city-stay-card-body">
+                        <div class="city-stay-field">
+                            <label>Check-in</label>
+                            <input type="date" class="form-control form-control-sm city-date-range-start"
+                                data-index="${index}" value="${range.start_date}" min="${startMin}" max="${startMax}"
+                                ${(readOnly || lockStart) ? 'disabled' : ''}>
+                        </div>
+                        <span class="city-stay-arrow"><i class="ri-arrow-right-line"></i></span>
+                        <div class="city-stay-field">
+                            <label>Check-out</label>
+                            <input type="date" class="form-control form-control-sm city-date-range-end"
+                                data-index="${index}" value="${range.end_date}" min="${endMin}" max="${endMax}"
+                                ${(readOnly || lockEnd) ? 'disabled' : ''}>
+                        </div>
+                    </div>
+                    <div class="city-stay-note">${lockStart ? 'Starts with the tour' : 'Starts when ' + (window.enquiryProCityDateRanges[index - 1]?.city || 'previous city') + ' ends'}${lockEnd ? ' &middot; Ends with the tour' : ''}</div>
+                </div>`;
+            rows.appendChild(col);
+        });
+
+        if (!readOnly) {
+            rows.querySelectorAll('.city-date-range-start,.city-date-range-end').forEach(function (input) {
+                input.addEventListener('change', function () {
+                    const index = parseInt(this.dataset.index, 10);
+                    const isStart = this.classList.contains('city-date-range-start');
+                    applyCityDateRangeEdit(index, isStart ? 'start_date' : 'end_date', this.value);
+                });
+            });
+        }
+        validateCityDateRanges({ showError: options.showError === true });
+    }
+    window.syncCityDateRangePanel = syncCityDateRangePanel;
+
+    // Cities are stored as one continuous chain: a city's check-out is always the next city's check-in.
+    function applyCityDateRangeEdit(index, field, value) {
+        const ranges = window.enquiryProCityDateRanges || [];
+        const range = ranges[index];
+        const newValue = enquiryProDateOnly(value);
+        if (!range || !newValue) return;
+
+        range[field] = newValue;
+        if (field === 'end_date') {
+            if (range.end_date <= range.start_date) {
+                range.start_date = enquiryProShiftDate(range.end_date, -1);
+            }
+            if (ranges[index + 1]) {
+                ranges[index + 1].start_date = range.end_date;
+                if (ranges[index + 1].end_date <= ranges[index + 1].start_date) {
+                    ranges[index + 1].end_date = enquiryProShiftDate(ranges[index + 1].start_date, 1);
+                }
+            }
+        } else {
+            if (range.end_date <= range.start_date) {
+                range.end_date = enquiryProShiftDate(range.start_date, 1);
+            }
+            if (ranges[index - 1]) {
+                ranges[index - 1].end_date = range.start_date;
+                if (ranges[index - 1].end_date <= ranges[index - 1].start_date) {
+                    ranges[index - 1].start_date = enquiryProShiftDate(ranges[index - 1].end_date, -1);
+                }
+            }
+        }
+
+        syncCityDateRangePanel({ showError: true });
+        if (typeof applyOpenServiceCityDateRanges === 'function') applyOpenServiceCityDateRanges();
+    }
+
+    function validateCityDateRanges(options) {
+        options = options || {};
+        const cities = (typeof selectedDestinations !== 'undefined' && Array.isArray(selectedDestinations))
+            ? selectedDestinations.map(function (city) { return String(city || '').trim(); }).filter(Boolean)
+            : [];
+        const bounds = enquiryProTourDateBounds();
+        const ranges = window.enquiryProCityDateRanges || [];
+        let message = '';
+
+        if (!cities.length) message = 'Select at least one city.';
+        else if (ranges.length !== cities.length) message = 'Set dates for every selected city.';
+        else if (!bounds.start || !bounds.end) message = 'Select the tour start and end dates first.';
+        else if (ranges.some(function (r) { return !r.start_date || !r.end_date; })) message = 'Set From and To dates for every city.';
+        else if (ranges.some(function (r) {
+            return r.start_date < bounds.start || r.end_date > bounds.end || r.end_date <= r.start_date;
+        })) message = 'Each city must be inside the tour dates and include at least one night.';
+        else if (ranges[0].start_date !== bounds.start || ranges[ranges.length - 1].end_date !== bounds.end) {
+            message = 'The first city must start on the tour start date and the last city must end on the tour end date.';
+        } else {
+            for (let i = 1; i < ranges.length; i++) {
+                if (ranges[i].start_date !== ranges[i - 1].end_date) {
+                    message = 'City date ranges must connect without gaps or overlaps.';
+                    break;
+                }
+            }
+        }
+
+        const errorEl = document.getElementById('cityDateRangeError');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = message && options.showError ? '' : 'none';
+        }
+        return { valid: !message, message: message, ranges: ranges };
+    }
+    window.validateCityDateRanges = validateCityDateRanges;
+
+    // Each service date input, the city select that drives it, and the day of the city window it should land on.
+    const ENQUIRY_PRO_CITY_DATE_FIELDS = {
+        accommodation: [
+            { id: 'checkInDate', anchor: 'start', time: '14:00' },
+            { id: 'checkOutDate', anchor: 'end', time: '12:00' }
+        ],
+        tour: [{ id: 'tourDateTime', anchor: 'start', time: '09:00' }],
+        meal: [{ id: 'mealDateTime', anchor: 'start', time: '12:00' }],
+        guide: [{ id: 'guideDate', anchor: 'start', time: '10:00' }],
+        misc: [{ id: 'miscDate', anchor: 'start', time: '09:00' }],
+        local: [{ id: 'localDateTime', anchor: 'start', time: '09:00' }],
+        arrivaldeparture: [
+            { id: 'arrivalDateTime', anchor: 'start', time: '09:00' },
+            { id: 'departureDateTime', anchor: 'end', time: '09:00' }
+        ]
+    };
+    ENQUIRY_PRO_CITY_DATE_FIELDS.arrival = ENQUIRY_PRO_CITY_DATE_FIELDS.arrivaldeparture;
+    ENQUIRY_PRO_CITY_DATE_FIELDS.departure = ENQUIRY_PRO_CITY_DATE_FIELDS.arrivaldeparture;
+
+    const ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT = {
+        accommodation: 'hotelDestination',
+        tour: 'tourDestination',
+        meal: 'mealDestination',
+        guide: 'guideDestination',
+        misc: 'miscDestination',
+        local: 'localDestination',
+        arrivaldeparture: 'arrivalDepartureCity'
+    };
+
+    // Flags the service modals set while they populate an existing entry for editing.
+    const ENQUIRY_PRO_EDIT_FLAGS = {
+        accommodation: 'editingAccommodationIndex',
+        tour: 'editingTourIndex',
+        meal: 'editingMealIndex',
+        guide: 'editingGuideIndex',
+        misc: 'editingMiscIndex',
+        local: 'editingTransferIndex',
+        arrivaldeparture: 'editingArrivalDepartureIndex'
+    };
+    window._enquiryProLastCityByContext = window._enquiryProLastCityByContext || {};
+
+    function enquiryProIsEditingContext(key) {
+        if (key === 'accommodation' && window._populatingAccommodationEdit) return true;
+        const flag = ENQUIRY_PRO_EDIT_FLAGS[key];
+        const value = flag ? window[flag] : null;
+        return value !== null && value !== undefined && value !== false;
+    }
+
+    function enquiryProApplyRangeToInput(input, range, field, force) {
+        const isDateOnly = input.type === 'date';
+        input.min = isDateOnly ? range.start_date : range.start_date + 'T00:00';
+        input.max = isDateOnly ? range.end_date : range.end_date + 'T23:59';
+
+        const current = String(input.value || '');
+        const currentDate = enquiryProDateOnly(current);
+        const currentTime = current.split('T')[1] || field.time;
+        const anchorDate = field.anchor === 'end' ? range.end_date : range.start_date;
+        let targetDate = currentDate;
+        if (force || !currentDate) targetDate = anchorDate;
+        else if (currentDate < range.start_date) targetDate = range.start_date;
+        else if (currentDate > range.end_date) targetDate = range.end_date;
+        if (targetDate === currentDate) return;
+
+        input.value = isDateOnly ? targetDate : targetDate + 'T' + currentTime.substring(0, 5);
+    }
+
+    function applyCityDateRangeToContext(city, context, options) {
+        options = options || {};
+        const key = String(context || '').toLowerCase();
+        if (key === 'all') {
+            applyOpenServiceCityDateRanges(options);
+            return getCityDateRange(city);
+        }
+        const fields = ENQUIRY_PRO_CITY_DATE_FIELDS[key];
+        const range = getCityDateRange(city);
+        if (!range || !fields || !range.start_date || !range.end_date) return null;
+
+        // Moving a service to another city must re-seat its dates on that city's window; clamping alone
+        // would keep a shared boundary date (e.g. the previous city's check-out) and collapse the stay.
+        const cityKey = serviceCityKey(city);
+        const previousKey = window._enquiryProLastCityByContext[key];
+        const cityChanged = previousKey !== undefined && previousKey !== cityKey;
+        window._enquiryProLastCityByContext[key] = cityKey;
+        const force = options.reset === true
+            || (cityChanged && !enquiryProIsEditingContext(key));
+
+        fields.forEach(function (field) {
+            const input = document.getElementById(field.id);
+            if (input) enquiryProApplyRangeToInput(input, range, field, force);
+        });
+
+        if (key === 'accommodation') {
+            const checkIn = document.getElementById('checkInDate');
+            const checkOut = document.getElementById('checkOutDate');
+            if (checkIn && checkOut && checkIn.value && checkOut.value
+                && enquiryProDateOnly(checkOut.value) <= enquiryProDateOnly(checkIn.value)) {
+                const nextDay = enquiryProShiftDate(enquiryProDateOnly(checkIn.value), 1);
+                const bounded = nextDay && nextDay <= range.end_date ? nextDay : range.end_date;
+                checkOut.value = checkOut.type === 'date'
+                    ? bounded
+                    : bounded + 'T' + ((checkOut.value.split('T')[1] || '12:00').substring(0, 5));
+            }
+            // updateCheckOutMinDate() strips the max attribute, so restore the city ceiling afterwards.
+            if (checkOut) checkOut.max = checkOut.type === 'date' ? range.end_date : range.end_date + 'T23:59';
+            if (typeof calculateAccommodationNights === 'function') {
+                try { calculateAccommodationNights(); } catch (e) { /* modal not ready */ }
+            }
+        }
+        return range;
+    }
+    window.applyCityDateRangeToContext = applyCityDateRangeToContext;
+
+    function applyOpenServiceCityDateRanges(options) {
+        Object.keys(ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT).forEach(function (context) {
+            const city = document.getElementById(ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT[context])?.value || '';
+            if (city) applyCityDateRangeToContext(city, context, options);
+        });
+    }
+    window.applyOpenServiceCityDateRanges = applyOpenServiceCityDateRanges;
+
+    // Re-apply the window after the service modals' own change handlers have run.
+    document.addEventListener('change', function (event) {
+        const id = event.target?.id;
+        if (!id || window._enquiryProReapplyingCityWindow) return;
+        const context = Object.keys(ENQUIRY_PRO_CITY_DATE_FIELDS).find(function (key) {
+            return ENQUIRY_PRO_CITY_DATE_FIELDS[key].some(function (field) { return field.id === id; });
+        });
+        if (!context) return;
+        const citySelectId = ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT[context] || ENQUIRY_PRO_CITY_SELECT_BY_CONTEXT.arrivaldeparture;
+        const city = document.getElementById(citySelectId)?.value || '';
+        if (!city) return;
+        window._enquiryProReapplyingCityWindow = true;
+        try { applyCityDateRangeToContext(city, context); }
+        finally { window._enquiryProReapplyingCityWindow = false; }
+    });
+
+    // Service modals prefill their dates while opening, so align them with the city window once they are visible.
+    function enquiryProQueueCityWindowSync() {
+        setTimeout(function () { applyOpenServiceCityDateRanges(); }, 80);
+    }
+    document.addEventListener('shown.bs.modal', enquiryProQueueCityWindowSync);
+    if (window.jQuery) {
+        window.jQuery(document).on('shown.bs.modal', enquiryProQueueCityWindowSync);
+    }
+
+    function validateServiceDateForCity(city, startValue, endValue, serviceLabel) {
+        const range = getCityDateRange(city);
+        if (!range) return { valid: false, message: `Set the city dates for ${city || 'this city'} first.` };
+        const start = enquiryProDateOnly(startValue);
+        const end = enquiryProDateOnly(endValue || startValue);
+        const valid = !!start && start >= range.start_date && end <= range.end_date && end >= start;
+        return {
+            valid: valid,
+            message: valid ? '' : `${serviceLabel || 'Service'} for ${range.city} must be between ${range.start_date} and ${range.end_date}.`
+        };
+    }
+    window.validateServiceDateForCity = validateServiceDateForCity;
+
+    function ensureModalServiceDateWithinCity(cityInputId, startInputId, endInputId, serviceLabel) {
+        const city = document.getElementById(cityInputId)?.value || '';
+        const start = document.getElementById(startInputId)?.value || '';
+        const end = endInputId ? (document.getElementById(endInputId)?.value || '') : start;
+        const result = validateServiceDateForCity(city, start, end, serviceLabel);
+        if (!result.valid) {
+            alert(result.message);
+            const input = document.getElementById(!start ? startInputId : (endInputId && !end ? endInputId : startInputId));
+            if (input) input.focus();
+            return false;
+        }
+        return true;
+    }
+    window.ensureModalServiceDateWithinCity = ensureModalServiceDateWithinCity;
+
+    document.addEventListener('change', function (event) {
+        const contextById = {
+            hotelDestination: 'accommodation',
+            tourDestination: 'tour',
+            mealDestination: 'meal',
+            guideDestination: 'guide',
+            miscDestination: 'misc',
+            localDestination: 'local',
+            arrivalDepartureCity: 'arrivaldeparture'
+        };
+        const context = contextById[event.target?.id];
+        if (!context) return;
+        // A user picking another city always re-seats the dates; programmatic changes (edit population) only clamp.
+        applyCityDateRangeToContext(event.target.value, context, { reset: event.isTrusted === true });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () { syncCityDateRangePanel(); }, 0);
+    });
+
     /** Find hotel-synced entry_port / exit_port for a city (empty city → first hotel-synced of that type). */
     function findHotelSyncedArrDep(list, travelType, cityName) {
         const key = serviceCityKey(cityName);
@@ -1487,6 +2018,9 @@
         }
 
         const ctx = String(context || 'all').toLowerCase();
+        if (typeof applyCityDateRangeToContext === 'function') {
+            applyCityDateRangeToContext(city, ctx);
+        }
         const isEditingAccommodation = window.editingAccommodationIndex !== null
             && window.editingAccommodationIndex !== undefined;
         const skipArrDep = !!window._populatingAccommodationEdit

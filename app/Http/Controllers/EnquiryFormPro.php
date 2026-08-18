@@ -841,7 +841,7 @@ class EnquiryFormPro extends Controller
     {
         $validated = $request->validate([
             'tour_type' => 'required|in:GROUP,FIT',
-            'tour_start_date' => 'required|date|after_or_equal:today',
+            'tour_start_date' => 'required|date|after:today',
             'tour_end_date' => 'required|date|after:tour_start_date',
             'adult_count' => 'required|integer|min:0',
             'child_count' => 'nullable|integer|min:0',
@@ -1501,6 +1501,7 @@ class EnquiryFormPro extends Controller
                 'male' => 'nullable|integer|min:0',
                 'female' => 'nullable|integer|min:0',
                 'child_ages' => 'nullable|string|max:2000',
+                'city_date_ranges' => 'required|json',
             ]);
             
             // Get markup and discount values
@@ -1607,6 +1608,12 @@ class EnquiryFormPro extends Controller
                 : 0;
             $tour->city_type = $request->input('city_type')
                 ?: ($cityCount > 1 ? 'multi' : 'single');
+            $tour->city_date_ranges = $this->normalizeCityDateRanges(
+                $request->input('city_date_ranges'),
+                $cityValue,
+                $request->start_date,
+                $request->end_date
+            );
             $tour->dmc_id = $dmcId;
             // child_ages: default to '[]' (matches existing JSON-array convention) when not provided
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
@@ -3245,6 +3252,7 @@ class EnquiryFormPro extends Controller
             'destinations_array' => $destinationsArray,
             'tour_start_date' => $tour->check_in_time ? $tour->check_in_time->format('Y-m-d') : '',
             'tour_end_date' => $tour->check_out_time ? $tour->check_out_time->format('Y-m-d') : '',
+            'city_date_ranges' => $tour->city_date_ranges ?? [],
             'adult_count' => $tour->adult ?? 1,
             'child_count' => $tour->child ?? 0,
             'infant_count' => $tour->infant ?? 0,
@@ -3389,6 +3397,7 @@ class EnquiryFormPro extends Controller
                 'male' => 'nullable|integer|min:0',
                 'female' => 'nullable|integer|min:0',
                 'child_ages' => 'nullable|string|max:2000',
+                'city_date_ranges' => 'nullable|json',
             ]);
             
             // Get markup and discount values (coerce â€” input() can return null when key exists)
@@ -3436,6 +3445,7 @@ class EnquiryFormPro extends Controller
                 : 0;
             $tour->city_type = $request->input('city_type')
                 ?: ($cityCount > 1 ? 'multi' : 'single');
+            // City stay windows are locked after create; keep the original mapping.
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
             // Normalize tour_type + sync foc_size / discount columns (matches CommonHelper::calculateTourPrices)
             $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
@@ -4758,6 +4768,59 @@ class EnquiryFormPro extends Controller
                 'message' => 'Error fetching meals: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Validate and normalize the immutable city itinerary windows saved with a Pro tour.
+     * Adjacent cities may share a boundary date (checkout in one city, check-in in the next).
+     */
+    private function normalizeCityDateRanges($rawRanges, string $cityValue, string $tourStart, string $tourEnd): array
+    {
+        $ranges = is_array($rawRanges) ? $rawRanges : json_decode((string) $rawRanges, true);
+        $ranges = is_array($ranges) ? $ranges : [];
+        $cities = array_values(array_filter(array_map('trim', explode(',', $cityValue))));
+        $byCity = [];
+
+        foreach ($ranges as $range) {
+            if (!is_array($range)) {
+                continue;
+            }
+            $city = trim((string) ($range['city'] ?? ''));
+            $start = substr((string) ($range['start_date'] ?? $range['start'] ?? ''), 0, 10);
+            $end = substr((string) ($range['end_date'] ?? $range['end'] ?? ''), 0, 10);
+            if ($city !== '') {
+                $byCity[mb_strtolower($city)] = compact('city', 'start', 'end');
+            }
+        }
+
+        $normalized = [];
+        $previousEnd = null;
+        foreach ($cities as $city) {
+            $range = $byCity[mb_strtolower($city)] ?? null;
+            if (!$range || !$range['start'] || !$range['end']) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'city_date_ranges' => "Select a start and end date for {$city}.",
+                ]);
+            }
+            if ($range['start'] < $tourStart || $range['end'] > $tourEnd || $range['end'] <= $range['start']) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'city_date_ranges' => "{$city} dates must be inside the tour dates and include at least one night.",
+                ]);
+            }
+            if ($previousEnd !== null && $range['start'] < $previousEnd) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'city_date_ranges' => "{$city} cannot start before the previous city's end date.",
+                ]);
+            }
+            $normalized[] = [
+                'city' => $city,
+                'start_date' => $range['start'],
+                'end_date' => $range['end'],
+            ];
+            $previousEnd = $range['end'];
+        }
+
+        return $normalized;
     }
 
     /**
