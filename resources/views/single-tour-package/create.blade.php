@@ -371,6 +371,12 @@
             color: #fff;
         }
 
+        .city-toggle.is-thirdparty-disabled {
+            opacity: 0.65;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
         /* Guest Selector Modal Button Hover Effects */
         #mainGuestSelectorModal .btn:hover {
             transform: translateY(-1px);
@@ -797,6 +803,8 @@
                     $dmcUser = \App\Models\User::where('userId', $finalDmcId)->first();
                 }
 
+                $isThirdPartyDmc = strtolower(trim((string) (optional($dmcUser)->thirdparty ?? 'no'))) === 'yes';
+
                 $dmcCurrency = strtoupper(trim((string) (
                     optional($dmcUser)->currency
                     ?? auth()->user()->currency
@@ -835,16 +843,22 @@
                                             <span class="slider"></span>
                                         </div>
                                     </div>
-                                    <div class="ms-3" style="min-width: 230px;">
-                                        <div class="city-toggle">
+                                    <div class="ms-3 d-flex align-items-center flex-wrap gap-2" style="min-width: 230px;">
+                                        <div class="city-toggle{{ !empty($isThirdPartyDmc) ? ' is-thirdparty-disabled' : '' }}" @if(!empty($isThirdPartyDmc)) title="Multi City cannot be accessed for 3rd party DMC." @endif>
                                             <input type="radio" name="city_mode" id="city_mode_single" value="single" checked>
                                             <label for="city_mode_single">Single City</label>
 
-                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi">
+                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi" @if(!empty($isThirdPartyDmc)) disabled @endif>
                                             <label for="city_mode_multi">Multi City</label>
 
                                             <span class="slider"></span>
                                         </div>
+                                        @if(!empty($isThirdPartyDmc))
+                                            <div class="d-flex align-items-center px-2 py-1" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; color: #fff; font-size: 0.72rem; line-height: 1.25; max-width: 220px;">
+                                                <i class="ri-information-line me-1" style="font-size: 0.9rem;"></i>
+                                                <span>Multi City cannot be accessed for 3rd party DMC.</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -1734,6 +1748,7 @@
                     
                     // DMC User data for zone handling
                     const UserDmc = @json($dmcUser);
+                    window.IS_THIRD_PARTY_DMC = @json(!empty($isThirdPartyDmc));
 
                     window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
                     window.getTourCurrency = function () {
@@ -1745,6 +1760,68 @@
                     };
                     window.formatTourPriceParen = function (amount) {
                         return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+                    };
+
+                    /** City + country for the stay currently being edited (multi-city plan or single city). */
+                    window.getActiveServiceGeo = function () {
+                        const geo = { city: '', country: '' };
+                        const fromOption = function (opt, fallbackValue) {
+                            const out = { city: '', country: '' };
+                            if (!opt) {
+                                out.city = String(fallbackValue || '').trim();
+                                return out;
+                            }
+                            out.city = String(opt.getAttribute('data-city-name') || '').trim()
+                                || String(opt.textContent || '').split('(')[0].trim()
+                                || String(fallbackValue || '').trim();
+                            out.country = String(opt.getAttribute('data-country') || '').trim();
+                            if (!out.country) {
+                                const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                                if (m && m[1]) out.country = String(m[1]).trim();
+                            }
+                            return out;
+                        };
+                        try {
+                            const modeEl = document.querySelector('input[name="city_mode"]:checked');
+                            const isMulti = modeEl && modeEl.value === 'multi';
+                            if (isMulti) {
+                                const bundle = document.getElementById('segmentServicesBundle');
+                                const seg = bundle ? bundle.closest('.segment') : null;
+                                const sel = seg ? seg.querySelector('.city-select') : null;
+                                if (sel && sel.selectedIndex >= 0) {
+                                    const parsed = fromOption(sel.options[sel.selectedIndex], sel.value);
+                                    if (parsed.city || parsed.country) return parsed;
+                                }
+                            }
+
+                            const sc = document.getElementById('single_city');
+                            if (sc && String(sc.value || '').trim()) {
+                                let parsed = fromOption(sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null, sc.value);
+                                try {
+                                    if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                        const d = $(sc).select2('data');
+                                        if (d && d[0]) {
+                                            if (!parsed.city && d[0].text) parsed.city = String(d[0].text).split('(')[0].trim();
+                                            if (!parsed.country && d[0].country) parsed.country = String(d[0].country).trim();
+                                        }
+                                    }
+                                } catch (e) { /* ignore */ }
+                                if (parsed.city || parsed.country) {
+                                    geo.city = parsed.city;
+                                    geo.country = parsed.country;
+                                }
+                            }
+                            if (!geo.country) {
+                                geo.country = String(document.getElementById('user_country')?.value || '').trim();
+                            }
+                        } catch (e) { /* ignore */ }
+                        return geo;
+                    };
+                    window.getActiveServiceCity = function () {
+                        return String((window.getActiveServiceGeo() || {}).city || '').trim();
+                    };
+                    window.getActiveServiceCountry = function () {
+                        return String((window.getActiveServiceGeo() || {}).country || '').trim();
                     };
 
                     // ==============================
@@ -3016,6 +3093,8 @@
                                 id: null,
                                 bookingType: 'enquiry',
                                 bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
+                                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || (selectedHotelInfo && selectedHotelInfo.city) || hotel.city || '',
+                                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (selectedHotelInfo && selectedHotelInfo.country) || hotel.country || '',
                                 
                                 // Hotel Details
                                 hotelDetails: selectedHotelInfo ? {
@@ -3023,6 +3102,8 @@
                                     hotel_name: selectedHotelInfo.name,
                                     image: selectedHotelInfo.main_image,
                                     location: selectedHotelInfo.city,
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || selectedHotelInfo.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || selectedHotelInfo.city || '',
                                     checkInTime: selectedHotelInfo.check_in_time || "",
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
@@ -3030,7 +3111,9 @@
                                     hotel_id: hotel.id,
                                     hotel_name: hotel.name,
                                     image: "",
-                                    location: "Location not specified",
+                                    location: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || "Location not specified",
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || hotel.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || '',
                                     checkInTime: hotel.check_in_time || "",
                                     checkOutTime: hotel.check_out_time || "",
                                     cancellation_charge: null
@@ -3444,6 +3527,8 @@
                                         
                                         // Attraction Information
                                         bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_attraction_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_attraction_city_${index}`)?.options[document.getElementById(`day${day}_attraction_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: timeSlot || "10:00-00:00",
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -3702,8 +3787,8 @@
                                         bookingDate: guideDate,
                                         dayIndex: parseInt(day),
                                         Tax: "7.00", // Default tax value
-                                        city: "Singapore", // Default city
-                                        country: "Singapore", // Default country
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                         languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
                                         experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
                                         remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
@@ -3883,6 +3968,8 @@
                                         
                                         // Restaurant Information
                                         bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_restaurant_city_${index}`)?.options[document.getElementById(`day${day}_restaurant_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: formatVisitTime(timeSlot),
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -4067,8 +4154,9 @@
                                                 const citySelect = document.getElementById('modal_local_transfer_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4191,8 +4279,9 @@
                                                 const citySelect = document.getElementById('modal_exit_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -4333,10 +4422,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4429,10 +4518,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4610,7 +4699,7 @@
                                                 document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
                                             Night_Start_Time: nightStartTime || null,
                                             Night_End_Time: nightEndTime || null,
-                                            country: pickupZone.dataset.country || "Singapore",
+                                            country: pickupZone.dataset.country || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -4746,8 +4835,9 @@
                                             // Get country from city select option's data-country attribute, or from user_country field
                                             const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                             const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                             const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                             
                                             const transportData = {
                                                 id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -4862,8 +4952,9 @@
                                                     const citySelect = document.getElementById('modal_exit_city');
                                                     const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                     const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                     const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                     return countryValue || pickupZone.dataset.country || "";
                                                 })(),
                                                 fullName: customerData.fullName,
@@ -5025,16 +5116,17 @@
                                                         // Get city from the city select field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "Singapore";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
-                                                        return countryValue || "Singapore";
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
+                                                        return countryValue || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '');
                                                     })(),
                                                                     bookingType: "enquiry",
                                                                     vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
@@ -5191,15 +5283,16 @@
                                                         // Get city from the exit city select field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from exit city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                         return countryValue || "";
                                                     })(),
                                                     userInfo: {
@@ -5918,7 +6011,10 @@
                             return null;
                         };
                         let tourId = resolveTourId();
-                        const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        let cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        if (window.IS_THIRD_PARTY_DMC) {
+                            cityMode = 'single';
+                        }
                         const isMultiCity = (cityMode === 'multi');
                         const enquiry = @json($enquiry);
                         const csrfToken = document.querySelector('input[name="_token"]').value;
@@ -7267,7 +7363,11 @@
                     });
 
                     if (matchedVal === null) {
-                        $dd.append($('<option></option>').attr('value', needle).text(needle));
+                        const geo = (typeof window.getActiveServiceGeo === 'function') ? window.getActiveServiceGeo() : {};
+                        const $opt = $('<option></option>').attr('value', needle).text(needle);
+                        if (geo.country) $opt.attr('data-country', geo.country);
+                        if (geo.city) $opt.attr('data-city-name', geo.city);
+                        $dd.append($opt);
                         matchedVal = needle;
                     }
 
@@ -7438,7 +7538,11 @@
                 master.forEach(function (id) {
                     const label = labelById[id] || id;
                     const cityName = String(label).split('(')[0].trim();
-                    const ctry = countryById[id] || '';
+                    let ctry = countryById[id] || '';
+                    if (!ctry) {
+                        const m = String(label).match(/\(([^)]+)\)\s*$/);
+                        if (m && m[1]) ctry = String(m[1]).trim();
+                    }
                     html += `<option value="${id}" data-city-name="${escAttr(cityName)}" data-country="${escAttr(ctry)}">${label}</option>`;
                 });
 
@@ -7475,6 +7579,13 @@
                 $clone.find('[id]').removeAttr('id');
                 $clone.find('label[for]').removeAttr('for');
 
+                // Show native selected values instead of empty Select2 chrome in the snapshot.
+                $clone.find('.select2-container').remove();
+                $clone.find('select.select2-hidden-accessible')
+                    .removeClass('select2-hidden-accessible')
+                    .removeAttr('data-select2-id')
+                    .css({ width: '100%', display: 'block' });
+
                 // Make it read-only (visual snapshot).
                 $clone.find('input, select, textarea, button').prop('disabled', true);
                 $clone.addClass('segment-services-frozen');
@@ -7488,6 +7599,26 @@
                 );
 
                 $segment.find('.segment-services').append($clone);
+
+                const key = String($segment.data('index') || '');
+                if (key) {
+                    if (!window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
+                    window.__segmentFrozenHtmlByIdx[key] = $clone.prop('outerHTML');
+                }
+            }
+
+            function restoreFrozenSnapshotsIfMissing() {
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($s.find('.segment-services-frozen').length) return;
+                    const key = String($s.data('index') || '');
+                    const html = key && window.__segmentFrozenHtmlByIdx ? window.__segmentFrozenHtmlByIdx[key] : '';
+                    if (!html) return;
+                    $s.find('.segment-services').append(html);
+                    $s.find('.segment-body-collapse').addClass('show');
+                    $s.find('.segment-services-banner').removeClass('d-none');
+                    $s.find('.segment-header').removeClass('d-none');
+                });
             }
 
             /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
@@ -7577,6 +7708,12 @@
             }
 
             function setCityMode(mode) {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    mode = 'single';
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    $('.city-toggle').addClass('is-thirdparty-disabled');
+                }
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
@@ -7689,6 +7826,40 @@
                 }
             }
 
+            /** Move the live services bundle home without deleting other city plans' frozen snapshots. */
+            function detachLiveServicesBundleKeepSnapshots() {
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                }
+            }
+
+            function deleteSegmentStoredState(rmKey) {
+                if (!rmKey) return;
+                if (window.__segmentServiceState) delete window.__segmentServiceState[rmKey];
+                if (window.__segmentServiceMeta) delete window.__segmentServiceMeta[rmKey];
+                if (window.__segmentLastValidRange) delete window.__segmentLastValidRange[rmKey];
+                if (window.__segmentBundleDomByIdx) delete window.__segmentBundleDomByIdx[rmKey];
+                if (window.__segmentFrozenHtmlByIdx) delete window.__segmentFrozenHtmlByIdx[rmKey];
+            }
+
+            function findNextCompleteCityPlan($except) {
+                let $found = $();
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($except && $except.length && $s.is($except)) return;
+                    const city = $s.find('.city-select').val();
+                    const start = $s.find('.start-date').val();
+                    const end = $s.find('.end-date').val();
+                    if (city && start && end) {
+                        $found = $s;
+                        return false;
+                    }
+                });
+                return $found;
+            }
+
             function refreshAllOnCityModeSwitch() {
                 ensureServicesBundleAtHome();
 
@@ -7763,6 +7934,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7789,6 +7961,7 @@
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
                 if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
                 ensureServicesBundleAtHome();
@@ -7832,7 +8005,12 @@
             }
 
             $(document).on('change', 'input[name="city_mode"]', function () {
-                const mode = $(this).val();
+                let mode = $(this).val();
+                if (window.IS_THIRD_PARTY_DMC) {
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    mode = 'single';
+                }
                 resetTourPackageCityMode(mode);
                 setCityMode(mode);
                 window.syncSingleCityToAllServices();
@@ -7892,6 +8070,10 @@
             });
 
             $('#addCityPlan').on('click', function () {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    alert('This is a 3rd party DMC. Multi City cannot be accessed.');
+                    return;
+                }
                 const master = getMasterCities();
                 if (!master.length) {
                     alert('Please select cities in the master list first.');
@@ -7974,15 +8156,31 @@
             $(document).on('click', '.removeSegment', function () {
                 const $seg = $(this).closest('.segment');
                 const rmKey = $seg.length ? String($seg.data('index')) : '';
-                if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
-                    delete window.__segmentServiceState[rmKey];
-                }
-                if ($seg.find('#segmentServicesBundle').length) {
-                    ensureServicesBundleAtHome();
+                const hadLiveBundle = $seg.find('#segmentServicesBundle').length > 0;
+
+                deleteSegmentStoredState(rmKey);
+
+                if (hadLiveBundle) {
+                    // Keep other city plans' frozen snapshots. Do not re-open the previous
+                    // plan as live — that rebuilds daily services and drops attractions,
+                    // guides, restaurants and transport (hotels survive via JS arrays).
+                    detachLiveServicesBundleKeepSnapshots();
                     clearMultiSegmentStayContext();
+                    if (typeof window.clearAllSelectedServices === 'function') {
+                        window.clearAllSelectedServices();
+                    }
+                    if (typeof window.resetServicesBundleFormControls === 'function') {
+                        window.resetServicesBundleFormControls();
+                    }
                 }
+
                 $seg.remove();
+                restoreFrozenSnapshotsIfMissing();
                 refreshGlobalServicesVisibility();
+
+                if (typeof window.scheduleTourSubmitButtonUpdate === 'function') {
+                    window.scheduleTourSubmitButtonUpdate();
+                }
             });
 
             // When master list changes, update all segment dropdown options
@@ -18212,7 +18410,12 @@
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
-            const container = document.getElementById('dailyServicesContainer');
+            const liveBundle = document.getElementById('segmentServicesBundle');
+            const container = (liveBundle && liveBundle.querySelector('#dailyServicesContainer'))
+                || document.getElementById('dailyServicesContainer');
+            if (!container || container.closest('.segment-services-frozen')) {
+                return;
+            }
 
             const useSeg = window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
                 typeof $ !== 'undefined' &&
@@ -18433,6 +18636,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -18521,25 +18742,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Custom Price Field for Entry Port (Zone = 0) -->
-                                            <div class="col-12 mt-3 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
-                                                <div class="alert alert-warning">
-                                                    <div class="form-group mb-0">
-                                                        <label class="form-label fw-semibold mb-2">
-                                                            <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                        </label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                            <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
-                                                            <span class="input-group-text">.00</span>
-                                                        </div>
-                                                        <small class="form-text text-muted mt-1">
-                                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                                        </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 
                                                 <!-- Hidden fields for entry port pricing -->
                                             <div class="col-12">
@@ -18756,6 +18958,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_exit_0_passengers" id="day${day}_exit_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -18840,25 +19060,6 @@
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Custom Price Field for Exit Port (Zone = 0) -->
-                                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
-                                                    <div class="alert alert-warning">
-                                                        <div class="form-group mb-0">
-                                                            <label class="form-label fw-semibold mb-2">
-                                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                            </label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
-                                                                <span class="input-group-text">.00</span>
-                                                            </div>
-                                                            <small class="form-text text-muted mt-1">
-                                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                                            </small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -25511,6 +25712,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -25597,24 +25817,6 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Custom Price Field for Additional Entry Port (Zone = 0) -->
-                            <div class="col-12 mt-2 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
-                                <div class="alert" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem 1rem;">
-                                    <div class="form-group mb-0">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.85rem;">
-                                            <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group" style="max-width: 200px;">
-                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">{{ $dmcCurrency }}</span>
-                                            <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
-                                        </div>
-                                        <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -25881,6 +26083,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_exit_${newIndex}_passengers" id="day${day}_exit_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -25966,25 +26187,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Custom Price Field for Additional Exit Port (Zone = 0) -->
-                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
-                                    <div class="alert alert-warning">
-                                        <div class="form-group mb-0">
-                                            <label class="form-label fw-semibold mb-2">
-                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text tour-currency-prefix">{{ $dmcCurrency }}</span>
-                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
-                                                <span class="input-group-text">.00</span>
-                                            </div>
-                                            <small class="form-text text-muted mt-1">
-                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -26108,6 +26310,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_${newIndex}_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_${newIndex}_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for additional exit port (zone=0): day${day}_exit_${newIndex}_price_field`);
                     }
                     
@@ -28594,8 +28798,46 @@
             });
     }
 
-    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
-    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    // Arrival/departure ports come from the city's country, not only that city.
+    window.getCountryForPortCity = function(cityName, selectId) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value === cityName && selected.getAttribute('data-country')) {
+                return selected.getAttribute('data-country');
+            }
+            const match = Array.from(select.options).find(function (o) { return o.value === cityName; });
+            if (match && match.getAttribute('data-country')) {
+                return match.getAttribute('data-country');
+            }
+        }
+        if (Array.isArray(window.allCitiesData)) {
+            const city = window.allCitiesData.find(function (c) { return c && c.name === cityName; });
+            if (city && city.country) {
+                return city.country;
+            }
+        }
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect && countrySelect.value) {
+            return countrySelect.value;
+        }
+        const hidden = document.getElementById('country_id');
+        return (hidden && hidden.value) || '';
+    };
+
+    window.buildPortsByCountryUrl = function(cityName, selectId) {
+        const params = new URLSearchParams();
+        const country = window.getCountryForPortCity(cityName, selectId);
+        if (country) {
+            params.set('country_id', country);
+        }
+        if (cityName) {
+            params.set('city', cityName);
+        }
+        return `{{ route('fetch-ports-by-country-single-tour') }}?${params.toString()}`;
+    };
+
+    // Fetch all ports in the selected city's country and fill the arrival pickup dropdown.
     window.loadEntryPickupPortsForCity = function(cityName) {
         const pickupSelect = document.getElementById('entry_pickup_port_select');
         if (!pickupSelect) return;
@@ -28605,25 +28847,16 @@
             return;
         }
 
-        // Send country too when we can (harmless), but city is what matters.
-        const countrySelect = document.getElementById('user_country');
-        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
-        if (!country && countrySelect && countrySelect.value) {
-            const opt = countrySelect.options[countrySelect.selectedIndex];
-            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
-        }
-
         pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
         $.ajax({
-            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            url: window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'),
             type: "GET",
-            data: { country_id: country, city: cityName },
             dataType: 'json'
         }).done(function(response) {
             const ports = (response && response.ports) ? response.ports : [];
             pickupSelect.innerHTML = ports.length
                 ? '<option value="">Select pickup port</option>'
-                : '<option value="">No ports for this city</option>';
+                : '<option value="">No ports for this country</option>';
             ports.forEach(function(port) {
                 const option = document.createElement('option');
                 option.value = port.port_id;
@@ -28690,7 +28923,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
@@ -28702,7 +28935,7 @@
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            // Add Ports first — all ports in the selected city's country
             const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
@@ -28841,7 +29074,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_exit_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
@@ -28850,13 +29083,13 @@
             console.log('Restaurants:', restaurantsData);
             console.log('Ports:', portsData);
 
-            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            // Departure drop off ports — all ports in the selected city's country
             const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
             if (exitDropoffSelect) {
                 const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
                 exitDropoffSelect.innerHTML = exitPorts.length
                     ? '<option value="">Select dropoff port</option>'
-                    : '<option value="">No ports for this city</option>';
+                    : '<option value="">No ports for this country</option>';
                 exitPorts.forEach(function(port) {
                     const option = document.createElement('option');
                     option.value = port.port_id;
@@ -29225,6 +29458,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_0_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_0_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for primary exit port (zone=0): day${day}_exit_0_price_field`);
                     }
                     
@@ -29251,7 +29486,7 @@
                 </select>
             `;
             
-            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
+            // Dropoff field (ports) — country-wide: filled by loadExitPortsForCity from the city's country.
             dropoffContainer.innerHTML = `
                 <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
@@ -32320,73 +32555,66 @@
     // Update exit port custom pricing function (Zone = 0)
     window.updateExitPortCustomPricing = function(day, section) {
         console.log('Updating exit port custom pricing for day', day, 'section', section);
-        
-        // Get the custom price input field
+
         const customPriceInput = document.getElementById(`day${day}_${section}_custom_price`);
         const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
-        
+
         if (!customPriceInput || !priceDisplay) {
             console.error('Custom price input or price display not found for exit port', section);
             return;
         }
-        
+
         const customPrice = parseFloat(customPriceInput.value) || 0;
-        
+        const adults = parseInt(document.getElementById(`day${day}_${section}_adults`)?.value || document.getElementById('adults')?.value) || 0;
+        const children = parseInt(document.getElementById(`day${day}_${section}_children`)?.value || document.getElementById('children')?.value) || 0;
+        const totalGuests = adults + children;
+        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD';
+
+        priceDisplay.style.display = 'block';
+
+        const pricingContent = document.getElementById(`day${day}_${section}_pricing_content`);
+        const totalDisplay = document.getElementById(`day${day}_${section}_total_price_display`);
+
         if (customPrice > 0) {
-            // Get guest count for display
-            const adults = parseInt(document.getElementById('adults')?.value) || 0;
-            const children = parseInt(document.getElementById('children')?.value) || 0;
-            const totalGuests = adults + children;
-            
-            // Update price display with custom price
-            priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Exit Port Custom Pricing</strong>
-                        <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
-                            <strong>Service Type:</strong> Private<br>
-                            <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                            <small class="text-info">Fixed price for exit port service in zone 0 mode.</small>
-                        </div>
+            if (pricingContent) {
+                pricingContent.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Custom price:</span>
+                        <span class="fw-semibold">${cur} ${customPrice.toFixed(2)}</span>
                     </div>
-                </div>
-            `;
-            
-            // Store pricing data in hidden fields
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Service type:</span>
+                        <span class="fw-semibold">Private</span>
+                    </div>
+                    <small class="text-muted">Private vehicle: fixed price per trip (not per person).</small>
+                `;
+            }
+            if (totalDisplay) {
+                totalDisplay.textContent = `${cur} ${customPrice.toFixed(2)}`;
+            }
+
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = customPrice.toFixed(2);
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
-            
-            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
-            
+
+            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${cur} ${customPrice.toFixed(2)}`);
         } else {
-            // Hide price display if no custom price
-            priceDisplay.style.display = 'none';
-            // Clear hidden fields
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = '0';
             if (totalPriceField) totalPriceField.value = '0';
             if (guestCountField) guestCountField.value = '0';
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
+            if (totalDisplay) totalDisplay.textContent = `${cur} 0.00`;
+        }
+
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
         }
     }
 
@@ -32445,8 +32673,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore", // Default city
-                    country: "Singapore" // Default country
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32527,8 +32755,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: passengers,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "entry_port"
             };
             
@@ -32582,8 +32810,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32657,8 +32885,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_exit_0_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "exit_port"
             };
             
@@ -32727,8 +32955,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -32804,8 +33032,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_transport_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "transport"
             };
             
@@ -33297,6 +33525,8 @@
                                 const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                 if (exitPriceField) {
                                     exitPriceField.style.display = 'block';
+                                    const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                    if (priceDisplay) priceDisplay.style.display = 'block';
                                     console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                 }
                                 
@@ -34719,6 +34949,10 @@
                         
                         // Package-level country fallback (city-driven flows may leave this empty).
                         const resolveSelectedCountryName = () => {
+                            if (typeof window.getActiveServiceCountry === 'function') {
+                                const fromStay = window.getActiveServiceCountry();
+                                if (fromStay) return fromStay;
+                            }
                             const fromCountryField = document.getElementById('user_country')?.value || '';
                             if (fromCountryField) return fromCountryField;
                             
@@ -35487,6 +35721,8 @@
                                         const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                         if (exitPriceField) {
                                             exitPriceField.style.display = 'block';
+                                            const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                            if (priceDisplay) priceDisplay.style.display = 'block';
                                             console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                         }
                                         
