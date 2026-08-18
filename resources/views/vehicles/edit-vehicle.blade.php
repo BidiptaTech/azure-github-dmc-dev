@@ -1019,7 +1019,13 @@
                         'port_port', 'port_attraction', 'port_restaurant', 'port_hotel',
                         'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
                     ];
+                    // City picker is only meaningful for the zone-to-zone tabs; the port tabs
+                    // stay country-scoped.
+                    $zoneMappingTypesWithCityFilter = [
+                        'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                    ];
                     $currentMappingType = request()->get('mapping_type');
+                    $showCityFilter = in_array($currentMappingType, $zoneMappingTypesWithCityFilter);
                     $zoneFilterFromSelectMode = 'port';
                     $zoneFilterFromPlaceholder = '-- Select From Port --';
                     $zoneFilterFromZones = collect();
@@ -1102,24 +1108,39 @@
 
                             const countryEl = document.getElementById('mapping_filter_country');
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!countryEl || !cityEl) return;
+                            // The city dropdown only exists on the zone-to-zone tabs. Country
+                            // filtering must still work on the port tabs without it.
+                            if (!countryEl) return;
 
                             const self = this;
                             const onCountryChange = function () {
                                 self.country = this.value || '';
                                 self.cityId = '';
-                                cityEl.value = '';
+                                if (cityEl) {
+                                    cityEl.value = '';
+                                }
                                 self.loadCitiesForCountry(self.country, function () {
                                     self.applyToFromZoneSelect();
                                 });
                             };
                             const onCityChange = function () {
-                                self.cityId = this.value || '';
+                                self.cityId = cityEl ? (cityEl.value || '') : '';
                                 self.applyToFromZoneSelect();
                             };
 
                             countryEl.addEventListener('change', onCountryChange);
-                            cityEl.addEventListener('change', onCityChange);
+
+                            if (cityEl) {
+                                // Select2 publishes its change through jQuery.trigger(), which never
+                                // reaches a native addEventListener handler, so bind through jQuery
+                                // when it is present. A jQuery binding still catches real DOM events.
+                                if (window.jQuery) {
+                                    window.jQuery(cityEl).off('change.zoneMappingFilter')
+                                        .on('change.zoneMappingFilter', onCityChange);
+                                } else {
+                                    cityEl.addEventListener('change', onCityChange);
+                                }
+                            }
 
                             // Searchable city dropdown (Select2)
                             this.initCitySelect2('');
@@ -1136,23 +1157,25 @@
                             }
                         },
 
+                        // Always resolves the country's city ids, even on tabs that render no city
+                        // dropdown, because getFilteredZones() narrows zones by those ids.
                         loadCitiesForCountry(countryName, done) {
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!cityEl) {
-                                if (typeof done === 'function') done();
-                                return;
-                            }
 
                             if (!countryName) {
                                 this.cityIdsForCountry = [];
-                                cityEl.innerHTML = '<option value="">All Cities</option>';
-                                this.initCitySelect2('');
+                                if (cityEl) {
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    this.initCitySelect2('');
+                                }
                                 if (typeof done === 'function') done();
                                 return;
                             }
 
-                            cityEl.innerHTML = '<option value="">Loading cities...</option>';
-                            this.initCitySelect2('');
+                            if (cityEl) {
+                                cityEl.innerHTML = '<option value="">Loading cities...</option>';
+                                this.initCitySelect2('');
+                            }
 
                             const self = this;
                             fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
@@ -1162,20 +1185,32 @@
                                 .then(function (response) {
                                     const cities = response.cities || [];
                                     self.cityIdsForCountry = cities.map(c => String(c.city_id));
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
-                                    cities.forEach(function (city) {
-                                        const opt = document.createElement('option');
-                                        opt.value = city.city_id;
-                                        opt.textContent = city.name;
-                                        cityEl.appendChild(opt);
-                                    });
-                                    self.initCitySelect2(self.cityId || '');
+
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        cities.forEach(function (city) {
+                                            const opt = document.createElement('option');
+                                            opt.value = city.city_id;
+                                            opt.textContent = city.name;
+                                            cityEl.appendChild(opt);
+                                        });
+                                        // Drop a stale selection that no longer belongs to this country.
+                                        if (self.cityId && !self.cityIdsForCountry.includes(String(self.cityId))) {
+                                            self.cityId = '';
+                                        }
+                                        self.initCitySelect2(self.cityId || '');
+                                    } else {
+                                        self.cityId = '';
+                                    }
+
                                     if (typeof done === 'function') done();
                                 })
                                 .catch(function () {
                                     self.cityIdsForCountry = [];
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
-                                    self.initCitySelect2('');
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        self.initCitySelect2('');
+                                    }
                                     if (typeof done === 'function') done();
                                 });
                         },
@@ -1436,7 +1471,7 @@
                      data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
                      data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
                      data-cities-url="{{ route('fetch-cities-by-country') }}">
-                    <div class="col-md-2">
+                    <div class="{{ $showCityFilter ? 'col-md-2' : 'col-md-4' }}">
                         <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
                         <select id="mapping_filter_country" class="form-select">
                             @php $scopedCountries = $countries ?? collect(); @endphp
@@ -1446,12 +1481,14 @@
                             @endforeach
                         </select>
                     </div>
+                    @if($showCityFilter)
                     <div class="col-md-2">
                         <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
                         <select id="mapping_filter_city" class="form-select">
                             <option value="">All Cities</option>
                         </select>
                     </div>
+                    @endif
                     <div class="col-md-2">
                         <label for="global_private_profit_type" class="form-label"><strong>Private Profit</strong></label>
                         <select id="global_private_profit_type" name="global_private_profit_type" class="form-select js-global-private-profit-type">
