@@ -8938,6 +8938,18 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
+function displayErrorContent(modalId, message) {
+    const contentEl = document.getElementById(`${modalId}_content`);
+    if (!contentEl) return;
+    contentEl.innerHTML = `
+        <div class="text-center py-5">
+            <i class="ri-error-warning-line text-danger mb-3" style="font-size:3rem;"></i>
+            <h5 class="text-danger">${message || 'An error occurred'}</h5>
+            <p class="text-muted mb-0">Please try again later.</p>
+        </div>
+    `;
+}
+
 function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
     const serviceCurrency = (attractionBooking && attractionBooking.currency) ? attractionBooking.currency : (window.bookingCurrency || 'SGD');
     const bookingDate = attractionBooking.bookingDate;
@@ -8949,6 +8961,12 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
     }) : 'N/A';
     const tourRow = document.querySelector('tr[data-tour-id="' + tourId + '"]');
     const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
+    const transferPrice = parseFloat(
+        isPro == 1 && attractionBooking.transferOptions?.totalPrice > 0
+            ? attractionBooking.transferOptions.totalPrice
+            : (attractionBooking.transferOptions?.cost || 0)
+    ) || 0;
+    const guidePrice = parseFloat(attractionBooking.guideOptions?.total_price || 0) || 0;
     
     const content = `
         <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #fd9853 !important;">
@@ -9223,19 +9241,19 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #17a2b8 !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Vehicle Price</small>
-                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${serviceCurrency} ${parseFloat(isPro == 1 && attractionBooking.transferOptions?.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions?.cost || 0)).toFixed(2)}</div>
+                                <div class="fw-bold text-info" style="font-size: 0.8rem;">${serviceCurrency} ${transferPrice.toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #6c757d !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Guide Price</small>
-                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${serviceCurrency} ${parseFloat((attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 0.8rem; color: #6c757d;">${serviceCurrency} ${guidePrice.toFixed(2)}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-2 border rounded bg-white" style="border-color: #fd9853 !important; background: linear-gradient(135deg, rgba(253,152,83,0.1) 0%, rgba(254,120,84,0.1) 100%) !important;">
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">Grand Total</small>
-                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${serviceCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + parseFloat(isPro == 1 && attractionBooking.transferOptions.totalPrice > 0 ? attractionBooking.transferOptions.totalPrice : (attractionBooking.transferOptions.cost || 0)) + parseFloat(attractionBooking.guideOptions?.total_price || 0)).toFixed(2)}</div>
+                                <div class="fw-bold" style="font-size: 1.1rem; color: #fd9853;">${serviceCurrency} ${(parseFloat(attractionBooking.totalPrice || 0) + transferPrice + guidePrice).toFixed(2)}</div>
                             </div>
                         </div>
                     </div>
