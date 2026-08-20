@@ -6087,7 +6087,8 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" readonly style="font-size: 0.85rem; background-color: #e9ecef;">
+                                                    @php $leadGuestEmail = trim((string) ($customer_info['email'] ?? '')); @endphp
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $leadGuestEmail }}" @if($leadGuestEmail !== '') readonly @endif style="font-size: 0.85rem;{{ $leadGuestEmail !== '' ? ' background-color: #e9ecef;' : '' }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
@@ -6228,7 +6229,8 @@
                                                                 </div>
                                                                 <div class="col-md-4">
                                                                     <label class="form-label fw-semibold">Email</label>
-                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email" readonly style="background-color: #e9ecef;">
+                                                                    @php $additionalGuestEmail = trim((string) ($guest['email'] ?? '')); @endphp
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $additionalGuestEmail }}" placeholder="Enter email" @if($additionalGuestEmail !== '') readonly @endif @if($additionalGuestEmail !== '') style="background-color: #e9ecef;" @endif
                                                                 </div>
                                                                 @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
                                                                     <div class="col-md-4">
