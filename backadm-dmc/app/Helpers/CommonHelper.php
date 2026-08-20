@@ -22,7 +22,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use App\Models\EmailsSetup;
 use App\Models\DmcFuncApp;
@@ -3290,24 +3289,30 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         try {
-            if ($emailUuid !== null && $emailUuid !== '') {
+            $isAiMail = ($runtimeMailConfig !== null) || ($emailUuid !== null && $emailUuid !== '');
+            $finalSubject = $subject;
+            $referenceChain = [];
+
+            if ($isAiMail && $emailUuid !== null && $emailUuid !== '') {
                 $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
                 $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+            }
 
-                Mail::to($recipientEmail)->send(new AutomatedMail(
-                    $html,
-                    $finalSubject,
-                    $emailUuid,
-                    $fromEmail,
-                    $fromName,
-                    $replyToEmail,
-                    $referenceChain,
-                    $ccEmails,
-                    $bccEmails,
-                    $runtimeMailConfig
-                ));
+            Mail::to($recipientEmail)->send(new DmcMail(
+                $html,
+                $finalSubject,
+                $fromEmail,
+                $fromName,
+                $replyToEmail,
+                $ccEmails,
+                $bccEmails,
+                $runtimeMailConfig,
+                $isAiMail ? $emailUuid : null,
+                $referenceChain
+            ));
 
-                Log::info('Threaded email sent', [
+            if ($isAiMail && $emailUuid !== null && $emailUuid !== '') {
+                Log::info('Threaded AI email sent via DmcMail', [
                     'to' => $recipientEmail,
                     'cc' => $ccEmails,
                     'bcc' => $bccEmails,
@@ -3316,20 +3321,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'subject' => $finalSubject,
                     'thread_subject' => $threadSubject,
                 ]);
-
-                return;
             }
-
-            Mail::to($recipientEmail)->send(new DmcMail(
-                $html,
-                $subject,
-                $fromEmail,
-                $fromName,
-                $replyToEmail,
-                $ccEmails,
-                $bccEmails,
-                $runtimeMailConfig
-            ));
         } finally {
             if ($previousMailConfig !== null) {
                 Config::set('mail.default', $previousMailConfig['default']);
