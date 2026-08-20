@@ -946,13 +946,16 @@
                         Image</strong><span style="color: red; font-weight: bold;">*</span></label>
                 <div id="master-drop-area" class="drop-area">
                                 Drag & Drop your files here or click to upload.
-                    <input type="file" id="master_image" name="master_image" style="display: none;" required>
+                    <input type="file" id="master_image" name="master_image" accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                             </div>
                             <div id="image-warning" class="text-danger mt-1" style="display: none;">
                                 Please upload an image before submitting.
                             </div>
+                            @error('master_image')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
-            <div id="master-preview-container" class="preview-container mt-3"></div>
+                    <div id="master-preview-container" class="preview-container mt-3"></div>
                     </div>
 
                     <!-- Additional Image drop -->
@@ -962,14 +965,14 @@
                                     Images</strong></label>
                 <div id="drop-area" class="drop-area">
                                 Drag & Drop your files here or click to upload.
-                    <input type="file" id="images" name="images[]" multiple style="display: none;">
+                    <input type="file" id="images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                             </div>
                 <div id="preview-container" class="preview-container mt-3"></div>
                         </div>
                         <!-- Existing Image Section -->
                         <div class="image-preview-container d-flex flex-wrap gap-2">
                         </div>
-                        <input type="file" name="all_images[]" id="all-images" multiple style="display: none;">
+                        <input type="file" name="all_images[]" id="all-images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                         @error('images')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -1553,6 +1556,12 @@ $(document).ready(function() {
             handleFiles(e.target.files);
         });
 
+        function isLikelyImageFile(file) {
+            if (!file) return false;
+            if (file.type && file.type.indexOf('image/') === 0) return true;
+            return /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name || '');
+        }
+
         function preventDefaults(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1576,36 +1585,41 @@ $(document).ready(function() {
             if (files.length === 0) return;
             
             if (isMaster) {
-                // For master image, only show the first file
+                if (!isLikelyImageFile(files[0])) {
+                    alert('Please choose a JPEG, PNG, WEBP or GIF image.');
+                    return;
+                }
                 previewFile(files[0]);
-                
-                // Create a new FileList containing only the first file
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(files[0]);
+
+                // Click-to-upload already put the file on this input. Reassigning
+                // the same input during its change event can clear/corrupt the FileList.
                 const masterImageElement = document.getElementById('master_image');
-                if (masterImageElement) {
+                if (masterImageElement && masterImageElement.files !== files) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(files[0]);
                     masterImageElement.files = dataTransfer.files;
                 }
-                
-                // Hide warning
+
                 const imageWarning = document.getElementById('image-warning');
                 if (imageWarning) {
                     imageWarning.style.display = 'none';
                 }
             } else {
-                // For additional images, show all files
-                previewContainer.innerHTML = ''; // Clear previous previews
-                
-                // Create a new FileList for all images
+                // Additional images: keep previously selected files and append the new ones.
+                const allImagesElement = document.getElementById('all-images');
                 const dataTransfer = new DataTransfer();
-                
-                [...files].forEach(file => {
+
+                if (allImagesElement && allImagesElement.files) {
+                    [...allImagesElement.files].forEach(function (existing) {
+                        dataTransfer.items.add(existing);
+                    });
+                }
+
+                [...files].forEach(function (file) {
                     previewFile(file);
                     dataTransfer.items.add(file);
                 });
 
-                // Set the files to the all_images input
-                const allImagesElement = document.getElementById('all-images');
                 if (allImagesElement) {
                     allImagesElement.files = dataTransfer.files;
                 }
@@ -1691,6 +1705,40 @@ $(document).ready(function() {
         document.getElementById('images') &&
         document.getElementById('preview-container')) {
         initializeImageUpload('drop-area', 'images', 'preview-container', false);
+    }
+
+    const roomForm = document.getElementById('roomCategoryForm');
+    if (roomForm) {
+        roomForm.addEventListener('submit', function (event) {
+            const picker = document.getElementById('images');
+            const gallery = document.getElementById('all-images');
+            if (!gallery) {
+                return;
+            }
+            if (picker && picker.files.length && !gallery.files.length) {
+                const dt = new DataTransfer();
+                [...picker.files].forEach(function (file) {
+                    dt.items.add(file);
+                });
+                gallery.files = dt.files;
+            }
+            if (!gallery.files.length) {
+                gallery.removeAttribute('name');
+            }
+
+            const masterInput = document.getElementById('master_image');
+            const imageWarning = document.getElementById('image-warning');
+            if (!masterInput || !masterInput.files || !masterInput.files.length) {
+                event.preventDefault();
+                if (imageWarning) {
+                    imageWarning.style.display = 'block';
+                }
+                if (masterInput && masterInput.closest('.col-md-4')) {
+                    masterInput.closest('.col-md-4').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+        });
     }
 
     // Auto-populate and set up form fields based on existing rooms
