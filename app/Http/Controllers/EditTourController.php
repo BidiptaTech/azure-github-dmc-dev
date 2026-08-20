@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
-use App\Mail\DmcMail;
+use App\Mail\TravclicksMail;
 use App\Services\FirebaseService;
 
 class EditTourController extends Controller
@@ -1438,9 +1438,9 @@ class EditTourController extends Controller
             $extractedHtml = $matches[0];
             $subject = 'Welcome! Your Tour Tracking Credentials';
             $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
-
-            Mail::to($guest->email)->send(new DmcMail($emailHtml, $subject));
-
+            
+            Mail::to($guest->email)->send(new TravclicksMail($emailHtml, $subject));
+            
             Log::info("Guest credentials email sent successfully to: {$guest->email}", [
                 'guest_id' => $guest->guest_id,
                 'guest_name' => $guest->guest_name,
