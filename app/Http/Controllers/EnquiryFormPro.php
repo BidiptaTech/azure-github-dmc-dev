@@ -34,6 +34,20 @@ class EnquiryFormPro extends Controller
     /** Fallback country CSV while creating/updating Pro orders (multi-country discount geo). */
     private ?string $proOrderGeoFallback = null;
 
+    /** @var array<string, array{currency:string,country?:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}> */
+    private array $proCurrencyMarkups = [];
+
+    /** @var array<string, array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}> */
+    private array $proCityMarkups = [];
+
+    private float $proFallbackMarkupValue = 0;
+
+    private string $proFallbackMarkupType = '';
+
+    private float $proFallbackDiscountValue = 0;
+
+    private string $proFallbackDiscountType = '';
+
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
@@ -242,7 +256,245 @@ class EnquiryFormPro extends Controller
         $attributes['country'] = $geo['country'];
         $attributes['currency'] = $geo['currency'];
 
+        // Per-currency / per-city markup/discount for multi-city (fallback to footer active values)
+        $md = $this->lookupProCurrencyMarkup($geo['currency'] ?? null, $geo['city'] ?? null);
+        $attributes['discount'] = $md['discount_value'];
+        $attributes['discount_type'] = $md['discount_type'] !== '' ? $md['discount_type'] : null;
+        $attributes['markup_percentage'] = $md['markup_value'];
+        $attributes['markup_type'] = $md['markup_type'] !== '' ? $md['markup_type'] : null;
+
         return Order::create($attributes);
+    }
+
+    /**
+     * Normalize currency_markups payload (list or map) to currency-keyed entries.
+     * Also fills $this->proCityMarkups keyed by city name when city is present.
+     *
+     * @param  mixed  $raw
+     * @param  array{markup_type?:string,markup_value?:float|int|string,discount_type?:string,discount_value?:float|int|string}  $fallback
+     * @return array<string, array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}>
+     */
+    private function normalizeCurrencyMarkups($raw, array $fallback = []): array
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+
+        $keyedByCurrency = [];
+        $keyedByCity = [];
+        if (is_array($raw)) {
+            foreach ($raw as $key => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $city = trim((string) ($row['city'] ?? ''));
+                $currency = is_string($key) && !is_numeric($key) && empty($row['currency'])
+                    ? strtoupper(trim($key))
+                    : strtoupper(trim((string) ($row['currency'] ?? '')));
+                // Allow city-only rows (currency may resolve later)
+                if ($currency === '' && $city === '') {
+                    continue;
+                }
+                $markupType = trim((string) ($row['markup_type'] ?? ''));
+                $discountType = trim((string) ($row['discount_type'] ?? ''));
+                if (!in_array($markupType, ['percentage', 'flat', ''], true)) {
+                    $markupType = '';
+                }
+                if (!in_array($discountType, ['percentage', 'flat', 'foc', ''], true)) {
+                    $discountType = '';
+                }
+                $entry = [
+                    'city' => $city,
+                    'currency' => $currency,
+                    'country' => trim((string) ($row['country'] ?? '')),
+                    'markup_type' => $markupType !== '' ? $markupType : null,
+                    'markup_value' => (float) ($row['markup_value'] ?? 0),
+                    'discount_type' => $discountType !== '' ? $discountType : null,
+                    'discount_value' => (float) ($row['discount_value'] ?? 0),
+                ];
+                if ($currency !== '') {
+                    $keyedByCurrency[$currency] = $entry;
+                }
+                if ($city !== '') {
+                    $keyedByCity[$city] = $entry;
+                }
+            }
+        }
+
+        $this->proCityMarkups = $keyedByCity;
+
+        return $keyedByCurrency;
+    }
+
+    /**
+     * Resolve markup/discount for an order by city first, then currency.
+     *
+     * @return array{markup_type:string,markup_value:float,discount_type:string,discount_value:float}
+     */
+    private function lookupProCurrencyMarkup(?string $currency, ?string $city = null): array
+    {
+        $cityKey = trim((string) $city);
+        if ($cityKey !== '') {
+            if (isset($this->proCityMarkups[$cityKey])) {
+                $e = $this->proCityMarkups[$cityKey];
+
+                return [
+                    'markup_type' => (string) ($e['markup_type'] ?? ''),
+                    'markup_value' => (float) ($e['markup_value'] ?? 0),
+                    'discount_type' => (string) ($e['discount_type'] ?? ''),
+                    'discount_value' => (float) ($e['discount_value'] ?? 0),
+                ];
+            }
+            foreach ($this->proCityMarkups as $name => $e) {
+                if (strcasecmp((string) $name, $cityKey) === 0) {
+                    return [
+                        'markup_type' => (string) ($e['markup_type'] ?? ''),
+                        'markup_value' => (float) ($e['markup_value'] ?? 0),
+                        'discount_type' => (string) ($e['discount_type'] ?? ''),
+                        'discount_value' => (float) ($e['discount_value'] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        $key = strtoupper(trim((string) $currency));
+        if ($key !== '' && isset($this->proCurrencyMarkups[$key])) {
+            $e = $this->proCurrencyMarkups[$key];
+
+            return [
+                'markup_type' => (string) ($e['markup_type'] ?? ''),
+                'markup_value' => (float) ($e['markup_value'] ?? 0),
+                'discount_type' => (string) ($e['discount_type'] ?? ''),
+                'discount_value' => (float) ($e['discount_value'] ?? 0),
+            ];
+        }
+
+        return [
+            'markup_type' => $this->proFallbackMarkupType,
+            'markup_value' => $this->proFallbackMarkupValue,
+            'discount_type' => $this->proFallbackDiscountType,
+            'discount_value' => $this->proFallbackDiscountValue,
+        ];
+    }
+
+    /**
+     * Seed controller markup maps from request (call at start of store/update).
+     */
+    private function hydrateProCurrencyMarkupsFromRequest(Request $request): void
+    {
+        $this->proFallbackMarkupValue = (float) $request->input('markup_value', 0);
+        $this->proFallbackMarkupType = (string) ($request->input('markup_type') ?? '');
+        $this->proFallbackDiscountValue = (float) $request->input('discount_value', 0);
+        $this->proFallbackDiscountType = (string) ($request->input('discount_type') ?? '');
+        $this->proCurrencyMarkups = $this->normalizeCurrencyMarkups($request->input('currency_markups'));
+    }
+
+    /**
+     * List form of currency/city markups for tour JSON + edit UI.
+     *
+     * @return list<array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}>
+     */
+    private function currencyMarkupsListForStorage(): array
+    {
+        if (!empty($this->proCityMarkups)) {
+            return array_values($this->proCityMarkups);
+        }
+
+        return array_values($this->proCurrencyMarkups);
+    }
+
+    /**
+     * Rebuild currency markup list for edit UI from tour JSON or per-order rows.
+     *
+     * @param  \Illuminate\Support\Collection|iterable  $orders
+     * @return list<array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}>
+     */
+    private function buildCurrencyMarkupsForEdit(Tour $tour, $orders): array
+    {
+        $raw = $tour->currency_markups ?? null;
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        if (is_array($raw) && !empty($raw)) {
+            // Prefer original list shape (keeps city) over currency-collapsed map
+            $list = array_is_list($raw) ? $raw : array_values($this->normalizeCurrencyMarkups($raw));
+            $out = [];
+            foreach ($list as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $city = trim((string) ($row['city'] ?? ''));
+                $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+                if ($city === '' && $currency === '') {
+                    continue;
+                }
+                $markupType = trim((string) ($row['markup_type'] ?? ''));
+                $discountType = trim((string) ($row['discount_type'] ?? ''));
+                $out[] = [
+                    'city' => $city,
+                    'currency' => $currency,
+                    'country' => trim((string) ($row['country'] ?? '')),
+                    'markup_type' => in_array($markupType, ['percentage', 'flat'], true) ? $markupType : null,
+                    'markup_value' => (float) ($row['markup_value'] ?? 0),
+                    'discount_type' => in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null,
+                    'discount_value' => (float) ($row['discount_value'] ?? 0),
+                ];
+            }
+            if (!empty($out)) {
+                return $out;
+            }
+        }
+
+        $keyed = [];
+        foreach ($orders as $order) {
+            $city = trim((string) ($order->city ?? ''));
+            if ($city === '') {
+                $data0 = is_array($order->data) ? ($order->data[0] ?? []) : [];
+                if (is_array($data0)) {
+                    $city = trim((string) ($data0['city'] ?? $data0['destination'] ?? $data0['hotelCity'] ?? ''));
+                }
+            }
+            $currency = strtoupper(trim((string) ($order->currency ?? '')));
+            $mapKey = $city !== '' ? ('city:' . mb_strtolower($city)) : ('cur:' . $currency);
+            if ($mapKey === 'cur:' || isset($keyed[$mapKey])) {
+                continue;
+            }
+            $markupType = trim((string) ($order->markup_type ?? ''));
+            $discountType = trim((string) ($order->discount_type ?? ''));
+            $keyed[$mapKey] = [
+                'city' => $city,
+                'currency' => $currency,
+                'country' => trim((string) ($order->country ?? '')),
+                'markup_type' => in_array($markupType, ['percentage', 'flat'], true) ? $markupType : null,
+                'markup_value' => (float) ($order->markup_percentage ?? 0),
+                'discount_type' => in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null,
+                'discount_value' => (float) ($order->discount ?? 0),
+            ];
+        }
+
+        if (!empty($keyed)) {
+            return array_values($keyed);
+        }
+
+        // Single-currency legacy: use tour / first-order values under one synthetic entry
+        $currency = strtoupper(trim((string) (CommonHelper::getDmcCurrencyByCountry() ?? '')));
+        if ($currency === '') {
+            $currency = 'USD';
+        }
+        $markupType = trim((string) ($tour->markup_type ?? ''));
+        $discountType = trim((string) ($tour->discount_type ?? ''));
+
+        return [[
+            'city' => '',
+            'currency' => $currency,
+            'country' => '',
+            'markup_type' => in_array($markupType, ['percentage', 'flat'], true) ? $markupType : null,
+            'markup_value' => (float) ($tour->markup_amount ?? 0),
+            'discount_type' => in_array($discountType, ['percentage', 'flat', 'foc'], true) ? $discountType : null,
+            'discount_value' => (float) ($tour->discount_amount ?? 0),
+        ]];
     }
 
     /**
@@ -1036,6 +1288,9 @@ class EnquiryFormPro extends Controller
             ], 400);
         }
 
+        $country = trim((string) ($request->input('country') ?? ''));
+        $city = trim((string) $city);
+
         $user = auth()->user();
         $dmcId = $this->resolveDmcIdForUser($user);
         if (!$dmcId) {
@@ -1046,14 +1301,24 @@ class EnquiryFormPro extends Controller
         }
 
         $items = MiscellaneousItem::active()
-            ->with(['priceForDmc' => function ($query) use ($dmcId) {
+            ->with(['pricesForDmc' => function ($query) use ($dmcId, $city, $country) {
                 $query->where('dmc_id', $dmcId)->where('status', 1);
+                $query->where(function ($q) use ($city) {
+                    $q->where('city', $city)->orWhere('city', '');
+                });
+                if ($country !== '') {
+                    $query->where(function ($q) use ($country) {
+                        $q->where('country', $country)->orWhere('country', '');
+                    });
+                }
+                $query->orderByRaw("CASE WHEN city = ? THEN 0 WHEN city = '' THEN 1 ELSE 2 END", [$city]);
             }])
             ->get()
             ->filter(function ($item) {
-                return $item->priceForDmc !== null;
+                return $item->pricesForDmc->isNotEmpty();
             })
             ->map(function ($item) {
+                $price = $item->pricesForDmc->first();
                 return [
                     'mis_id' => $item->mis_id,
                     'item_name' => $item->item_name,
@@ -1063,9 +1328,11 @@ class EnquiryFormPro extends Controller
                             ? $item->image
                             : asset('storage/' . $item->image))
                         : null,
-                    'adult_price' => $item->priceForDmc->adult_price ?? 0,
-                    'child_price' => $item->priceForDmc->child_price ?? 0,
-                    'infant_price' => $item->priceForDmc->infant_price ?? 0,
+                    'country' => $price->country ?? '',
+                    'city' => $price->city ?? '',
+                    'adult_price' => $price->adult_price ?? 0,
+                    'child_price' => $price->child_price ?? 0,
+                    'infant_price' => $price->infant_price ?? 0,
                 ];
             })
             ->values();
@@ -1502,6 +1769,7 @@ class EnquiryFormPro extends Controller
                 'female' => 'nullable|integer|min:0',
                 'child_ages' => 'nullable|string|max:2000',
                 'city_date_ranges' => 'required|json',
+                'currency_markups' => 'nullable',
             ]);
             
             // Get markup and discount values
@@ -1510,6 +1778,7 @@ class EnquiryFormPro extends Controller
             $discountValue = $request->input('discount_value', 0);
             $discountType = $request->input('discount_type', '');
             $discountAmountStored = (float) $request->input('discount_amount', 0);
+            $this->hydrateProCurrencyMarkupsFromRequest($request);
             
             DB::beginTransaction();
             
@@ -1647,6 +1916,9 @@ class EnquiryFormPro extends Controller
             $tour->markup = $markupSelected;
             $tour->markup_type = $markupSelected ? $markupType : null;
             $tour->markup_amount = $markupSelected ? $markupAmountStored : 0;
+            $tour->currency_markups = !empty($this->proCityMarkups) || !empty($this->proCurrencyMarkups)
+                ? $this->currencyMarkupsListForStorage()
+                : null;
             $tour->created_by = $user->userId; // Store the user ID who created the tour
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
@@ -2257,7 +2529,7 @@ class EnquiryFormPro extends Controller
                             ];
                             
                             // $guideBookingId = $this->generateBookingId();
-                            Order::create([
+                            $order = $this->createEnquiryProOrder([
                                 // 'booking_id' => $guideBookingId,
                                 'agent_id' => $request->agent_id,
                                 'tour_id' => $tourId,
@@ -3009,15 +3281,16 @@ class EnquiryFormPro extends Controller
         
         // Get the first order to extract markup/discount values
         $firstOrder = $orders->first();
-        $markupValue = $firstOrder->markup_percentage ?? 0;
-        $markupType = $firstOrder->markup_type ?? 'percentage';
-        $discountValue = $firstOrder->discount ?? 0;
-        $discountType = $firstOrder->discount_type ?? '';
+        $markupValue = $firstOrder?->markup_percentage ?? ($tour->markup_amount ?? 0);
+        $markupType = $firstOrder?->markup_type ?? ($tour->markup_type ?? 'percentage');
+        $discountValue = $firstOrder?->discount ?? 0;
+        $discountType = $firstOrder?->discount_type ?? ($tour->discount_type ?? '');
         // FOC total is recomputed client-side after all services load (syncFocDiscountAfterOrdersLoaded).
         // Only seed the input when not FOC; for FOC the live computeAutoFocDiscount() is authoritative.
         if ($discountType !== 'foc' && isset($tour->discount_amount) && (float) $tour->discount_amount > 0) {
             $discountValue = (float) $tour->discount_amount;
         }
+        $currencyMarkups = $this->buildCurrencyMarkupsForEdit($tour, $orders);
         
         // Get DMC ID
         $user = Auth::user();
@@ -3358,7 +3631,8 @@ class EnquiryFormPro extends Controller
             'markupValue' => $markupValue,
             'markupType' => $markupType,
             'discountValue' => $discountValue,
-            'discountType' => $discountType
+            'discountType' => $discountType,
+            'currencyMarkups' => $currencyMarkups,
         ]);
     }
     
@@ -3398,14 +3672,16 @@ class EnquiryFormPro extends Controller
                 'female' => 'nullable|integer|min:0',
                 'child_ages' => 'nullable|string|max:2000',
                 'city_date_ranges' => 'nullable|json',
+                'currency_markups' => 'nullable',
             ]);
             
-            // Get markup and discount values (coerce â€” input() can return null when key exists)
+            // Get markup and discount values (coerce — input() can return null when key exists)
             $markupValue = $request->input('markup_value', 0);
             $markupType = (string) ($request->input('markup_type') ?? 'percentage');
             $discountValue = $request->input('discount_value', 0);
             $discountType = (string) ($request->input('discount_type') ?? '');
             $discountAmountStored = (float) $request->input('discount_amount', 0);
+            $this->hydrateProCurrencyMarkupsFromRequest($request);
             
             DB::beginTransaction();
             
@@ -3445,7 +3721,14 @@ class EnquiryFormPro extends Controller
                 : 0;
             $tour->city_type = $request->input('city_type')
                 ?: ($cityCount > 1 ? 'multi' : 'single');
-            // City stay windows are locked after create; keep the original mapping.
+            if ($request->filled('city_date_ranges')) {
+                $tour->city_date_ranges = $this->normalizeCityDateRanges(
+                    $request->input('city_date_ranges'),
+                    $cityValue,
+                    $request->start_date,
+                    $request->end_date
+                );
+            }
             $tour->child_ages = $request->filled('child_ages') ? $request->child_ages : '[]';
             // Normalize tour_type + sync foc_size / discount columns (matches CommonHelper::calculateTourPrices)
             $rawTourType = strtoupper((string) $request->input('tour_type', 'FIT'));
@@ -3471,6 +3754,9 @@ class EnquiryFormPro extends Controller
             $tour->markup = $markupSelected;
             $tour->markup_type = $markupSelected ? $markupType : null;
             $tour->markup_amount = $markupSelected ? $markupAmountStored : 0;
+            $tour->currency_markups = !empty($this->proCityMarkups) || !empty($this->proCurrencyMarkups)
+                ? $this->currencyMarkupsListForStorage()
+                : null;
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
             
             // Update main guest data as JSON
@@ -4339,7 +4625,18 @@ class EnquiryFormPro extends Controller
             $dataPayload = [$firstRow];
         }
 
-        // Already-present active row unchanged â†’ only bump updated_at (no duplicate insert elsewhere)
+        // Prefer per-currency markup/discount for multi-city orders
+        $geoEarly = $this->resolveOrderGeoFromServicePayload(
+            is_array($dataPayload[0] ?? null) ? $dataPayload[0] : [],
+            $this->proOrderGeoFallback
+        );
+        $md = $this->lookupProCurrencyMarkup($geoEarly['currency'] ?? null, $geoEarly['city'] ?? null);
+        $discountValue = $md['discount_value'];
+        $discountType = $md['discount_type'];
+        $markupValue = $md['markup_value'];
+        $markupType = $md['markup_type'];
+
+        // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
         if (
             ! $wasTrashed
             && $this->enquiryOrderSnapshotMatches(
@@ -4371,13 +4668,10 @@ class EnquiryFormPro extends Controller
         $order->type = $type;
         $order->bookingType = $bookingType;
         $order->discount = $discountValue;
-        $order->discount_type = $discountType;
+        $order->discount_type = $discountType !== '' ? $discountType : null;
         $order->markup_percentage = $markupValue;
-        $order->markup_type = $markupType;
-        $geo = $this->resolveOrderGeoFromServicePayload(
-            is_array($dataPayload[0] ?? null) ? $dataPayload[0] : [],
-            $this->proOrderGeoFallback
-        );
+        $order->markup_type = $markupType !== '' ? $markupType : null;
+        $geo = $geoEarly;
         $order->country = $geo['country'];
         $order->currency = $geo['currency'];
         if ($order->status === null) {
