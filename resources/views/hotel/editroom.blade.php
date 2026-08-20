@@ -458,7 +458,8 @@
                                 <div id="master-drop-area" class="form-control"
                                     style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                     Drag & Drop your files here or click to upload.
-                                    <input type="file" id="master_image" name="master_image" multiple
+                                    <input type="file" id="master_image" name="master_image"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
                                         style="display: none;">
                                 </div>
                             </div>
@@ -478,6 +479,9 @@
                                 </div>
                             </div>
                             @endif
+                            @error('master_image')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <!-- Additional Image drop -->
@@ -488,7 +492,7 @@
                                 <div id="drop-area" class="form-control"
                                     style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
                                     Drag & Drop your files here or click to upload.
-                                    <input type="file" id="images" name="images[]" multiple style="display: none;">
+                                    <input type="file" id="images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
                                 </div>
 
                                 <div id="preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
@@ -499,6 +503,9 @@
                             <div class="existing-image-preview-container d-flex flex-wrap gap-2">
                                 @php
                                 $images = json_decode($room->images, true);
+                                if (!is_array($images)) {
+                                    $images = [];
+                                }
                                 @endphp
                                 @foreach($images as $img)
                                 <!-- Hidden input to hold existing image path -->
@@ -514,7 +521,7 @@
                                 </div>
                                 @endforeach
                             </div>
-                            <input type="file" name="all_images[]" id="all-images" style="display: none;">
+                            <input type="file" name="all_images[]" id="all-images" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;">
 
                             @error('images')
                             <div class="text-danger mt-1">{{ $message }}</div>
@@ -662,21 +669,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Additional Image drop down -->
 <script>
+(function () {
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('images');
     const fileList = document.getElementById('preview-container');
-    const allImagesInput = document.getElementById('all-images'); // Hidden input
-    let files = []; // Store all files manually
-    const MAX_VISIBLE_IMAGES = 3; // Maximum number of visible images
-    let showAllImages = false; // Toggle for showing all images
+    const allImagesInput = document.getElementById('all-images');
+    if (!dropArea || !fileInput || !fileList || !allImagesInput) {
+        return;
+    }
 
-    // Trigger file input on click
+    let files = [];
+    const MAX_VISIBLE_IMAGES = 3;
+    let showAllImages = false;
+
     dropArea.addEventListener('click', () => fileInput.click());
-
-    // Handle file input change
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-    // Handle drag-and-drop events
     dropArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropArea.style.borderColor = '#000';
@@ -783,13 +791,17 @@ document.addEventListener('DOMContentLoaded', function() {
             fileList.appendChild(moreBadge);
         }
     }
+})();
 </script>
 
 <!-- delete existing additional Image -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Use event delegation for dynamically added elements
-    document.querySelector('.existing-image-preview-container').addEventListener('click', function(e) {
+    const existingContainer = document.querySelector('.existing-image-preview-container');
+    if (!existingContainer) {
+        return;
+    }
+    existingContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-image-btn')) {
             e.preventDefault(); // Prevent form submission
             e.stopPropagation(); // Stop event propagation
@@ -815,8 +827,11 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- delete existing master Image -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Use event delegation for dynamically added elements
-    document.querySelector('.existing-master-image-preview-container').addEventListener('click', function(e) {
+    const existingMasterContainer = document.querySelector('.existing-master-image-preview-container');
+    if (!existingMasterContainer) {
+        return;
+    }
+    existingMasterContainer.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-image-btn')) {
             e.preventDefault(); // Prevent form submission
             e.stopPropagation(); // Stop event propagation
@@ -841,9 +856,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Master Image drop down -->
 <script>
+(function () {
 const masterDropArea = document.getElementById('master-drop-area');
 const masterFileInput = document.getElementById('master_image');
 const masterPreviewContainer = document.getElementById('master-preview-container');
+if (!masterDropArea || !masterFileInput || !masterPreviewContainer) {
+    return;
+}
 let masterFileCounter = 0; // Track total uploaded files
 const MASTER_MAX_VISIBLE_IMAGES = 1; // Show only 1 image
 
@@ -863,33 +882,45 @@ masterDropArea.addEventListener('dragleave', () => {
 masterDropArea.addEventListener('drop', (e) => {
     e.preventDefault();
     masterDropArea.style.backgroundColor = 'white';
-    masterHandleFiles(e.dataTransfer.files);
+    masterHandleFiles(e.dataTransfer.files, true);
 });
 
 // Handle file input change
 masterFileInput.addEventListener('change', () => {
-    masterHandleFiles(masterFileInput.files);
+    masterHandleFiles(masterFileInput.files, false);
 });
 
+function isLikelyImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.indexOf('image/') === 0) return true;
+    return /\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name || '');
+}
+
 // Process and display files
-function masterHandleFiles(files) {
-    Array.from(files).forEach(file => {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                // If an image already exists, remove it before adding the new one
-                if (masterFileCounter > 0) {
-                    masterPreviewContainer.innerHTML = ''; // Clear the existing preview
-                    masterFileCounter = 0; // Reset the file counter
-                }
-                masterFileCounter++;
-                masterImagePreview(e.target.result);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            alert(`${file.name} is not a valid image file.`);
-        }
-    });
+function masterHandleFiles(files, fromDrop) {
+    if (!files || !files.length) {
+        return;
+    }
+
+    const file = files[0];
+    if (!isLikelyImageFile(file)) {
+        alert('Please choose a JPEG, PNG, WEBP or GIF image.');
+        return;
+    }
+
+    if (fromDrop && masterFileInput.files !== files) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        masterFileInput.files = dataTransfer.files;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        masterPreviewContainer.innerHTML = '';
+        masterFileCounter = 1;
+        masterImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
 }
 
 // Add image preview with limited visibility and a "more" badge
@@ -963,6 +994,7 @@ function updateMoreBadge() {
         masterPreviewContainer.appendChild(moreMasterBadge);
     }
 }
+})();
 </script>
 
 <!-- Food availabity -->
