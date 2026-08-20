@@ -1781,8 +1781,17 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
 
             $setup = EmailsSetup::where('dmcId', $dmcId)->first();
-            if (!$setup || empty($setup->SMTP_Host)) {
+            if (!$setup || empty($setup->SMTP_Host) || empty($setup->SMTP_User) || empty($setup->SMTP_Pass)) {
                 return $setup;
+            }
+
+            $smtpUser = trim((string) $setup->SMTP_User);
+            $fromEmail = trim((string) ($setup->From_Email ?? ''));
+            // Hostinger requires From to be the authenticated mailbox.
+            if ($fromEmail === '' || ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
+                || (filter_var($smtpUser, FILTER_VALIDATE_EMAIL) && strcasecmp($fromEmail, $smtpUser) !== 0)
+            ) {
+                $fromEmail = filter_var($smtpUser, FILTER_VALIDATE_EMAIL) ? $smtpUser : $fromEmail;
             }
 
             self::applyRuntimeMailConfig([
@@ -1791,7 +1800,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'encryption' => $setup->SMTP_Encrypt,
                 'username' => $setup->SMTP_User,
                 'password' => $setup->SMTP_Pass,
-                'from_email' => $setup->From_Email,
+                'from_email' => $fromEmail,
                 'from_name' => $setup->From_Name,
             ]);
 

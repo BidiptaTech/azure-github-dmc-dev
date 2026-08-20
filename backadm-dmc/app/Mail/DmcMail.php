@@ -112,10 +112,18 @@ class DmcMail extends Mailable
             $setup = \App\Helpers\CommonHelper::applyEmailsSetupMailConfig();
         }
 
-        if (empty($this->fromEmail) && $setup && ! empty($setup->From_Email)) {
+        // Only use emails_setup From_Email when that row actually applied SMTP.
+        // Mixing .env SMTP (support@travclicks.com) with a different From_Email
+        // causes Hostinger 553 5.7.1 "Sender address rejected: not owned by user".
+        $smtpWasApplied = $setup && ! empty($setup->SMTP_Host) && ! empty($setup->SMTP_User) && ! empty($setup->SMTP_Pass);
+        if (empty($this->fromEmail) && $smtpWasApplied && ! empty($setup->From_Email)) {
             $this->fromEmail = $setup->From_Email;
             $this->fromName = $setup->From_Name ?: $this->fromName;
+        } elseif (empty($this->fromName) && $setup && ! empty($setup->From_Name)) {
+            $this->fromName = $setup->From_Name;
         }
+
+        $this->alignFromAddressWithSmtpUser();
 
         $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
 
@@ -141,5 +149,30 @@ class DmcMail extends Mailable
         }
 
         return $mail;
+    }
+
+    /**
+     * Hostinger (and most SMTP hosts) reject MAIL FROM when it is not owned by
+     * the authenticated user: 553 5.7.1 Sender address rejected.
+     * Keep a mismatched address as Reply-To so replies still go to the DMC.
+     */
+    private function alignFromAddressWithSmtpUser(): void
+    {
+        $smtpUser = trim((string) config('mail.mailers.smtp.username'));
+        if ($smtpUser === '' || ! filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $currentFrom = trim((string) $this->fromEmail);
+        if ($currentFrom !== '' && strcasecmp($currentFrom, $smtpUser) !== 0) {
+            if (empty($this->replyToEmail) && filter_var($currentFrom, FILTER_VALIDATE_EMAIL)) {
+                $this->replyToEmail = $currentFrom;
+            }
+        }
+
+        $this->fromEmail = $smtpUser;
+        if (empty($this->fromName)) {
+            $this->fromName = (string) config('mail.from.name', config('app.name'));
+        }
     }
 }
