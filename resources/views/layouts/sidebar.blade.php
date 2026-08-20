@@ -1507,7 +1507,7 @@
 
 
                 @php
-                    $aiConfigurationRoles = [1, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                    $aiConfigurationRoles = [1, 11,33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                 @endphp
                 @if(in_array(auth()->user()->role_id, $aiConfigurationRoles))
                 <li class="menu-header mt-5">
@@ -1525,7 +1525,7 @@
                     </li>
                 @endif
                 @php
-                    $dayLevelRoles = [33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                    $dayLevelRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                 @endphp
                 @if(in_array(auth()->user()->role_id, $dayLevelRoles))
                 <li class="menu-item @if(Request::is('day-level*')) active @endif">

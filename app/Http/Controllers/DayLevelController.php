@@ -302,7 +302,7 @@ class DayLevelController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11,33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1530,7 +1530,7 @@ class DayLevelController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1554,7 +1554,7 @@ class DayLevelController extends Controller
     public function updateInclusion(Request $request, DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         if (! in_array((int) $user->role_id, $allowedRoleIds, true)) {
             return response()->json(['success' => false, 'message' => 'You do not have permission to update inclusion.'], 403);
@@ -1680,7 +1680,7 @@ class DayLevelController extends Controller
     public function edit(Request $request, DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
@@ -1940,7 +1940,7 @@ class DayLevelController extends Controller
     public function destroy(DayLevel $dayLevel)
     {
         $user = Auth::user();
-        $allowedRoleIds = [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
+        $allowedRoleIds = [11, 33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 37, 38];
 
         // Check if user has permission to access this page
         if (!in_array($user->role_id, $allowedRoleIds)) {
