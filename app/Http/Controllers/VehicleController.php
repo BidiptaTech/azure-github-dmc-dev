@@ -1135,12 +1135,27 @@ class VehicleController extends Controller
                 $fromZoneType = 'Attraction';
                 $toZoneType = 'Restaurant';
                 break;
+            case 'hotel_hotel':
+                $fromZoneType = 'Hotel';
+                $toZoneType = 'Hotel';
+                break;
+            case 'attraction_attraction':
+                $fromZoneType = 'Attraction';
+                $toZoneType = 'Attraction';
+                break;
+            case 'restaurant_restaurant':
+                $fromZoneType = 'Restaurant';
+                $toZoneType = 'Restaurant';
+                break;
             default:
                 $fromZoneType = 'Unknown';
                 $toZoneType = 'Unknown';
         }
         foreach ($privatePrices as $fromZoneId => $toZones) {
             foreach ($toZones as $toZoneId => $privatePrice) {
+                if ($mappingType === 'port_port' && (string) $fromZoneId === (string) $toZoneId) {
+                    continue;
+                }
                 $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
                 $privateCostPrice = $privateCostPrices[$fromZoneId][$toZoneId] ?? $privatePrice;
                 $sharedCostPrice = $sharedCostPrices[$fromZoneId][$toZoneId] ?? $sharedPrice;
@@ -1273,6 +1288,10 @@ class VehicleController extends Controller
                 $skipped++;
                 continue;
             }
+            if ($mappingType === 'port_port' && $fromZoneId === $toZoneId) {
+                $skipped++;
+                continue;
+            }
 
             $rowVehicleId = trim((string) ($vehicleId));
             $vehicleIdx = $columnIndex(['vehicle_id', 'vehicle id']);
@@ -1359,6 +1378,9 @@ class VehicleController extends Controller
             'hotel_attraction' => ['from' => 'Hotel', 'to' => 'Attraction'],
             'hotel_restaurant' => ['from' => 'Hotel', 'to' => 'Restaurant'],
             'attraction_restaurant' => ['from' => 'Attraction', 'to' => 'Restaurant'],
+            'hotel_hotel' => ['from' => 'Hotel', 'to' => 'Hotel'],
+            'attraction_attraction' => ['from' => 'Attraction', 'to' => 'Attraction'],
+            'restaurant_restaurant' => ['from' => 'Restaurant', 'to' => 'Restaurant'],
         ];
     }
 
