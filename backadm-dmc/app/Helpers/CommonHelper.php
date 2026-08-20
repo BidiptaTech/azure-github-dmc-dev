@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
 use App\Models\EmailsSetup;
 use App\Models\DmcFuncApp;
@@ -307,10 +308,10 @@ class CommonHelper
     public static function image_path($name, $logoFile, $container = 'uploads') {
         $get_filestorage = Setting::where('name', $name)->where('status', 1)->first();
         $logoName = 'logo_' . time() . '_' . Str::random(6) . '.' . $logoFile->getClientOriginalExtension();
-        
+       
         if ($get_filestorage) {
             try {
-                
+               
                 if ($get_filestorage->value == 'local') {
                     $destinationPath = public_path('build/images');
                     $logoFile->move($destinationPath, $logoName);
@@ -484,7 +485,7 @@ class CommonHelper
         try {
             // Get Azure configuration
             $config = config('filesystems.disks.azure');
-            
+           
             // Create connection string
             $connectionString = sprintf(
                 'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
@@ -494,10 +495,10 @@ class CommonHelper
 
             // Create blob client
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Ensure container exists
             self::ensureAzureContainerExists($blobClient, $container);
-            
+           
             Log::info('Attempting Azure upload', [
                 'file_name' => $fileName,
                 'container' => $container
@@ -505,10 +506,10 @@ class CommonHelper
 
             // Read file content
             $fileContent = file_get_contents($file->getRealPath());
-            
+           
             // Upload directly using blob client
             $blobClient->createBlockBlob($container, $fileName, $fileContent);
-            
+           
             // Generate URL
             $logoPath = sprintf(
                 'https://%s.blob.core.windows.net/%s/%s',
@@ -516,7 +517,7 @@ class CommonHelper
                 $container,
                 $fileName
             );
-            
+           
             Log::info('Azure upload successful', [
                 'path' => $fileName,
                 'url' => $logoPath,
@@ -533,7 +534,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -730,7 +731,7 @@ class CommonHelper
              $booking_data = Order::where('tour_id', $tour_id)
                 ->get();
         }
-        
+       
         $date_service = [];
         $hotel = [];
         $attraction = [];
@@ -741,36 +742,36 @@ class CommonHelper
         $guide = [];
         $restaurant = [];
         $local_transport = [];
-    
+   
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-    
+   
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
                         $bookingType = $booking->type ?? null;
-    
+   
                         if (!$bookingDates || !$bookingType) {
                             Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                             continue;
                         }
-    
+   
                         // Ensure bookingDates is always an array
                         if (!is_array($bookingDates)) {
                             $bookingDates = [$bookingDates];
                         }
-    
+   
                         // Expand date range if needed
                         $expandedDates = [];
                         if (count($bookingDates) == 2) {
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 // Include all dates in the range
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
@@ -783,11 +784,11 @@ class CommonHelper
                         } else {
                             $expandedDates = $bookingDates;
                         }
-    
+   
                         // Process each generated date
                         foreach ($expandedDates as $bookingDate) {
                             if (empty($bookingDate)) continue;
-                            
+                           
                             // For hotel bookings, skip the last date in date_service
                             if ($bookingType === 'hotel') {
                                 // Check if this is the last date in the range
@@ -797,12 +798,12 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
@@ -814,13 +815,13 @@ class CommonHelper
                             }
                             $date_service[$bookingDate]['services'][$bookingType]['count']++;
                         }
-    
+   
                         // Organize data by type
                         $bookingArray = array_merge(
                             ['id' => $booking->booking_id, 'type' => $bookingType],
                             $item
                         );
-    
+   
                         switch ($bookingType) {
                             case 'hotel':
                                 $hotel[] = $bookingArray;
@@ -864,24 +865,24 @@ class CommonHelper
                 foreach ($json_data as $item) {
                     $bookingDates = $item['bookingDate'] ?? null;
                     $bookingType = $booking->type ?? null;
-    
+   
                     if (!$bookingDates || !$bookingType) {
                         Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                         continue;
                     }
-    
+   
                     // Ensure bookingDates is always an array
                     if (!is_array($bookingDates)) {
                         $bookingDates = [$bookingDates];
                     }
-    
+   
                     // Convert date range into all dates
                     $expandedDates = [];
                     if (count($bookingDates) == 2) {
                         try {
                             $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                             $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                            
+                           
                             // Include all dates in the range
                             while ($startDate->lte($endDate)) {
                                 $expandedDates[] = $startDate->format('Y-m-d');
@@ -894,11 +895,11 @@ class CommonHelper
                     } else {
                         $expandedDates = $bookingDates;
                     }
-    
+   
                     // Process each date
                     foreach ($expandedDates as $bookingDate) {
                         if (empty($bookingDate)) continue;
-                        
+                       
                         // For hotel bookings, skip the last date in date_service
                         if ($bookingType === 'hotel') {
                             // Check if this is the last date in the range
@@ -908,12 +909,12 @@ class CommonHelper
                             } else {
                                 $isLastDate = $bookingDate === end($bookingDates);
                             }
-                            
+                           
                             if ($isLastDate) {
                                 continue; // Skip adding this date to date_service
                             }
                         }
-                        
+                       
                         if (!isset($date_service[$bookingDate])) {
                             $date_service[$bookingDate] = ['services' => []];
                         }
@@ -925,13 +926,13 @@ class CommonHelper
                         }
                         $date_service[$bookingDate]['services'][$bookingType]['count']++;
                     }
-    
+   
                     // Organize data by type
                     $bookingArray = array_merge(
                         ['id' => $booking->booking_id, 'type' => $bookingType],
                         $item
                     );
-    
+   
                     switch ($bookingType) {
                         case 'hotel':
                             $hotel[] = $bookingArray;
@@ -971,7 +972,7 @@ class CommonHelper
                 Log::error("Invalid or missing 'data' field for booking ID: {$booking->booking_id}");
             }
         }
-    
+   
         return [
             'date_service' => $date_service,
             'hotel' => $hotel,
@@ -996,7 +997,7 @@ class CommonHelper
     }
 
     /*
-    *Common Response create tour and edit tour 
+    *Common Response create tour and edit tour
     *Date 29-01-2025
     */
     public static function CommonBookingResponse($agent_id, $tour_id, $type)
@@ -1005,7 +1006,7 @@ class CommonHelper
             ->where('agent_id', $agent_id)
             ->where('status', '!=', 4)
             ->get();
-        
+       
         $date_service = [];
         $data = []; // Store only the requested type data
         $hotel_count = 0;
@@ -1020,11 +1021,11 @@ class CommonHelper
 
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-            
+           
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
@@ -1041,7 +1042,7 @@ class CommonHelper
                                 try {
                                     $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                     $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                    
+                                   
                                     // Include all dates in the range
                                     while ($startDate->lte($endDate)) {
                                         $expandedDates[] = $startDate->format('Y-m-d');
@@ -1058,7 +1059,7 @@ class CommonHelper
                             // Process each date
                             foreach ($expandedDates as $bookingDate) {
                                 if (empty($bookingDate)) continue;
-                                
+                               
                                 // For hotel bookings, skip the last date in date_service
                                 if ($booking->type === 'hotel') {
                                     // Check if this is the last date in the range
@@ -1068,23 +1069,23 @@ class CommonHelper
                                     } else {
                                         $isLastDate = $bookingDate === end($bookingDates);
                                     }
-                                    
+                                   
                                     if ($isLastDate) {
                                         continue; // Skip adding this date to date_service
                                     }
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate])) {
                                     $date_service[$bookingDate] = ['services' => []];
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                     $date_service[$bookingDate]['services'][$booking->type] = [
                                         'status' => $booking->status,
                                         'count' => 0
                                     ];
                                 }
-                                
+                               
                                 $date_service[$bookingDate]['services'][$booking->type]['count']++;
                             }
                         }
@@ -1106,9 +1107,9 @@ class CommonHelper
                         }
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') 
+                        if ($booking->type == 'attraction')
                         $attraction_count++;
-                        if ($booking->type == 'attraction_package') 
+                        if ($booking->type == 'attraction_package')
                         $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
@@ -1137,7 +1138,7 @@ class CommonHelper
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
                                     $startDate->addDay();
@@ -1160,23 +1161,23 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                 $date_service[$bookingDate]['services'][$booking->type] = [
                                     'status' => $booking->status,
                                     'count' => 0
                                 ];
                             }
-                            
+                           
                             $date_service[$bookingDate]['services'][$booking->type]['count']++;
                         }
                     }
@@ -1216,7 +1217,7 @@ class CommonHelper
         $service = [
             'date_service' => $date_service,
             'type' => $type,
-            'data' => $data, 
+            'data' => $data,
             'hotel_count' => $hotel_count,
             'attraction_count' => $attraction_count,
             'entry_port_count' => $entry_port_count,
@@ -1347,7 +1348,7 @@ class CommonHelper
     public static function calculateDmcModePricehotel($base_price, $dmc_id, $name, $type, $city)
     {
         $dmc = User::where('userId', $dmc_id)->first();
-        
+       
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1371,7 +1372,7 @@ class CommonHelper
             ->where('city', $city)
             ->where('dmc_id', $dmc->userId) // Use the resolved DMC
             ->first();
-            
+           
         }elseif ($type === 'guide') {
             $hotel = Guide::where('name', $name)
             ->where('city', $city)
@@ -1380,7 +1381,7 @@ class CommonHelper
         } else {
             return [0, null]; // Invalid type, return 0
         }
-        
+       
         if (!$hotel) {
             return [0, null]; // Hotel not linked to this DMC, return 0
         }
@@ -1392,10 +1393,10 @@ class CommonHelper
         return [$price ?? 0, $dmc->userId ?? null]; // Ensure price is numeric, fallback to 0
     }
  
-    //Vehicle dmc mode price 
+    //Vehicle dmc mode price
     public static function calculateDmcModePriceVehicle($base_price, $salesManagerId, $name, $type)
     {
-        $dmc = User::where('userId', $dmc_id)->first(); 
+        $dmc = User::where('userId', $dmc_id)->first();
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1512,10 +1513,10 @@ class CommonHelper
 
             // Store the file in the temporary disk
             $path = Storage::disk('azure_temp')->putFileAs($container, $file, $fileName);
-            
+           
             // Generate the URL for the stored file
             $url = Storage::disk('azure_temp')->url($path);
-            
+           
             return [
                 'master_value' => $url,
             ];
@@ -1526,7 +1527,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -1547,15 +1548,15 @@ class CommonHelper
                 $config['name'],
                 $config['key']
             );
-            
+           
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Extract filename from URL
             $fileName = basename(parse_url($imageUrl, PHP_URL_PATH));
-            
+           
             // Delete the blob
             $blobClient->deleteBlob('uploads', $fileName);
-            
+           
         } catch (\Exception $e) {
             // Ignore errors, just log
             Log::error('Azure image deletion failed: ' . $e->getMessage());
@@ -1567,7 +1568,7 @@ class CommonHelper
         try {
             // Process order data to prepare template data
             $data = [];
-            
+           
             // Extract data from order object if it's an object
             if (is_object($orderData)) {
                 // If it's an Order model object, extract what we need
@@ -1613,17 +1614,17 @@ class CommonHelper
                 ];
             }
 
-            
-            
+           
+           
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
             }
-            
+           
             // Get company settings for the email
             $logoSetting = self::masterSettingsName('logo');
             $nameSetting = self::masterSettingsName('name');
-            
+           
             // Add company info to the data array
             $companyData = [
                 "company" => [
@@ -1631,7 +1632,7 @@ class CommonHelper
                     "logo" => $orderData['dmc_logo'] ?? $logoSetting['master_value'] ?? asset('images/logo.png')
                 ]
             ];
-            
+           
             // Add mail settings for the template
             $mailSettings = (object)[
                 "support_email" => $orderData['dmc_email'] ?? null,
@@ -1641,7 +1642,7 @@ class CommonHelper
                 "instagram_url" => "https://instagram.com/yourcompany",
                 "linkedin_url" => "https://linkedin.com/company/yourcompany"
             ];
-            
+           
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
@@ -1654,32 +1655,32 @@ class CommonHelper
             if (!view()->exists($template)) {
                 $template = 'mails.booking_confirmation'; // Default template
             }
-            
+           
             // Render the email template
             try {
                 $html = view($template, $viewData)->render();
             } catch (\Exception $e) {
                 return "Error rendering email template: " . $e->getMessage();
             }
-            
+           
             // Extract the entire style tag content
             preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
             $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
-            
+           
             // Extract the email-container div with all its contents
             preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
             if (!empty($matches[0])) {
                 $extractedHtml = $matches[0];
-                
+               
                 // Add minimal HTML structure with the extracted styles
                 $emailHtml = '<!DOCTYPE html><html><head><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
-                
+               
                 // Send the email to the actual recipient
                 try {
                     Mail::to($email)->send(new DmcMail($emailHtml, $subject));
                     // Log successful email sending
                     Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
-                    
+                   
                     return true;
                 } catch (\Exception $e) {
                     return "Failed to send email: " . $e->getMessage();
@@ -1781,17 +1782,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
 
             $setup = EmailsSetup::where('dmcId', $dmcId)->first();
-            if (!$setup || empty($setup->SMTP_Host) || empty($setup->SMTP_User) || empty($setup->SMTP_Pass)) {
+            if (!$setup || empty($setup->SMTP_Host)) {
                 return $setup;
-            }
-
-            $smtpUser = trim((string) $setup->SMTP_User);
-            $fromEmail = trim((string) ($setup->From_Email ?? ''));
-            // Hostinger requires From to be the authenticated mailbox.
-            if ($fromEmail === '' || ! filter_var($fromEmail, FILTER_VALIDATE_EMAIL)
-                || (filter_var($smtpUser, FILTER_VALIDATE_EMAIL) && strcasecmp($fromEmail, $smtpUser) !== 0)
-            ) {
-                $fromEmail = filter_var($smtpUser, FILTER_VALIDATE_EMAIL) ? $smtpUser : $fromEmail;
             }
 
             self::applyRuntimeMailConfig([
@@ -1800,7 +1792,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'encryption' => $setup->SMTP_Encrypt,
                 'username' => $setup->SMTP_User,
                 'password' => $setup->SMTP_Pass,
-                'from_email' => $fromEmail,
+                'from_email' => $setup->From_Email,
                 'from_name' => $setup->From_Name,
             ]);
 
@@ -2165,7 +2157,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
             $sales_manager_dmc = $agent->sales_manager_dmc;
             $dmcId = null;
-            
+           
             if($agent->role_id == 11){
                 $dmcId = $sales_manager_dmc;
             }
@@ -3298,30 +3290,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         try {
-            $isAiMail = ($runtimeMailConfig !== null) || ($emailUuid !== null && $emailUuid !== '');
-            $finalSubject = $subject;
-            $referenceChain = [];
-
-            if ($isAiMail && $emailUuid !== null && $emailUuid !== '') {
+            if ($emailUuid !== null && $emailUuid !== '') {
                 $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
                 $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
-            }
 
-            Mail::to($recipientEmail)->send(new DmcMail(
-                $html,
-                $finalSubject,
-                $fromEmail,
-                $fromName,
-                $replyToEmail,
-                $ccEmails,
-                $bccEmails,
-                $runtimeMailConfig,
-                $isAiMail ? $emailUuid : null,
-                $referenceChain
-            ));
+                Mail::to($recipientEmail)->send(new AutomatedMail(
+                    $html,
+                    $finalSubject,
+                    $emailUuid,
+                    $fromEmail,
+                    $fromName,
+                    $replyToEmail,
+                    $referenceChain,
+                    $ccEmails,
+                    $bccEmails,
+                    $runtimeMailConfig
+                ));
 
-            if ($isAiMail && $emailUuid !== null && $emailUuid !== '') {
-                Log::info('Threaded AI email sent via DmcMail', [
+                Log::info('Threaded email sent', [
                     'to' => $recipientEmail,
                     'cc' => $ccEmails,
                     'bcc' => $bccEmails,
@@ -3330,7 +3316,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'subject' => $finalSubject,
                     'thread_subject' => $threadSubject,
                 ]);
+
+                return;
             }
+
+            Mail::to($recipientEmail)->send(new DmcMail(
+                $html,
+                $subject,
+                $fromEmail,
+                $fromName,
+                $replyToEmail,
+                $ccEmails,
+                $bccEmails,
+                $runtimeMailConfig
+            ));
         } finally {
             if ($previousMailConfig !== null) {
                 Config::set('mail.default', $previousMailConfig['default']);
@@ -3374,7 +3373,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send tour proposal email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -4538,7 +4537,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send welcome email to agency when first DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -4583,14 +4582,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency welcome email sent successfully", [
                     'agency_id' => $agencyId,
                     'agency_email' => $agency->email,
                     'dmc_id' => $dmcId
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency welcome email", [
@@ -4616,7 +4615,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send partnership invitation email to agency when additional DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -4650,7 +4649,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
 
             // Email subject
-            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
+            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
 
             // Render the email template
             try {
@@ -4666,7 +4665,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency partnership email sent successfully", [
                     'agency_id' => $agencyId,
@@ -4674,7 +4673,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'dmc_id' => $dmcId,
                     'dmc_name' => $dmcName
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency partnership email", [
@@ -4711,7 +4710,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Send negotiation update email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -4743,7 +4742,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (!$dmcId && isset($negotiationData['tour'])) {
                 $dmcId = $negotiationData['tour']->dmc_id ?? null;
             }
-            
+           
             $dmc = User::where('userId', $dmcId)->first();
             $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
             $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
@@ -4795,7 +4794,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Send the email
             try {
                 Mail::to($agent->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Negotiation email sent successfully", [
                     'agent_id' => $agentId,
@@ -4804,7 +4803,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'tour_display_id' => $tourDisplayId,
                     'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send negotiation email", [
@@ -4846,7 +4845,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $exchangeRate = (float) $rate;
             }
         }
-        
+       
         $orders = Order::where('tour_id', $tourId)
             ->where('status', 1)
             ->orderBy('booking_id')
@@ -4872,7 +4871,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -4891,7 +4890,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'postal_pin' => 'N/A', // Postal/Pin - can be added to User model if needed
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for PDF display
                 if (!empty($logoUrl)) {
                     try {
@@ -4910,7 +4909,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         // Try using Laravel HTTP client first
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
@@ -5014,40 +5013,40 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 // Extract guest information
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
-                
+               
                 // Format phone number with country code if available
                 $phone = $firstItem['phone'] ?? 'N/A';
                 $bookingDetails['phone'] = $phone;
-                
-                
+               
+               
                 // Combine address1 and address2 for full address
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 // State
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
-                
+               
                 // Postal/Zip code
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // Initialize passengers array
         $allPassengers = [];
-        
+       
         // Extract passengers from orders if available
         if ($orders->count() > 0) {
             foreach ($orders as $order) {
@@ -5055,10 +5054,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 if (is_string($orderData)) {
                     $orderData = json_decode($orderData, true);
                 }
-                
+               
                 if (is_array($orderData) && !empty($orderData)) {
                     $orderItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                    
+                   
                     // Check if this order has passengers array
                     if (isset($orderItem['passengers']) && is_array($orderItem['passengers'])) {
                         foreach ($orderItem['passengers'] as $passenger) {
@@ -5070,7 +5069,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Extract main guest from mainguest column
         if (!empty($tour->mainguest)) {
             try {
@@ -5105,7 +5104,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     if (empty($bookingDetails['postal_code']) && !empty($mainguestData['zip'])) {
                         $bookingDetails['postal_code'] = $mainguestData['zip'];
                     }
-                    
+                   
                     // Add main guest to passengers array
                     $mainGuest = [
                         'salutation' => $mainguestData['salutation'] ?? 'Mr',
@@ -5132,7 +5131,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 ]);
             }
         }
-        
+       
         // Extract additional guests from additionalguest column
         if (!empty($tour->additionalguest)) {
             try {
@@ -5191,7 +5190,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 ]);
             }
         }
-        
+       
         // Remove duplicate passengers (by name and email)
         $uniquePassengers = [];
         $seenPassengers = [];
@@ -5202,7 +5201,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $uniquePassengers[] = $passenger;
             }
         }
-        
+       
         // Add passengers to bookingDetails
         if (!empty($uniquePassengers)) {
             $bookingDetails['passengers'] = $uniquePassengers;
@@ -5234,7 +5233,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         // Native country/currency totals from orders.country + orders.currency
         $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
-        
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -5246,18 +5245,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -5270,10 +5269,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -5284,7 +5283,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -5292,10 +5291,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         try {
             // Configure DomPDF options to work without GD if possible
             //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -5325,7 +5324,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'logoType' => $logoType,
                 'user_agency' => $userAgencyForHeader,
             ]);
-            
+           
             $pdf->setPaper('a4');
             $pdf->setOption('enable-php', false);
             $pdf->setOption('isHtml5ParserEnabled', true);
@@ -5342,7 +5341,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 Log::warning('PDF generation failed with logo, retrying without logo', [
                     'error' => $e->getMessage()
                 ]);
-                
+               
                 // Retry without logo
                 //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
                 $pdf = Pdf::loadView($viewName, [
@@ -5371,7 +5370,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'logoType' => $logoType,
                     'user_agency' => $userAgencyForHeader,
                 ]);
-                
+               
                 $pdf->setPaper('a4');
                 $pdf->setOption('enable-php', false);
                 $pdf->setOption('isHtml5ParserEnabled', true);
@@ -5383,7 +5382,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
                 return $pdf->download("tour-quotation.pdf");
             }
-            
+           
             // Re-throw if it's a different error
             throw $e;
         }
@@ -5425,7 +5424,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -5444,7 +5443,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'postal_pin' => 'N/A',
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for display
                 if (!empty($logoUrl)) {
                     try {
@@ -5462,7 +5461,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
                             $imageContent = $response->body();
@@ -5504,7 +5503,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
             if ($agent) {
                 $agency = $agent->agency;
-                
+               
                 $agentDetails = [
                     'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
                     'address' => ($agency && $agency->address) ? $agency->address : 'N/A',
@@ -5543,28 +5542,28 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
                 $bookingDetails['phone'] = $firstItem['phone'] ?? 'N/A';
-                
+               
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // If passenger details are still empty, try to get from tour's mainguest column
         if (($bookingDetails['lead_guest_name'] === 'N/A' || empty($bookingDetails['lead_guest_name'])) && !empty($tour->mainguest)) {
             try {
@@ -5631,7 +5630,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
         $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
-        
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -5643,18 +5642,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -5667,10 +5666,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -5681,7 +5680,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -5689,10 +5688,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         return [
             'tour' => $tour,
             'servicesByDate' => $servicesByDate,
@@ -5717,7 +5716,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
     /**
      * Calculate single sharing and double sharing prices for a tour
-     * 
+     *
      * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
      * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
      */
@@ -5731,7 +5730,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // It's a tour_id, find tour by tour_id
             $tour = Tour::where('tour_id', $tourId)->first();
         }
-        
+       
         if (!$tour) {
             return [
                 'single_sharing' => 0,
@@ -5799,7 +5798,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
         $countryOtherBuckets = []; // key => ['country','currency','single','double']
         $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
-        
+       
         // Segregated prices by service type
         $segregatedPrices = [
             'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
@@ -5824,13 +5823,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelCount = 0;
         // Track which hotel occupancies are actually booked on this tour
         $bookedHotelOccupancies = ['single' => false, 'double' => false, 'triple' => false];
-        
+       
         // Merge hotel rows: same hotel_id + same date range => one hotel bucket.
         // Each bucket stores per-head price for single/double/triple once (no multiplication when multiple orders exist).
         $hotelBuckets = [];
         // Store display/meta for each grouped hotel key
         $hotelBucketMeta = [];
-        
+       
         // Normalize booking date range to group same hotel orders together
         $getHotelBookingRangeLabel = function (array $item) use ($tour): string {
             $bookingDate = $item['bookingDate'] ?? null;
@@ -5843,7 +5842,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             } catch (\Throwable $e) {
                 // ignore
             }
-            
+           
             // Fallback to tour dates
             try {
                 if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
@@ -5854,7 +5853,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             } catch (\Throwable $e) {
                 // ignore
             }
-            
+           
             return '';
         };
 
@@ -5906,7 +5905,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 if ($type === 'hotel') {
                     $hotelCount++;
                     $babyCotPrice = 0;
-                    
+                   
                     // Fetch hotel details early to use name as key
                     $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
                     $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? null;
@@ -5957,7 +5956,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'currency' => $orderCurrency,
                         ];
                     }
-                    
+                   
                     if (!isset($segregatedPrices[$currentHotelKey])) {
                         $segregatedPrices[$currentHotelKey] = [
                             'single' => 0,
@@ -5984,7 +5983,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     if (!empty($hotelOccupancy)) {
                         $bookedHotelOccupancies[$hotelOccupancy] = true;
                     }
-                    
+                   
                     // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
                     // We only use this to override SINGLE price when exactly 1 person;
                     // double/triple prices always come from room/hotel tables so they stay consistent.
@@ -6001,7 +6000,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 }
                             }
                         }
-                        
+                       
                         // If no headcount from beds, try fallback to top-level fields
                         if ($totalHeadCount == 0) {
                             $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
@@ -6012,7 +6011,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             $manualSinglePrice = floatval($directTotalPrice);
                         }
                     }
-                    
+                   
                     // Hotel pricing calculation with date-based weekday/weekend check
                     $singleWeekdayPrice = null;
                     $singleWeekendPrice = null;
@@ -6025,14 +6024,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         foreach ($item['rooms'] as $roomData) {
                             $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
                             $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
+                           
                             // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
                             if ($roomIdFromJson && $hotelId) {
                                 try {
                                     // First try to get hotel_id from hotel_unique_id
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
+                                   
                                     $roomRecord = Room::where('room_id', $roomIdFromJson)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
@@ -6068,7 +6067,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                     ]);
                                 }
                             }
-                            
+                           
                             // Fallback: Get prices from room data in item
                             $weekdayPrice = $roomData['weekday_price'] ?? $roomData['weekdayPrice'] ?? null;
                             $weekendPrice = $roomData['weekend_price'] ?? $roomData['weekendPrice'] ?? null;
@@ -6123,13 +6122,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     // Get booking dates
                     $bookingDates = [];
                     $bookingDate = $item['bookingDate'] ?? null;
-                    
+                   
                     if ($bookingDate) {
                         if (is_array($bookingDate) && count($bookingDate) === 2) {
                             try {
                                 $start = Carbon::parse($bookingDate[0]);
                                 $end = Carbon::parse($bookingDate[1]);
-                                
+                               
                                 // Generate all dates in the booking period (excluding checkout day)
                                 while ($start->lt($end)) {
                                     $bookingDates[] = $start->copy();
@@ -6192,31 +6191,31 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $hotelDoubleTotal = 0;
                     $hotelTripleTotal = 0;
                     $extraBedTotal = 0; // total extra bed cost across all nights
-                    
+                   
                     // Get extra bed price from beds table if available
                     $extraBedWeekdayPrice = null;
                     $extraBedWeekendPrice = null;
                     $roomIdForBed = null;
-                    
+                   
                     // Try to get room_id from roomRecord to check for extra bed
                     if (!empty($item['rooms']) && is_array($item['rooms'])) {
                         foreach ($item['rooms'] as $roomData) {
                             $roomId = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
+                           
                             if ($roomId && $hotelId) {
                                 try {
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
+                                   
                                     $roomRecord = Room::where('room_id', $roomId)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
                                         ->first();
                                     if ($roomRecord && $roomRecord->room_id) {
                                         $roomIdForBed = $roomRecord->room_id;
-                                        
+                                       
                                         // Check beds table for extra_bed
-                                        
+                                       
                                         $bedRecord = Bed::where('room_id', $roomIdForBed)
                                             ->where('extra_bed', true)
                                             ->where('is_active', 1)
@@ -6226,7 +6225,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                             $extraBedPrice = floatval($bedRecord->extra_bed_price);
                                             $extraBedWeekdayPrice = $extraBedPrice;
                                             $extraBedWeekendPrice = $extraBedPrice;
-                                            
+                                           
                                             Log::info('Extra bed found for room', [
                                                 'room_id' => $roomIdForBed,
                                                 'extra_bed_price' => $extraBedPrice
@@ -6235,7 +6234,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                         if ($bedRecord && $bedRecord->baby_cot_price !== null) {
                                             $babyCotPrice = floatval($bedRecord->baby_cot_price);
                                         }
-                                        
+                                       
                                         // If we found the room, break
                                         if ($roomIdForBed) {
                                             break;
@@ -6251,7 +6250,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             }
                         }
                     }
-                    
+                   
                     // Debug logging
                     Log::info('Hotel price calculation', [
                         'hotel_id' => $hotelId,
@@ -6268,7 +6267,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         $dayName = $date->format('l'); // Full day name (Monday, Tuesday, etc.)
                         $isWeekend = in_array($dayName, $weekendDays);
                         $dateString = $date->format('Y-m-d');
-                        
+                       
                         // Priority-based pricing: Check rates table first
                         $ratePrice = null;
                         $rateSingleWeekdayPrice = null;
@@ -6276,7 +6275,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         $rateDoubleWeekdayPrice = null;
                         $rateDoubleWeekendPrice = null;
                         $rateEventType = null;
-                        
+                       
                         if ($hotelId) {
                             try {
                                 // Query rates for this hotel and date with priority order
@@ -6292,10 +6291,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                         END
                                     ")
                                     ->first();
-                                
+                               
                                 if ($rate) {
                                     $rateEventType = $rate->event_type;
-                                    
+                                   
                                     if ($rate->event_type == 'Blackout Date') {
                                         // Blackout Date: Use rate->price (first priority)
                                         $ratePrice = floatval($rate->price ?? 0);
@@ -6309,11 +6308,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                         $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
                                         $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
                                         // Check if double prices exist (they might not be in all migrations)
-                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                            ? floatval($rate->double_weekday_price) / 2 
+                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                            ? floatval($rate->double_weekday_price) / 2
                                             : null;
-                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                            ? floatval($rate->double_weekend_price) / 2 
+                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                            ? floatval($rate->double_weekend_price) / 2
                                             : null;
                                     }
                                     // Fair Date is handled as additional price, skip for now as per priority
@@ -6326,7 +6325,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 ]);
                             }
                         }
-                        
+                       
                         // Determine per-night price ONLY from room/hotel data (ignore rates)
                         // Single: weekday/weekend single prices
                         // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
@@ -6351,8 +6350,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
                         // Accumulate extra bed total per night (if available)
                         if ($extraBedWeekdayPrice !== null) {
-                            $extraBedPriceToAdd = $isWeekend 
-                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                            $extraBedPriceToAdd = $isWeekend
+                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
                                 : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
 
                             if ($extraBedPriceToAdd !== null) {
@@ -6453,12 +6452,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     if ($totalPrice !== null) {
                         $totalPriceFloat = floatval($totalPrice);
                         $normalizedType = strtolower($type ?? '');
-                        
+                       
                         // Handle attraction and restaurant
                         //
                         // Per-pax resolution priority (per-adult unit price):
-                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
-                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
+                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
                         //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
                         //
                         // The booking's totalPrice is authoritative because it represents what the user
@@ -6588,14 +6587,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
                             // Calculate per adult price: totalPrice / Adults
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 // Fallback if no adult count found, use total price as single sharing
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
 
@@ -6609,14 +6608,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
                             // Calculate per adult price: totalPrice / Adults
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 // Fallback if no adult count found or 0, use total price as single sharing (divide by 1)
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
 
@@ -6629,13 +6628,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         // Handle guide: per adult price (totalPrice / Adults)
                         elseif ($normalizedType === 'guide') {
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
@@ -6647,7 +6646,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         // Default calculation for other service types
                         else {
                             // Get pax count
-                            $pax = $item['pax'] 
+                            $pax = $item['pax']
                                 ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
                                 ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
                                 ?? null;
@@ -6661,7 +6660,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
                             // Double sharing: total / 2 (per person for 2 people)
                             $doubleSharing = $totalPriceFloat;
-                            
+                           
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
@@ -6734,7 +6733,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $supplements[] = $row;
             }
         }
-        
+       
         // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
         $hotelSingle = 0.0;
         $hotelDouble = 0.0;
@@ -7045,11 +7044,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         uksort($grouped, function ($a, $b) use ($serviceOrder) {
             $orderA = $serviceOrder[strtolower($a)] ?? 999;
             $orderB = $serviceOrder[strtolower($b)] ?? 999;
-            
+           
             if ($orderA === $orderB) {
                 return strcmp($a, $b);
             }
-            
+           
             return $orderA <=> $orderB;
         });
 
@@ -7278,12 +7277,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                                 ]);
                             }
                         }
-                        
+                       
                         // Fallback to bed_type if bed_id lookup fails
                         if ($bedType === 'Bed' && !empty($bed['bed_type'])) {
                             $bedType = self::friendlyLabel($bed['bed_type'], 'Bed');
                         }
-                        
+                       
                         $bedSummary[] = [
                             'type' => $bedType,
                             'occupancy' => $bed['head_count'] ?? null,
@@ -7378,19 +7377,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $transferWay = ucwords(str_replace('-', ' ', $wayRaw));
                 }
             }
-            
+           
             // Get vehicle details (from transfer_options.vehicle_details or direct item)
             $vehicleDetailsFromOptions = $transferOptions['vehicle_details'] ?? null;
-            
+           
             $vehicleType = null;
             $seatingCapacity = null;
             $vehicleNumber = null;
             $vehicleBrand = null;
-            
+           
             // Try to fetch from Vehicle model - check jobsheet first, then fallback to vehicles_id
             $vehicleRecord = null;
             $vehicleId = null;
-            
+           
             // Check jobsheet first if order and tour are available
             if ($order && $tour && !empty($order->booking_id)) {
                 try {
@@ -7412,7 +7411,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     ]);
                 }
             }
-            
+           
             // Fallback to vehicles_id from item if no jobsheet vehicle found
             if (!$vehicleRecord && !empty($item['vehicles_id'])) {
                 try {
@@ -7424,20 +7423,20 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     // If Vehicle model not found, continue without it
                 }
             }
-            
+           
             if ($vehicleRecord) {
                 $vehicleType = $vehicleRecord->vehicle_type ?? null;
                 $seatingCapacity = $vehicleRecord->sitting_capacity ?? $vehicleRecord->seating_capacity ?? $vehicleRecord->max_passenger_capacity ?? null;
                 $vehicleNumber = $vehicleRecord->vehicle_plate_no ?? null;
                 $vehicleBrand = $vehicleRecord->vehicle_model ?? $vehicleRecord->vehicle_name ?? null;
             }
-            
+           
             // Get from transfer_options.vehicle_details if available
             if ($vehicleDetailsFromOptions && is_array($vehicleDetailsFromOptions)) {
                 $vehicleType = $vehicleType ?? $vehicleDetailsFromOptions['vehicle_type'] ?? null;
                 $seatingCapacity = $seatingCapacity ?? $vehicleDetailsFromOptions['seating_capacity'] ?? null;
             }
-            
+           
             // Parse vehicles_name if it contains type and seating info (e.g., "Jaguar F-Pace (SUV) - 7 seats")
             $vehiclesName = $item['vehicles_name'] ?? null;
             if ($vehiclesName && (!$vehicleType || !$seatingCapacity)) {
@@ -7449,13 +7448,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $seatingCapacity = $seatingCapacity ?? $seatMatch[1];
                 }
             }
-            
+           
             // Fallback to direct item fields
             $vehicleType = $vehicleType ?? $item['vehicle_type'] ?? null;
             $seatingCapacity = $seatingCapacity ?? $item['seating_capacity'] ?? null;
             $vehicleNumber = $vehicleNumber ?? $item['vehicle_number'] ?? $item['vehicleNumber'] ?? null;
             $vehicleBrand = $vehicleBrand ?? $item['vehicle_brand'] ?? $item['vehicleBrand'] ?? $item['vehicle_model'] ?? null;
-            
+           
             // Format Vehicle Type / Seater
             $vehicleTypeSeater = '';
             if ($vehicleType && $seatingCapacity) {
@@ -7467,7 +7466,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             } else {
                 $vehicleTypeSeater = 'N/A';
             }
-            
+           
             $vehicleDetails = [
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
@@ -7492,12 +7491,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
             $childCount = $item['childCount'] ?? $item['child'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             // Extract transfer options - prioritize transfer_options over Selection
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -7508,7 +7507,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     $transferType = $transferOptions['type'];
                 }
             }
-            
+           
             $transportNote = null;
             if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
@@ -7567,7 +7566,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             // Restaurant uses "infants" in some payloads (older payloads may use seniorCount)
             $infantCount = $item['infants'] ?? $item['infantCount'] ?? $item['infant'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             $mealItems = [];
             if (!empty($item['MealDescription']) && is_array($item['MealDescription'])) {
                 foreach ($item['MealDescription'] as $mealItem) {
@@ -7581,12 +7580,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     }
                 }
             }
-            
+           
             // Extract transfer options
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -7613,7 +7612,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     'cost' => $transferOptions['cost'] ?? null,
                 ];
             }
-            
+           
             // Clean mealSpecificType to remove emojis and special characters
             $mealSpecificType = $item['mealSpecificType'] ?? null;
             if ($mealSpecificType) {
@@ -7622,7 +7621,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $mealSpecificType = preg_replace('/[^\x20-\x7E]/u', '', $mealSpecificType);
                 $mealSpecificType = trim($mealSpecificType); // Remove leading/trailing whitespace
             }
-            
+           
             $restaurantDetails = [
                 'ticket_name' => $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
@@ -7649,7 +7648,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if (!is_array($languages)) {
                 $languages = [];
             }
-            
+           
             // Format languages as comma-separated string for Language Proficiency
             $languageProficiency = '';
             if (!empty($languages)) {
@@ -7675,7 +7674,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             if ($totalExperience !== null) {
                 $totalExperience = $totalExperience . ' years';
             }
-            
+           
             $guideDetails = [
                 'guide_name' => $guide->name ?? null,
                 'language_proficiency' => $languageProficiency ?: 'N/A',
@@ -7735,13 +7734,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     protected static function serviceIcon($type)
     {
         $map = [
-            'hotel' => 'ðŸ¨',
+            'hotel' => 'ðŸ ¨',
             'guide' => 'ðŸ‘¤',
-            'restaurant' => 'ðŸ½ï¸',
+            'restaurant' => 'ðŸ ½ï¸ ',
             'attraction' => 'ðŸŽ¯',
-            'entry_port' => 'âœˆï¸',
+            'entry_port' => 'âœˆï¸ ',
             'exit_port' => 'ðŸ›«',
-            'travel_point' => 'ðŸš',
+            'travel_point' => 'ðŸš ',
             'travel_hourly' => 'ðŸš—',
             'local_transport' => 'ðŸš•',
         ];
@@ -8158,7 +8157,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     {
         $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
         $weekendDays = ['Saturday', 'Sunday']; // Default fallback
-        
+       
         // Get weekend days from hotel
         if ($hotelId) {
             try {
@@ -8182,19 +8181,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $singleWeekendPrice = null;
         $doubleWeekdayPrice = null;
         $doubleWeekendPrice = null;
-        
+       
         $roomtype = $room['room_type'] ?? $room['roomType'] ?? null;
-        
+       
         if ($roomtype && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_type', $roomtype)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                
+               
                 if ($roomRecord) {
                     if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
                         $singleWeekdayPrice = floatval($roomRecord->weekday_price);
@@ -8247,13 +8246,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         // Get booking dates
         $bookingDates = [];
         $bookingDate = $item['bookingDate'] ?? null;
-        
+       
         if ($bookingDate) {
             if (is_array($bookingDate) && count($bookingDate) === 2) {
                 try {
                     $start = Carbon::parse($bookingDate[0]);
                     $end = Carbon::parse($bookingDate[1]);
-                    
+                   
                     while ($start->lt($end)) {
                         $bookingDates[] = $start->copy();
                         $start->addDay();
@@ -8309,22 +8308,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $totalSinglePrice = 0;
         $totalDoublePrice = 0;
         $totalTriplePrice = 0;
-        
+       
         // Get extra bed price for triple sharing
         $extraBedWeekdayPrice = null;
         $extraBedWeekendPrice = null;
-        
+       
         $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
         if ($roomId && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_id', $roomId)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                    
+                   
                 if ($roomRecord && $roomRecord->room_id) {
                     $bedRecord = Bed::where('room_id', $roomRecord->room_id)
                         ->where('extra_bed', true)
@@ -8345,7 +8344,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $dayName = $date->format('l');
             $isWeekend = in_array($dayName, $weekendDays);
             $dateString = $date->format('Y-m-d');
-            
+           
             // Check rates table
             $ratePrice = null;
             $rateSingleWeekdayPrice = null;
@@ -8353,7 +8352,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $rateDoubleWeekdayPrice = null;
             $rateDoubleWeekendPrice = null;
             $rateEventType = null;
-            
+           
             if ($hotelId) {
                 try {
                     $rate = Rate::where('hotel_id', $hotelId)
@@ -8368,10 +8367,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             END
                         ")
                         ->first();
-                    
+                   
                     if ($rate) {
                         $rateEventType = $rate->event_type;
-                        
+                       
                         if ($rate->event_type == 'Blackout Date') {
                             $ratePrice = floatval($rate->price ?? 0);
                             $rateSingleWeekdayPrice = $ratePrice;
@@ -8381,11 +8380,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         } elseif ($rate->event_type == 'Season') {
                             $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
                             $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
-                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                ? floatval($rate->double_weekday_price) / 2 
+                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                ? floatval($rate->double_weekday_price) / 2
                                 : null;
-                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                ? floatval($rate->double_weekend_price) / 2 
+                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                ? floatval($rate->double_weekend_price) / 2
                                 : null;
                         }
                     }
@@ -8393,11 +8392,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     // Ignore errors
                 }
             }
-            
+           
             // Determine price to use
             $singlePriceToAdd = null;
             $doublePriceToAdd = null;
-            
+           
             if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
                 $singlePriceToAdd = $ratePrice;
                 $doublePriceToAdd = $ratePrice;
@@ -8416,25 +8415,25 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
                 $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
             }
-            
+           
             if ($singlePriceToAdd !== null) {
                 $totalSinglePrice += $singlePriceToAdd;
             }
             if ($doublePriceToAdd !== null) {
                 $totalDoublePrice += $doublePriceToAdd;
             }
-            
+           
             // Triple = double + extra bed
             if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
-                $extraBedPriceToAdd = $isWeekend 
-                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                $extraBedPriceToAdd = $isWeekend
+                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
                     : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
                 $totalTriplePrice += $doublePriceToAdd + $extraBedPriceToAdd;
             }
         }
-        
+       
         $totalNights = count($bookingDates);
-        
+       
         return [
             'single_total' => $totalSinglePrice,
             'double_total' => $totalDoublePrice,
@@ -10019,8 +10018,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         switch ($user->role_id) {
 
             case 1: // Admin
-            case 20: 
-                return 'SGD'; 
+            case 20:
+                return 'SGD';
 
             case 11: // DMC
                 $dmc_id = $user->userId;
@@ -10082,7 +10081,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             case 114:
             case 117:
             case 120:
-            
+           
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager?->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
@@ -10105,7 +10104,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         // Get currency from countries table using country name
         $country = Country::where('name', $dmc->country)->first();
-        
+       
 
         return $country->currency ?? 'SGD';
     }
