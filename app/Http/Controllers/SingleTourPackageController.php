@@ -972,9 +972,7 @@ class SingleTourPackageController extends Controller
                     if (is_string($salutation)) {
                         $salutation = rtrim($salutation, '.'); // Mr. -> Mr
                     }
-                    Guest::create([
-                        // 'guest_id' => $nextGuestId(),
-                        'tour_id' => [$tourIdForGuests],
+                    $this->createOrLinkGuestByEmail([
                         'guest_name' => $mainGuestData['full_name'] ?? $mainGuestData['fullName'] ?? 'Guest',
                         'email' => $mainGuestData['email'] ?? null,
                         'country_code' => $mainGuestData['country_code'] ?? null,
@@ -987,7 +985,7 @@ class SingleTourPackageController extends Controller
                         'passport' => $mainGuestData['passport'] ?? null,
                         'passport_exp' => !empty($mainGuestData['passport_exp']) ? $mainGuestData['passport_exp'] : null,
                         'salutation' => $salutation,
-                    ]);
+                    ], $tourIdForGuests);
                 }
                 foreach ($additionalGuestData as $row) {
                     if (!is_array($row)) {
@@ -1005,9 +1003,7 @@ class SingleTourPackageController extends Controller
                     }
                     $countryCode = trim((string) ($row['country_code'] ?? $row['countryCode'] ?? '+91'));
                     $passport = trim((string) ($row['passport_no'] ?? $row['passport'] ?? ''));
-                    Guest::create([
-                        // 'guest_id' => $nextGuestId(),
-                        'tour_id' => [$tourIdForGuests],
+                    $this->createOrLinkGuestByEmail([
                         'guest_name' => $name !== '' ? $name : 'Guest',
                         'email' => $email !== '' ? $email : null,
                         'country_code' => $countryCode !== '' ? $countryCode : null,
@@ -1016,7 +1012,7 @@ class SingleTourPackageController extends Controller
                         'passport' => $passport !== '' ? $passport : null,
                         'passport_exp' => !empty($row['passport_exp']) ? $row['passport_exp'] : null,
                         'salutation' => $salutation,
-                    ]);
+                    ], $tourIdForGuests);
                 }
             } catch (\Exception $e) {
                 \Log::error('Error storing guests in guests table', ['tour_id' => $tour->tour_id ?? null, 'error' => $e->getMessage()]);
@@ -6567,6 +6563,38 @@ class SingleTourPackageController extends Controller
         }
         
         return $fixedRooms;
+    }
+
+    /**
+     * Create a guest, or if the same email already exists, only append this tour_id
+     * to that guest's tour_id JSON array (no duplicate guest row).
+     */
+    private function createOrLinkGuestByEmail(array $guestData, $tourId): Guest
+    {
+        $email = trim((string) ($guestData['email'] ?? ''));
+        $tourId = is_numeric($tourId) ? (int) $tourId : $tourId;
+
+        $existing = null;
+        if ($email !== '') {
+            $existing = Guest::whereRaw('LOWER(TRIM(email)) = ?', [strtolower($email)])->first();
+        }
+
+        if ($existing) {
+            if (!$existing->hasTourId($tourId)) {
+                $existing->addTourId($tourId);
+            }
+            \Log::info('Existing guest linked to tour by email', [
+                'guest_id' => $existing->guest_id,
+                'email' => $existing->email,
+                'tour_id' => $tourId,
+                'all_tour_ids' => $existing->tour_id,
+            ]);
+            return $existing;
+        }
+
+        $guestData['email'] = $email !== '' ? $email : null;
+        $guestData['tour_id'] = [$tourId];
+        return Guest::create($guestData);
     }
     
 }

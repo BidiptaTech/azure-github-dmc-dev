@@ -24,6 +24,7 @@ class Tour extends Model
         'taxes' => 'array',
         'mainguest' => 'array',
         'additionalguest' => 'array',
+        'city_date_ranges' => 'array',
     ];
 
     protected static $TourStatus = [

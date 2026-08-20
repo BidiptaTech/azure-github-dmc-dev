@@ -1659,15 +1659,27 @@
                                             $bedType = $firstBed['bed_type'] ?? '';
                                             $numberOfPersons = $firstBed['head_count'] ?? $firstBed['max_occupancy'] ?? 0;
                                             
-                                            // Get meal plan
+                                            // Get meal plan (create stores string values; some payloads wrap type in an object)
                                             $mealTypes = $firstBed['mealTypes'] ?? [];
                                             if (!empty($mealTypes) && is_array($mealTypes)) {
                                                 $mealPlan = $mealTypes[0] ?? '';
                                             } elseif (isset($firstBed['selectedMeals']) && is_array($firstBed['selectedMeals'])) {
                                                 $firstMeal = reset($firstBed['selectedMeals']);
-                                                $mealPlan = $firstMeal['type'] ?? '';
+                                                $mealPlan = is_array($firstMeal) ? ($firstMeal['type'] ?? '') : $firstMeal;
                                             }
                                         }
+                                        if ($mealPlan === '' && !empty($firstRoom['meal_plan'])) {
+                                            $mealPlan = $firstRoom['meal_plan'];
+                                        }
+                                    }
+                                    if (is_array($mealPlan)) {
+                                        $mealPlan = $mealPlan['type'] ?? $mealPlan['value'] ?? reset($mealPlan) ?? '';
+                                        if (is_array($mealPlan)) {
+                                            $mealPlan = '';
+                                        }
+                                    }
+                                    if ($mealPlan === '' && !empty($hotelInfo['meal_plan'])) {
+                                        $mealPlan = $hotelInfo['meal_plan'];
                                     }
 
                                     // Normalize meal plan for <select> values (JS/API use snake_case e.g. room_only)
@@ -2037,6 +2049,9 @@
                                                                     });
                                                                     
                                                                     roomTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(roomTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                                                                     
                                                                     // Update price grid if room type is already selected
@@ -2169,6 +2184,9 @@
                                                                     });
                                                                     
                                                                     bedTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(bedTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
 
                                                                     setTimeout(() => {
@@ -2216,8 +2234,10 @@
                                                     
                                                     function loadMealPlansForBed_{{ $hotelOrder->booking_id }}(bedDataOrRoom) {
                                                         const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const rawRoomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const roomData = Array.isArray(rawRoomData) ? rawRoomData : Object.values(rawRoomData || {});
                                                         const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const savedMeal = (mealPlanSelect && mealPlanSelect.getAttribute('data-saved-meal')) || @json($mealPlanSelectValue ?? ($mealPlan ?? ''));
                                                         
                                                         console.log('Loading meal plans for booking {{ $hotelOrder->booking_id }}', bedDataOrRoom);
                                                         
@@ -2228,22 +2248,24 @@
                                                         // First, try to get room from selected bed
                                                         if (bedTypeSelect && bedTypeSelect.value) {
                                                             const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
-                                                            if (selectedBedOption && selectedBedOption.dataset.roomId) {
-                                                                const roomId = selectedBedOption.dataset.roomId;
-                                                                room = roomData.find(r => r.room_id == roomId);
+                                                            if (selectedBedOption && (selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id'))) {
+                                                                const roomId = selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id');
+                                                                room = roomData.find(r => String(r.room_id) === String(roomId) || String(r.id) === String(roomId));
                                                                 
                                                                 // Get max occupancy from bed data
-                                                                const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
-                                                                maxOccupancy = bedData.max_occupancy || null;
+                                                                try {
+                                                                    const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
+                                                                    maxOccupancy = bedData.max_occupancy || bedData.base_max_occupancy || null;
+                                                                } catch (e) {}
                                                             }
                                                         }
                                                         
                                                         // If no room from bed, try from passed parameter
                                                         if (!room && bedDataOrRoom) {
-                                                            if (bedDataOrRoom.room_id) {
-                                                                room = roomData.find(r => r.room_id == bedDataOrRoom.room_id);
-                                                            } else if (bedDataOrRoom.room_type) {
+                                                            if (bedDataOrRoom.breakfast !== undefined || bedDataOrRoom.lunch !== undefined || bedDataOrRoom.room_type) {
                                                                 room = bedDataOrRoom;
+                                                            } else if (bedDataOrRoom.room_id) {
+                                                                room = roomData.find(r => String(r.room_id) === String(bedDataOrRoom.room_id)) || bedDataOrRoom;
                                                             }
                                                         }
                                                         
@@ -2260,8 +2282,19 @@
                                                         
                                                         if (!room) {
                                                             console.log('No room found for meal plans');
-                                                            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
-                                                            mealPlanSelect.disabled = true;
+                                                            if (savedMeal) {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+                                                                const savedOpt = document.createElement('option');
+                                                                savedOpt.value = savedMeal;
+                                                                savedOpt.textContent = savedMeal.replace(/_/g, ' ').replace('bed & breakfast', 'room with breakfast');
+                                                                savedOpt.selected = true;
+                                                                mealPlanSelect.appendChild(savedOpt);
+                                                                mealPlanSelect.disabled = false;
+                                                                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(mealPlanSelect);
+                                                            } else {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                                mealPlanSelect.disabled = true;
+                                                            }
                                                             return;
                                                         }
                                                         
@@ -2420,6 +2453,17 @@
                                                             });
                                                             
                                                             mealPlanSelect.disabled = false;
+                                                            if (existingMealPlan && !mealPlanSelected) {
+                                                                const extra = document.createElement('option');
+                                                                extra.value = existingMealPlan;
+                                                                extra.textContent = String(existingMealPlan).replace(/_/g, ' ');
+                                                                extra.selected = true;
+                                                                mealPlanSelected = true;
+                                                                mealPlanSelect.appendChild(extra);
+                                                            }
+                                                            if (typeof window.refreshSelect2 === 'function') {
+                                                                window.refreshSelect2(mealPlanSelect);
+                                                            }
                                                             console.log(`Loaded ${mealPlans.length} meal plan options dynamically from room data with pax info`);
                                                             if (existingMealPlan && mealPlanSelected) {
                                                                 console.log(`Meal plan "${existingMealPlan}" was automatically selected`);
@@ -3224,10 +3268,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" data-saved-meal="{{ $mealPlanSelectValue ?? $mealPlan }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
-                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ $mealPlan }}</option>
+                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ is_string($mealPlan) ? $mealPlan : ($mealPlanSelectValue ?? 'Saved meal plan') }}</option>
                                                     @endif
                                                 </select>
                                             </div>
@@ -3513,7 +3557,8 @@
                                                 $pickupDate = $pickupDateRaw;
                                             }
                                         }
-                                        $vehicleName = $transportData['vehicles_name'] ?? '';
+                                        $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                        $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
                                         $availableVehicles = $vehicles ?? collect();
@@ -3612,7 +3657,7 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                 @php $vehicleMatched = false; @endphp
-                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle (change pickup/dropoff to load)' }}</option>
                                                     @foreach($availableVehicles as $vehicleOption)
                                                         @php
@@ -5756,7 +5801,8 @@
                                                     $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? '';
                                                     $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? '';
                                                     $pickupTime = $transportData['entrytime'] ?? $transportData['exittime'] ?? $transportData['exitpickuptime'] ?? '';
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                                    $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
@@ -5901,7 +5947,7 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
+                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -6041,7 +6087,8 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                    @php $leadGuestEmail = trim((string) ($customer_info['email'] ?? '')); @endphp
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $leadGuestEmail }}" @if($leadGuestEmail !== '') readonly @endif style="font-size: 0.85rem;{{ $leadGuestEmail !== '' ? ' background-color: #e9ecef;' : '' }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
@@ -6182,7 +6229,8 @@
                                                                 </div>
                                                                 <div class="col-md-4">
                                                                     <label class="form-label fw-semibold">Email</label>
-                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                    @php $additionalGuestEmail = trim((string) ($guest['email'] ?? '')); @endphp
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $additionalGuestEmail }}" placeholder="Enter email" @if($additionalGuestEmail !== '') readonly @endif @if($additionalGuestEmail !== '') style="background-color: #e9ecef;" @endif
                                                                 </div>
                                                                 @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
                                                                     <div class="col-md-4">
@@ -9567,6 +9615,55 @@
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
+    function vehicleMatchesSaved(vehicle, savedName, savedId) {
+        const name = String(vehicle.vehicle_name || vehicle.vehicle_id || '').trim();
+        const id = String(vehicle.vehicle_id || '').trim();
+        const saved = String(savedName || '').trim();
+        const savedIdStr = String(savedId || '').trim();
+        if (savedIdStr && id && String(savedIdStr) === String(id)) return true;
+        if (!saved || !name) return false;
+        const a = saved.toLowerCase();
+        const b = name.toLowerCase();
+        return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+    }
+
+    function populateVehicleSelect(vehicleSelect, vehicles, savedName, savedId) {
+        if (!vehicleSelect) return false;
+        vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+        let selected = false;
+        (vehicles || []).forEach(function (v) {
+            const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
+            const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '') + (v.seating_capacity ? ' - ' + v.seating_capacity + ' seats' : '');
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = info;
+            opt.setAttribute('data-vehicle-id', v.vehicle_id || '');
+            opt.setAttribute('data-private-price', v.private_price || v.base_price || '');
+            opt.setAttribute('data-shared-price', v.shared_price || v.sharable_base_price || '');
+            opt.setAttribute('data-sharable', v.sharable || 0);
+            if (!selected && vehicleMatchesSaved(v, savedName, savedId)) {
+                opt.selected = true;
+                selected = true;
+            }
+            vehicleSelect.appendChild(opt);
+        });
+        if (!selected && savedName) {
+            const opt = document.createElement('option');
+            opt.value = savedName;
+            opt.textContent = savedName;
+            if (savedId) opt.setAttribute('data-vehicle-id', savedId);
+            opt.setAttribute('data-sharable', '3');
+            opt.selected = true;
+            selected = true;
+            vehicleSelect.appendChild(opt);
+        }
+        vehicleSelect.disabled = false;
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(vehicleSelect);
+        }
+        return selected;
+    }
+
     // Fetch zone-respected vehicles for one arrival row and populate vehicle dropdown; then update price.
     function fetchArrivalVehiclesForRow(bookingId) {
         const cityEl = document.getElementById('arrival_city_' + bookingId);
@@ -9582,9 +9679,10 @@
         const dropoffZoneId = dropoffOpt ? (dropoffOpt.getAttribute('data-zone-id') || dropoffOpt.value) : '';
         const pickupType = pickupOpt ? (pickupOpt.getAttribute('data-type') || 'Port') : 'Port';
         const dropoffType = dropoffOpt ? (dropoffOpt.getAttribute('data-type') || 'Hotel') : 'Hotel';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
 
         if (!city || !pickupZoneId || !dropoffZoneId) {
-            vehicleSelect.innerHTML = '<option value="">Select vehicle (choose city, pickup & dropoff)</option>';
             return;
         }
 
@@ -9607,22 +9705,24 @@
         .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.status); }))
         .then(data => {
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(v => {
-                    const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
-                    const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                    vehicleSelect.innerHTML += '<option value="' + esc(name) + '" data-private-price="' + (v.private_price || '') + '" data-shared-price="' + (v.shared_price || '') + '">' + esc(info) + '</option>';
-                });
-                updateArrivalRowPrice(bookingId);
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                const totalInput = document.getElementById('arrival_total_price_' + bookingId);
+                const savedTotal = totalInput ? totalInput.value : '';
+                if (vehicleSelect.value && (!savedTotal || parseFloat(savedTotal) === 0)) {
+                    updateArrivalRowPrice(bookingId);
+                }
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles for this route</option>';
-                document.getElementById('arrival_total_price_' + bookingId).value = '0.00';
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         })
         .catch(err => {
             console.warn('Arrival vehicles fetch failed:', err);
-            vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+            if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+            }
         });
     }
 
@@ -14807,8 +14907,10 @@
         options = options || {};
         const useName = !!options.useName;
         const placeholder = options.placeholder || (useName ? 'Select pickup port' : 'Select location');
-        const selectedValue = options.selectedValue != null ? String(options.selectedValue) : String(selectEl.value || '');
+        const selectedValue = String(options.selectedValue != null ? options.selectedValue : (selectEl.value || '')).trim();
+        const norm = function (s) { return String(s || '').trim().toLowerCase(); };
         selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        let matched = false;
         (ports || []).forEach(function (port) {
             const opt = document.createElement('option');
             const portId = port.port_id || port.id || '';
@@ -14819,12 +14921,24 @@
             opt.setAttribute('data-zone-id', portId);
             opt.setAttribute('data-port-id', portId);
             opt.setAttribute('data-port', JSON.stringify(port));
-            if (selectedValue && (String(opt.value) === selectedValue || String(portName) === selectedValue || String(portId) === selectedValue)) {
+            const selectedNorm = norm(selectedValue);
+            const nameNorm = norm(portName);
+            const idNorm = norm(portId);
+            if (selectedValue && !matched && (
+                String(opt.value) === selectedValue ||
+                String(portName) === selectedValue ||
+                String(portId) === selectedValue ||
+                (selectedNorm && nameNorm && (selectedNorm === nameNorm || selectedNorm.indexOf(nameNorm) !== -1 || nameNorm.indexOf(selectedNorm) !== -1)) ||
+                (selectedNorm && idNorm && selectedNorm === idNorm)
+            )) {
                 opt.selected = true;
+                matched = true;
             }
             selectEl.appendChild(opt);
         });
-        if (typeof jQuery !== 'undefined' && jQuery(selectEl).data('select2')) {
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(selectEl);
+        } else if (typeof jQuery !== 'undefined' && jQuery(selectEl).data('select2')) {
             jQuery(selectEl).trigger('change.select2');
         }
     }
@@ -28288,13 +28402,10 @@
         const pickupZoneType = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-type');
         const dropoffZoneType = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-type');
         const city = citySelect?.value || '';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
         
         if (!pickupZoneId || !dropoffZoneId || !city) {
-            // Clear vehicle select if zones not selected
-            if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Select pickup and dropoff locations first</option>';
-                vehicleSelect.disabled = true;
-            }
             return;
         }
         
@@ -28335,31 +28446,25 @@
             }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                // Populate vehicle dropdown
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(vehicle => {
-                    const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type || ''}) - ${vehicle.seating_capacity || ''} seats`;
-                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_name || vehicle.vehicle_id}" 
-                        data-vehicle-id="${vehicle.vehicle_id || ''}"
-                        data-private-price="${vehicle.private_price || vehicle.base_price || 0}"
-                        data-shared-price="${vehicle.shared_price || vehicle.sharable_base_price || 0}"
-                        data-sharable="${vehicle.sharable || 0}">
-                        ${vehicleInfo}
-                    </option>`;
-                });
-                vehicleSelect.disabled = false;
-                
-                // Update service type based on vehicle sharability
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                updateDepartureServiceType(bookingId);
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
                 updateDepartureServiceType(bookingId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
                 vehicleSelect.disabled = true;
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         } catch (error) {
             console.error('Error fetching vehicles:', error);
             if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
-                vehicleSelect.disabled = true;
+                if (savedName) {
+                    populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+                } else {
+                    vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                    vehicleSelect.disabled = true;
+                }
             }
         }
     }
