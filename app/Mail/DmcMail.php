@@ -4,7 +4,6 @@ namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 class DmcMail extends Mailable
@@ -27,11 +26,6 @@ class DmcMail extends Mailable
     /** @var list<string> */
     public array $bccEmails;
 
-    public ?string $emailUuid;
-
-    /** @var list<string> */
-    public array $referenceMessageIds;
-
     /** @var array<string, mixed>|null */
     protected ?array $runtimeMailConfig;
 
@@ -39,7 +33,6 @@ class DmcMail extends Mailable
      * @param  list<string>  $ccEmails
      * @param  list<string>  $bccEmails
      * @param  array<string, mixed>|null  $runtimeMailConfig
-     * @param  list<string>  $referenceMessageIds
      */
     public function __construct(
         $htmlContent,
@@ -49,9 +42,7 @@ class DmcMail extends Mailable
         ?string $replyToEmail = null,
         array $ccEmails = [],
         array $bccEmails = [],
-        ?array $runtimeMailConfig = null,
-        ?string $emailUuid = null,
-        array $referenceMessageIds = []
+        ?array $runtimeMailConfig = null
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -61,69 +52,24 @@ class DmcMail extends Mailable
         $this->ccEmails = $ccEmails;
         $this->bccEmails = $bccEmails;
         $this->runtimeMailConfig = $runtimeMailConfig;
-        $this->emailUuid = $emailUuid;
-        $this->referenceMessageIds = $referenceMessageIds;
-    }
-
-    /**
-     * AI automation mail: runtime SMTP from API / DMC AI mailbox, or a thread reply.
-     * Support mail: DMC emails_setup SMTP (guest credentials, hotel, etc.).
-     */
-    public function isAiAutomationMail(): bool
-    {
-        return $this->runtimeMailConfig !== null || ! empty($this->emailUuid);
-    }
-
-    public function headers(): Headers
-    {
-        if (! $this->isAiAutomationMail() || empty($this->emailUuid)) {
-            return new Headers;
-        }
-
-        $parentId = trim($this->emailUuid, '<>');
-        $references = [];
-
-        foreach (array_merge($this->referenceMessageIds, [$parentId]) as $messageId) {
-            $id = trim((string) $messageId, '<>');
-            if ($id !== '' && ! in_array($id, $references, true)) {
-                $references[] = $id;
-            }
-        }
-
-        return new Headers(
-            references: $references,
-            text: [
-                'In-Reply-To' => '<'.$parentId.'>',
-            ],
-        );
     }
 
     public function build()
     {
         $setup = null;
-
-        if ($this->isAiAutomationMail() && $this->runtimeMailConfig !== null) {
-            // AI automation: send from the DMC AI mailbox (API / stored SMTP).
+        if ($this->runtimeMailConfig !== null) {
             \App\Helpers\CommonHelper::applyRuntimeMailConfig($this->runtimeMailConfig);
             $this->fromEmail = $this->fromEmail ?: ($this->runtimeMailConfig['from_email'] ?? null);
             $this->fromName = $this->fromName ?: ($this->runtimeMailConfig['from_name'] ?? null);
         } else {
-            // Support mail: DMC emails_setup SMTP (falls back to .env if not configured).
+            // Prefer DMC emails_setup SMTP over .env for normal sends.
             $setup = \App\Helpers\CommonHelper::applyEmailsSetupMailConfig();
         }
 
-        // Only use emails_setup From_Email when that row actually applied SMTP.
-        // Mixing .env SMTP (support@travclicks.com) with a different From_Email
-        // causes Hostinger 553 5.7.1 "Sender address rejected: not owned by user".
-        $smtpWasApplied = $setup && ! empty($setup->SMTP_Host) && ! empty($setup->SMTP_User) && ! empty($setup->SMTP_Pass);
-        if (empty($this->fromEmail) && $smtpWasApplied && ! empty($setup->From_Email)) {
+        if (empty($this->fromEmail) && $setup && !empty($setup->From_Email)) {
             $this->fromEmail = $setup->From_Email;
             $this->fromName = $setup->From_Name ?: $this->fromName;
-        } elseif (empty($this->fromName) && $setup && ! empty($setup->From_Name)) {
-            $this->fromName = $setup->From_Name;
         }
-
-        $this->alignFromAddressWithSmtpUser();
 
         $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
 
@@ -149,30 +95,5 @@ class DmcMail extends Mailable
         }
 
         return $mail;
-    }
-
-    /**
-     * Hostinger (and most SMTP hosts) reject MAIL FROM when it is not owned by
-     * the authenticated user: 553 5.7.1 Sender address rejected.
-     * Keep a mismatched address as Reply-To so replies still go to the DMC.
-     */
-    private function alignFromAddressWithSmtpUser(): void
-    {
-        $smtpUser = trim((string) config('mail.mailers.smtp.username'));
-        if ($smtpUser === '' || ! filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
-            return;
-        }
-
-        $currentFrom = trim((string) $this->fromEmail);
-        if ($currentFrom !== '' && strcasecmp($currentFrom, $smtpUser) !== 0) {
-            if (empty($this->replyToEmail) && filter_var($currentFrom, FILTER_VALIDATE_EMAIL)) {
-                $this->replyToEmail = $currentFrom;
-            }
-        }
-
-        $this->fromEmail = $smtpUser;
-        if (empty($this->fromName)) {
-            $this->fromName = (string) config('mail.from.name', config('app.name'));
-        }
     }
 }
