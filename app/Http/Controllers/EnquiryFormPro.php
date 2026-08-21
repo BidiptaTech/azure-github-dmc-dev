@@ -1277,11 +1277,13 @@ class EnquiryFormPro extends Controller
 
     /**
      * Get miscellaneous items with DMC prices (AJAX).
+     * Match by DMC price country/city rows — not the item master city
+     * (one item can have different prices for Singapore, Batam, etc.).
      */
     public function getMiscellaneousItems(Request $request)
     {
-        $city = $request->input('city') ?? $request->input('destination');
-        if (!$city) {
+        $city = trim((string) ($request->input('city') ?? $request->input('destination') ?? ''));
+        if ($city === '') {
             return response()->json([
                 'success' => false,
                 'message' => 'City is required',
@@ -1289,7 +1291,8 @@ class EnquiryFormPro extends Controller
         }
 
         $country = trim((string) ($request->input('country') ?? ''));
-        $city = trim((string) $city);
+        $cityLower = strtolower($city);
+        $countryLower = strtolower($country);
 
         $user = auth()->user();
         $dmcId = $this->resolveDmcIdForUser($user);
@@ -1300,25 +1303,49 @@ class EnquiryFormPro extends Controller
             ], 400);
         }
 
-        $items = MiscellaneousItem::active()
-            ->with(['pricesForDmc' => function ($query) use ($dmcId, $city, $country) {
-                $query->where('dmc_id', $dmcId)->where('status', 1);
-                $query->where(function ($q) use ($city) {
-                    $q->where('city', $city)->orWhere('city', '');
+        $matchPriceLocation = function ($query) use ($dmcId, $cityLower, $country, $countryLower) {
+            $query->where('dmc_id', $dmcId)->where('status', 1);
+            // Exact city match preferred; blank/null city = legacy “all cities” price
+            $query->where(function ($q) use ($cityLower) {
+                $q->whereRaw("LOWER(TRIM(COALESCE(city, ''))) = ?", [$cityLower])
+                    ->orWhereNull('city')
+                    ->orWhere('city', '');
+            });
+            if ($country !== '') {
+                $query->where(function ($q) use ($countryLower) {
+                    $q->whereRaw("LOWER(TRIM(COALESCE(country, ''))) = ?", [$countryLower])
+                        ->orWhereNull('country')
+                        ->orWhere('country', '');
                 });
+            }
+        };
+
+        $items = MiscellaneousItem::active()
+            ->whereHas('pricesForDmc', $matchPriceLocation)
+            ->with(['pricesForDmc' => function ($query) use ($matchPriceLocation, $cityLower, $country, $countryLower) {
+                $matchPriceLocation($query);
+                $query->orderByRaw(
+                    "CASE WHEN LOWER(TRIM(COALESCE(city, ''))) = ? THEN 0 WHEN COALESCE(TRIM(city), '') = '' THEN 1 ELSE 2 END",
+                    [$cityLower]
+                );
                 if ($country !== '') {
-                    $query->where(function ($q) use ($country) {
-                        $q->where('country', $country)->orWhere('country', '');
-                    });
+                    $query->orderByRaw(
+                        "CASE WHEN LOWER(TRIM(COALESCE(country, ''))) = ? THEN 0 ELSE 1 END",
+                        [$countryLower]
+                    );
                 }
-                $query->orderByRaw("CASE WHEN city = ? THEN 0 WHEN city = '' THEN 1 ELSE 2 END", [$city]);
             }])
+            ->orderBy('item_name')
             ->get()
-            ->filter(function ($item) {
-                return $item->pricesForDmc->isNotEmpty();
-            })
-            ->map(function ($item) {
-                $price = $item->pricesForDmc->first();
+            ->map(function ($item) use ($city) {
+                $exact = $item->pricesForDmc->first(function ($p) use ($city) {
+                    return strcasecmp(trim((string) ($p->city ?? '')), $city) === 0;
+                });
+                $price = $exact ?: $item->pricesForDmc->first();
+                if (!$price) {
+                    return null;
+                }
+
                 return [
                     'mis_id' => $item->mis_id,
                     'item_name' => $item->item_name,
@@ -1328,13 +1355,14 @@ class EnquiryFormPro extends Controller
                             ? $item->image
                             : asset('storage/' . $item->image))
                         : null,
-                    'country' => $price->country ?? '',
-                    'city' => $price->city ?? '',
+                    'country' => $price->country ?: ($item->country ?? ''),
+                    'city' => $price->city ?: ($item->city ?? ''),
                     'adult_price' => $price->adult_price ?? 0,
                     'child_price' => $price->child_price ?? 0,
                     'infant_price' => $price->infant_price ?? 0,
                 ];
             })
+            ->filter()
             ->values();
 
         return response()->json($items);

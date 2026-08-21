@@ -321,7 +321,7 @@
         <div class="page-header">
             <div>
                 <h5 class="page-title">Miscellaneous Items</h5>
-                <p class="page-subtitle">Manage optional items, images, descriptions, and status</p>
+                <p class="page-subtitle">Manage optional items, country, city, images, and status</p>
             </div>
             <a href="{{ route('miscellaneous.create') }}" class="btn btn-primary btn-premium">
                 <i class="ri-add-line"></i> Add New Item
@@ -352,6 +352,8 @@
                                 <th>#</th>
                                 <th>Image</th>
                                 <th>Item Name</th>
+                                <th>Country</th>
+                                <th>City</th>
                                 <th>Description</th>
                                 <th>DMCs Using</th>
                                 <th>Status</th>
@@ -372,6 +374,8 @@
                                     @endif
                                 </td>
                                 <td><strong>{{ $item->item_name }}</strong></td>
+                                <td>{{ $item->country ?: '—' }}</td>
+                                <td>{{ $item->city ?: '—' }}</td>
                                 <td>{{ Str::limit($item->description ?? 'N/A', 55) }}</td>
                                 <td>
                                     <span class="badge-pill info"><span class="dot"></span>{{ $item->prices_count }} DMCs</span>
@@ -438,7 +442,7 @@ $(document).ready(function() {
         paging: true,
         pagingType: 'simple_numbers',
         columnDefs: [
-            { orderable: false, targets: [1, 6] }
+            { orderable: false, targets: [1, 8] }
         ]
     });
 
