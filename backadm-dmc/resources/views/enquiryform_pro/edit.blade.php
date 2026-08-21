@@ -22267,18 +22267,25 @@
     
     // Load miscellaneous items for selected city (DMC prices from miscellaneous_prices)
     function loadMiscItemsByDestination() {
-        const city = document.getElementById('miscDestination').value;
+        const destinationSelect = document.getElementById('miscDestination');
+        const city = destinationSelect ? destinationSelect.value : '';
         const itemsTableBody = document.getElementById('miscItemsTableBody');
         
         if (!city) {
             itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a city to load miscellaneous items</td></tr>';
             return;
         }
+
+        const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+        const country = (selectedOption && selectedOption.getAttribute('data-country')) ? selectedOption.getAttribute('data-country') : '';
         
         // Show loading state
         itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
         
-        const url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        let url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        if (country) {
+            url += `&country=${encodeURIComponent(country)}`;
+        }
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -22293,8 +22300,13 @@
             })
             .then(items => {
                 console.log('Loaded miscellaneous items:', items);
+
+                if (items && items.success === false) {
+                    itemsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">${items.message || 'Failed to load items'}</td></tr>`;
+                    return;
+                }
                 
-                if (!items || items.length === 0) {
+                if (!Array.isArray(items) || items.length === 0) {
                     itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">No miscellaneous items available. Please configure items in the DMC panel.</td></tr>';
                     return;
                 }
