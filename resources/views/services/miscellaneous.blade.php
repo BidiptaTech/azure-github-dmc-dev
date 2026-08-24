@@ -16,44 +16,15 @@
         padding: 0.75rem 1rem;
     }
     .misc-page .card-body { padding: 0.75rem 1rem; }
-    .misc-price-table {
-        font-size: 0.75rem;
-        margin-bottom: 0;
-        table-layout: fixed;
-        width: 100%;
+    .misc-hero {
+        background: linear-gradient(135deg, #405189 0%, #5b6bb8 100%);
+        color: #fff;
+        border-radius: 0.5rem;
+        padding: 0.85rem 1.1rem;
+        margin-bottom: 1rem;
     }
-    .misc-price-table th,
-    .misc-price-table td {
-        padding: 0.35rem 0.4rem;
-        vertical-align: middle;
-    }
-    .misc-price-table thead th {
-        font-size: 0.7rem;
-        font-weight: 600;
-        background: #f8f9fa;
-        white-space: nowrap;
-    }
-    .misc-price-pair {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.25rem;
-        align-items: end;
-    }
-    .misc-price-pair label {
-        display: block;
-        font-size: 0.65rem;
-        font-weight: 600;
-        color: #6c757d;
-        margin-bottom: 0.1rem;
-        line-height: 1;
-    }
-    .misc-price-table .form-control-sm {
-        font-size: 0.75rem;
-        padding: 0.2rem 0.35rem;
-        height: calc(1.5em + 0.4rem + 2px);
-        min-width: 0;
-        width: 100%;
-    }
+    .misc-hero h5 { color: #fff; margin-bottom: 0.15rem; font-size: 1rem; }
+    .misc-hero p { margin-bottom: 0; opacity: 0.9; font-size: 0.8rem; }
     .misc-item-thumb,
     .misc-item-thumb-placeholder {
         width: 32px;
@@ -68,66 +39,167 @@
         align-items: center;
         justify-content: center;
     }
-    .misc-item-name {
-        font-size: 0.8rem;
-        font-weight: 600;
-        line-height: 1.2;
-        word-break: break-word;
-    }
-    .misc-item-desc {
-        font-size: 0.68rem;
-        color: #6c757d;
-        line-height: 1.2;
-    }
-    .misc-row-view .misc-price-input {
-        background: #f8f9fa;
-        pointer-events: none;
-        border-color: #e9ecef;
-    }
-    .misc-row-edit .misc-price-input {
-        background: #fff;
-        pointer-events: auto;
-    }
-    .misc-hero {
-        background: linear-gradient(135deg, #405189 0%, #5b6bb8 100%);
-        color: #fff;
-        border-radius: 0.5rem;
-        padding: 0.85rem 1.1rem;
-        margin-bottom: 1rem;
-    }
-    .misc-hero h5 {
-        color: #fff;
-        margin-bottom: 0.15rem;
-        font-size: 1rem;
-    }
-    .misc-hero p {
-        margin-bottom: 0;
-        opacity: 0.9;
-        font-size: 0.8rem;
-    }
-    .available-item-row:hover { background: #f8f9fb; }
-    .misc-actions {
-        white-space: nowrap;
-    }
-    .misc-actions .btn-group {
-        display: inline-flex;
-    }
-    .misc-actions .btn {
-        padding: 0.2rem 0.45rem;
-        font-size: 0.72rem;
-        line-height: 1.2;
-    }
-    .misc-actions .btn i { font-size: 0.85rem; }
-    .misc-col-remove { width: 36px; }
-    .misc-col-item { width: 20%; }
-    .misc-col-price { width: 21%; }
-    .misc-col-actions { width: 110px; }
+    .misc-item-name { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
+    .misc-item-desc { font-size: 0.7rem; color: #6c757d; line-height: 1.2; }
     .misc-toolbar .form-select-sm,
     .misc-toolbar .form-control-sm {
         min-width: 90px;
         max-width: 110px;
     }
+    .misc-item-card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        margin-bottom: 0.75rem;
+        background: #fff;
+        overflow: hidden;
+    }
+    .misc-item-card:last-child { margin-bottom: 0; }
+    .misc-item-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        background: #f8f9fb;
+        border-bottom: 1px solid #eef1f5;
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+    }
+    .misc-item-card-header:hover { background: #f3f5f9; }
+    .misc-item-card-header > .d-flex.min-w-0,
+    .misc-item-card-header > .misc-card-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+    }
+    .misc-card-actions {
+        position: relative;
+        z-index: 5;
+        flex: 0 0 auto;
+        pointer-events: auto;
+    }
+    .misc-card-actions .btn {
+        pointer-events: auto;
+        position: relative;
+        z-index: 6;
+    }
+    .misc-item-card.collapsed .misc-item-card-body { display: none; }
+    .misc-item-card.collapsed .misc-chevron { transform: rotate(-90deg); }
+    .misc-chevron {
+        transition: transform 0.15s ease;
+        color: #6c757d;
+        font-size: 1.1rem;
+    }
+    .misc-item-card-body { padding: 0.75rem 0.85rem; }
+    .misc-locations-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-bottom: 0.5rem;
+    }
+    .misc-location-row {
+        border: 1px solid #eef1f5;
+        border-radius: 0.45rem;
+        padding: 0.65rem 0.75rem;
+        background: #fafbfc;
+    }
+    .misc-loc-geo {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
+        gap: 0.5rem 0.75rem;
+        align-items: end;
+        margin-bottom: 0.65rem;
+    }
+    .misc-loc-geo .misc-field-label {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.2rem;
+    }
+    .misc-loc-prices {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 0.5rem 0.75rem;
+    }
+    .misc-loc-select.form-select,
+    .misc-loc-select.form-select-sm {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        height: 32px;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        padding: 0.25rem 2rem 0.25rem 0.55rem;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-color: #fff;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.55rem center;
+        background-size: 12px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 0.35rem;
+    }
+    .misc-price-input.form-control-sm {
+        font-size: 0.8rem;
+        height: 32px;
+        padding: 0.25rem 0.45rem;
+        width: 100%;
+    }
+    .misc-price-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.35rem;
+        align-items: end;
+    }
+    .misc-price-pair label {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.15rem;
+        line-height: 1;
+    }
+    .misc-price-group-title {
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    .misc-item-card.misc-row-view .misc-price-input {
+        background: #f8f9fa;
+        pointer-events: none;
+        border-color: #e9ecef;
+    }
+    .misc-item-card.misc-row-view .misc-loc-select {
+        background-color: #f8f9fa;
+        pointer-events: none;
+        border-color: #e9ecef;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.55rem center;
+        background-size: 12px 10px;
+    }
+    .misc-item-card.misc-row-edit .misc-price-input,
+    .misc-item-card.misc-row-edit .misc-loc-select {
+        background-color: #fff;
+        pointer-events: auto;
+    }
+    .misc-item-card.misc-row-view .misc-loc-actions { visibility: hidden; }
+    .misc-loc-actions .btn { height: 32px; }
+    .available-item-row:hover { background: #f8f9fb; }
     .min-w-0 { min-width: 0; }
+    .misc-item-meta { font-size: 0.7rem; color: #6c757d; }
+    @media (max-width: 992px) {
+        .misc-loc-geo { grid-template-columns: 1fr 1fr auto; }
+        .misc-loc-prices { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 576px) {
+        .misc-loc-geo { grid-template-columns: 1fr; }
+    }
 </style>
 @endpush
 
@@ -136,6 +208,8 @@
     $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
     $selectedCount = isset($selectedItems) ? count($selectedItems) : 0;
     $availableCount = count($availableItems ?? []);
+    $countryNames = $countryNames ?? [];
+    $citiesByCountry = $citiesByCountry ?? [];
 @endphp
 
 <div class="content-wrapper">
@@ -147,10 +221,9 @@
                 Miscellaneous Items & Pricing
                 <x-currency-price-note />
             </h5>
-            <p>Add items, set cost & sell, then save. Use Edit to update later.</p>
+            <p>Select items, set cost & sell per country/city, then save. Same item can have different prices by city.</p>
         </div>
 
-        <!-- Selected Items -->
         <div class="card mb-4 {{ $selectedCount === 0 ? 'd-none' : '' }}" id="selectedItemsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -179,135 +252,90 @@
             <div class="card-body">
                 <form id="priceUpdateForm" action="{{ route('services.miscellaneous.update') }}" method="POST">
                     @csrf
-                    <table class="table table-bordered table-sm misc-price-table align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th class="text-center misc-col-remove"></th>
-                                <th class="misc-col-item">Item</th>
-                                <th class="text-center misc-col-price">Adult</th>
-                                <th class="text-center misc-col-price">Child</th>
-                                <th class="text-center misc-col-price">Infant</th>
-                                <th class="text-center misc-col-actions">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="selectedItemsBody">
-                            @foreach(($selectedItems ?? []) as $item)
-                                @php
-                                    $imageUrl = $item->image
-                                        ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image))
-                                        : '';
-                                @endphp
-                                <tr class="misc-selected-row misc-row-view"
-                                    data-item-id="{{ $item->mis_id }}"
-                                    data-display-name="{{ $item->item_name }}"
-                                    data-description="{{ $item->description ?? '' }}"
-                                    data-image-url="{{ $imageUrl }}"
-                                    data-mode="view">
-                                    <td class="text-center">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-danger remove-item-btn px-1"
-                                                data-item-id="{{ $item->mis_id }}"
-                                                title="Remove Item">
+                    <div id="selectedItemsBody">
+                        @foreach(($selectedItems ?? []) as $item)
+                            @php
+                                $imageUrl = $item->image
+                                    ? ((str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image))
+                                    : '';
+                                $locations = $item->locations ?? collect([(object)[
+                                    'price_id' => '',
+                                    'country' => $item->country ?? '',
+                                    'city' => $item->city ?? '',
+                                    'adult_price' => 0,
+                                    'child_price' => 0,
+                                    'infant_price' => 0,
+                                    'adult_cost' => 0,
+                                    'child_cost' => 0,
+                                    'infant_cost' => 0,
+                                ]]);
+                            @endphp
+                            <div class="misc-item-card misc-row-view"
+                                 data-item-id="{{ $item->mis_id }}"
+                                 data-display-name="{{ $item->item_name }}"
+                                 data-description="{{ $item->description ?? '' }}"
+                                 data-image-url="{{ $imageUrl }}"
+                                 data-country="{{ $item->country ?? '' }}"
+                                 data-city="{{ $item->city ?? '' }}"
+                                 data-mode="view">
+                                <div class="misc-item-card-header misc-toggle-card">
+                                    <div class="d-flex align-items-center gap-2 min-w-0 misc-card-title">
+                                        <i class="ri-arrow-down-s-line misc-chevron"></i>
+                                        @if($imageUrl)
+                                            <img src="{{ $imageUrl }}" alt="{{ $item->item_name }}" class="misc-item-thumb">
+                                        @else
+                                            <div class="misc-item-thumb-placeholder">
+                                                <i class="ri-add-box-line text-muted"></i>
+                                            </div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="misc-item-name">{{ $item->item_name }}</div>
+                                            @if($item->description)
+                                                <div class="misc-item-desc">{{ Str::limit($item->description, 50) }}</div>
+                                            @endif
+                                            <small class="text-muted misc-loc-count">{{ count($locations) }} location{{ count($locations) === 1 ? '' : 's' }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1 misc-card-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-primary edit-item-btn" data-item-id="{{ $item->mis_id }}">
+                                            <i class="ri-pencil-line"></i> Edit
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-primary quick-save-btn d-none" data-item-id="{{ $item->mis_id }}">
+                                            <i class="ri-check-line"></i> Save
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit-btn d-none" data-item-id="{{ $item->mis_id }}">
                                             <i class="ri-close-line"></i>
                                         </button>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            @if($imageUrl)
-                                                <img src="{{ $imageUrl }}" alt="{{ $item->item_name }}" class="misc-item-thumb">
-                                            @else
-                                                <div class="misc-item-thumb-placeholder">
-                                                    <i class="ri-add-box-line text-muted"></i>
-                                                </div>
-                                            @endif
-                                            <div class="min-w-0">
-                                                <div class="misc-item-name">{{ $item->item_name }}</div>
-                                                @if($item->description)
-                                                    <div class="misc-item-desc">{{ Str::limit($item->description, 40) }}</div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <input type="hidden" name="selected_items[{{ $item->mis_id }}][selected]" value="1">
-                                    </td>
-                                    <td>
-                                        <div class="misc-price-pair">
-                                            <div>
-                                                <label>Cost</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-cost-input"
-                                                       name="selected_items[{{ $item->mis_id }}][adult_cost]"
-                                                       data-sell-target="selected_items[{{ $item->mis_id }}][adult_price]"
-                                                       value="{{ $item->adult_cost ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                            <div>
-                                                <label>Sell</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-sell-input"
-                                                       name="selected_items[{{ $item->mis_id }}][adult_price]"
-                                                       value="{{ $item->adult_price ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="misc-price-pair">
-                                            <div>
-                                                <label>Cost</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-cost-input"
-                                                       name="selected_items[{{ $item->mis_id }}][child_cost]"
-                                                       data-sell-target="selected_items[{{ $item->mis_id }}][child_price]"
-                                                       value="{{ $item->child_cost ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                            <div>
-                                                <label>Sell</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-sell-input"
-                                                       name="selected_items[{{ $item->mis_id }}][child_price]"
-                                                       value="{{ $item->child_price ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="misc-price-pair">
-                                            <div>
-                                                <label>Cost</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-cost-input"
-                                                       name="selected_items[{{ $item->mis_id }}][infant_cost]"
-                                                       data-sell-target="selected_items[{{ $item->mis_id }}][infant_price]"
-                                                       value="{{ $item->infant_cost ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                            <div>
-                                                <label>Sell</label>
-                                                <input type="number" step="0.01" min="0" inputmode="decimal"
-                                                       class="form-control form-control-sm misc-price-input misc-sell-input"
-                                                       name="selected_items[{{ $item->mis_id }}][infant_price]"
-                                                       value="{{ $item->infant_price ?? 0 }}" placeholder="0.00" readonly>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-center misc-actions">
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-outline-primary edit-item-btn" data-item-id="{{ $item->mis_id }}" title="Edit">
-                                                <i class="ri-pencil-line"></i> Edit
-                                            </button>
-                                            <button type="button" class="btn btn-primary quick-save-btn d-none" data-item-id="{{ $item->mis_id }}" title="Save">
-                                                <i class="ri-check-line"></i> Save
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary cancel-edit-btn d-none" data-item-id="{{ $item->mis_id }}" title="Cancel">
-                                                <i class="ri-close-line"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" data-item-id="{{ $item->mis_id }}" title="Remove item">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="misc-item-card-body">
+                                    <input type="hidden" name="selected_items[{{ $item->mis_id }}][selected]" value="1">
+                                    <div class="misc-locations-body">
+                                        @foreach($locations as $locIndex => $loc)
+                                            @include('services.partials.misc-location-row', [
+                                                'itemId' => $item->mis_id,
+                                                'locIndex' => $locIndex,
+                                                'loc' => $loc,
+                                                'countryNames' => $countryNames,
+                                                'citiesByCountry' => $citiesByCountry,
+                                                'readonly' => true,
+                                            ])
+                                        @endforeach
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success add-location-btn d-none" data-item-id="{{ $item->mis_id }}">
+                                        <i class="ri-add-line me-1"></i>Add location
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </form>
             </div>
         </div>
 
-        <!-- Available Items -->
         <div class="card">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -324,7 +352,9 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:30%;">Item Name</th>
+                                    <th style="width:28%;">Item Name</th>
+                                    <th style="width:18%;">Country</th>
+                                    <th style="width:18%;">City</th>
                                     <th>Description</th>
                                     <th style="width:12%;" class="text-center">Actions</th>
                                 </tr>
@@ -341,7 +371,9 @@
                                         data-item-name="{{ strtolower($item->item_name) }}"
                                         data-display-name="{{ $item->item_name }}"
                                         data-description="{{ $item->description ?? '' }}"
-                                        data-image-url="{{ $itemImageUrl }}">
+                                        data-image-url="{{ $itemImageUrl }}"
+                                        data-country="{{ $item->country ?? '' }}"
+                                        data-city="{{ $item->city ?? '' }}">
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @if($itemImageUrl)
@@ -354,12 +386,16 @@
                                                 <strong>{{ $item->item_name }}</strong>
                                             </div>
                                         </td>
-                                        <td class="text-muted">{{ Str::limit($item->description ?? 'N/A', 100) }}</td>
+                                        <td class="misc-item-meta">{{ $item->country ?: '—' }}</td>
+                                        <td class="misc-item-meta">{{ $item->city ?: '—' }}</td>
+                                        <td class="text-muted">{{ Str::limit($item->description ?? 'N/A', 80) }}</td>
                                         <td class="text-center">
                                             <button type="button"
                                                     class="btn btn-sm btn-success add-item-btn"
                                                     data-item-id="{{ $item->mis_id }}"
-                                                    data-item-name="{{ $item->item_name }}">
+                                                    data-item-name="{{ $item->item_name }}"
+                                                    data-country="{{ $item->country ?? '' }}"
+                                                    data-city="{{ $item->city ?? '' }}">
                                                 <i class="ri-add-line me-1"></i>Add
                                             </button>
                                         </td>
@@ -376,18 +412,23 @@
         </div>
     </div>
 </div>
+@endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+(function () {
+    const MISC_COUNTRIES = @json(array_values($countryNames ?? []));
+    const MISC_CITIES_BY_COUNTRY = @json($citiesByCountry ?? []);
+
     function escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text ?? '';
+        div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
     }
 
     function updateSelectedItemCount() {
-        const count = document.querySelectorAll('#selectedItemsBody tr[data-item-id]').length;
+        const count = document.querySelectorAll('#selectedItemsBody .misc-item-card[data-item-id]').length;
         const title = document.getElementById('selectedItemsTitle');
         const section = document.getElementById('selectedItemsSection');
         if (title) title.textContent = `Your Selected Items (${count})`;
@@ -404,144 +445,216 @@
         if (empty) empty.classList.toggle('d-none', count > 0);
     }
 
-    function setRowMode(row, mode) {
-        if (!row) return;
-        const isEdit = mode === 'edit';
-        row.setAttribute('data-mode', mode);
-        row.classList.toggle('misc-row-edit', isEdit);
-        row.classList.toggle('misc-row-view', !isEdit);
+    function updateLocationCount(card) {
+        const count = card.querySelectorAll('.misc-location-row').length;
+        const el = card.querySelector('.misc-loc-count');
+        if (el) el.textContent = count + ' location' + (count === 1 ? '' : 's');
+    }
 
-        row.querySelectorAll('.misc-price-input').forEach(function (input) {
+    function countryOptionsHtml(selected) {
+        let html = '<option value="">Select country</option>';
+        MISC_COUNTRIES.forEach(function (c) {
+            html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`;
+        });
+        return html;
+    }
+
+    function cityOptionsHtml(country, selected) {
+        let html = '<option value="">Select city</option>';
+        const cities = MISC_CITIES_BY_COUNTRY[country] || [];
+        cities.forEach(function (city) {
+            const name = city.name || city;
+            html += `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`;
+        });
+        if (selected && !cities.some(function (c) { return (c.name || c) === selected; })) {
+            html += `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>`;
+        }
+        return html;
+    }
+
+    function buildLocationRowHtml(itemId, locIndex, loc, readonly) {
+        const priceId = loc?.price_id || '';
+        const country = loc?.country || '';
+        const city = loc?.city || '';
+        const adultCost = loc?.adult_cost ?? 0;
+        const adult = loc?.adult_price ?? 0;
+        const childCost = loc?.child_cost ?? 0;
+        const child = loc?.child_price ?? 0;
+        const infantCost = loc?.infant_cost ?? 0;
+        const infant = loc?.infant_price ?? 0;
+        const ro = readonly ? 'readonly' : '';
+        const dis = readonly ? 'disabled' : '';
+        const prefix = `selected_items[${itemId}][locations][${locIndex}]`;
+
+        return `
+            <div class="misc-location-row" data-loc-index="${locIndex}" data-price-id="${escapeHtml(String(priceId))}">
+                <input type="hidden" name="${prefix}[price_id]" value="${escapeHtml(String(priceId))}" class="misc-price-id">
+                <div class="misc-loc-geo">
+                    <div>
+                        <label class="misc-field-label">Country</label>
+                        <select class="form-select form-select-sm misc-loc-select misc-country-select" name="${prefix}[country]" data-no-select2="true" ${dis}>
+                            ${countryOptionsHtml(country)}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="misc-field-label">City</label>
+                        <select class="form-select form-select-sm misc-loc-select misc-city-select" name="${prefix}[city]" data-no-select2="true" ${dis}>
+                            ${cityOptionsHtml(country, city)}
+                        </select>
+                    </div>
+                    <div class="misc-loc-actions d-flex align-items-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-location-btn px-2" title="Remove location">
+                            <i class="ri-close-line"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="misc-loc-prices">
+                    <div>
+                        <div class="misc-price-group-title">Adult</div>
+                        <div class="misc-price-pair">
+                            <div><label>Cost</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="${prefix}[adult_cost]" data-sell-field="adult_price" value="${adultCost}" placeholder="0.00" ${ro}></div>
+                            <div><label>Sell</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="${prefix}[adult_price]" value="${adult}" placeholder="0.00" ${ro}></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="misc-price-group-title">Child</div>
+                        <div class="misc-price-pair">
+                            <div><label>Cost</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="${prefix}[child_cost]" data-sell-field="child_price" value="${childCost}" placeholder="0.00" ${ro}></div>
+                            <div><label>Sell</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="${prefix}[child_price]" value="${child}" placeholder="0.00" ${ro}></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="misc-price-group-title">Infant</div>
+                        <div class="misc-price-pair">
+                            <div><label>Cost</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="${prefix}[infant_cost]" data-sell-field="infant_price" value="${infantCost}" placeholder="0.00" ${ro}></div>
+                            <div><label>Sell</label><input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="${prefix}[infant_price]" value="${infant}" placeholder="0.00" ${ro}></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function reindexLocationRows(card) {
+        const itemId = card.getAttribute('data-item-id');
+        card.querySelectorAll('.misc-location-row').forEach(function (row, idx) {
+            row.setAttribute('data-loc-index', idx);
+            row.querySelectorAll('input, select').forEach(function (el) {
+                if (!el.name) return;
+                el.name = el.name.replace(
+                    /selected_items\[\d+\]\[locations\]\[\d+\]/,
+                    `selected_items[${itemId}][locations][${idx}]`
+                );
+            });
+        });
+        updateLocationCount(card);
+    }
+
+    function setCardMode(card, mode) {
+        if (!card) return;
+        const isEdit = mode === 'edit';
+        card.setAttribute('data-mode', mode);
+        card.classList.toggle('misc-row-edit', isEdit);
+        card.classList.toggle('misc-row-view', !isEdit);
+        card.classList.remove('collapsed');
+
+        card.querySelectorAll('.misc-price-input').forEach(function (input) {
             input.readOnly = !isEdit;
         });
+        card.querySelectorAll('.misc-loc-select').forEach(function (sel) {
+            sel.disabled = !isEdit;
+        });
 
-        const editBtn = row.querySelector('.edit-item-btn');
-        const saveBtn = row.querySelector('.quick-save-btn');
-        const cancelBtn = row.querySelector('.cancel-edit-btn');
+        const editBtn = card.querySelector('.edit-item-btn');
+        const saveBtn = card.querySelector('.quick-save-btn');
+        const cancelBtn = card.querySelector('.cancel-edit-btn');
+        const addLocBtn = card.querySelector('.add-location-btn');
         if (editBtn) editBtn.classList.toggle('d-none', isEdit);
         if (saveBtn) saveBtn.classList.toggle('d-none', !isEdit);
         if (cancelBtn) cancelBtn.classList.toggle('d-none', !isEdit);
+        if (addLocBtn) addLocBtn.classList.toggle('d-none', !isEdit);
     }
 
-    function snapshotRowPrices(row) {
-        const snapshot = {};
-        row.querySelectorAll('.misc-price-input').forEach(function (input) {
-            snapshot[input.name] = input.value;
-        });
-        row._priceSnapshot = snapshot;
+    function snapshotCard(card) {
+        card._snapshotHtml = card.querySelector('.misc-locations-body').innerHTML;
     }
 
-    function restoreRowPrices(row) {
-        if (!row._priceSnapshot) return;
-        Object.keys(row._priceSnapshot).forEach(function (name) {
-            const input = row.querySelector('input[name="' + name.replace(/"/g, '\\"') + '"]');
-            if (input) input.value = row._priceSnapshot[name];
-        });
+    function restoreCard(card) {
+        if (!card._snapshotHtml) return;
+        card.querySelector('.misc-locations-body').innerHTML = card._snapshotHtml;
+        updateLocationCount(card);
     }
 
-    function buildSelectedItemRow(itemRow, prices, mode) {
+    function buildSelectedItemCard(itemRow, locations, mode) {
         const itemId = itemRow.getAttribute('data-item-id');
         const name = itemRow.getAttribute('data-display-name') || '';
         const description = itemRow.getAttribute('data-description') || '';
         const imageUrl = itemRow.getAttribute('data-image-url') || '';
-        const adultCost = prices?.adult_cost ?? 0;
-        const adult = prices?.adult_price ?? 0;
-        const childCost = prices?.child_cost ?? 0;
-        const child = prices?.child_price ?? 0;
-        const infantCost = prices?.infant_cost ?? 0;
-        const infant = prices?.infant_price ?? 0;
+        const country = itemRow.getAttribute('data-country') || '';
+        const city = itemRow.getAttribute('data-city') || '';
         const isEdit = mode === 'edit';
-        const readonlyAttr = isEdit ? '' : 'readonly';
+        const locs = (locations && locations.length) ? locations : [{
+            price_id: '', country: country, city: city,
+            adult_price: 0, child_price: 0, infant_price: 0,
+            adult_cost: 0, child_cost: 0, infant_cost: 0
+        }];
+
         const imageHtml = imageUrl
             ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(name)}" class="misc-item-thumb">`
             : `<div class="misc-item-thumb-placeholder"><i class="ri-add-box-line text-muted"></i></div>`;
         const descHtml = description
-            ? `<div class="misc-item-desc">${escapeHtml(description.length > 40 ? description.substring(0, 40) + '...' : description)}</div>`
+            ? `<div class="misc-item-desc">${escapeHtml(description.length > 50 ? description.substring(0, 50) + '...' : description)}</div>`
             : '';
 
-        const row = document.createElement('tr');
-        row.className = `misc-selected-row ${isEdit ? 'misc-row-edit' : 'misc-row-view'}`;
-        row.setAttribute('data-item-id', itemId);
-        row.setAttribute('data-display-name', name);
-        row.setAttribute('data-description', description);
-        row.setAttribute('data-image-url', imageUrl);
-        row.setAttribute('data-mode', mode);
-        row.innerHTML = `
-            <td class="text-center">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn px-1" data-item-id="${escapeHtml(itemId)}" title="Remove Item">
-                    <i class="ri-close-line"></i>
-                </button>
-            </td>
-            <td>
-                <div class="d-flex align-items-center gap-2">
+        let locRows = '';
+        locs.forEach(function (loc, idx) {
+            locRows += buildLocationRowHtml(itemId, idx, loc, !isEdit);
+        });
+
+        const card = document.createElement('div');
+        card.className = `misc-item-card ${isEdit ? 'misc-row-edit' : 'misc-row-view'}`;
+        card.setAttribute('data-item-id', itemId);
+        card.setAttribute('data-display-name', name);
+        card.setAttribute('data-description', description);
+        card.setAttribute('data-image-url', imageUrl);
+        card.setAttribute('data-country', country);
+        card.setAttribute('data-city', city);
+        card.setAttribute('data-mode', mode);
+        card.innerHTML = `
+            <div class="misc-item-card-header misc-toggle-card">
+                <div class="d-flex align-items-center gap-2 min-w-0 misc-card-title">
+                    <i class="ri-arrow-down-s-line misc-chevron"></i>
                     ${imageHtml}
                     <div class="min-w-0">
                         <div class="misc-item-name">${escapeHtml(name)}</div>
                         ${descHtml}
+                        <small class="text-muted misc-loc-count">${locs.length} location${locs.length === 1 ? '' : 's'}</small>
                     </div>
                 </div>
+                <div class="d-flex align-items-center gap-1 misc-card-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary edit-item-btn ${isEdit ? 'd-none' : ''}" data-item-id="${escapeHtml(itemId)}"><i class="ri-pencil-line"></i> Edit</button>
+                    <button type="button" class="btn btn-sm btn-primary quick-save-btn ${isEdit ? '' : 'd-none'}" data-item-id="${escapeHtml(itemId)}"><i class="ri-check-line"></i> Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary cancel-edit-btn ${isEdit ? '' : 'd-none'}" data-item-id="${escapeHtml(itemId)}"><i class="ri-close-line"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" data-item-id="${escapeHtml(itemId)}" title="Remove item"><i class="ri-delete-bin-line"></i></button>
+                </div>
+            </div>
+            <div class="misc-item-card-body">
                 <input type="hidden" name="selected_items[${escapeHtml(itemId)}][selected]" value="1">
-            </td>
-            <td>
-                <div class="misc-price-pair">
-                    <div>
-                        <label>Cost</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="selected_items[${escapeHtml(itemId)}][adult_cost]" data-sell-target="selected_items[${escapeHtml(itemId)}][adult_price]" value="${adultCost}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                    <div>
-                        <label>Sell</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="selected_items[${escapeHtml(itemId)}][adult_price]" value="${adult}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="misc-price-pair">
-                    <div>
-                        <label>Cost</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="selected_items[${escapeHtml(itemId)}][child_cost]" data-sell-target="selected_items[${escapeHtml(itemId)}][child_price]" value="${childCost}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                    <div>
-                        <label>Sell</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="selected_items[${escapeHtml(itemId)}][child_price]" value="${child}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="misc-price-pair">
-                    <div>
-                        <label>Cost</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-cost-input" name="selected_items[${escapeHtml(itemId)}][infant_cost]" data-sell-target="selected_items[${escapeHtml(itemId)}][infant_price]" value="${infantCost}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                    <div>
-                        <label>Sell</label>
-                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm misc-price-input misc-sell-input" name="selected_items[${escapeHtml(itemId)}][infant_price]" value="${infant}" placeholder="0.00" ${readonlyAttr}>
-                    </div>
-                </div>
-            </td>
-            <td class="text-center misc-actions">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-primary edit-item-btn ${isEdit ? 'd-none' : ''}" data-item-id="${escapeHtml(itemId)}" title="Edit">
-                        <i class="ri-pencil-line"></i> Edit
-                    </button>
-                    <button type="button" class="btn btn-primary quick-save-btn ${isEdit ? '' : 'd-none'}" data-item-id="${escapeHtml(itemId)}" title="Save">
-                        <i class="ri-check-line"></i> Save
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary cancel-edit-btn ${isEdit ? '' : 'd-none'}" data-item-id="${escapeHtml(itemId)}" title="Cancel">
-                        <i class="ri-close-line"></i>
-                    </button>
-                </div>
-            </td>`;
-        return row;
+                <div class="misc-locations-body">${locRows}</div>
+                <button type="button" class="btn btn-sm btn-outline-success add-location-btn ${isEdit ? '' : 'd-none'}" data-item-id="${escapeHtml(itemId)}">
+                    <i class="ri-add-line me-1"></i>Add location
+                </button>
+            </div>`;
+        return card;
     }
 
-    function addItemToSelectedTable(itemRow, prices) {
+    function addItemToSelected(itemRow, locations) {
         const itemId = itemRow.getAttribute('data-item-id');
-        if (document.querySelector(`#selectedItemsBody tr[data-item-id="${itemId}"]`)) return;
-        const tbody = document.getElementById('selectedItemsBody');
-        if (!tbody) return;
-        const row = buildSelectedItemRow(itemRow, prices, 'edit');
-        tbody.insertBefore(row, tbody.firstChild);
-        snapshotRowPrices(row);
+        if (document.querySelector(`#selectedItemsBody .misc-item-card[data-item-id="${itemId}"]`)) return;
+        const body = document.getElementById('selectedItemsBody');
+        if (!body) return;
+        const card = buildSelectedItemCard(itemRow, locations, 'edit');
+        body.insertBefore(card, body.firstChild);
+        snapshotCard(card);
         itemRow.remove();
         updateSelectedItemCount();
         updateAvailableItemCount();
@@ -550,7 +663,6 @@
     function restoreItemToAvailableTable(itemRowData) {
         const tbody = document.getElementById('availableItemsBody');
         if (!tbody) return;
-
         const row = document.createElement('tr');
         row.className = 'available-item-row';
         row.setAttribute('data-item-id', itemRowData.itemId);
@@ -558,17 +670,24 @@
         row.setAttribute('data-display-name', itemRowData.name || '');
         row.setAttribute('data-description', itemRowData.description || '');
         row.setAttribute('data-image-url', itemRowData.imageUrl || '');
+        row.setAttribute('data-country', itemRowData.country || '');
+        row.setAttribute('data-city', itemRowData.city || '');
         const imageHtml = itemRowData.imageUrl
             ? `<img src="${escapeHtml(itemRowData.imageUrl)}" alt="${escapeHtml(itemRowData.name)}" class="misc-item-thumb me-2">`
             : `<div class="misc-item-thumb-placeholder me-2"><i class="ri-add-box-line text-muted"></i></div>`;
         const desc = itemRowData.description || 'N/A';
-        const descDisplay = desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
-
+        const descDisplay = desc.length > 80 ? desc.substring(0, 80) + '...' : desc;
         row.innerHTML = `
             <td><div class="d-flex align-items-center">${imageHtml}<strong>${escapeHtml(itemRowData.name)}</strong></div></td>
+            <td class="misc-item-meta">${escapeHtml(itemRowData.country || '—')}</td>
+            <td class="misc-item-meta">${escapeHtml(itemRowData.city || '—')}</td>
             <td class="text-muted">${escapeHtml(descDisplay)}</td>
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-success add-item-btn" data-item-id="${escapeHtml(itemRowData.itemId)}" data-item-name="${escapeHtml(itemRowData.name)}">
+                <button type="button" class="btn btn-sm btn-success add-item-btn"
+                    data-item-id="${escapeHtml(itemRowData.itemId)}"
+                    data-item-name="${escapeHtml(itemRowData.name)}"
+                    data-country="${escapeHtml(itemRowData.country || '')}"
+                    data-city="${escapeHtml(itemRowData.city || '')}">
                     <i class="ri-add-line me-1"></i>Add
                 </button>
             </td>`;
@@ -583,55 +702,165 @@
         if (isNaN(cost)) return '';
         const profitAmount = isNaN(profit) ? 0 : profit;
         let sell = cost;
-        if (profitType === 'percentage') {
-            sell = cost + (cost * profitAmount / 100);
-        } else {
-            sell = cost + profitAmount;
-        }
+        if (profitType === 'percentage') sell = cost + (cost * profitAmount / 100);
+        else sell = cost + profitAmount;
         return Number(Math.max(0, sell).toFixed(2));
     }
 
     function updateSellFromCostInput(costInput) {
         if (!costInput) return;
-        const row = costInput.closest('tr');
-        if (!row || row.getAttribute('data-mode') !== 'edit') return;
-        const sellName = costInput.getAttribute('data-sell-target');
-        if (!sellName) return;
-        const sellInput = row.querySelector('input[name="' + sellName.replace(/"/g, '\\"') + '"]');
+        const card = costInput.closest('.misc-item-card');
+        if (!card || card.getAttribute('data-mode') !== 'edit') return;
+        const row = costInput.closest('.misc-location-row');
+        const field = costInput.getAttribute('data-sell-field');
+        if (!row || !field) return;
+        const sellInput = row.querySelector(`input[name$="[${field}]"]`);
         if (!sellInput || costInput.value === '' || costInput.value === null) return;
         sellInput.value = calculateSellFromCost(costInput.value);
     }
 
-    function getRowPricePayload(row, itemId) {
-        return {
-            _token: '{{ csrf_token() }}',
-            item_id: itemId,
-            adult_cost: row.find(`input[name="selected_items[${itemId}][adult_cost]"]`).val() || 0,
-            adult_price: row.find(`input[name="selected_items[${itemId}][adult_price]"]`).val() || 0,
-            child_cost: row.find(`input[name="selected_items[${itemId}][child_cost]"]`).val() || 0,
-            child_price: row.find(`input[name="selected_items[${itemId}][child_price]"]`).val() || 0,
-            infant_cost: row.find(`input[name="selected_items[${itemId}][infant_cost]"]`).val() || 0,
-            infant_price: row.find(`input[name="selected_items[${itemId}][infant_price]"]`).val() || 0
-        };
+    function collectCardLocations(card) {
+        const locations = [];
+        if (!card) return locations;
+        card.querySelectorAll('.misc-location-row').forEach(function (row) {
+            const countrySelect = row.querySelector('.misc-country-select');
+            const citySelect = row.querySelector('.misc-city-select');
+            const countryWasDisabled = countrySelect ? countrySelect.disabled : false;
+            const cityWasDisabled = citySelect ? citySelect.disabled : false;
+            if (countrySelect) countrySelect.disabled = false;
+            if (citySelect) citySelect.disabled = false;
+            locations.push({
+                price_id: row.querySelector('.misc-price-id')?.value || '',
+                country: (countrySelect?.value || '').trim(),
+                city: (citySelect?.value || '').trim(),
+                adult_cost: row.querySelector('input[name$="[adult_cost]"]')?.value || 0,
+                adult_price: row.querySelector('input[name$="[adult_price]"]')?.value || 0,
+                child_cost: row.querySelector('input[name$="[child_cost]"]')?.value || 0,
+                child_price: row.querySelector('input[name$="[child_price]"]')?.value || 0,
+                infant_cost: row.querySelector('input[name$="[infant_cost]"]')?.value || 0,
+                infant_price: row.querySelector('input[name$="[infant_price]"]')?.value || 0,
+            });
+            if (countrySelect) countrySelect.disabled = countryWasDisabled;
+            if (citySelect) citySelect.disabled = cityWasDisabled;
+        });
+        return locations;
     }
 
-    // Snapshot existing rows on load
-    document.querySelectorAll('#selectedItemsBody tr[data-item-id]').forEach(function (row) {
-        snapshotRowPrices(row);
+    function applySavedLocations(card, locations) {
+        const itemId = card.getAttribute('data-item-id');
+        const body = card.querySelector('.misc-locations-body');
+        let html = '';
+        (locations || []).forEach(function (loc, idx) {
+            html += buildLocationRowHtml(itemId, idx, loc, true);
+        });
+        if (!html) {
+            html = buildLocationRowHtml(itemId, 0, {
+                price_id: '', country: card.getAttribute('data-country') || '', city: card.getAttribute('data-city') || '',
+                adult_price: 0, child_price: 0, infant_price: 0, adult_cost: 0, child_cost: 0, infant_cost: 0
+            }, true);
+        }
+        body.innerHTML = html;
+        updateLocationCount(card);
+        snapshotCard(card);
+    }
+
+    document.querySelectorAll('#selectedItemsBody .misc-item-card').forEach(function (card) {
+        snapshotCard(card);
     });
 
-    $(document).on('click', '.edit-item-btn', function () {
-        const row = this.closest('tr');
-        snapshotRowPrices(row);
-        setRowMode(row, 'edit');
-        const firstCost = row.querySelector('.misc-cost-input');
-        if (firstCost) firstCost.focus();
+    // Native delegation so Edit/Save/Cancel always work (no jQuery dependency)
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.edit-item-btn');
+        if (editBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const card = editBtn.closest('.misc-item-card');
+            if (!card) return;
+            snapshotCard(card);
+            setCardMode(card, 'edit');
+            return;
+        }
+
+        const cancelBtn = e.target.closest('.cancel-edit-btn');
+        if (cancelBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const card = cancelBtn.closest('.misc-item-card');
+            if (!card) return;
+            restoreCard(card);
+            setCardMode(card, 'view');
+            return;
+        }
+
+        const addLocBtn = e.target.closest('.add-location-btn');
+        if (addLocBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const card = addLocBtn.closest('.misc-item-card');
+            if (!card) return;
+            const itemId = card.getAttribute('data-item-id');
+            const body = card.querySelector('.misc-locations-body');
+            const idx = body.querySelectorAll('.misc-location-row').length;
+            body.insertAdjacentHTML('beforeend', buildLocationRowHtml(itemId, idx, {
+                price_id: '', country: '', city: '',
+                adult_price: 0, child_price: 0, infant_price: 0,
+                adult_cost: 0, child_cost: 0, infant_cost: 0
+            }, false));
+            updateLocationCount(card);
+            return;
+        }
+
+        const toggleHeader = e.target.closest('.misc-toggle-card');
+        if (toggleHeader && !e.target.closest('.misc-card-actions, button, a')) {
+            toggleHeader.closest('.misc-item-card').classList.toggle('collapsed');
+        }
     });
 
-    $(document).on('click', '.cancel-edit-btn', function () {
-        const row = this.closest('tr');
-        restoreRowPrices(row);
-        setRowMode(row, 'view');
+    document.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('misc-country-select')) return;
+        const row = e.target.closest('.misc-location-row');
+        const citySelect = row && row.querySelector('.misc-city-select');
+        if (citySelect) citySelect.innerHTML = cityOptionsHtml(e.target.value, '');
+    });
+
+    const $ = window.jQuery;
+    if (!$) {
+        console.error('jQuery is required for miscellaneous AJAX actions.');
+        return;
+    }
+
+    $(document).on('click', '.remove-location-btn', function () {
+        const card = this.closest('.misc-item-card');
+        const row = this.closest('.misc-location-row');
+        const priceId = row.getAttribute('data-price-id');
+        const rows = card.querySelectorAll('.misc-location-row');
+
+        if (rows.length <= 1) {
+            Swal.fire({ icon: 'info', title: 'Keep one row', text: 'Use Remove item to delete the whole miscellaneous item.', timer: 2200, showConfirmButton: false });
+            return;
+        }
+
+        const doRemove = function () {
+            row.remove();
+            reindexLocationRows(card);
+        };
+
+        if (!priceId) {
+            doRemove();
+            return;
+        }
+
+        $.ajax({
+            url: '{{ route("services.miscellaneous.remove") }}',
+            type: 'POST',
+            data: { _token: '{{ csrf_token() }}', price_id: priceId },
+            success: function (response) {
+                if (response.success) doRemove();
+            },
+            error: function () {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to remove location.' });
+            }
+        });
     });
 
     $(document).on('input change', '.misc-cost-input', function () {
@@ -639,17 +868,27 @@
     });
 
     $('#profit_type, #profit_on_cost').on('input change', function () {
-        document.querySelectorAll('#selectedItemsBody tr.misc-row-edit .misc-cost-input').forEach(function (costInput) {
+        document.querySelectorAll('#selectedItemsBody .misc-item-card.misc-row-edit .misc-cost-input').forEach(function (costInput) {
             updateSellFromCostInput(costInput);
         });
     });
 
-    // Add Item
     $(document).on('click', '.add-item-btn', function (e) {
         e.preventDefault();
         const button = $(this);
         const itemId = button.data('item-id');
         const itemName = button.data('item-name');
+        const country = button.attr('data-country') || '';
+        const city = button.attr('data-city') || '';
+
+        if (!country || !city) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Country & City missing',
+                text: 'This item has no country/city. Set them in Product Settings → Miscellaneous Items first.'
+            });
+            return;
+        }
 
         button.prop('disabled', true).html('<i class="ri-loader-4-line ri-spin me-1"></i>Adding...');
 
@@ -659,7 +898,8 @@
             data: {
                 _token: '{{ csrf_token() }}',
                 item_id: itemId,
-                preserve_existing_prices: 1,
+                country: country,
+                city: city,
                 adult_price: 0,
                 child_price: 0,
                 infant_price: 0,
@@ -671,22 +911,22 @@
                 if (response.success) {
                     const itemRow = button.closest('.available-item-row').get(0);
                     if (itemRow) {
-                        addItemToSelectedTable(itemRow, response.prices || {
+                        addItemToSelected(itemRow, response.locations || [response.prices || {
+                            country: country, city: city,
                             adult_price: 0, child_price: 0, infant_price: 0,
                             adult_cost: 0, child_cost: 0, infant_cost: 0
-                        });
+                        }]);
                     }
                     Swal.fire({
                         icon: 'success',
                         title: 'Added',
-                        text: response.action === 'restored'
-                            ? itemName + ' restored with previous prices. Review and save if needed.'
-                            : itemName + ' added. Set cost & sell prices, then Save.',
+                        text: itemName + ' added for ' + city + '. Set cost & sell, then Save.',
                         timer: 2200,
                         showConfirmButton: false
                     });
                 } else {
                     button.prop('disabled', false).html('<i class="ri-add-line me-1"></i>Add');
+                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed to add item.' });
                 }
             },
             error: function (xhr) {
@@ -699,14 +939,13 @@
         });
     });
 
-    // Remove Item
     $(document).on('click', '.remove-item-btn', function () {
         const button = $(this);
         const itemId = button.data('item-id');
 
         Swal.fire({
             title: 'Remove Item?',
-            text: 'This item will be moved back to Available Items.',
+            text: 'All country/city prices for this item will be removed.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -714,7 +953,6 @@
             confirmButtonText: 'Yes, remove'
         }).then((result) => {
             if (!result.isConfirmed) return;
-
             button.prop('disabled', true);
 
             $.ajax({
@@ -723,86 +961,105 @@
                 data: { _token: '{{ csrf_token() }}', item_id: itemId },
                 success: function (response) {
                     if (response.success) {
-                        const selectedRow = document.querySelector(`#selectedItemsBody tr[data-item-id="${itemId}"]`);
-                        let itemData = { itemId: String(itemId), name: '', description: '', imageUrl: '' };
-                        if (selectedRow) {
+                        const selectedCard = document.querySelector(`#selectedItemsBody .misc-item-card[data-item-id="${itemId}"]`);
+                        let itemData = { itemId: String(itemId), name: '', description: '', imageUrl: '', country: '', city: '' };
+                        if (selectedCard) {
                             itemData = {
                                 itemId: String(itemId),
-                                name: selectedRow.getAttribute('data-display-name') || '',
-                                description: selectedRow.getAttribute('data-description') || '',
-                                imageUrl: selectedRow.getAttribute('data-image-url') || '',
+                                name: selectedCard.getAttribute('data-display-name') || '',
+                                description: selectedCard.getAttribute('data-description') || '',
+                                imageUrl: selectedCard.getAttribute('data-image-url') || '',
+                                country: selectedCard.getAttribute('data-country') || '',
+                                city: selectedCard.getAttribute('data-city') || '',
                             };
-                            selectedRow.remove();
+                            selectedCard.remove();
                             updateSelectedItemCount();
                         }
                         restoreItemToAvailableTable(itemData);
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Removed',
-                            text: response.message || 'Item has been removed.',
-                            timer: 1800,
-                            showConfirmButton: false
-                        });
+                        Swal.fire({ icon: 'success', title: 'Removed', text: response.message || 'Item removed.', timer: 1800, showConfirmButton: false });
                     } else {
                         button.prop('disabled', false);
                     }
                 },
                 error: function () {
                     button.prop('disabled', false);
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to remove item. Please try again.' });
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to remove item.' });
                 }
             });
         });
     });
 
-    // Quick Save Single Item -> then switch to view/edit mode
     $(document).on('click', '.quick-save-btn', function () {
         const button = $(this);
-        const rowEl = button.closest('tr');
-        const row = $(rowEl);
+        const card = button.closest('.misc-item-card')[0];
         const itemId = button.data('item-id');
-        const data = getRowPricePayload(row, itemId);
+        const locations = collectCardLocations(card);
+
+        if (!locations.length) {
+            Swal.fire({ icon: 'warning', title: 'Nothing to save', text: 'Add at least one location row.' });
+            return;
+        }
+
+        const incomplete = locations.find(function (l) { return !l.country || !l.city; });
+        if (incomplete) {
+            Swal.fire({ icon: 'warning', title: 'Country & City required', text: 'Please select country and city for every location row before saving.' });
+            return;
+        }
+
+        const pairs = {};
+        for (const loc of locations) {
+            const key = (loc.country + '|' + loc.city).toLowerCase();
+            if (pairs[key]) {
+                Swal.fire({ icon: 'warning', title: 'Duplicate location', text: 'Each country/city combination can only appear once per item.' });
+                return;
+            }
+            pairs[key] = true;
+        }
 
         button.prop('disabled', true).html('<i class="ri-loader-4-line ri-spin"></i>');
 
         $.ajax({
             url: '{{ route("services.miscellaneous.select") }}',
             type: 'POST',
-            data: data,
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                item_id: itemId,
+                locations_json: JSON.stringify(locations)
+            },
             success: function (response) {
                 button.prop('disabled', false).html('<i class="ri-check-line"></i> Save');
                 if (response.success) {
-                    if (response.prices) {
-                        row.find(`input[name="selected_items[${itemId}][adult_cost]"]`).val(response.prices.adult_cost ?? 0);
-                        row.find(`input[name="selected_items[${itemId}][adult_price]"]`).val(response.prices.adult_price ?? 0);
-                        row.find(`input[name="selected_items[${itemId}][child_cost]"]`).val(response.prices.child_cost ?? 0);
-                        row.find(`input[name="selected_items[${itemId}][child_price]"]`).val(response.prices.child_price ?? 0);
-                        row.find(`input[name="selected_items[${itemId}][infant_cost]"]`).val(response.prices.infant_cost ?? 0);
-                        row.find(`input[name="selected_items[${itemId}][infant_price]"]`).val(response.prices.infant_price ?? 0);
-                    }
-                    snapshotRowPrices(rowEl);
-                    setRowMode(rowEl, 'view');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Saved',
-                        text: 'Prices saved. Click Edit to update them again.',
-                        timer: 1600,
-                        showConfirmButton: false
-                    });
+                    applySavedLocations(card, response.locations || locations);
+                    setCardMode(card, 'view');
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Location prices saved.', timer: 1600, showConfirmButton: false });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed to save prices.' });
                 }
             },
-            error: function () {
+            error: function (xhr) {
                 button.prop('disabled', false).html('<i class="ri-check-line"></i> Save');
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save prices. Please try again.' });
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to save prices.';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
             }
         });
     });
 
-    function saveAllPrices() {
-        // Unlock all inputs so values submit, then post
-        document.querySelectorAll('#selectedItemsBody .misc-price-input').forEach(function (input) {
-            input.readOnly = false;
+    window.saveAllPrices = function saveAllPrices() {
+        let invalid = false;
+        document.querySelectorAll('#selectedItemsBody .misc-item-card').forEach(function (card) {
+            collectCardLocations(card).forEach(function (loc) {
+                if (!loc.country || !loc.city) invalid = true;
+            });
+            card.querySelectorAll('.misc-price-input').forEach(function (input) { input.readOnly = false; });
+            card.querySelectorAll('.misc-loc-select').forEach(function (sel) { sel.disabled = false; });
         });
+
+        if (invalid) {
+            Swal.fire({ icon: 'warning', title: 'Country & City required', text: 'Every location row needs a country and city before Save All.' });
+            return;
+        }
+
         Swal.fire({
             title: 'Saving...',
             text: 'Please wait while we save all prices.',
@@ -810,16 +1067,17 @@
             didOpen: () => { Swal.showLoading(); }
         });
         $('#priceUpdateForm').submit();
-    }
+    };
 
     $('#availableItemSearch').on('keyup', function () {
         const searchTerm = $(this).val().toLowerCase();
         $('.available-item-row').each(function () {
             const itemName = $(this).data('item-name') || $(this).attr('data-item-name') || '';
-            $(this).toggle(itemName.includes(searchTerm));
+            const country = ($(this).attr('data-country') || '').toLowerCase();
+            const city = ($(this).attr('data-city') || '').toLowerCase();
+            $(this).toggle(itemName.includes(searchTerm) || country.includes(searchTerm) || city.includes(searchTerm));
         });
     });
+})();
 </script>
 @endpush
-
-@endsection

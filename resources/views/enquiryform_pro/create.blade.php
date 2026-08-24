@@ -678,6 +678,8 @@
         box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
     }
 
+    @include('enquiryform_pro.partials.markup-discount-section-styles')
+
     /* Hide scrollbar on footer summary when expanded (slide up/down) */
     #footerSummaryScrollWrap {
         scrollbar-width: none;
@@ -1718,43 +1720,80 @@
             </div>
         </div>
         
-        <div class="action-buttons" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div class="action-buttons" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <!-- Left Side: Markup and Discount Controls -->
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <!-- Markup Section -->
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 11px; margin: 0; white-space: nowrap; color: green; font-weight: bold;">Markup:</label>
-                    <select id="markupType" style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                            onchange="handleMarkupTypeChange()">
-                        <option value="" selected>Select</option>
-                        <option value="percentage">%</option>
-                        <option value="flat">Fixed</option>
-                    </select>
-                    <input type="number" id="markupValue" value="0" step="1" min="0" disabled
-                           style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                           oninput="applyMarkupDiscount()">
+            <div style="flex: 1; min-width: 0; margin-right: 8px;">
+                <!-- Single city -->
+                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel" style="display: none;">
+                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                        <div class="enquiry-md-panel__head-left">
+                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                            <p class="enquiry-md-panel__title">Pricing adjustments</p>
+                        </div>
+                        <p class="enquiry-md-panel__hint">Markup &amp; discount</p>
+                    </div>
+                    <div class="enquiry-md-panel__body">
+                        <div class="enquiry-md-single">
+                            <div class="enquiry-md-field enquiry-md-field--markup">
+                                <label class="enquiry-md-field__label" for="markupType">Markup</label>
+                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()">
+                                    <option value="" selected>Type</option>
+                                    <option value="percentage">%</option>
+                                    <option value="flat">Fixed</option>
+                                </select>
+                                <input type="number" id="markupValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
+                                       oninput="applyMarkupDiscount()" placeholder="0">
+                            </div>
+                            <div class="enquiry-md-field enquiry-md-field--discount">
+                                <label class="enquiry-md-field__label" for="discountType">Discount</label>
+                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()">
+                                    <option value="" selected>Type</option>
+                                    <option value="percentage">%</option>
+                                    <option value="flat">Fixed</option>
+                                    <option value="foc">FOC</option>
+                                </select>
+                                <input type="number" id="discountValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
+                                       oninput="applyMarkupDiscount()"
+                                       title="Discount value. When type = FOC, this is auto-computed and locked."
+                                       placeholder="0">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- Discount Section — FOC option auto-computes the monetary value being absorbed
-                     for the FOC pax across all booked services. Updates live as services are added. -->
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 11px; margin: 0; white-space: nowrap; color: red; font-weight: bold;">Discount:</label>
-                    <select id="discountType" style="width: 70px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                            onchange="handleDiscountTypeChange()">
-                        <option value="" selected>Select</option>
-                        <option value="percentage">%</option>
-                        <option value="flat">Fixed</option>
-                        <option value="foc">FOC</option>
-                    </select>
-                    <input type="number" id="discountValue" value="0" step="1" min="0" disabled
-                           style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                           oninput="applyMarkupDiscount()"
-                           title="Discount value. When type = FOC, this is auto-computed and locked.">
+                <!-- Multi city: one markup/discount row per city -->
+                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel" style="display: none;">
+                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                        <div class="enquiry-md-panel__head-left">
+                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                            <p class="enquiry-md-panel__title">Pricing by city</p>
+                            <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
+                        </div>
+                        <p class="enquiry-md-panel__hint">Per destination currency</p>
+                    </div>
+                    <div class="enquiry-md-panel__body">
+                        <div class="enquiry-md-table-wrap">
+                            <table class="enquiry-md-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">City</th>
+                                        <th scope="col">Cur</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Mk type</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Mk value</th>
+                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
+                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="enquiryProCityMarkupBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Right Side: Action Buttons -->
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 6px; flex-shrink: 0;">
                 <span class="d-inline-block enquiry-submit-wrap enquiry-submit-wrap--disabled"
                       id="enquiry-submit-btn-wrap"
                       tabindex="0"
@@ -5759,6 +5798,7 @@
     }));
     window.enquiryProGetHotelsUrl = @json(route('enquiry-form-pro.get-hotels'));
     @include('enquiryform_pro.partials.city-destination-scripts')
+    @include('enquiryform_pro.partials.markup-discount-currency-scripts')
     
     // Initialize destination tags functionality
     function initDestinationTags() {
@@ -5869,6 +5909,9 @@
         if (typeof window.resolveActiveDefaultValues === 'function') {
             window.resolveActiveDefaultValues(destination);
         }
+        if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+            refreshEnquiryProCurrencyMarkupOptions();
+        }
     }
     
     // Remove destination tag
@@ -5879,6 +5922,9 @@
         filterPortsBySelectedCountries();
         syncHeaderCitiesToServiceModals();
         if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
+        if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+            refreshEnquiryProCurrencyMarkupOptions();
+        }
     }
     
     // filterPortsBySelectedCountries / getSelectedCityIdsFromCities: see city-destination-scripts partial
@@ -10006,6 +10052,9 @@
             filterPortsBySelectedCountries();
             syncHeaderCitiesToServiceModals();
             if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
+            if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+                refreshEnquiryProCurrencyMarkupOptions();
+            }
         }, 100);
         
         // Sync popup dates to header dates when they change
@@ -19701,18 +19750,25 @@
     
     // Load miscellaneous items for selected city (DMC prices from miscellaneous_prices)
     function loadMiscItemsByDestination() {
-        const city = document.getElementById('miscDestination').value;
+        const destinationSelect = document.getElementById('miscDestination');
+        const city = destinationSelect ? destinationSelect.value : '';
         const itemsTableBody = document.getElementById('miscItemsTableBody');
         
         if (!city) {
             itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a city to load miscellaneous items</td></tr>';
             return;
         }
+
+        const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+        const country = (selectedOption && selectedOption.getAttribute('data-country')) ? selectedOption.getAttribute('data-country') : '';
         
         // Show loading state
         itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
         
-        const url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        let url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        if (country) {
+            url += `&country=${encodeURIComponent(country)}`;
+        }
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -19727,8 +19783,13 @@
             })
             .then(items => {
                 console.log('Loaded miscellaneous items:', items);
+
+                if (items && items.success === false) {
+                    itemsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">${items.message || 'Failed to load items'}</td></tr>`;
+                    return;
+                }
                 
-                if (!items || items.length === 0) {
+                if (!Array.isArray(items) || items.length === 0) {
                     itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">No miscellaneous items available. Please configure items in the DMC panel.</td></tr>';
                     return;
                 }
@@ -25511,13 +25572,19 @@
                 
                 // Generate unique IDs for sell inputs
                 const hotelId = `hotel_${index}_${Date.now()}`;
+                const hotelCurrency = (typeof resolveServiceCurrency === 'function')
+                    ? resolveServiceCurrency(hotel)
+                    : String(hotel.currency || '').toUpperCase();
+                const hotelCity = (typeof resolveServiceCity === 'function')
+                    ? resolveServiceCity(hotel)
+                    : String(hotel.destination || hotel.city || '').trim();
                 
                 rows.push(`
-                    <tr>
+                    <tr data-currency="${hotelCurrency || ''}" data-city="${hotelCity || ''}">
                         <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                             <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                             ${hotel.hotelName}
-                            <br><small class="text-muted" style="font-size: 8px;">${hotel.roomType || ''} | ${hotel.bedType || ''} | ${hotel.mealPlan || 'CP'}</small>
+                            <br><small class="text-muted" style="font-size: 8px;">${hotel.roomType || ''} | ${hotel.bedType || ''} | ${hotel.mealPlan || 'CP'}${hotelCurrency ? ' | ' + hotelCurrency : ''}${hotelCity ? ' | ' + hotelCity : ''}</small>
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${singleCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
@@ -25587,12 +25654,18 @@
             const childSellRounded = roundToNextZero(childSell);
             
             // Show simplified Package Total row with Adult and Child columns only
+            const pkgCurrency = (typeof getEnquiryProPrimaryCurrency === 'function')
+                ? getEnquiryProPrimaryCurrency()
+                : '';
+            const pkgCity = (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                ? String(selectedDestinations[0] || '').trim()
+                : '';
             rows.push(`
-                <tr>
+                <tr data-currency="${pkgCurrency || ''}" data-city="${pkgCity || ''}">
                     <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                         <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                         Package Total
-                        <br><small class="text-muted" style="font-size: 8px;">Tours, Meals, Transfers & Misc</small>
+                        <br><small class="text-muted" style="font-size: 8px;">Tours, Meals, Transfers & Misc${pkgCurrency ? ' | ' + pkgCurrency : ''}</small>
                     </td>
                     <td style="padding: 3px 5px; text-align: center;">
                         <input type="text" value="${adultCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
@@ -25972,9 +26045,13 @@
         applyMarkupDiscount();
     }
 
-    // Apply Markup and Discount to footer sell values
+    // Apply Markup and Discount to footer sell values (per currency for multi-city)
     function applyMarkupDiscount() {
         console.log('=== applyMarkupDiscount() called ===');
+
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') {
+            syncActiveCurrencyMarkupToStore();
+        }
         
         const markupValueElem = document.getElementById('markupValue');
         const markupTypeElem = document.getElementById('markupType');
@@ -25986,32 +26063,19 @@
             return;
         }
         
-        const markupValue = parseFloat(markupValueElem.value || 0);
-        const markupType = markupTypeElem.value || '';
-        const discountType = discountTypeElem.value || '';
         const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
         const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
 
-        // FOC discount type: auto-recompute the absorbed-cost value on every pass so it stays
-        // in sync as services are added/removed. The value is purely informational and is NOT
-        // subtracted from per-pax sells (paying pax already pay their normal share with factor = 1).
-        let discountValue;
-        if (discountType === 'foc' && focDiscountUiActive) {
-            discountValue = computeAutoFocDiscount();
-            discountValueElem.value = discountValue;
-        } else if (discountType === 'foc') {
-            discountValue = 0;
+        // Keep FOC auto value in sync for the currently selected currency when type is FOC
+        const activeDiscountType = discountTypeElem.value || '';
+        if (activeDiscountType === 'foc' && focDiscountUiActive && typeof computeAutoFocDiscount === 'function') {
+            discountValueElem.value = computeAutoFocDiscount();
+        } else if (activeDiscountType === 'foc') {
             discountValueElem.value = 0;
-        } else {
-            discountValue = parseFloat(discountValueElem.value || 0);
         }
-        
-        console.log('📊 Markup/Discount Values:', {
-            markupValue,
-            markupType,
-            discountValue,
-            discountType
-        });
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') {
+            syncActiveCurrencyMarkupToStore();
+        }
         
         const tbody = document.getElementById('footerSummaryBody');
         if (!tbody) {
@@ -26032,6 +26096,25 @@
         let inputsProcessed = 0;
         
         rows.forEach((row, rowIndex) => {
+            const rowCurrency = (row.getAttribute('data-currency') || '').toUpperCase();
+            const rowCity = (row.getAttribute('data-city') || '').trim();
+            const settings = (typeof getCurrencyMarkupDiscountSettings === 'function')
+                ? getCurrencyMarkupDiscountSettings(rowCurrency, rowCity)
+                : {
+                    markup_type: markupTypeElem.value || '',
+                    markup_value: parseFloat(markupValueElem.value || 0) || 0,
+                    discount_type: discountTypeElem.value || '',
+                    discount_value: parseFloat(discountValueElem.value || 0) || 0
+                };
+            let markupValue = parseFloat(settings.markup_value || 0) || 0;
+            let markupType = settings.markup_type || '';
+            let discountType = settings.discount_type || '';
+            let discountValue = parseFloat(settings.discount_value || 0) || 0;
+            if (discountType === 'foc') {
+                // FOC is informational only — do not subtract from sell columns
+                discountValue = 0;
+            }
+
             // Get all sell input fields (columns: Single(2), Twin(4), Triple(6), Child w/bed(8), Child w/o bed(10), Infant(12))
             const cells = row.querySelectorAll('td');
             
@@ -26091,7 +26174,7 @@
                         input.value = newValue.toFixed(2);
                         
                         if (inputsProcessed < 3) { // Only log first 3 to avoid console spam
-                            console.log(`  Row ${rowIndex}, Col ${colIndex}: ${oldValue.toFixed(2)} → ${newValue.toFixed(2)} (original: ${originalValue.toFixed(2)})`);
+                            console.log(`  Row ${rowIndex} [${rowCurrency || '—'}], Col ${colIndex}: ${oldValue.toFixed(2)} → ${newValue.toFixed(2)} (original: ${originalValue.toFixed(2)})`);
                         }
                         inputsProcessed++;
                     }
@@ -28211,14 +28294,33 @@
         formData.append('city_date_ranges', JSON.stringify(cityRangeValidation.ranges || []));
         if (childAges) formData.append('child_ages', childAges);
         
-        // Add markup and discount values
-        formData.append('markup_value', markupValue);
-        formData.append('markup_type', markupType);
-        formData.append('discount_value', discountValue);
-        formData.append('discount_type', discountType);
+        // Add markup and discount values (single-city inputs, or first city row for multi-city tour-level columns)
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') syncActiveCurrencyMarkupToStore();
+        const currencyMarkupsPayload = (typeof getCurrencyMarkupsPayload === 'function')
+            ? getCurrencyMarkupsPayload()
+            : [];
+        let markupValueOut = markupValue;
+        let markupTypeOut = markupType;
+        let discountValueOut = discountValue;
+        let discountTypeOut = discountType;
+        if (Array.isArray(currencyMarkupsPayload) && currencyMarkupsPayload.length > 1) {
+            const primaryMd = currencyMarkupsPayload.find(function (r) {
+                return (r.markup_type && parseFloat(r.markup_value || 0) > 0)
+                    || (r.discount_type && r.discount_type !== '');
+            }) || currencyMarkupsPayload[0] || {};
+            markupTypeOut = primaryMd.markup_type || '';
+            markupValueOut = parseFloat(primaryMd.markup_value || 0) || 0;
+            discountTypeOut = primaryMd.discount_type || '';
+            discountValueOut = parseFloat(primaryMd.discount_value || 0) || 0;
+        }
+        formData.append('markup_value', markupValueOut);
+        formData.append('markup_type', markupTypeOut);
+        formData.append('discount_value', discountValueOut);
+        formData.append('discount_type', discountTypeOut);
         // Store the entered discount amount for FOC, Fixed and % types; 0 when nothing selected.
-        const discountAmountOut = ['foc', 'flat', 'percentage'].includes(discountType) ? discountValue : 0;
+        const discountAmountOut = ['foc', 'flat', 'percentage'].includes(discountTypeOut) ? discountValueOut : 0;
         formData.append('discount_amount', discountAmountOut);
+        formData.append('currency_markups', JSON.stringify(currencyMarkupsPayload || []));
         
         // Add tour type (FIT or GROUP)
         // Use :checked to honour user selection; fall back to disabled-but-still-present radio (lock-in case).

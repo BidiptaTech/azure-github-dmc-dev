@@ -548,6 +548,7 @@
         const range = ranges[index];
         const newValue = enquiryProDateOnly(value);
         if (!range || !newValue) return;
+        const previousRanges = JSON.parse(JSON.stringify(ranges));
 
         range[field] = newValue;
         if (field === 'end_date') {
@@ -574,6 +575,19 @@
 
         syncCityDateRangePanel({ showError: true });
         if (typeof applyOpenServiceCityDateRanges === 'function') applyOpenServiceCityDateRanges();
+        if (typeof window.onEnquiryProCityDateRangesEdited === 'function') {
+            try {
+                window.onEnquiryProCityDateRangesEdited({
+                    index: index,
+                    field: field,
+                    value: newValue,
+                    previousRanges: previousRanges,
+                    nextRanges: JSON.parse(JSON.stringify(window.enquiryProCityDateRanges || []))
+                });
+            } catch (error) {
+                console.error('Failed handling editable city date change:', error);
+            }
+        }
     }
 
     function validateCityDateRanges(options) {
