@@ -121,4 +121,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
 
     Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
+    
 });
+
+Route::get('/get-payment-details', 'App\Http\Controllers\Api\PaymentController@getPaymentDetails');
