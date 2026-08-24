@@ -698,12 +698,13 @@
     ])
     <!-- Compact Header + Stats Bar -->
     @php
-        // Travel-date filter window: defaults to the next 30 days, selectable one year either side.
+        // Default: show all Actual bookings whose travel end (check_out) is today or later.
+        // Start Date = today; End Date left blank (no 30-day upper bound).
         $filterMinDate = now()->subYear()->toDateString();
         $filterMaxDate = now()->addYear()->toDateString();
         $filterStartDate = now()->toDateString();
-        $filterEndDate = now()->addDays(30)->toDateString();
-        $filterRangeLabel = now()->format('M j') . ' - ' . now()->addDays(30)->format('M j, Y');
+        $filterEndDate = '';
+        $filterRangeLabel = 'Today onwards (' . now()->format('M j, Y') . ')';
 
         $toDateOnly = function ($value) {
             if (empty($value)) {
@@ -716,15 +717,16 @@
             }
         };
 
-        // Rows whose stay overlaps the default window, used for the initial stat counts.
-        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate, $filterEndDate) {
+        // Rows whose travel end is today or in the future (used for initial stat counts).
+        $defaultRangeTours = $tours->filter(function ($tour) use ($toDateOnly, $filterStartDate) {
             $stayStart = $toDateOnly($tour->check_in_time ?? null);
             $stayEnd = $toDateOnly($tour->check_out_time ?? null);
             if (!$stayStart && !$stayEnd) {
                 return false;
             }
+            $end = $stayEnd ?: $stayStart;
 
-            return ($stayStart ?: $stayEnd) <= $filterEndDate && ($stayEnd ?: $stayStart) >= $filterStartDate;
+            return $end >= $filterStartDate;
         });
 
         $totalRevenue = 0;
@@ -21140,7 +21142,9 @@ window.filterTable = function() {
             show = false;
         }
         
-        // Travel date filter: keep a tour when its check-in / check-out stay overlaps the selected range.
+        // Travel date filter by check_in / check_out (data-stay-start / data-stay-end).
+        // With only Start Date set (default = today), keeps tours whose end
+        // date (check_out, falling back to check_in) is on/after that date.
         if (startDateValue || endDateValue) {
             if (!stayStartAttr && !stayEndAttr) {
                 // No travel dates recorded, so the tour cannot match a travel window
@@ -21204,7 +21208,7 @@ window.filterTable = function() {
                 label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
         } else if (start) {
-            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            label = `Today onwards (${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })})`;
         } else if (end) {
             label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
@@ -21249,10 +21253,15 @@ function resetFilters() {
     
     if (startDateInput) startDateInput.value = startDateInput.getAttribute('data-default-value') || '';
     if (endDateInput) {
+        // Default: Start = today, End blank (today onwards)
         endDateInput.value = endDateInput.getAttribute('data-default-value') || '';
         endDateInput.removeAttribute('min');
         const rangeMin = document.getElementById('startDateFilter')?.getAttribute('min');
-        if (rangeMin) endDateInput.setAttribute('min', rangeMin);
+        if (startDateInput && startDateInput.value) {
+            endDateInput.setAttribute('min', startDateInput.value);
+        } else if (rangeMin) {
+            endDateInput.setAttribute('min', rangeMin);
+        }
     }
     filterTable();
     
@@ -21338,7 +21347,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load to show today's data
+    // Apply initial filter on page load (travel end date today or future)
     filterTable();
 });
 
