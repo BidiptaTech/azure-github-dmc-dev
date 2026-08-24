@@ -999,6 +999,8 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
             ]);
         }
 
@@ -1022,6 +1024,8 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
             ]);
         }
 
@@ -1033,9 +1037,13 @@ class DayLevelController extends Controller
                 'price' => 0,
                 'private_price' => 0,
                 'shared_price' => 0,
+                'vehicle_id' => null,
+                'vehicle_name' => null,
                 'message' => 'No default transfer vehicle configured for this DMC',
             ]);
         }
+
+        $vehicleName = $this->resolveTransferVehicleName($vehicleId, $dmcId);
 
         $zoneRequest = Request::create('/', 'GET', [
             'vehicle_id' => $vehicleId,
@@ -1068,6 +1076,7 @@ class DayLevelController extends Controller
             'private_price' => $private,
             'shared_price' => $shared,
             'vehicle_id' => $vehicleId,
+            'vehicle_name' => $vehicleName,
             'message' => $payload['message'] ?? null,
         ]);
     }
@@ -1171,6 +1180,43 @@ class DayLevelController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveTransferVehicleName(string $vehicleId, int $dmcId): ?string
+    {
+        $vehicleId = trim($vehicleId);
+        if ($vehicleId === '') {
+            return null;
+        }
+
+        $query = Vehicle::query()
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($vehicleId) {
+                $q->where('vehicle_id', $vehicleId);
+                if (ctype_digit($vehicleId)) {
+                    $q->orWhere('id', (int) $vehicleId);
+                }
+            });
+
+        if ($dmcId > 0 && Schema::hasColumn('vehicles', 'dmc_id')) {
+            $query->where(function ($q) use ($dmcId) {
+                $q->where('dmc_id', $dmcId)
+                    ->orWhereRaw("COALESCE(dmc_id::text, '') LIKE ?", ['%' . $dmcId . '%']);
+            });
+        }
+
+        $vehicle = $query->first(['vehicle_name', 'vehicle_type']);
+        if ($vehicle === null) {
+            return null;
+        }
+
+        $name = trim((string) ($vehicle->vehicle_name ?? ''));
+        $type = trim((string) ($vehicle->vehicle_type ?? ''));
+        if ($name === '') {
+            return $type !== '' ? $type : null;
+        }
+
+        return $type !== '' ? ($name . ' (' . $type . ')') : $name;
     }
 
     private function resolveTransferCountry(Request $request, int $masterDmcId, int $dmcId): string
