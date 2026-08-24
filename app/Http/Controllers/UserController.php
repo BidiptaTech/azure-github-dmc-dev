@@ -1047,6 +1047,7 @@ class UserController extends Controller
                     'email_on' => (int) ($u->email_on ?? 0) === 1,
                     'auto_cancel_date' => $autoCancelDate === null ? null : (int) $autoCancelDate,
                     'ai_response' => $aiResponse,
+                    'ai_response_type' => strtolower((string) ($u->ai_response_type ?? '')),
                     'thirdparty' => strtolower((string) ($u->thirdparty ?? 'no')),
                     'thirdparty_enabled' => $thirdPartyEnabled,
                     'master_dmc_id' => (int) ($u->master_dmc_id ?? 0),
@@ -3153,6 +3154,46 @@ class UserController extends Controller
             'message' => $message,
             'user_id' => $request->user_id,
             'ai_response' => $aiResponse,
+            'previous_value' => $previousValue,
+        ]);
+    }
+
+    public function updateAiResponseType(Request $request)
+    {
+        if ((int) $this->auth_user->role_id !== 10) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Master DMC can update AI Response Type settings.',
+            ], 403);
+        }
+
+        $request->validate([
+            'user_id' => 'required|integer',
+            'ai_response_type' => 'nullable|in:lite,pro',
+        ]);
+
+        $user = User::where('userId', $request->user_id)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found'], 404);
+        }
+
+        $previousValue = $user->ai_response_type;
+        $aiResponseType = $request->filled('ai_response_type') ? strtolower((string) $request->ai_response_type) : null;
+
+        $user->ai_response_type = $aiResponseType;
+        $user->save();
+
+        $label = $aiResponseType ? ucfirst($aiResponseType) : null;
+        $message = $label
+            ? "AI Response Type updated to {$label} successfully"
+            : 'AI Response Type cleared successfully';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'user_id' => $request->user_id,
+            'ai_response_type' => $aiResponseType,
             'previous_value' => $previousValue,
         ]);
     }

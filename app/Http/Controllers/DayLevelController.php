@@ -587,24 +587,28 @@ class DayLevelController extends Controller
                 $q->where('is_active', 1)->orWhereNull('is_active');
             });
 
+        $bedColumns = ['bed_id', 'room_type', 'max_occupancy'];
+
         if ($dmcId > 0 && Schema::hasColumn('beds', 'dmc_id')) {
-            $scoped = $baseBedQuery()->where('dmc_id', $dmcId)->orderBy('room_type')->get(['bed_id', 'room_type']);
+            $scoped = $baseBedQuery()->where('dmc_id', $dmcId)->orderBy('room_type')->get($bedColumns);
             if ($scoped->isNotEmpty()) {
                 return response()->json(
                     $scoped->map(fn ($bed) => [
-                        'bed_id'   => $bed->bed_id,
+                        'bed_id' => $bed->bed_id,
                         'bed_type' => (string) ($bed->room_type ?? ''),
+                        'max_occupancy' => (int) ($bed->max_occupancy ?? 0),
                     ])->values()
                 );
             }
         }
 
-        $beds = $baseBedQuery()->orderBy('room_type')->get(['bed_id', 'room_type']);
+        $beds = $baseBedQuery()->orderBy('room_type')->get($bedColumns);
 
         return response()->json(
             $beds->map(fn ($bed) => [
-                'bed_id'   => $bed->bed_id,
+                'bed_id' => $bed->bed_id,
                 'bed_type' => (string) ($bed->room_type ?? ''),
+                'max_occupancy' => (int) ($bed->max_occupancy ?? 0),
             ])->values()
         );
     }

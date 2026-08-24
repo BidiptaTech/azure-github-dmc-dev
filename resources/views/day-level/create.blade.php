@@ -1149,7 +1149,11 @@
                                             <option value="">Select room first</option>
                                         </select>
                                     </div>
-                                    <div class="col-lg-3 col-md-6">
+                                    <div class="col-lg-2 col-md-6">
+                                        <label class="form-label" for="hotel_bed_capacity">Bed Capacity</label>
+                                        <input type="text" class="form-control" id="hotel_bed_capacity" value="" placeholder="—" readonly>
+                                    </div>
+                                    <div class="col-lg-4 col-md-6">
                                         <label class="form-label" for="hotel_meal_plan">Meal</label>
                                         <select id="hotel_meal_plan" class="form-select searchable-select">
                                             <option value="">Select meal plan</option>
@@ -2217,6 +2221,7 @@
                 if (opt.data_type_label !== undefined) op.dataset.typeLabel = String(opt.data_type_label);
                 if (opt.data_meal_name !== undefined) op.dataset.mealName = String(opt.data_meal_name);
                 if (opt.data_meal_period !== undefined) op.dataset.mealPeriod = String(opt.data_meal_period);
+                if (opt.max_occupancy !== undefined) op.dataset.maxOccupancy = String(opt.max_occupancy);
                 select.appendChild(op);
             });
             initSearchableSelects(select);
@@ -3547,6 +3552,7 @@
                                 room_type: String(h.room_type || ''),
                                 bed_id: String(h.bed_id || ''),
                                 bed_type: String(h.bed_type || ''),
+                                max_occupancy: parseInt(String(h.max_occupancy || 0), 10) || 0,
                                 meal_plan: String(h.meal_plan || ''),
                                 meal_type: String(h.meal_type || ''),
                                 guide_required: String(h.guide_required || 'No'),
@@ -5039,12 +5045,14 @@
             const roomOp = getSelectedOption('hotel_room_select');
             if (!roomOp || !roomOp.value) {
                 setSelectOptions('hotel_bed_select', [{ value: '', label: 'Select room first' }]);
+                updateHotelBedCapacityDisplay();
                 return;
             }
 
             const dmcId = document.getElementById('dmc_id').value || '';
             const url = `${DAY_LEVEL_ROUTES.bedsByRoom}?room_id=${encodeURIComponent(roomOp.value)}&dmc_id=${encodeURIComponent(dmcId)}`;
             setSelectOptions('hotel_bed_select', [{ value: '', label: 'Loading beds...' }]);
+            updateHotelBedCapacityDisplay();
 
             try {
                 const res = await fetch(url);
@@ -5055,15 +5063,33 @@
                 const beds = Array.isArray(data) ? data : [];
                 if (!beds.length) {
                     setSelectOptions('hotel_bed_select', [{ value: '', label: 'No beds available for this room' }]);
+                    updateHotelBedCapacityDisplay();
                     return;
                 }
                 setSelectOptions('hotel_bed_select', beds.map(bed => ({
                     value: String(bed.bed_id ?? ''),
                     label: String(bed.bed_type || bed.room_type || `Bed ${bed.bed_id}`),
+                    max_occupancy: parseInt(String(bed.max_occupancy ?? 0), 10) || 0,
                 })));
+                updateHotelBedCapacityDisplay();
             } catch (e) {
                 setSelectOptions('hotel_bed_select', [{ value: '', label: 'Error loading beds' }]);
+                updateHotelBedCapacityDisplay();
             }
+        }
+
+        function updateHotelBedCapacityDisplay() {
+            const capacityEl = document.getElementById('hotel_bed_capacity');
+            if (!capacityEl) return;
+            const bedOp = getSelectedOption('hotel_bed_select');
+            const capacity = parseInt(String(bedOp?.dataset?.maxOccupancy || ''), 10);
+            if (!bedOp || !bedOp.value || !Number.isFinite(capacity) || capacity <= 0) {
+                capacityEl.value = '';
+                capacityEl.placeholder = '—';
+                return;
+            }
+            capacityEl.value = String(capacity);
+            capacityEl.placeholder = '';
         }
 
         async function loadMealPlansForSelectedHotel() {
@@ -5358,6 +5384,7 @@
             document.getElementById('hotel_priority').value = '1';
             document.getElementById('hotelAddBtn').textContent = 'Add Hotel';
             editingHotelIndex = null;
+            updateHotelBedCapacityDisplay();
             toggleHotelMealTypeVisibility();
             toggleHotelTransferFields();
         }
@@ -5402,6 +5429,7 @@
                 room_type: roomOp.textContent || '',
                 bed_id: bedOp?.value || '',
                 bed_type: bedOp?.textContent || '',
+                max_occupancy: parseInt(String(bedOp?.dataset?.maxOccupancy || ''), 10) || 0,
                 meal_plan: mealPlanOp?.value || '',
                 meal_type: document.getElementById('hotel_meal_type')?.value || '',
                 guide_required: 'No',
@@ -5495,6 +5523,7 @@
             safeSetSelectValue('hotel_room_select', x.room_id || '');
             await loadBedsForSelectedRoom();
             safeSetSelectValue('hotel_bed_select', x.bed_id || '');
+            updateHotelBedCapacityDisplay();
             await loadMealPlansForSelectedHotel();
             safeSetSelectValue('hotel_meal_plan', x.meal_plan || '');
             toggleHotelMealTypeVisibility();
@@ -5566,7 +5595,7 @@
                             <td>${escapeHtml(String(x.night || 1))}</td>
                             <td>
                                 <div class="hotel-cell-title">${escapeHtml(formatHotelRoomMealSummary(x))}</div>
-                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}</div>` : ''}
+                                ${x.bed_type ? `<div class="hotel-cell-meta">Bed: ${escapeHtml(x.bed_type)}${(parseInt(String(x.max_occupancy || 0), 10) > 0) ? ` (${escapeHtml(String(x.max_occupancy))} pax)` : ''}</div>` : ''}
                             </td>
                             <td class="text-end">
                                 <div class="hotel-price-night">${getDayCurrency()} ${perNight.toFixed(2)}</div>
@@ -6534,6 +6563,7 @@
                         room_type: String(x.room_type || ''),
                         bed_id: String(x.bed_id || ''),
                         bed_type: String(x.bed_type || ''),
+                        max_occupancy: parseInt(String(x.max_occupancy || 0), 10) || 0,
                         meal_plan: x.meal_plan || '',
                         room_price: parseFloat(x.room_price ?? 0),
                         breakfast_price: parseFloat(x.breakfast_price ?? 0),
@@ -7283,6 +7313,7 @@
             });
             $('#hotel_bed_select').on('change select2:select select2:clear', function () {
                 if (isPrefillingHotelForm) return;
+                updateHotelBedCapacityDisplay();
             });
             $('#hotel_meal_plan').on('change select2:select select2:clear', function () {
                 toggleHotelMealTypeVisibility();
