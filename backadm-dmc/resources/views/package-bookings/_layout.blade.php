@@ -206,39 +206,20 @@
                         $pkgToday = \Carbon\Carbon::today();
                         $pkgDateMin = $pkgToday->copy()->subYear()->toDateString();
                         $pkgDateMax = $pkgToday->copy()->addYear()->toDateString();
-                        $pkgTravelStarts = [];
-                        $pkgTravelEnds = [];
-                        foreach ($bookings as $pkgFilterBooking) {
-                            $pkgTd = \App\Helpers\CommonHelper::parsePackageTravelDates($pkgFilterBooking->travel_dates ?? null);
-                            if (!empty($pkgTd['start_date'])) {
-                                $pkgTravelStarts[] = $pkgTd['start_date'];
-                            }
-                            if (!empty($pkgTd['end_date'])) {
-                                $pkgTravelEnds[] = $pkgTd['end_date'];
-                            }
-                        }
-                        $pkgTodayStr = $pkgToday->toDateString();
-                        $pkgPlus30Str = $pkgToday->copy()->addDays(30)->toDateString();
-                        $pkgDefaultStart = $pkgTravelStarts
-                            ? max($pkgDateMin, min($pkgTodayStr, min($pkgTravelStarts)))
-                            : $pkgTodayStr;
-                        $pkgDefaultEnd = $pkgTravelEnds
-                            ? min($pkgDateMax, max($pkgPlus30Str, max($pkgTravelEnds)))
-                            : $pkgPlus30Str;
-                        if ($pkgDefaultStart > $pkgDefaultEnd) {
-                            $pkgDefaultStart = $pkgDateMin;
-                            $pkgDefaultEnd = $pkgDateMax;
-                        }
+                        // Default: show all package bookings whose travel end is today or later.
+                        // Travel Start Date = today; Travel End Date left blank (no 30-day upper bound).
+                        $pkgDefaultStart = $pkgToday->toDateString();
+                        $pkgDefaultEnd = '';
                     @endphp
                     <input type="date" class="form-control form-control-sm" id="pkgStartDateFilter"
                            min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
-                           value="{{ $pkgDefaultStart }}">
+                           value="{{ $pkgDefaultStart }}" data-default-value="{{ $pkgDefaultStart }}">
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
                     <label class="form-label mb-0 small text-muted">Travel End Date</label>
                     <input type="date" class="form-control form-control-sm" id="pkgEndDateFilter"
                            min="{{ $pkgDateMin }}" max="{{ $pkgDateMax }}"
-                           value="{{ $pkgDefaultEnd }}">
+                           value="{{ $pkgDefaultEnd }}" data-default-value="{{ $pkgDefaultEnd }}">
                 </div>
                 @if(!empty($showBookingStatusColumn))
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -502,7 +483,9 @@
             $('#packageBookingsTable').DataTable().destroy();
         }
 
-        // Date range filter by travel_dates JSON (start_date / end_date, YYYY-MM-DD)
+        // Date range filter by travel_dates JSON (start_date / end_date, YYYY-MM-DD).
+        // With only Start Date set (default = today), keeps bookings whose travel end
+        // is on/after that date (no upper bound when End Date is blank).
         // Register BEFORE DataTable init so the first draw applies the default range.
         if (!window.__pkgBookingDateSearchRegistered) {
             $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
@@ -592,13 +575,10 @@
             minDate.setFullYear(minDate.getFullYear() - 1);
             const maxDate = new Date(today);
             maxDate.setFullYear(maxDate.getFullYear() + 1);
-            const endPlus30 = new Date(today);
-            endPlus30.setDate(endPlus30.getDate() + 30);
             return {
                 todayStr: toYmd(today),
                 minStr: toYmd(minDate),
                 maxStr: toYmd(maxDate),
-                endPlus30Str: toYmd(endPlus30),
                 defaultStart: @json($pkgDefaultStart),
                 defaultEnd: @json($pkgDefaultEnd),
             };
@@ -623,6 +603,7 @@
             const endMin = sd.value && sd.value > bounds.minStr ? sd.value : bounds.minStr;
             ed.setAttribute('min', endMin);
             ed.setAttribute('max', bounds.maxStr);
+            // Keep End Date blank by default; only bump it if it is set and now before Start.
             if (ed.value && ed.value < endMin) {
                 ed.value = endMin;
             }
@@ -636,7 +617,7 @@
             if (pkgTable) pkgTable.draw();
         });
 
-        // Apply default travel_dates range filter + renumber (# starts at 1)
+        // Apply default filter (travel end today or future) + renumber (# starts at 1)
         pkgTable.draw();
 
         @if(!empty($showBookingStatusColumn))
@@ -723,7 +704,7 @@
         if (a) a.value = '';
         if (st) st.value = '';
 
-        // Reset date range to travel_dates span (within ±1 year bounds)
+        // Reset date range to default: Start = today, End blank (today onwards)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const pad = (n) => String(n).padStart(2, '0');
@@ -734,8 +715,8 @@
         maxDate.setFullYear(maxDate.getFullYear() + 1);
         const minStr = toYmd(minDate);
         const maxStr = toYmd(maxDate);
-        const defaultStart = @json($pkgDefaultStart ?? $pkgToday->toDateString());
-        const defaultEnd = @json($pkgDefaultEnd ?? $pkgToday->copy()->addDays(30)->toDateString());
+        const defaultStart = sd?.getAttribute('data-default-value') || @json($pkgDefaultStart ?? $pkgToday->toDateString());
+        const defaultEnd = ed?.getAttribute('data-default-value') || @json($pkgDefaultEnd ?? '');
 
         if (sd) {
             sd.setAttribute('min', minStr);

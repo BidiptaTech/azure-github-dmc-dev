@@ -941,8 +941,10 @@
                         $enqToday = \Carbon\Carbon::today();
                         $enqDateMin = $enqToday->copy()->subYear()->toDateString();
                         $enqDateMax = $enqToday->copy()->addYear()->toDateString();
+                        // Default: show all New Enquiries whose travel end (check_out) is today or later.
+                        // Start Date = today filters that; End Date left blank (no 30-day upper bound).
                         $enqDefaultStart = $enqToday->toDateString();
-                        $enqDefaultEnd = $enqToday->copy()->addDays(30)->toDateString();
+                        $enqDefaultEnd = '';
                     @endphp
                     <input type="date" class="form-control form-control-sm" id="startDateFilter"
                            min="{{ $enqDateMin }}" max="{{ $enqDateMax }}"
@@ -2184,13 +2186,10 @@ function getEnquiryDateBounds() {
     minDate.setFullYear(minDate.getFullYear() - 1);
     const maxDate = new Date(today);
     maxDate.setFullYear(maxDate.getFullYear() + 1);
-    const defaultEnd = new Date(today);
-    defaultEnd.setDate(defaultEnd.getDate() + 30);
     return {
         todayStr: toLocalDateString(today),
         minStr: toLocalDateString(minDate),
         maxStr: toLocalDateString(maxDate),
-        endPlus30Str: toLocalDateString(defaultEnd),
     };
 }
 
@@ -2208,7 +2207,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const endDateFilter = document.getElementById('endDateFilter');
     const bounds = getEnquiryDateBounds();
 
-    // Default range: today → today + 30 days; selectable window: 1 year past ↔ 1 year future
+    // Default: Start Date = today, End Date blank → shows tours whose travel end
+    // (check_out_time / data-check-out) is today or in the future (no 30-day cap).
     if (startDateFilter) {
         startDateFilter.setAttribute('min', bounds.minStr);
         startDateFilter.setAttribute('max', bounds.maxStr);
@@ -2218,7 +2218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (endDateFilter) {
         endDateFilter.setAttribute('min', bounds.minStr);
         endDateFilter.setAttribute('max', bounds.maxStr);
-        if (!endDateFilter.value) endDateFilter.value = bounds.endPlus30Str;
+        // Leave end date empty by default so there is no upper bound.
         clampDateInputValue(endDateFilter, bounds.minStr, bounds.maxStr);
     }
     
@@ -2270,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Apply initial filter on page load (today → today + 30 days by check_in/check_out)
+    // Apply initial filter on page load (travel end date today or future)
     filterTable();
 });
 
@@ -2327,7 +2327,9 @@ function filterTable() {
             show = false;
         }
         
-        // Date filtering by tour travel dates (check_in_time / check_out_time overlap)
+        // Date filtering by tour travel dates (check_in_time / check_out_time).
+        // With only Start Date set (default = today), this keeps tours whose end
+        // date (check_out, falling back to check_in) is on/after that date.
         if (startDateValue || endDateValue) {
             const tourStartStr = checkIn || checkOut;
             const tourEndStr = checkOut || checkIn;
@@ -2405,7 +2407,7 @@ function filterTable() {
                 label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
         } else if (start) {
-            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            label = `Today onwards (${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })})`;
         } else if (end) {
             label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
@@ -2453,7 +2455,7 @@ function resetFilters() {
     if (endDateInput) {
         endDateInput.setAttribute('min', bounds.todayStr);
         endDateInput.setAttribute('max', bounds.maxStr);
-        endDateInput.value = bounds.endPlus30Str;
+        endDateInput.value = '';
     }
     filterTable();
     
