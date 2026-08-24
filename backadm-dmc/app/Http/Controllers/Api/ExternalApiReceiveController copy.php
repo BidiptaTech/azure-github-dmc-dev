@@ -502,14 +502,9 @@ class ExternalApiReceiveController extends Controller
         $mealPlanFields = $this->resolveMealPlanFieldsForOrder($item, $resolvedRoom);
         $mealPlan = $mealPlanFields['key'];
         $mealPlanLabel = $mealPlanFields['label'];
-        $requestedPax = $this->resolveHotelRequestedPax($tour, $item);
-        $bedCapacity = $this->resolveBedCapacity($resolvedBed);
-        // Occupancy stored = least of demanded pax and bed capacity.
-        // Rooms booked = ceil(demanded pax / bed capacity), e.g. 10 pax / 2 capacity => 5 rooms.
-        $allocation = $this->allocateHotelRoomsByBedCapacity($requestedPax, $bedCapacity);
-        $numberOfRooms = $allocation['number_of_rooms'];
-        $headCount = $allocation['head_count'];
-        $occupancy = $headCount <= 1 ? 'single' : 'double';
+        $numberOfRooms = max(1, (int) ($item['number_of_rooms'] ?? 1));
+        $adults = max(1, (int) $tour->adult);
+        $occupancy = $adults <= 1 ? 'single' : 'double';
 
         $payloadPrice = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
         $price = $payloadPrice;
@@ -518,12 +513,13 @@ class ExternalApiReceiveController extends Controller
                 $resolvedRoom,
                 $nights,
                 $numberOfRooms,
-                $requestedPax,
+                $adults,
                 $occupancy,
                 $mealPlan
             );
         }
 
+        $headCount = max(1, (int) ($resolvedBed?->adult_count ?? $resolvedBed?->max_occupancy ?? $adults));
         $bedType = trim((string) (
             $resolvedBed?->room_type
             ?? $item['bed_type']
@@ -578,14 +574,14 @@ class ExternalApiReceiveController extends Controller
                 'room_type' => $roomType,
                 'number_of_rooms' => $numberOfRooms,
                 'occupancy' => $occupancy,
-                'selected_persons' => $requestedPax,
+                'selected_persons' => $adults,
                 'beds' => [[
                     'bed_id' => $bedId !== null ? (string) $bedId : '',
                     'bed_type' => $bedType,
                     'room_type' => $roomType,
                     'baby_cot' => (int) ($resolvedBed?->baby_cot ?? 0),
                     'head_count' => $headCount,
-                    'max_occupancy' => $bedCapacity,
+                    'max_occupancy' => max(1, (int) ($resolvedBed?->max_occupancy ?? $headCount)),
                     'price' => $bedPrice > 0 ? ($bedPrice * $nights * $numberOfRooms) : $price,
                     'meal_plan' => $mealPlan,
                     'mealTypes' => [$mealPlan],
@@ -786,24 +782,16 @@ class ExternalApiReceiveController extends Controller
 
                 if ($bedRecord) {
                     $bedType = (string) ($bedRecord->room_type ?: ($bed['bed_type'] ?? ''));
-                    $maxOccupancy = max(1, (int) ($bed['max_occupancy'] ?? $bedRecord->max_occupancy ?? 1));
-                    $selectedPersons = max(0, (int) ($rooms[$roomIndex]['selected_persons'] ?? 0));
-                    $existingHeadCount = max(0, (int) ($bed['head_count'] ?? 0));
-
-                    // Keep AI/requested head_count; never inflate it to the bed's full capacity.
-                    if ($existingHeadCount > 0) {
-                        $headCount = min($existingHeadCount, $maxOccupancy);
-                    } elseif ($selectedPersons > 0) {
-                        $headCount = min($selectedPersons, $maxOccupancy);
-                    } else {
-                        $headCount = $maxOccupancy;
-                    }
+                    $headCount = max(1, (int) ($bed['head_count'] ?? $bedRecord->adult_count ?? $bedRecord->max_occupancy ?? 2));
 
                     $rooms[$roomIndex]['beds'][$bedIndex]['bed_id'] = (string) $bedRecord->bed_id;
                     $rooms[$roomIndex]['beds'][$bedIndex]['bed_type'] = $bedType;
                     $rooms[$roomIndex]['beds'][$bedIndex]['room_type'] = $roomType;
                     $rooms[$roomIndex]['beds'][$bedIndex]['head_count'] = $headCount;
-                    $rooms[$roomIndex]['beds'][$bedIndex]['max_occupancy'] = $maxOccupancy;
+                    $rooms[$roomIndex]['beds'][$bedIndex]['max_occupancy'] = max(
+                        1,
+                        (int) ($bed['max_occupancy'] ?? $bedRecord->max_occupancy ?? $headCount)
+                    );
                     $rooms[$roomIndex]['beds'][$bedIndex]['baby_cot'] = (int) ($bed['baby_cot'] ?? $bedRecord->baby_cot ?? 0);
                 }
             }
@@ -1025,8 +1013,6 @@ class ExternalApiReceiveController extends Controller
 
         $total = $roomRate * $nights * $numberOfRooms;
         $plan = strtolower($mealPlan);
-        // Meal cost is per guest for the stay, not multiplied again by room count.
-        $mealGuests = max(1, $adults);
 
         $includesBreakfast = str_contains($plan, 'breakfast')
             || str_contains($plan, 'bed_&_')
@@ -1036,62 +1022,16 @@ class ExternalApiReceiveController extends Controller
         $includesDinner = str_contains($plan, 'dinner') || str_contains($plan, 'all_inclusive');
 
         if ($includesBreakfast) {
-            $total += (float) ($room->breakfast_price ?? 0) * $mealGuests * $nights;
+            $total += (float) ($room->breakfast_price ?? 0) * $adults * $nights * $numberOfRooms;
         }
         if ($includesLunch) {
-            $total += (float) ($room->lunch_price ?? 0) * $mealGuests * $nights;
+            $total += (float) ($room->lunch_price ?? 0) * $adults * $nights * $numberOfRooms;
         }
         if ($includesDinner) {
-            $total += (float) ($room->dinner_price ?? 0) * $mealGuests * $nights;
+            $total += (float) ($room->dinner_price ?? 0) * $adults * $nights * $numberOfRooms;
         }
 
         return round($total, 2);
-    }
-
-    /**
-     * Demanded hotel pax for AI booking (tour adults + children, or payload override).
-     */
-    protected function resolveHotelRequestedPax(Tour $tour, array $item): int
-    {
-        $fromItem = (int) ($item['adultCount'] ?? $item['adults'] ?? $item['pax'] ?? $item['selected_persons'] ?? 0);
-        $childrenFromItem = (int) ($item['childCount'] ?? $item['children'] ?? 0);
-        if ($fromItem > 0) {
-            return max(1, $fromItem + max(0, $childrenFromItem));
-        }
-
-        return max(1, (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0));
-    }
-
-    /**
-     * Bed max occupancy used as room capacity for AI hotel allocation.
-     */
-    protected function resolveBedCapacity(?Bed $bed): int
-    {
-        if (! $bed) {
-            return 1;
-        }
-
-        return max(1, (int) ($bed->max_occupancy ?: $bed->adult_count ?: 1));
-    }
-
-    /**
-     * Allocate rooms from demanded pax and bed capacity.
-     * Example: 2 pax / capacity 11 => 1 room, head_count 2
-     * Example: 10 pax / capacity 2 => 5 rooms, head_count 2
-     *
-     * @return array{number_of_rooms: int, head_count: int}
-     */
-    protected function allocateHotelRoomsByBedCapacity(int $requestedPax, int $bedCapacity): array
-    {
-        $requestedPax = max(1, $requestedPax);
-        $bedCapacity = max(1, $bedCapacity);
-        $numberOfRooms = (int) ceil($requestedPax / $bedCapacity);
-        $headCount = min($requestedPax, $bedCapacity);
-
-        return [
-            'number_of_rooms' => max(1, $numberOfRooms),
-            'head_count' => max(1, $headCount),
-        ];
     }
 
     /**
@@ -1248,58 +1188,16 @@ class ExternalApiReceiveController extends Controller
     protected function transformAttractionItem(Tour $tour, array $item, array $meta, array $customer): array
     {
         $attractionId = $item['attraction_id'] ?? $item['AttractionId'] ?? null;
-        $rawName = $item['name'] ?? $item['AttractionName'] ?? null;
-        $dmcId = (int) ($tour->dmc_id ?? 0);
-        $attractionQuery = Attraction::query()->with(['tickets' => function ($query) use ($dmcId) {
-            if ($dmcId > 0) {
-                $query->where('dmc_id', $dmcId);
-            }
-        }]);
-        $attraction = $attractionId ? (clone $attractionQuery)->where('attraction_id', $attractionId)->first() : null;
-        if (! $attraction && $rawName) {
-            $candidates = $dmcId > 0
-                ? (clone $attractionQuery)->whereJsonContains('dmc_id', $dmcId)->get()
-                : $attractionQuery->get();
-            $attraction = CommonHelper::matchAttractionFromList($candidates, $rawName, $attractionId);
-        }
+        $attraction = $attractionId ? Attraction::where('attraction_id', $attractionId)->first() : null;
 
-        $name = $attraction->name ?? $rawName ?? 'Attraction';
+        $name = $item['name'] ?? $item['AttractionName'] ?? ($attraction->name ?? 'Attraction');
         $tickets = $item['ticket_mapping'] ?? [];
         $firstTicket = is_array($tickets) && isset($tickets[0]) ? $tickets[0] : [];
         $ticketId = $firstTicket['ticket_id'] ?? $item['ticketId'] ?? null;
-        $ticketName = $firstTicket['ticket_name'] ?? $item['ticketName'] ?? null;
+        $ticketName = $firstTicket['ticket_name'] ?? $item['ticketName'] ?? 'General Ticket';
         $bookingDate = $this->parseDate($meta['bookingDate'] ?? $tour->check_in_time, Carbon::today())->toDateString();
         $price = (float) ($item['price'] ?? $item['totalPrice'] ?? 0);
         $transfer = $this->mapTransferOptions(is_array($item['transfer'] ?? null) ? $item['transfer'] : []);
-
-        if ($attraction) {
-            $dbTickets = $attraction->tickets ?? collect();
-            $matchedTicket = null;
-            if ($ticketId) {
-                $matchedTicket = collect($dbTickets)->first(function ($ticket) use ($ticketId) {
-                    return (string) ($ticket->ticket_id ?? $ticket->id ?? '') === (string) $ticketId;
-                });
-            }
-            if (! $matchedTicket && $ticketName) {
-                $targetTicket = CommonHelper::normalizeServiceLabel($ticketName);
-                $matchedTicket = collect($dbTickets)->first(function ($ticket) use ($targetTicket) {
-                    return CommonHelper::normalizeServiceLabel($ticket->name ?? '') === $targetTicket;
-                });
-            }
-            if (! $matchedTicket && collect($dbTickets)->isNotEmpty()) {
-                $matchedTicket = collect($dbTickets)->first();
-            }
-            if ($matchedTicket) {
-                $ticketId = $matchedTicket->ticket_id ?? $ticketId;
-                $ticketName = $matchedTicket->name ?? $ticketName;
-                if ($price <= 0) {
-                    $price = (float) ($matchedTicket->adult_price ?? 0);
-                }
-            }
-        }
-        if (! $ticketName) {
-            $ticketName = 'General Ticket';
-        }
 
         return array_merge($customer, [
             'bookingDate' => $bookingDate,

@@ -2398,6 +2398,86 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Collapse whitespace and lowercase a label for attraction/ticket matching.
+     */
+    public static function normalizeServiceLabel(?string $value): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value) ?? ''));
+    }
+
+    /**
+     * Dropdown/catalog label used for attractions: "Name - Location".
+     */
+    public static function attractionDisplayLabel($attraction): string
+    {
+        $name = trim((string) (is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '')));
+        $location = trim((string) (is_array($attraction)
+            ? ($attraction['location'] ?? $attraction['city'] ?? '')
+            : ($attraction->location ?? $attraction->city ?? '')));
+
+        if ($name === '') {
+            return $location;
+        }
+
+        return $location !== '' ? ($name . ' - ' . $location) : $name;
+    }
+
+    /**
+     * Match a catalog attraction when AI/day-level names include " - Location"
+     * or differ only by case/whitespace.
+     *
+     * @param  iterable<mixed>  $attractions
+     */
+    public static function matchAttractionFromList($attractions, $name, $attractionId = null)
+    {
+        $attractions = collect($attractions);
+        $name = trim((string) $name);
+        $attractionId = ($attractionId !== null && $attractionId !== '') ? (string) $attractionId : '';
+
+        if ($attractionId !== '') {
+            $byId = $attractions->first(function ($attraction) use ($attractionId) {
+                $id = is_array($attraction)
+                    ? ($attraction['attraction_id'] ?? $attraction['id'] ?? '')
+                    : ($attraction->attraction_id ?? $attraction->id ?? '');
+
+                return (string) $id === $attractionId;
+            });
+            if ($byId) {
+                return $byId;
+            }
+        }
+
+        if ($name === '' || strcasecmp($name, 'N/A') === 0) {
+            return null;
+        }
+
+        $target = self::normalizeServiceLabel($name);
+
+        $exact = $attractions->first(function ($attraction) use ($target) {
+            $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
+
+            return self::normalizeServiceLabel($attrName) === $target;
+        });
+        if ($exact) {
+            return $exact;
+        }
+
+        return $attractions->first(function ($attraction) use ($target) {
+            $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
+            if ($label === $target) {
+                return true;
+            }
+
+            $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
+            if ($attrName === '') {
+                return false;
+            }
+
+            return str_starts_with($target, $attrName . ' - ');
+        });
+    }
+
+    /**
      * Resolve which country a booking/service belongs to (multi-country itinerary).
      * Prefer order.country, then JSON country, then city→country map, then single tour country.
      *
