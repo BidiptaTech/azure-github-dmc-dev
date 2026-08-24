@@ -122,12 +122,16 @@
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
         $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
+        $isActualTourStatus = isset($tour) && $tour
+            && strtolower(trim((string) ($tour->tour_status ?? ''))) === 'actual';
+        $actualRemoveServiceTooltip = "Services can't be removed in Actual Status.";
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+        window.isActualTourStatus = @json($isActualTourStatus);
         window.__displayCurrency = @json($displayCurrency);
 
         window.isRoomBreakfastIncluded = function(room) {
@@ -1280,7 +1284,8 @@
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
-                                        placeholder="Select dates" style="height: 40px;" readonly>
+                                        placeholder="Select dates" style="height: 40px;" readonly
+                                        @if($isActualTourStatus) disabled title="Travel dates can't be changed in Actual Status." @endif>
 
                                     {{-- Keep original fields for submission + JS dependencies --}}
                                     <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
@@ -1289,14 +1294,16 @@
                                                 ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ date('Y-m-d') }}">
+                                        min="{{ date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                     <input type="date" class="form-control modern-input d-none" name="end_date" id="end_date"
                                         value="{{
                                             $tour->check_out_time
                                                 ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
+                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                 </div>
 
                                 <!-- Guests -->
@@ -1747,9 +1754,17 @@
                                                         {{ $displayCurrency }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i>
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i>
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         @if(!empty($rooms) && is_array($rooms))
@@ -3572,9 +3587,17 @@
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                             <div class="d-flex gap-2">
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i> Remove
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="row g-3">
@@ -3926,9 +3949,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         
@@ -4606,9 +4637,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="row g-3">
@@ -4872,9 +4911,17 @@
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             
@@ -5260,9 +5307,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5386,9 +5441,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5561,9 +5624,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5768,10 +5839,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
-
-                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
@@ -5826,9 +5893,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -11944,6 +12019,13 @@
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
+        if (window.isActualTourStatus && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (!bootstrap.Tooltip.getInstance(el)) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
+        }
         setTimeout(function() {
             if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
                 window.lockSingleCityFieldIfNeeded();
@@ -11958,11 +12040,19 @@
 
         if (!rangeInput || !startDateInput || !endDateInput) return;
 
+        const lockTravelDates = !!window.isActualTourStatus;
+
         // If the date-range picker library isn't present, fall back to showing the two native date inputs.
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
             rangeInput.classList.add('d-none');
             startDateInput.classList.remove('d-none');
             endDateInput.classList.remove('d-none');
+            if (lockTravelDates) {
+                startDateInput.readOnly = true;
+                endDateInput.readOnly = true;
+                startDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+                endDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            }
             return;
         }
 
@@ -12003,6 +12093,18 @@
         const initialStart = safeParseYmd(startDateInput.value) || today;
         const initialEnd = safeParseYmd(endDateInput.value) || initialStart;
         const minDate = initialStart && initialStart.isValid() && initialStart.isBefore(today) ? initialStart : today;
+
+        // Actual tours: show dates as read-only, do not open the picker.
+        if (lockTravelDates) {
+            setHiddenAndNotify(initialStart, initialEnd);
+            syncDisplayFromHidden();
+            rangeInput.readOnly = true;
+            rangeInput.disabled = true;
+            rangeInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            startDateInput.readOnly = true;
+            endDateInput.readOnly = true;
+            return;
+        }
 
         $(rangeInput).daterangepicker({
             autoUpdateInput: false,
@@ -24140,6 +24242,12 @@
     
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
+
+        const normalizedStatus = String(window.removeServicePageTourStatus || (typeof __tourStatus !== 'undefined' ? __tourStatus : '') || '').toLowerCase().trim();
+        if (window.isActualTourStatus || normalizedStatus === 'actual') {
+            showNotification("Services can't be removed in Actual Status.", 'error');
+            return;
+        }
         
         showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
@@ -24153,7 +24261,6 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
