@@ -720,6 +720,8 @@
         box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
     }
 
+    @include('enquiryform_pro.partials.markup-discount-section-styles')
+
     /* Hide scrollbar on footer summary when expanded (slide up/down) */
     #footerSummaryScrollWrap {
         scrollbar-width: none;
@@ -1585,15 +1587,15 @@
             #cityDateRangeSection .city-stay-arrow { color: #cbd2dc; font-size: 12px; padding-bottom: 6px; }
             #cityDateRangeSection .city-stay-note { margin-top: 5px; font-size: 9px; color: #98a2b3; }
         </style>
-        <div class="section-card" id="cityDateRangeSection" data-readonly="1" style="display:none;">
+        <div class="section-card" id="cityDateRangeSection" data-readonly="0" style="display:none;">
             <div class="section-header">
                 <span><i class="ri-calendar-event-line me-1"></i>City Stay Dates</span>
-                <span class="badge bg-light text-secondary"><i class="ri-lock-line me-1"></i>Locked</span>
+                <span class="badge bg-light text-primary"><i class="ri-edit-line me-1"></i>Editable</span>
             </div>
             <div class="section-body">
                 <div class="city-stay-hint">
-                    <i class="ri-lock-line"></i>
-                    <span>These city windows were fixed when the tour was created. Every service date stays inside its city's window.</span>
+                    <i class="ri-information-line"></i>
+                    <span>Update a city window carefully. Only services from that city that fall outside the new valid range will be adjusted or removed.</span>
                 </div>
                 <div id="cityDateRangeRows" class="city-stay-grid"></div>
                 <div id="cityDateRangeError" class="text-danger mt-1" style="font-size:10px;display:none;"></div>
@@ -1885,44 +1887,81 @@
             </div>
         </div>
         
-        <div class="action-buttons" style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div class="action-buttons" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
             <!-- Left Side: Markup and Discount Controls -->
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <!-- Markup Section -->
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 11px; margin: 0; white-space: nowrap; color: green; font-weight: bold;">Markup:</label>
-                    <select id="markupType" style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                            onchange="handleMarkupTypeChange()">
-                        <option value="" {{ (!isset($markupType) || $markupType == '') ? 'selected' : '' }}>Select</option>
-                        <option value="percentage" {{ (isset($markupType) && $markupType == 'percentage') ? 'selected' : '' }}>%</option>
-                        <option value="flat" {{ (isset($markupType) && $markupType == 'flat') ? 'selected' : '' }}>Fixed</option>
-                    </select>
-                    <input type="number" id="markupValue" value="{{ $markupValue ?? 0 }}" step="1" min="0" {{ (!isset($markupType) || $markupType == '') ? 'disabled' : '' }}
-                           style="width: 50px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                           oninput="applyMarkupDiscount()">
+            <div style="flex: 1; min-width: 0; margin-right: 8px;">
+                <!-- Single city -->
+                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel" style="display: none;">
+                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                        <div class="enquiry-md-panel__head-left">
+                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                            <p class="enquiry-md-panel__title">Pricing adjustments</p>
+                        </div>
+                        <p class="enquiry-md-panel__hint">Markup &amp; discount</p>
+                    </div>
+                    <div class="enquiry-md-panel__body">
+                        <div class="enquiry-md-single">
+                            <div class="enquiry-md-field enquiry-md-field--markup">
+                                <label class="enquiry-md-field__label" for="markupType">Markup</label>
+                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()">
+                                    <option value="" {{ (!isset($markupType) || $markupType == '') ? 'selected' : '' }}>Type</option>
+                                    <option value="percentage" {{ (isset($markupType) && $markupType == 'percentage') ? 'selected' : '' }}>%</option>
+                                    <option value="flat" {{ (isset($markupType) && $markupType == 'flat') ? 'selected' : '' }}>Fixed</option>
+                                </select>
+                                <input type="number" id="markupValue" class="enquiry-md-control" value="{{ $markupValue ?? 0 }}" step="1" min="0" {{ (!isset($markupType) || $markupType == '') ? 'disabled' : '' }}
+                                       oninput="applyMarkupDiscount()" placeholder="0">
+                            </div>
+                            <div class="enquiry-md-field enquiry-md-field--discount">
+                                <label class="enquiry-md-field__label" for="discountType">Discount</label>
+                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()">
+                                    <option value="" {{ (!isset($discountType) || $discountType == '') ? 'selected' : '' }}>Type</option>
+                                    <option value="percentage" {{ (isset($discountType) && $discountType == 'percentage') ? 'selected' : '' }}>%</option>
+                                    <option value="flat" {{ (isset($discountType) && $discountType == 'flat') ? 'selected' : '' }}>Fixed</option>
+                                    <option value="foc" {{ (isset($discountType) && $discountType == 'foc') ? 'selected' : '' }}>FOC</option>
+                                </select>
+                                <input type="number" id="discountValue" class="enquiry-md-control{{ (isset($discountType) && $discountType == 'foc') ? ' is-foc-locked' : '' }}" value="{{ $discountValue ?? 0 }}" step="1" min="0"
+                                       {{ (!isset($discountType) || $discountType == '' || $discountType == 'foc') ? 'disabled' : '' }}
+                                       oninput="applyMarkupDiscount()"
+                                       title="Discount value. When type = FOC, this is auto-computed and locked."
+                                       placeholder="0">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- Discount Section — FOC option auto-computes the monetary value being absorbed
-                     for the FOC pax across all booked services. Updates live as services are added. -->
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 11px; margin: 0; white-space: nowrap; color: red; font-weight: bold;">Discount:</label>
-                    <select id="discountType" style="width: 70px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;" 
-                            onchange="handleDiscountTypeChange()">
-                        <option value="" {{ (!isset($discountType) || $discountType == '') ? 'selected' : '' }}>Select</option>
-                        <option value="percentage" {{ (isset($discountType) && $discountType == 'percentage') ? 'selected' : '' }}>%</option>
-                        <option value="flat" {{ (isset($discountType) && $discountType == 'flat') ? 'selected' : '' }}>Fixed</option>
-                        <option value="foc" {{ (isset($discountType) && $discountType == 'foc') ? 'selected' : '' }}>FOC</option>
-                    </select>
-                    <input type="number" id="discountValue" value="{{ $discountValue ?? 0 }}" step="1" min="0"
-                           {{ (!isset($discountType) || $discountType == '' || $discountType == 'foc') ? 'disabled' : '' }}
-                           style="width: 60px; font-size: 10px; padding: 2px 5px; height: 24px; box-sizing: border-box;{{ (isset($discountType) && $discountType == 'foc') ? ' background-color: #fff8e1;' : '' }}" 
-                           oninput="applyMarkupDiscount()"
-                           title="Discount value. When type = FOC, this is auto-computed and locked.">
+                <!-- Multi city: one markup/discount row per city -->
+                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel" style="display: none;">
+                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
+                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
+                        <div class="enquiry-md-panel__head-left">
+                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
+                            <p class="enquiry-md-panel__title">Pricing by city</p>
+                            <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
+                        </div>
+                        <p class="enquiry-md-panel__hint">Per destination currency</p>
+                    </div>
+                    <div class="enquiry-md-panel__body">
+                        <div class="enquiry-md-table-wrap">
+                            <table class="enquiry-md-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">City</th>
+                                        <th scope="col">Cur</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Mk type</th>
+                                        <th scope="col" class="enquiry-md-th-markup">Mk value</th>
+                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
+                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="enquiryProCityMarkupBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Right Side: Action Buttons -->
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 6px; flex-shrink: 0;">
                 <button class="btn btn-success btn-sm" type="button" id="enquiry-submit-btn" onclick="saveEnquiryData()">
                     <i class="ri-save-line me-1"></i><span id="enquiry-submit-btn-label">{{ $isEditMode ? 'Update Enquiry' : 'Create Enquiry' }}</span>
                 </button>
@@ -6223,6 +6262,557 @@
     }));
     window.enquiryProGetHotelsUrl = @json(route('enquiry-form-pro.get-hotels'));
     @include('enquiryform_pro.partials.city-destination-scripts')
+    @include('enquiryform_pro.partials.markup-discount-currency-scripts')
+
+    window._suspendEnquiryCityRangeHook = false;
+    window._enquiryCityRangeApplySeq = 0;
+
+    function enquiryCityRangeKey(value) {
+        return typeof serviceCityKey === 'function'
+            ? serviceCityKey(value)
+            : String(value || '').trim().toLowerCase();
+    }
+
+    function enquiryCityDateOnly(value) {
+        if (!value) return '';
+        if (typeof normalizeDateToYYYYMMDD === 'function') {
+            const normalized = normalizeDateToYYYYMMDD(value);
+            if (normalized) return normalized;
+        }
+        if (typeof enquiryProDateOnly === 'function') {
+            const raw = enquiryProDateOnly(value);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        }
+        const text = String(value || '');
+        if (text.includes('T')) {
+            const datePart = text.split('T')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+        }
+        return text.substring(0, 10);
+    }
+
+    function enquiryCityDisplayDate(value) {
+        const iso = enquiryCityDateOnly(value);
+        if (!iso) return 'N/A';
+        try {
+            const parts = iso.split('-').map(Number);
+            const dt = new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1);
+            return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) {
+            return iso;
+        }
+    }
+
+    function enquiryFindRangeByCity(ranges, city) {
+        const cityKey = enquiryCityRangeKey(city);
+        return (ranges || []).find(function (range) {
+            return enquiryCityRangeKey(range && range.city) === cityKey;
+        }) || null;
+    }
+
+    function enquiryServiceCity(item, type) {
+        const candidates = [
+            item?.city,
+            item?.destination,
+            item?.serviceCity,
+            item?.hotelCity,
+            item?.hotel_city,
+            item?.AttractionCity,
+            item?.location,
+            item?.restaurantCity,
+            item?.mealCity,
+            item?.miscCity,
+            item?.hotelDetails?.location,
+            item?.hotelDetails?.city
+        ];
+        for (const candidate of candidates) {
+            const text = String(candidate || '').trim();
+            if (text && !/^arrival\s*:|^departure\s*:/i.test(text)) return text;
+        }
+        if (type === 'hotel') return String(item?.hotelName || item?.hotel_name || 'Hotel').trim();
+        return '';
+    }
+
+    function enquiryServiceDate(item, type) {
+        if (!item) return '';
+        if (type === 'hotel') return enquiryCityDateOnly(item.checkIn);
+        return enquiryCityDateOnly(item.dateTime || item.bookingDate || item.pickupDate || item.date);
+    }
+
+    function enquiryServiceName(item, type) {
+        const names = {
+            hotel: item?.hotelName || item?.hotel_name || item?.hotelDetails?.name || 'Hotel',
+            arrivalDeparture: item?.port_name || item?.service || item?.type || 'Arrival / Departure',
+            tour: item?.AttractionName || item?.tourName || item?.service || item?.name || 'Attraction',
+            meal: item?.restaurant || item?.restaurantName || item?.service || item?.mealPlan || 'Restaurant / Meal',
+            transfer: item?.destination || item?.service || item?.vehicleType || 'Local Transfer',
+            guide: item?.guideName || item?.service || item?.tourActivity || 'Guide',
+            misc: item?.service || item?.itemName || item?.name || 'Miscellaneous'
+        };
+        return String(names[type] || type || 'Service').trim();
+    }
+
+    function enquiryTypeLabel(type) {
+        return {
+            hotel: 'Hotel',
+            arrivalDeparture: 'Arrival / Departure',
+            tour: 'Attraction',
+            meal: 'Restaurant / Meal',
+            transfer: 'Local Transfer',
+            guide: 'Guide',
+            misc: 'Miscellaneous'
+        }[type] || type;
+    }
+
+    function enquiryDateInsideRange(dateIso, range) {
+        return !!(dateIso && range && range.start_date && range.end_date && dateIso >= range.start_date && dateIso <= range.end_date);
+    }
+
+    function enquiryHotelOverlapOutcome(hotel, range) {
+        const oldCheckIn = enquiryCityDateOnly(hotel?.checkIn);
+        const oldCheckOut = enquiryCityDateOnly(hotel?.checkOut);
+        if (!oldCheckIn || !oldCheckOut || !range?.start_date || !range?.end_date) {
+            return { action: 'remove', reason: 'missing stay dates' };
+        }
+        const clippedCheckIn = oldCheckIn < range.start_date ? range.start_date : oldCheckIn;
+        const clippedCheckOut = oldCheckOut > range.end_date ? range.end_date : oldCheckOut;
+        if (clippedCheckOut <= clippedCheckIn) {
+            return { action: 'remove', reason: 'stay no longer overlaps the edited city window' };
+        }
+        if (clippedCheckIn === oldCheckIn && clippedCheckOut === oldCheckOut) {
+            return { action: 'keep' };
+        }
+        return {
+            action: 'update',
+            newCheckIn: clippedCheckIn,
+            newCheckOut: clippedCheckOut,
+            reason: 'stay was trimmed to the valid overlap inside the edited city window'
+        };
+    }
+
+    function enquiryRepriceAdjustedHotel(hotel) {
+        if (!hotel) return;
+        const nights = (typeof enquiryProCalculateHotelNights === 'function')
+            ? enquiryProCalculateHotelNights(hotel.checkIn, hotel.checkOut, hotel)
+            : Math.max(1, parseInt(hotel.nights, 10) || 1);
+        hotel.nights = Math.max(1, nights || 1);
+        if (typeof enquiryProHotelHasCatalogPricingSource === 'function' && enquiryProHotelHasCatalogPricingSource(hotel)) {
+            delete hotel.savedSelectedMeals;
+            delete hotel.savedTotalPrice;
+            const rooms = Math.max(1, parseInt(hotel.rooms, 10) || 1);
+            if (typeof enquiryProHotelPayloadTotalPrice === 'function') {
+                const total = enquiryProHotelPayloadTotalPrice(hotel, rooms, hotel.nights);
+                if (Number.isFinite(total) && total >= 0) hotel.totalPrice = total;
+            }
+        }
+    }
+
+    function enquiryBuildCityRangeImpact(city, oldRange, newRange) {
+        const cityKey = enquiryCityRangeKey(city);
+        const impact = {
+            city: city,
+            oldRange: oldRange,
+            newRange: newRange,
+            removed: {
+                arrivalDeparture: [],
+                tour: [],
+                meal: [],
+                transfer: [],
+                guide: [],
+                misc: [],
+                hotel: []
+            },
+            adjustedHotels: []
+        };
+        const removedTransferIds = new Set();
+        const pushUniqueRemoval = function (type, entry) {
+            const exists = (impact.removed[type] || []).some(function (item) {
+                return item.index === entry.index;
+            });
+            if (!exists) {
+                impact.removed[type].push(entry);
+                if (type === 'transfer' && entry.id != null && entry.id !== '') {
+                    removedTransferIds.add(String(entry.id));
+                }
+            }
+        };
+
+        [
+            ['arrivalDeparture', arrivalDepartureList || []],
+            ['tour', tourList || []],
+            ['meal', mealList || []],
+            ['transfer', transferList || []],
+            ['guide', guideList || []],
+            ['misc', miscList || []]
+        ].forEach(function (entry) {
+            const type = entry[0];
+            const list = entry[1];
+            list.forEach(function (item, index) {
+                if (enquiryCityRangeKey(enquiryServiceCity(item, type)) !== cityKey) return;
+                const dateIso = enquiryServiceDate(item, type);
+                if (dateIso && enquiryDateInsideRange(dateIso, newRange)) return;
+                pushUniqueRemoval(type, {
+                    index: index,
+                    id: item?.id,
+                    name: enquiryServiceName(item, type),
+                    date: dateIso,
+                    reason: 'outside the edited city window'
+                });
+            });
+        });
+
+        (accommodationList || []).forEach(function (hotel, index) {
+            if (enquiryCityRangeKey(enquiryServiceCity(hotel, 'hotel')) !== cityKey) return;
+            const outcome = enquiryHotelOverlapOutcome(hotel, newRange);
+            if (outcome.action === 'remove') {
+                impact.removed.hotel.push({
+                    index: index,
+                    id: hotel?.id,
+                    name: enquiryServiceName(hotel, 'hotel'),
+                    checkIn: enquiryCityDateOnly(hotel?.checkIn),
+                    checkOut: enquiryCityDateOnly(hotel?.checkOut),
+                    reason: outcome.reason
+                });
+            } else if (outcome.action === 'update') {
+                impact.adjustedHotels.push({
+                    index: index,
+                    id: hotel?.id,
+                    name: enquiryServiceName(hotel, 'hotel'),
+                    oldCheckIn: enquiryCityDateOnly(hotel?.checkIn),
+                    oldCheckOut: enquiryCityDateOnly(hotel?.checkOut),
+                    newCheckIn: outcome.newCheckIn,
+                    newCheckOut: outcome.newCheckOut,
+                    reason: outcome.reason
+                });
+            }
+        });
+
+        const removedArrDepIds = new Set((impact.removed.arrivalDeparture || []).map(function (item) { return String(item.id || ''); }).filter(Boolean));
+        const removedTourIds = new Set((impact.removed.tour || []).map(function (item) { return String(item.id || ''); }).filter(Boolean));
+        const removedMealIds = new Set((impact.removed.meal || []).map(function (item) { return String(item.id || ''); }).filter(Boolean));
+
+        (transferList || []).forEach(function (item, index) {
+            const srcType = String(item?.sourceType || '').toLowerCase();
+            const srcId = String(item?.sourceId || '');
+            const linkedToRemovedParent =
+                ((srcType === 'arrival' || srcType === 'departure') && srcId && removedArrDepIds.has(srcId)) ||
+                ((srcType === 'tour' || srcType === 'attraction') && srcId && removedTourIds.has(srcId)) ||
+                ((srcType === 'meal' || srcType === 'restaurant') && srcId && removedMealIds.has(srcId));
+            if (!linkedToRemovedParent) return;
+            pushUniqueRemoval('transfer', {
+                index: index,
+                id: item?.id,
+                name: enquiryServiceName(item, 'transfer'),
+                date: enquiryServiceDate(item, 'transfer'),
+                reason: 'linked parent service is no longer valid for the edited city window'
+            });
+        });
+
+        (guideList || []).forEach(function (item, index) {
+            const srcType = String(item?.sourceType || item?.linkedTo || '').toLowerCase();
+            const srcId = String(item?.sourceId || item?.arrivalId || item?.transferId || '');
+            const linkedToRemovedParent =
+                ((srcType === 'arrival' || srcType === 'departure') && srcId && removedArrDepIds.has(srcId)) ||
+                ((srcType === 'tour' || srcType === 'attraction') && srcId && removedTourIds.has(srcId)) ||
+                ((srcType === 'meal' || srcType === 'restaurant') && srcId && removedMealIds.has(srcId)) ||
+                ((srcType === 'transfer' || srcType === 'local_transport') && srcId && removedTransferIds.has(srcId));
+            if (!linkedToRemovedParent) return;
+            pushUniqueRemoval('guide', {
+                index: index,
+                id: item?.id,
+                name: enquiryServiceName(item, 'guide'),
+                date: enquiryServiceDate(item, 'guide'),
+                reason: 'linked parent service is no longer valid for the edited city window'
+            });
+        });
+
+        return impact;
+    }
+
+    function enquiryImpactSummaryLines(impact) {
+        const lines = [];
+        Object.entries(impact.removed || {}).forEach(function (entry) {
+            const type = entry[0];
+            const items = entry[1] || [];
+            items.forEach(function (item) {
+                if (type === 'hotel') {
+                    lines.push(`Remove ${enquiryTypeLabel(type)}: ${item.name} (${enquiryCityDisplayDate(item.checkIn)} to ${enquiryCityDisplayDate(item.checkOut)}) - ${item.reason}.`);
+                } else {
+                    lines.push(`Remove ${enquiryTypeLabel(type)}: ${item.name} (${enquiryCityDisplayDate(item.date)}) - ${item.reason}.`);
+                }
+            });
+        });
+        (impact.adjustedHotels || []).forEach(function (item) {
+            lines.push(`Update Hotel: ${item.name} (${enquiryCityDisplayDate(item.oldCheckIn)} to ${enquiryCityDisplayDate(item.oldCheckOut)} -> ${enquiryCityDisplayDate(item.newCheckIn)} to ${enquiryCityDisplayDate(item.newCheckOut)}) - ${item.reason}.`);
+        });
+        return lines;
+    }
+
+    function enquiryImpactHasChanges(impact) {
+        if ((impact.adjustedHotels || []).length > 0) return true;
+        return Object.values(impact.removed || {}).some(function (items) {
+            return Array.isArray(items) && items.length > 0;
+        });
+    }
+
+    function enquiryImpactCounts(impact) {
+        const removedCount = Object.values(impact.removed || {}).reduce(function (sum, items) {
+            return sum + ((items && items.length) || 0);
+        }, 0);
+        const adjustedCount = (impact.adjustedHotels || []).length;
+        return { removedCount: removedCount, adjustedCount: adjustedCount, total: removedCount + adjustedCount };
+    }
+
+    function enquiryEscapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function enquiryBuildImpactConfirmHtml(options) {
+        const impact = options.impact || {};
+        const counts = enquiryImpactCounts(impact);
+        const groups = [];
+
+        Object.entries(impact.removed || {}).forEach(function (entry) {
+            const type = entry[0];
+            const items = entry[1] || [];
+            if (!items.length) return;
+            const rows = items.map(function (item) {
+                const dateText = type === 'hotel'
+                    ? `${enquiryCityDisplayDate(item.checkIn)} – ${enquiryCityDisplayDate(item.checkOut)}`
+                    : enquiryCityDisplayDate(item.date);
+                return `<li><strong>${enquiryEscapeHtml(item.name || enquiryTypeLabel(type))}</strong><span>${enquiryEscapeHtml(dateText)}</span></li>`;
+            }).join('');
+            groups.push(`
+                <div class="enq-impact-group">
+                    <div class="enq-impact-group-title"><span class="enq-badge enq-badge-remove">Remove</span> ${enquiryEscapeHtml(enquiryTypeLabel(type))} (${items.length})</div>
+                    <ul class="enq-impact-list">${rows}</ul>
+                </div>
+            `);
+        });
+
+        if ((impact.adjustedHotels || []).length) {
+            const rows = impact.adjustedHotels.map(function (item) {
+                const dateText = `${enquiryCityDisplayDate(item.oldCheckIn)} – ${enquiryCityDisplayDate(item.oldCheckOut)} → ${enquiryCityDisplayDate(item.newCheckIn)} – ${enquiryCityDisplayDate(item.newCheckOut)}`;
+                return `<li><strong>${enquiryEscapeHtml(item.name || 'Hotel')}</strong><span>${enquiryEscapeHtml(dateText)}</span></li>`;
+            }).join('');
+            groups.push(`
+                <div class="enq-impact-group">
+                    <div class="enq-impact-group-title"><span class="enq-badge enq-badge-update">Update</span> Hotel (${impact.adjustedHotels.length})</div>
+                    <ul class="enq-impact-list">${rows}</ul>
+                </div>
+            `);
+        }
+
+        return `
+            <div class="enq-impact-confirm text-start">
+                <div class="enq-impact-summary">
+                    <div class="enq-impact-dates">
+                        <div><span class="text-muted">Current period</span><strong>${enquiryEscapeHtml(options.fromLabel || '')}</strong></div>
+                        <div class="enq-impact-arrow"><i class="ri-arrow-right-line"></i></div>
+                        <div><span class="text-muted">New period</span><strong>${enquiryEscapeHtml(options.toLabel || '')}</strong></div>
+                    </div>
+                    <p class="enq-impact-note mb-0">${enquiryEscapeHtml(options.note || 'Services outside the new period will be removed. Overlapping hotel stays will be adjusted where possible.')}</p>
+                </div>
+                <div class="enq-impact-meta">
+                    <span>${counts.removedCount} to remove</span>
+                    <span>${counts.adjustedCount} to update</span>
+                    <span>${counts.total} total</span>
+                </div>
+                <div class="enq-impact-groups">${groups.join('')}</div>
+            </div>
+            <style>
+                .enq-impact-confirm { font-size: 13px; color: #344054; }
+                .enq-impact-summary { background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+                .enq-impact-dates { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+                .enq-impact-dates span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+                .enq-impact-dates strong { display: block; font-size: 13px; color: #101828; }
+                .enq-impact-arrow { color: #98a2b3; font-size: 16px; }
+                .enq-impact-note { font-size: 12px; color: #475467; line-height: 1.45; }
+                .enq-impact-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+                .enq-impact-meta span { background: #eef2ff; color: #3538cd; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+                .enq-impact-groups { max-height: 280px; overflow: auto; border: 1px solid #e4e7ec; border-radius: 10px; padding: 8px; background: #fff; }
+                .enq-impact-group + .enq-impact-group { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f2f4f7; }
+                .enq-impact-group-title { font-size: 12px; font-weight: 700; color: #1d2939; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+                .enq-impact-list { list-style: none; margin: 0; padding: 0; }
+                .enq-impact-list li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 4px; border-radius: 6px; }
+                .enq-impact-list li:nth-child(odd) { background: #f9fafb; }
+                .enq-impact-list li span { color: #667085; white-space: nowrap; font-size: 12px; }
+                .enq-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 1px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+                .enq-badge-remove { background: #fee4e2; color: #b42318; }
+                .enq-badge-update { background: #fffaeb; color: #b54708; }
+            </style>
+        `;
+    }
+
+    async function enquiryConfirmServiceImpact(options) {
+        options = options || {};
+        const title = options.title || 'Confirm itinerary update';
+        const html = enquiryBuildImpactConfirmHtml(options);
+
+        if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+            const result = await Swal.fire({
+                title: title,
+                html: html,
+                icon: 'warning',
+                width: 620,
+                showCancelButton: true,
+                focusCancel: true,
+                confirmButtonText: options.confirmText || 'Proceed with update',
+                cancelButtonText: options.cancelText || 'Keep current dates',
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'rounded-3',
+                    title: 'fs-5',
+                    confirmButton: 'px-3 py-2',
+                    cancelButton: 'px-3 py-2'
+                }
+            });
+            return !!result.isConfirmed;
+        }
+
+        const fallbackLines = enquiryImpactSummaryLines(options.impact || []);
+        return window.confirm([
+            title,
+            '',
+            `Current period: ${options.fromLabel || ''}`,
+            `New period: ${options.toLabel || ''}`,
+            '',
+            options.note || '',
+            '',
+            ...fallbackLines,
+            '',
+            'Do you want to proceed?'
+        ].join('\n'));
+    }
+
+    function enquiryRevertCityRanges(previousRanges) {
+        window._suspendEnquiryCityRangeHook = true;
+        window.enquiryProCityDateRanges = JSON.parse(JSON.stringify(previousRanges || []));
+        if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel({ showError: true });
+        if (typeof applyOpenServiceCityDateRanges === 'function') applyOpenServiceCityDateRanges();
+        window._suspendEnquiryCityRangeHook = false;
+    }
+
+    async function enquiryApplyCityRangeImpact(impact, applySeq) {
+        const currentHotels = Array.isArray(accommodationList) ? accommodationList.slice() : [];
+        const hotelRemovals = new Set((impact.removed.hotel || []).map(function (item) { return item.index; }));
+        const removedHotels = (impact.removed.hotel || []).map(function (item) {
+            return currentHotels[item.index];
+        }).filter(Boolean);
+
+        (impact.adjustedHotels || []).forEach(function (item) {
+            const hotel = currentHotels[item.index];
+            if (!hotel) return;
+            hotel.checkIn = item.newCheckIn;
+            hotel.checkOut = item.newCheckOut;
+            enquiryRepriceAdjustedHotel(hotel);
+        });
+
+        accommodationList = currentHotels.filter(function (_, index) {
+            return !hotelRemovals.has(index);
+        });
+
+        const removalMaps = {
+            arrivalDeparture: new Set((impact.removed.arrivalDeparture || []).map(function (item) { return item.index; })),
+            tour: new Set((impact.removed.tour || []).map(function (item) { return item.index; })),
+            meal: new Set((impact.removed.meal || []).map(function (item) { return item.index; })),
+            transfer: new Set((impact.removed.transfer || []).map(function (item) { return item.index; })),
+            guide: new Set((impact.removed.guide || []).map(function (item) { return item.index; })),
+            misc: new Set((impact.removed.misc || []).map(function (item) { return item.index; }))
+        };
+
+        arrivalDepartureList = (arrivalDepartureList || []).filter(function (_, index) { return !removalMaps.arrivalDeparture.has(index); });
+        tourList = (tourList || []).filter(function (_, index) { return !removalMaps.tour.has(index); });
+        mealList = (mealList || []).filter(function (_, index) { return !removalMaps.meal.has(index); });
+        transferList = (transferList || []).filter(function (_, index) { return !removalMaps.transfer.has(index); });
+        guideList = (guideList || []).filter(function (_, index) { return !removalMaps.guide.has(index); });
+        miscList = (miscList || []).filter(function (_, index) { return !removalMaps.misc.has(index); });
+
+        if (removedHotels.length && typeof removeArrDepForRemovedHotels === 'function') {
+            try { removeArrDepForRemovedHotels(removedHotels); } catch (e) { console.warn('removeArrDepForRemovedHotels failed:', e); }
+        }
+
+        if (typeof syncHotelArrDepToGlobal === 'function') {
+            await syncHotelArrDepToGlobal();
+            if (applySeq !== window._enquiryCityRangeApplySeq) return;
+        }
+
+        if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
+        if (typeof recalculateEntryExitPorts === 'function') recalculateEntryExitPorts();
+        if (typeof updateArrivalDepartureTable === 'function') updateArrivalDepartureTable();
+        if (typeof updateTourTable === 'function') updateTourTable();
+        if (typeof updateMealTable === 'function') updateMealTable();
+        if (typeof updateTransferTable === 'function') updateTransferTable();
+        if (typeof updateGuideTable === 'function') updateGuideTable();
+        if (typeof updateMiscTable === 'function') updateMiscTable();
+        if (typeof recalculateTotals === 'function') recalculateTotals();
+    }
+
+    window.onEnquiryProCityDateRangesEdited = async function (payload) {
+        if (window._suspendEnquiryCityRangeHook) return;
+        if (!payload || !Array.isArray(payload.previousRanges) || !Array.isArray(payload.nextRanges)) return;
+
+        const changedRange = payload.nextRanges[payload.index];
+        if (!changedRange || !changedRange.city) return;
+
+        const oldRange = enquiryFindRangeByCity(payload.previousRanges, changedRange.city);
+        const newRange = enquiryFindRangeByCity(payload.nextRanges, changedRange.city);
+        if (!oldRange || !newRange) return;
+        if (oldRange.start_date === newRange.start_date && oldRange.end_date === newRange.end_date) return;
+
+        const validation = (typeof validateCityDateRanges === 'function')
+            ? validateCityDateRanges({ showError: true })
+            : { valid: true };
+        if (!validation.valid) {
+            enquiryRevertCityRanges(payload.previousRanges);
+            if (typeof showToastr === 'function') showToastr('error', validation.message || 'Invalid city date range.');
+            return;
+        }
+
+        const impact = enquiryBuildCityRangeImpact(changedRange.city, oldRange, newRange);
+        if (!enquiryImpactHasChanges(impact)) {
+            if (typeof showToastr === 'function') {
+                showToastr('info', `${changedRange.city} stay dates updated. No existing services needed removal.`);
+            }
+            return;
+        }
+
+        const counts = enquiryImpactCounts(impact);
+        const confirmed = await enquiryConfirmServiceImpact({
+            title: `Review ${changedRange.city} stay date impact`,
+            fromLabel: `${enquiryCityDisplayDate(oldRange.start_date)} – ${enquiryCityDisplayDate(oldRange.end_date)}`,
+            toLabel: `${enquiryCityDisplayDate(newRange.start_date)} – ${enquiryCityDisplayDate(newRange.end_date)}`,
+            note: `Only ${changedRange.city} services outside the revised city window will be removed. Overlapping hotel stays in this city will be adjusted. Other cities remain unchanged.`,
+            impact: impact,
+            confirmText: 'Apply city date change',
+            cancelText: 'Keep current dates'
+        });
+
+        if (!confirmed) {
+            enquiryRevertCityRanges(payload.previousRanges);
+            if (typeof showToastr === 'function') showToastr('info', 'City stay date change cancelled. Existing services were left unchanged.');
+            return;
+        }
+
+        const applySeq = ++window._enquiryCityRangeApplySeq;
+        await enquiryApplyCityRangeImpact(impact, applySeq);
+
+        if (typeof showToastr === 'function') {
+            showToastr(
+                'success',
+                `${changedRange.city} stay dates updated. ${counts.removedCount} service(s) removed` +
+                (counts.adjustedCount ? `, ${counts.adjustedCount} hotel stay(s) adjusted` : '') +
+                '.'
+            );
+        }
+    };
     
     // Initialize destination tags functionality
     function initDestinationTags() {
@@ -6340,6 +6930,9 @@
         if (typeof window.resolveActiveDefaultValues === 'function') {
             window.resolveActiveDefaultValues(destination);
         }
+        if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+            refreshEnquiryProCurrencyMarkupOptions();
+        }
     }
     
     // Remove destination tag
@@ -6350,6 +6943,9 @@
         filterPortsBySelectedCountries();
         syncHeaderCitiesToServiceModals();
         if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
+        if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+            refreshEnquiryProCurrencyMarkupOptions();
+        }
     }
     
     // filterPortsBySelectedCountries / getSelectedCityIdsFromCities: see city-destination-scripts partial
@@ -8481,15 +9077,17 @@
         return normalizeDateToYYYYMMDD(trimmed);
     }
     
-    // Always grab the main header date inputs (IDs are duplicated in layout sidebar)
+    // Prefer the enquiry header inputs — sidebar Create-Tour-Pro modal reuses the same IDs.
     function getHeaderStartInput() {
-        const nodes = document.querySelectorAll('input#tourStartDate');
-        return nodes.length ? nodes[nodes.length - 1] : null;
+        return document.querySelector('.enquiry-pro-header input#tourStartDate')
+            || document.querySelectorAll('input#tourStartDate')[document.querySelectorAll('input#tourStartDate').length - 1]
+            || null;
     }
     
     function getHeaderEndInput() {
-        const nodes = document.querySelectorAll('input#tourEndDate');
-        return nodes.length ? nodes[nodes.length - 1] : null;
+        return document.querySelector('.enquiry-pro-header input#tourEndDate')
+            || document.querySelectorAll('input#tourEndDate')[document.querySelectorAll('input#tourEndDate').length - 1]
+            || null;
     }
     
     function generateId(prefix = 'svc') {
@@ -8840,24 +9438,18 @@
                 newEnd: targetEndValue
             });
             
-            // Set a flag to skip validation
-            window._skipStartDateValidation = true;
-
             // Update values directly first (keeps UI in sync)
             setHeaderInputValue(startDateInput, targetStartValue);
             setHeaderInputValue(endDateInput, targetEndValue);
 
-            // Trigger all relevant events to refresh any listeners/formatting
-            ['input', 'change'].forEach(eventType => {
-                startDateInput.dispatchEvent(new Event(eventType, { bubbles: true }));
-                endDateInput.dispatchEvent(new Event(eventType, { bubbles: true }));
-            });
-            
+            // Refresh nights without pruning services (service drove the header expand)
+            if (typeof calculateNights === 'function') {
+                setTimeout(() => calculateNights(), 50);
+            }
+
             console.log('After all updates:');
             console.log('  startInput.value:', startDateInput.value);
-            console.log('  startInput.valueAsDate:', startDateInput.valueAsDate);
             console.log('  endInput.value:', endDateInput.value);
-            console.log('  endInput.valueAsDate:', endDateInput.valueAsDate);
             
             // IMPORTANT: Also update popup date fields if they exist
             const checkInDate = document.getElementById('checkInDate');
@@ -8874,16 +9466,6 @@
                 checkOutDate.setAttribute('value', targetEndValue);
                 console.log('Updated popup checkOutDate to:', targetEndValue);
             }
-            
-            // Recalculate nights
-            if (typeof calculateNights === 'function') {
-                setTimeout(() => calculateNights(), 50);
-            }
-            
-            // Clear the skip validation flag
-            setTimeout(() => {
-                window._skipStartDateValidation = false;
-            }, 200);
             
             console.log('Visual update completed (header + popup dates)');
         } else {
@@ -9006,23 +9588,10 @@
         }
         
         if (updated) {
-            // Recalculate nights
+            // Recalculate nights without pruning services (range was expanded by services)
             if (typeof calculateNights === 'function') {
                 calculateNights();
             }
-            
-            // Set flag to skip validation when triggering change events
-            window._skipStartDateValidation = true;
-            
-            // Trigger multiple events
-            startDateInput.dispatchEvent(new Event('input', { bubbles: true }));
-            startDateInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            // Set flag again for end date event (it gets reset after first event)
-            window._skipStartDateValidation = true;
-            endDateInput.dispatchEvent(new Event('input', { bubbles: true }));
-            endDateInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
             console.log('✓ UI refresh complete');
         } else {
             console.log('No header date update needed');
@@ -9111,21 +9680,22 @@
         return (saved && saved < minStart) ? saved : minStart;
     }
     
-    function updateStartDate() {
+    async function updateStartDate(options) {
+        // User onchange calls updateStartDate() with no args (or an Event).
+        // Programmatic callers must pass { skipServiceAdjust: true }.
+        const skipValidation = !!(options && options.skipServiceAdjust === true);
+        if (window._skipStartDateValidation) {
+            window._skipStartDateValidation = false;
+        }
+
         const startDateInput = getHeaderStartInput();
         const endDateInput = getHeaderEndInput();
         let startDateISO = parseDisplayToISO(startDateInput.value);
         const floorISO = getTourStartFloorISO();
         updateHeaderDisplays();
         
-        // Skip validation if being updated by service date management
-        // This allows services to set dates in the past if needed
-        const skipValidation = window._skipStartDateValidation;
-        console.log('→ updateStartDate called, skipValidation flag:', skipValidation);
-        if (window._skipStartDateValidation) {
-            window._skipStartDateValidation = false;
-            console.log('✓ Skipping start date validation (set by service)');
-        } else {
+        console.log('→ updateStartDate called, skipValidation:', skipValidation);
+        if (!skipValidation) {
             console.log('→ Manual change detected, applying validation...');
             // Tour must begin tomorrow or later; the already-saved start date stays allowed
             const minStartISO = getMinTourStartDate();
@@ -9139,31 +9709,25 @@
         
         // Update end date minimum and auto-set to start date + 1
         if (startDateISO) {
-            const start = new Date(startDateISO);
-            start.setHours(0, 0, 0, 0);
-            
             // Minimum end date is start date + 1
-            const minEndDate = new Date(startDateISO);
+            const minEndDate = new Date(startDateISO + 'T00:00:00');
             minEndDate.setDate(minEndDate.getDate() + 1);
-            minEndDate.setHours(0, 0, 0, 0);
-            const minEndDateStr = minEndDate.toISOString().split('T')[0];
+            const minEndDateStr = [
+                minEndDate.getFullYear(),
+                String(minEndDate.getMonth() + 1).padStart(2, '0'),
+                String(minEndDate.getDate()).padStart(2, '0')
+            ].join('-');
             
             // Auto-set end date to start date + 1 or update if invalid
             const currentEndISO = parseDisplayToISO(endDateInput.value);
-            if (!currentEndISO || new Date(currentEndISO) < minEndDate) {
-                // If we're updating end date due to service expansion, keep the flag set
-                if (skipValidation) {
-                    window._skipStartDateValidation = true;
-                }
+            if (!currentEndISO || currentEndISO < minEndDateStr) {
                 setHeaderInputValue(endDateInput, minEndDateStr);
             }
             
             // Only adjust service dates if this was a manual change (not triggered by service date update)
             if (!skipValidation) {
-                console.log('→ Manual change: Adjusting all service dates to header range...');
-                // Calculate and display nights BEFORE adjusting services
-                calculateNights();
-                adjustAllServiceDatesToHeaderRange();
+                console.log('→ Manual change: confirming out-of-range services for new tour dates...');
+                await handleTourHeaderDateChange();
             } else {
                 console.log('✓ Service-triggered change: Skipping service date adjustment');
                 // Still calculate nights for display purposes
@@ -9177,7 +9741,16 @@
         }
     }
     
-    function updateEndDate() {
+    async function updateEndDate(options) {
+        // User onchange calls updateEndDate() with no args (or an Event).
+        // Programmatic callers must pass { skipServiceAdjust: true }.
+        // Do NOT honor leftover _skipStartDateValidation here — that flag was
+        // causing end-date edits to rebuild city nights without removing services.
+        const skipAdjustment = !!(options && options.skipServiceAdjust === true);
+        if (window._skipStartDateValidation) {
+            window._skipStartDateValidation = false;
+        }
+
         const startDateInput = getHeaderStartInput();
         const endDateInput = getHeaderEndInput();
 
@@ -9189,39 +9762,30 @@
         const endDate = parseDisplayToISO(endDateInput.value);
         updateHeaderDisplays();
         
-        // Check if this is being triggered by service date update
-        const skipAdjustment = window._skipStartDateValidation;
-        console.log('→ updateEndDate called, skipAdjustment flag:', skipAdjustment);
-        if (window._skipStartDateValidation) {
-            window._skipStartDateValidation = false;
-            console.log('✓ Skipping end date adjustment (set by service)');
-        }
+        console.log('→ updateEndDate called, skipAdjustment:', skipAdjustment);
         
         if (startDate && endDate) {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(endDate);
-            end.setHours(0, 0, 0, 0);
-            
             // Minimum end date is start date + 1
-            const minEndDate = new Date(startDate);
+            const minEndDate = new Date(startDate + 'T00:00:00');
             minEndDate.setDate(minEndDate.getDate() + 1);
-            minEndDate.setHours(0, 0, 0, 0);
+            const minEndDateStr = [
+                minEndDate.getFullYear(),
+                String(minEndDate.getMonth() + 1).padStart(2, '0'),
+                String(minEndDate.getDate()).padStart(2, '0')
+            ].join('-');
             
             // Validate that end date is not before start date + 1 (only for manual changes)
-            if (!skipAdjustment && end < minEndDate) {
+            if (!skipAdjustment && endDate < minEndDateStr) {
                 alert('End date cannot be before start date + 1 day');
                 // Auto-adjust: set end date to start date + 1
-                setHeaderInputValue(endDateInput, minEndDate.toISOString().split('T')[0]);
+                setHeaderInputValue(endDateInput, minEndDateStr);
                 calculateNights();
                 return;
             }
             
             // Only adjust service dates if this was a manual change (not triggered by service date update)
             if (!skipAdjustment) {
-                // Calculate and display nights BEFORE adjusting services
-                calculateNights();
-                adjustAllServiceDatesToHeaderRange();
+                await handleTourHeaderDateChange();
             } else {
                 // Still calculate nights for display purposes
                 calculateNights();
@@ -9432,19 +9996,9 @@
                 // If header dates not set, set them based on selected date
                 if (!currentStartISO) {
                     console.log('✓ Header START is empty, initializing...');
-                    // Remove any min/max constraints that might block the value
                     tourStart.removeAttribute('min');
                     tourStart.removeAttribute('max');
-                    
-                    console.log('  Setting tourStart value to:', dateOnly);
                     setHeaderInputValue(tourStart, dateOnly);
-                    
-                    // Set flag to prevent adjustAllServiceDatesToHeaderRange from being called
-                    window._skipStartDateValidation = true;
-                    
-                    // Force the input to update by triggering change event
-                    tourStart.dispatchEvent(new Event('change', { bubbles: true }));
-                    
                     headerUpdated = true;
                 } else {
                     console.log('✓ Header START already has value:', tourStart.value, '- will check if expansion needed');
@@ -9452,7 +10006,6 @@
                 
                 if (!currentEndISO) {
                     console.log('✓ Header END is empty, initializing...');
-                    // Remove any min/max constraints that might block the value
                     tourEnd.removeAttribute('min');
                     tourEnd.removeAttribute('max');
                     
@@ -9464,15 +10017,7 @@
                     const day = String(tempDate.getDate()).padStart(2, '0');
                     const endDateValue = `${year}-${month}-${day}`;
                     
-                    console.log('  Setting tourEnd value to:', endDateValue);
                     setHeaderInputValue(tourEnd, endDateValue);
-                    
-                    // Set flag to prevent adjustAllServiceDatesToHeaderRange from being called
-                    window._skipStartDateValidation = true;
-                    
-                    // Force the input to update by triggering change event
-                    tourEnd.dispatchEvent(new Event('change', { bubbles: true }));
-                    
                     headerUpdated = true;
                 } else {
                     console.log('✓ Header END already has value:', tourEnd.value, '- will check if expansion needed');
@@ -9483,51 +10028,21 @@
                 const startDateStr = currentStartISO;
                 const endDateStr = currentEndISO;
                 
-                console.log('Header Start date string:', startDateStr);
-                console.log('Header End date string:', endDateStr);
-                console.log('Comparing dates (string comparison)...');
-                console.log('  dateOnly < startDateStr?', dateOnly < startDateStr, '(', dateOnly, '<', startDateStr, ')');
-                console.log('  dateOnly > endDateStr?', dateOnly > endDateStr, '(', dateOnly, '>', endDateStr, ')');
-                
                 // Check if selected date is before start date (string comparison works for YYYY-MM-DD)
                 if (dateOnly < startDateStr) {
                     console.log('✓ Service date is BEFORE header start date!');
-                    console.log('  Expanding header start from', startDateStr, 'to', dateOnly);
-                    
-                    // Remove constraints and set value
                     tourStart.removeAttribute('min');
                     tourStart.removeAttribute('max');
                     setHeaderInputValue(tourStart, dateOnly);
-                    console.log('  Header start value after setting:', dateOnly);
-                    
-                    // Set flag to prevent adjustAllServiceDatesToHeaderRange from being called
-                    // We're expanding the header to fit services, not the other way around
-                    window._skipStartDateValidation = true;
-                    
-                    // Force update - use 'change' event to trigger onchange handler
-                    tourStart.dispatchEvent(new Event('change', { bubbles: true }));
-                    
                     headerUpdated = true;
                 }
                 
                 // Check if selected date is after end date (string comparison works for YYYY-MM-DD)
                 if (dateOnly > endDateStr) {
                     console.log('✓ Service date is AFTER header end date!');
-                    console.log('  Expanding header end from', endDateStr, 'to', dateOnly);
-                    
-                    // Remove constraints and set value
                     tourEnd.removeAttribute('min');
                     tourEnd.removeAttribute('max');
                     setHeaderInputValue(tourEnd, dateOnly);
-                    console.log('  Header end value after setting:', dateOnly);
-                    
-                    // Set flag to prevent adjustAllServiceDatesToHeaderRange from being called
-                    // We're expanding the header to fit services, not the other way around
-                    window._skipStartDateValidation = true;
-                    
-                    // Force update - use 'change' event to trigger onchange handler
-                    tourEnd.dispatchEvent(new Event('change', { bubbles: true }));
-                    
                     headerUpdated = true;
                 }
                 
@@ -9536,7 +10051,8 @@
                 }
             }
             
-            // If header was updated, recalculate nights and update all constraints
+            // If header was updated, recalculate nights and remember confirmed dates
+            // (expansion is driven by services — do not prune / confirm-remove here)
             if (headerUpdated) {
                 const newStartISO = getHeaderInputISO(tourStart);
                 const newEndISO = getHeaderInputISO(tourEnd);
@@ -9544,6 +10060,9 @@
                 console.log('New header range:', newStartISO, 'to', newEndISO);
                 
                 calculateNights();
+                if (typeof enquiryRememberConfirmedTourDates === 'function') {
+                    enquiryRememberConfirmedTourDates(newStartISO, newEndISO);
+                }
                 updateAllServiceDateRanges();
                 updateArrivalDepartureDateRanges();
                 
@@ -9565,175 +10084,256 @@
     }
     
     // Adjust all service dates to fit within header date range
-    function adjustAllServiceDatesToHeaderRange() {
-        console.log('⚠️ adjustAllServiceDatesToHeaderRange() CALLED');
-        console.trace('Call stack:');
-        
-        const tourStart = getHeaderStartInput();
-        const tourEnd = getHeaderEndInput();
-        
-        const startISO = getHeaderInputISO(tourStart);
-        const endISO = getHeaderInputISO(tourEnd);
+    function enquiryRememberConfirmedTourDates(startISO, endISO) {
+        window._enquiryLastConfirmedHeaderDates = {
+            start: enquiryCityDateOnly(startISO) || '',
+            end: enquiryCityDateOnly(endISO) || ''
+        };
+    }
 
-        if (!tourStart || !tourEnd || !startISO || !endISO) {
-            console.warn('adjustAllServiceDatesToHeaderRange: header dates missing');
-            return;
+    function enquiryGetConfirmedTourDates() {
+        const startInput = getHeaderStartInput();
+        const endInput = getHeaderEndInput();
+        const confirmed = window._enquiryLastConfirmedHeaderDates || {};
+        return {
+            start: confirmed.start || getHeaderInputISO(startInput) || '',
+            end: confirmed.end || getHeaderInputISO(endInput) || ''
+        };
+    }
+
+    function enquiryDateOutsideTourRange(dateIso, startISO, endISO) {
+        return !!(dateIso && startISO && endISO && (dateIso < startISO || dateIso > endISO));
+    }
+
+    function enquiryBuildTourDateChangeImpact(startISO, endISO) {
+        const impact = {
+            newStart: startISO,
+            newEnd: endISO,
+            removed: {
+                arrivalDeparture: [],
+                tour: [],
+                meal: [],
+                transfer: [],
+                guide: [],
+                misc: [],
+                hotel: []
+            },
+            adjustedHotels: []
+        };
+        const removedTransferIds = new Set();
+        const pushUniqueRemoval = function (type, entry) {
+            const exists = (impact.removed[type] || []).some(function (item) {
+                return item.index === entry.index;
+            });
+            if (!exists) {
+                impact.removed[type].push(entry);
+                if (type === 'transfer' && entry.id != null && entry.id !== '') {
+                    removedTransferIds.add(String(entry.id));
+                }
+            }
+        };
+
+        [
+            ['arrivalDeparture', arrivalDepartureList || []],
+            ['tour', tourList || []],
+            ['meal', mealList || []],
+            ['transfer', transferList || []],
+            ['guide', guideList || []],
+            ['misc', miscList || []]
+        ].forEach(function (entry) {
+            const type = entry[0];
+            const list = entry[1];
+            list.forEach(function (item, index) {
+                const dateIso = enquiryServiceDate(item, type);
+                if (!dateIso || !enquiryDateOutsideTourRange(dateIso, startISO, endISO)) return;
+                pushUniqueRemoval(type, {
+                    index: index,
+                    id: item?.id,
+                    name: enquiryServiceName(item, type),
+                    date: dateIso,
+                    reason: 'outside the new tour date range'
+                });
+            });
+        });
+
+        // Hotels: keep fully-valid stays, trim overlapping stays, remove only when
+        // the stay has no remaining nights inside the new tour window.
+        (accommodationList || []).forEach(function (hotel, index) {
+            const checkIn = enquiryCityDateOnly(hotel?.checkIn);
+            const checkOut = enquiryCityDateOnly(hotel?.checkOut);
+            const outcome = enquiryHotelOverlapOutcome(hotel, {
+                start_date: startISO,
+                end_date: endISO
+            });
+            if (outcome.action === 'remove') {
+                impact.removed.hotel.push({
+                    index: index,
+                    id: hotel?.id,
+                    name: enquiryServiceName(hotel, 'hotel'),
+                    checkIn: checkIn,
+                    checkOut: checkOut,
+                    reason: outcome.reason || 'stay no longer overlaps the new tour date range'
+                });
+            } else if (outcome.action === 'update') {
+                impact.adjustedHotels.push({
+                    index: index,
+                    id: hotel?.id,
+                    name: enquiryServiceName(hotel, 'hotel'),
+                    oldCheckIn: checkIn,
+                    oldCheckOut: checkOut,
+                    newCheckIn: outcome.newCheckIn,
+                    newCheckOut: outcome.newCheckOut,
+                    reason: outcome.reason || 'stay was trimmed to the new tour date range'
+                });
+            }
+        });
+
+        const removedArrDepIds = new Set((impact.removed.arrivalDeparture || []).map(function (item) {
+            return String(item.id || '');
+        }).filter(Boolean));
+        const removedTourIds = new Set((impact.removed.tour || []).map(function (item) {
+            return String(item.id || '');
+        }).filter(Boolean));
+        const removedMealIds = new Set((impact.removed.meal || []).map(function (item) {
+            return String(item.id || '');
+        }).filter(Boolean));
+
+        (transferList || []).forEach(function (item, index) {
+            const srcType = String(item?.sourceType || '').toLowerCase();
+            const srcId = String(item?.sourceId || '');
+            const linkedToRemovedParent =
+                ((srcType === 'arrival' || srcType === 'departure') && srcId && removedArrDepIds.has(srcId)) ||
+                ((srcType === 'tour' || srcType === 'attraction') && srcId && removedTourIds.has(srcId)) ||
+                ((srcType === 'meal' || srcType === 'restaurant') && srcId && removedMealIds.has(srcId));
+            if (!linkedToRemovedParent) return;
+            pushUniqueRemoval('transfer', {
+                index: index,
+                id: item?.id,
+                name: enquiryServiceName(item, 'transfer'),
+                date: enquiryServiceDate(item, 'transfer'),
+                reason: 'linked parent service is outside the new tour date range'
+            });
+        });
+
+        (guideList || []).forEach(function (item, index) {
+            const srcType = String(item?.sourceType || item?.linkedTo || '').toLowerCase();
+            const srcId = String(item?.sourceId || item?.arrivalId || item?.transferId || '');
+            const linkedToRemovedParent =
+                ((srcType === 'arrival' || srcType === 'departure') && srcId && removedArrDepIds.has(srcId)) ||
+                ((srcType === 'tour' || srcType === 'attraction') && srcId && removedTourIds.has(srcId)) ||
+                ((srcType === 'meal' || srcType === 'restaurant') && srcId && removedMealIds.has(srcId)) ||
+                ((srcType === 'transfer' || srcType === 'local_transport') && srcId && removedTransferIds.has(srcId));
+            if (!linkedToRemovedParent) return;
+            pushUniqueRemoval('guide', {
+                index: index,
+                id: item?.id,
+                name: enquiryServiceName(item, 'guide'),
+                date: enquiryServiceDate(item, 'guide'),
+                reason: 'linked parent service is outside the new tour date range'
+            });
+        });
+
+        return impact;
+    }
+
+    async function enquiryApplyTourDateChangeImpact(impact) {
+        await enquiryApplyCityRangeImpact(impact, ++window._enquiryCityRangeApplySeq);
+    }
+
+    /**
+     * When tour start/end changes: confirm first (STP-style), remove only out-of-range
+     * services, then rebuild city stay windows for the new tour dates.
+     */
+    async function handleTourHeaderDateChange() {
+        const startInput = getHeaderStartInput();
+        const endInput = getHeaderEndInput();
+        const startISO = getHeaderInputISO(startInput);
+        const endISO = getHeaderInputISO(endInput);
+        if (!startISO || !endISO) {
+            calculateNights();
+            return false;
         }
 
-        console.log('Header range for adjustment:', startISO, 'to', endISO);
-        
-        // Use string comparison instead of Date objects to avoid timezone issues
-        // ISO date strings (YYYY-MM-DD) can be compared directly
-        
-        let servicesUpdated = false;
-        
-        // Adjust Arrival/Departure dates - DATE ONLY
-        if (arrivalDepartureList && arrivalDepartureList.length > 0) {
-            arrivalDepartureList.forEach(item => {
-                if (item.dateTime) {
-                    const dateOnly = normalizeDateToYYYYMMDD(item.dateTime);
-                    
-                    // String comparison works for YYYY-MM-DD format
-                    if (dateOnly < startISO) {
-                        item.dateTime = startISO;
-                        servicesUpdated = true;
-                    } else if (dateOnly > endISO) {
-                        item.dateTime = endISO;
-                        servicesUpdated = true;
-                    }
-                }
-            });
+        const previous = enquiryGetConfirmedTourDates();
+        const impact = enquiryBuildTourDateChangeImpact(startISO, endISO);
+        const hasRemovals = enquiryImpactHasChanges(impact);
+        // Even if the header value already matches the last confirmed snapshot (e.g. a prior
+        // end-date change rebuilt nights but skipped pruning), still prompt when services remain outside.
+        if (previous.start === startISO && previous.end === endISO && !hasRemovals) {
+            calculateNights();
+            return true;
         }
-        
-        // Adjust Accommodation dates
-        if (accommodationList && accommodationList.length > 0) {
-            accommodationList.forEach(hotel => {
-                if (hotel.checkIn) {
-                    // String comparison for YYYY-MM-DD format
-                    if (hotel.checkIn < startISO) {
-                        hotel.checkIn = startISO;
-                        servicesUpdated = true;
-                    } else if (hotel.checkIn > endISO) {
-                        hotel.checkIn = endISO;
-                        servicesUpdated = true;
-                    }
-                }
-                
-                if (hotel.checkOut) {
-                    // String comparison for YYYY-MM-DD format
-                    if (hotel.checkOut < startISO) {
-                        hotel.checkOut = startISO;
-                        servicesUpdated = true;
-                    } else if (hotel.checkOut > endISO) {
-                        hotel.checkOut = endISO;
-                        servicesUpdated = true;
-                    }
-                }
-                
-                // Recalculate nights if dates were adjusted (calendar + late checkout vs hotel check_out_time)
-                if (hotel.checkIn && hotel.checkOut) {
-                    if (typeof enquiryProCalculateHotelNights === 'function') {
-                        hotel.nights = enquiryProCalculateHotelNights(hotel.checkIn, hotel.checkOut, hotel);
-                    } else {
-                        const checkInParts = String(hotel.checkIn).split('T')[0].split('-');
-                        const checkOutParts = String(hotel.checkOut).split('T')[0].split('-');
-                        const checkIn = new Date(checkInParts[0], checkInParts[1] - 1, checkInParts[2]);
-                        const checkOut = new Date(checkOutParts[0], checkOutParts[1] - 1, checkOutParts[2]);
-                        const timeDiff = checkOut.getTime() - checkIn.getTime();
-                        hotel.nights = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-                    }
-                }
-            });
+
+        if (window._enquiryTourDateChangeBusy) {
+            return false;
         }
-        
-        // Adjust Tour/Attraction dates - DATE ONLY
-        if (tourList && tourList.length > 0) {
-            tourList.forEach((tour, index) => {
-                if (tour.dateTime) {
-                    const dateOnly = normalizeDateToYYYYMMDD(tour.dateTime);
-                    
-                    console.log(`Checking tour ${index + 1}: dateOnly=${dateOnly}, startISO=${startISO}, endISO=${endISO}`);
-                    
-                    // String comparison for YYYY-MM-DD format (no timezone conversion)
-                    if (dateOnly < startISO) {
-                        console.log(`⚠️ CHANGING tour ${index + 1} date from ${dateOnly} to ${startISO}`);
-                        tour.dateTime = startISO;
-                        servicesUpdated = true;
-                    } else if (dateOnly > endISO) {
-                        console.log(`⚠️ CHANGING tour ${index + 1} date from ${dateOnly} to ${endISO}`);
-                        tour.dateTime = endISO;
-                        servicesUpdated = true;
-                    } else {
-                        console.log(`✓ Tour ${index + 1} date ${dateOnly} is within range, no change needed`);
+        window._enquiryTourDateChangeBusy = true;
+
+        const previousCityRanges = JSON.parse(JSON.stringify(window.enquiryProCityDateRanges || []));
+
+        try {
+            if (hasRemovals) {
+                const counts = enquiryImpactCounts(impact);
+                const sameWindow = previous.start === startISO && previous.end === endISO;
+                const fromLabelStart = previous.start || startISO;
+                const fromLabelEnd = previous.end || endISO;
+                const confirmed = await enquiryConfirmServiceImpact({
+                    title: sameWindow
+                        ? 'Services outside the current travel dates'
+                        : 'Review services affected by date change',
+                    fromLabel: sameWindow
+                        ? `${enquiryCityDisplayDate(startISO)} – ${enquiryCityDisplayDate(endISO)}`
+                        : `${enquiryCityDisplayDate(fromLabelStart)} – ${enquiryCityDisplayDate(fromLabelEnd)}`,
+                    toLabel: `${enquiryCityDisplayDate(startISO)} – ${enquiryCityDisplayDate(endISO)}`,
+                    note: sameWindow
+                        ? 'These services fall outside the current travel period and will be removed. Overlapping hotel stays will be adjusted. City stay windows will then be refreshed.'
+                        : 'Services falling outside the revised travel period will be removed. Hotel stays that still overlap the new period will be adjusted. City stay windows will then be rebuilt automatically.',
+                    impact: impact,
+                    confirmText: sameWindow ? 'Remove out-of-range services' : 'Apply date change',
+                    cancelText: sameWindow ? 'Keep services for now' : 'Keep current dates'
+                });
+
+                if (!confirmed) {
+                    if (!sameWindow) {
+                        if (previous.start) setHeaderInputValue(startInput, previous.start);
+                        if (previous.end) setHeaderInputValue(endInput, previous.end);
+                        window.enquiryProCityDateRanges = previousCityRanges;
+                        if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel({ showError: false });
+                        calculateNights();
                     }
-                }
-            });
-        }
-        
-        // Adjust Restaurant/Meal dates - DATE ONLY
-        if (mealList && mealList.length > 0) {
-            mealList.forEach(meal => {
-                if (meal.dateTime) {
-                    const dateOnly = normalizeDateToYYYYMMDD(meal.dateTime);
-                    
-                    // String comparison for YYYY-MM-DD format (no timezone conversion)
-                    if (dateOnly < startISO) {
-                        meal.dateTime = startISO;
-                        servicesUpdated = true;
-                    } else if (dateOnly > endISO) {
-                        meal.dateTime = endISO;
-                        servicesUpdated = true;
+                    if (typeof showToastr === 'function') {
+                        showToastr('info', sameWindow
+                            ? 'Out-of-range services were kept. Change the travel dates again when ready to clean them up.'
+                            : 'Date change cancelled. Existing services were left unchanged.');
                     }
+                    return false;
                 }
-            });
-        }
-        
-        // Adjust Local Transfer dates - DATE ONLY
-        if (transferList && transferList.length > 0) {
-            transferList.forEach(transfer => {
-                if (transfer.dateTime) {
-                    const dateOnly = normalizeDateToYYYYMMDD(transfer.dateTime);
-                    
-                    // String comparison for YYYY-MM-DD format (no timezone conversion)
-                    if (dateOnly < startISO) {
-                        transfer.dateTime = startISO;
-                        servicesUpdated = true;
-                    } else if (dateOnly > endISO) {
-                        transfer.dateTime = endISO;
-                        servicesUpdated = true;
-                    }
+
+                await enquiryApplyTourDateChangeImpact(impact);
+                calculateNights();
+                enquiryRememberConfirmedTourDates(startISO, endISO);
+                if (typeof showToastr === 'function') {
+                    showToastr(
+                        'success',
+                        `Travel dates updated. ${counts.removedCount} service(s) removed` +
+                        (counts.adjustedCount ? `, ${counts.adjustedCount} hotel stay(s) adjusted` : '') +
+                        ', and city stay dates refreshed.'
+                    );
                 }
-            });
+                return true;
+            }
+
+            calculateNights();
+            enquiryRememberConfirmedTourDates(startISO, endISO);
+            return true;
+        } finally {
+            window._enquiryTourDateChangeBusy = false;
         }
-        
-        // Adjust Tour Guide dates - DATE ONLY
-        if (guideList && guideList.length > 0) {
-            guideList.forEach(guide => {
-                if (guide.dateTime) {
-                    const dateOnly = normalizeDateToYYYYMMDD(guide.dateTime);
-                    
-                    // String comparison for YYYY-MM-DD format (no timezone conversion)
-                    if (dateOnly < startISO) {
-                        guide.dateTime = startISO;
-                        servicesUpdated = true;
-                    } else if (dateOnly > endISO) {
-                        guide.dateTime = endISO;
-                        servicesUpdated = true;
-                    }
-                }
-            });
-        }
-        
-        // If any services were updated, refresh all tables
-        if (servicesUpdated) {
-            console.log('Service dates adjusted to fit within header range:', startISO, 'to', endISO);
-            updateArrivalDepartureTable();
-            updateAccommodationTable();
-            updateTourTable();
-            updateMealTable();
-            updateTransferTable();
-            updateGuideTable();
-        }
+    }
+
+    // Backward-compatible alias used by older call sites.
+    async function adjustAllServiceDatesToHeaderRange() {
+        return handleTourHeaderDateChange();
     }
     
     function hideNightsDisplay() {
@@ -9778,6 +10378,11 @@
             const iso = normalizeDateToYYYYMMDD(endDateInput.value);
             setHeaderInputValue(endDateInput, iso);
         }
+
+        enquiryRememberConfirmedTourDates(
+            getHeaderInputISO(startDateInput),
+            getHeaderInputISO(endDateInput)
+        );
         
         // Calculate nights if both dates are set and valid
         // DO NOT call updateStartDate() here to avoid triggering validation during initialization
@@ -10037,6 +10642,13 @@
     
     // Function to scan all existing services and expand header dates accordingly
     function scanAndExpandHeaderDates() {
+        // Edit mode keeps the saved tour window. Out-of-range services are handled by
+        // the confirm/remove flow instead of silently stretching the end date.
+        if (window.isEditMode) {
+            console.log('scanAndExpandHeaderDates: skipped in edit mode (tour window stays fixed)');
+            return;
+        }
+
         const startInput = getHeaderStartInput();
         const endInput = getHeaderEndInput();
         console.log('=== Scanning all services to expand header dates ===');
@@ -10878,10 +11490,10 @@
                 class: startInput.className,
                 id: startInput.id,
                 name: startInput.name,
-                onchange: startInput.getAttribute('onchange'),
+                onchange: 'updateStartDate()',
                 autocomplete: startInput.getAttribute('autocomplete')
             };
-            startInput.outerHTML = `<input type="date" class="${attrs.class}" id="${attrs.id}" name="${attrs.name}" value="${backendStartDate}" onchange="${attrs.onchange}" autocomplete="${attrs.autocomplete}">`;
+            startInput.outerHTML = `<input type="date" class="${attrs.class}" id="${attrs.id}" name="${attrs.name}" value="${backendStartDate}" onchange="${attrs.onchange}" autocomplete="${attrs.autocomplete || 'off'}">`;
         }
         
         if (backendEndDate && endInput && endInput.value !== backendEndDate) {
@@ -10889,11 +11501,17 @@
                 class: endInput.className,
                 id: endInput.id,
                 name: endInput.name,
-                onchange: endInput.getAttribute('onchange'),
+                onchange: 'updateEndDate()',
                 autocomplete: endInput.getAttribute('autocomplete')
             };
-            endInput.outerHTML = `<input type="date" class="${attrs.class}" id="${attrs.id}" name="${attrs.name}" value="${backendEndDate}" onchange="${attrs.onchange}" autocomplete="${attrs.autocomplete}">`;
+            endInput.outerHTML = `<input type="date" class="${attrs.class}" id="${attrs.id}" name="${attrs.name}" value="${backendEndDate}" onchange="${attrs.onchange}" autocomplete="${attrs.autocomplete || 'off'}">`;
         }
+
+        // Re-resolve after possible outerHTML replacement
+        startInput = getHeaderStartInput();
+        endInput = getHeaderEndInput();
+        if (startInput && !startInput.getAttribute('onchange')) startInput.setAttribute('onchange', 'updateStartDate()');
+        if (endInput && !endInput.getAttribute('onchange')) endInput.setAttribute('onchange', 'updateEndDate()');
         
         // Initialize dates without triggering validation
         initializeDates();
@@ -10936,6 +11554,25 @@
         console.log('Clearing _headerDatesInitializing flag');
         window._headerDatesInitializing = false;
         console.log('Header dates initialization complete, flag is now:', window._headerDatesInitializing);
+
+        // Recover from a prior end-date change that rebuilt nights but left out-of-range services.
+        setTimeout(function () {
+            if (!window.isEditMode) return;
+            if (typeof handleTourHeaderDateChange !== 'function') return;
+            const startISO = getHeaderInputISO(getHeaderStartInput());
+            const endISO = getHeaderInputISO(getHeaderEndInput());
+            if (!startISO || !endISO) return;
+            if (typeof enquiryBuildTourDateChangeImpact !== 'function') return;
+            const impact = enquiryBuildTourDateChangeImpact(startISO, endISO);
+            if (typeof enquiryImpactHasChanges === 'function' && enquiryImpactHasChanges(impact)) {
+                // Force the confirm flow even when header value already matches the snapshot.
+                window._enquiryLastConfirmedHeaderDates = {
+                    start: startISO,
+                    end: endISO
+                };
+                handleTourHeaderDateChange();
+            }
+        }, 400);
         
         // Initialize destination tags functionality
         // Use setTimeout to ensure DOM is fully rendered
@@ -10955,6 +11592,15 @@
             filterPortsBySelectedCountries();
             syncHeaderCitiesToServiceModals();
             if (typeof syncCityDateRangePanel === 'function') syncCityDateRangePanel();
+            @if(!empty($currencyMarkups))
+            if (typeof initEnquiryProCurrencyMarkupUi === 'function') {
+                initEnquiryProCurrencyMarkupUi(@json($currencyMarkups));
+            }
+            @else
+            if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+                refreshEnquiryProCurrencyMarkupOptions();
+            }
+            @endif
         }, 100);
         
         const checkInDate = document.getElementById('checkInDate');
@@ -10967,7 +11613,7 @@
                 if (tourStartDate) {
                     tourStartDate.value = this.value;
                     console.log('Header Start Date set to:', tourStartDate.value);
-                    updateStartDate(); // Trigger header validation
+                    updateStartDate({ skipServiceAdjust: true });
                 }
             });
         }
@@ -10979,7 +11625,7 @@
                 if (tourEndDate) {
                     tourEndDate.value = this.value;
                     console.log('Header End Date set to:', tourEndDate.value);
-                    updateEndDate(); // Trigger header validation
+                    updateEndDate({ skipServiceAdjust: true });
                 }
             });
         }
@@ -21621,18 +22267,25 @@
     
     // Load miscellaneous items for selected city (DMC prices from miscellaneous_prices)
     function loadMiscItemsByDestination() {
-        const city = document.getElementById('miscDestination').value;
+        const destinationSelect = document.getElementById('miscDestination');
+        const city = destinationSelect ? destinationSelect.value : '';
         const itemsTableBody = document.getElementById('miscItemsTableBody');
         
         if (!city) {
             itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">Please select a city to load miscellaneous items</td></tr>';
             return;
         }
+
+        const selectedOption = destinationSelect.options[destinationSelect.selectedIndex];
+        const country = (selectedOption && selectedOption.getAttribute('data-country')) ? selectedOption.getAttribute('data-country') : '';
         
         // Show loading state
         itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px;"><i class="ri-loader-4-line ri-spin me-2"></i>Loading miscellaneous items...</td></tr>';
         
-        const url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        let url = `{{ route('enquiry-form-pro.get-miscellaneous') }}?city=${encodeURIComponent(city)}`;
+        if (country) {
+            url += `&country=${encodeURIComponent(country)}`;
+        }
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -21647,8 +22300,13 @@
             })
             .then(items => {
                 console.log('Loaded miscellaneous items:', items);
+
+                if (items && items.success === false) {
+                    itemsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger" style="padding: 20px;">${items.message || 'Failed to load items'}</td></tr>`;
+                    return;
+                }
                 
-                if (!items || items.length === 0) {
+                if (!Array.isArray(items) || items.length === 0) {
                     itemsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding: 20px;">No miscellaneous items available. Please configure items in the DMC panel.</td></tr>';
                     return;
                 }
@@ -27754,13 +28412,19 @@
                 
                 // Generate unique IDs for sell inputs
                 const hotelId = `hotel_${index}_${Date.now()}`;
+                const hotelCurrency = (typeof resolveServiceCurrency === 'function')
+                    ? resolveServiceCurrency(hotel)
+                    : String(hotel.currency || '').toUpperCase();
+                const hotelCity = (typeof resolveServiceCity === 'function')
+                    ? resolveServiceCity(hotel)
+                    : String(hotel.destination || hotel.city || '').trim();
                 
                 rows.push(`
-                    <tr>
+                    <tr data-currency="${hotelCurrency || ''}" data-city="${hotelCity || ''}">
                         <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                             <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                             ${hotel.hotelName}
-                            <br><small class="text-muted" style="font-size: 8px;">${hotel.roomType || ''} | ${hotel.bedType || ''} | ${hotel.mealPlan || 'CP'}</small>
+                            <br><small class="text-muted" style="font-size: 8px;">${hotel.roomType || ''} | ${hotel.bedType || ''} | ${hotel.mealPlan || 'CP'}${hotelCurrency ? ' | ' + hotelCurrency : ''}${hotelCity ? ' | ' + hotelCity : ''}</small>
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${singleCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
@@ -27830,12 +28494,18 @@
             const childSellRounded = roundToNextZero(childSell);
             
             // Show simplified Package Total row with Adult and Child columns only
+            const pkgCurrency = (typeof getEnquiryProPrimaryCurrency === 'function')
+                ? getEnquiryProPrimaryCurrency()
+                : '';
+            const pkgCity = (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
+                ? String(selectedDestinations[0] || '').trim()
+                : '';
             rows.push(`
-                <tr>
+                <tr data-currency="${pkgCurrency || ''}" data-city="${pkgCity || ''}">
                     <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
                         <input type="checkbox" style="width: 12px; height: 12px; margin-right: 3px;">
                         Package Total
-                        <br><small class="text-muted" style="font-size: 8px;">Tours, Meals, Transfers & Misc</small>
+                        <br><small class="text-muted" style="font-size: 8px;">Tours, Meals, Transfers & Misc${pkgCurrency ? ' | ' + pkgCurrency : ''}</small>
                     </td>
                     <td style="padding: 3px 5px; text-align: center;">
                         <input type="text" value="${adultCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
@@ -28222,9 +28892,13 @@
         applyMarkupDiscount();
     }
 
-    // Apply Markup and Discount to footer sell values
+    // Apply Markup and Discount to footer sell values (per currency for multi-city)
     function applyMarkupDiscount() {
         console.log('=== applyMarkupDiscount() called ===');
+
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') {
+            syncActiveCurrencyMarkupToStore();
+        }
         
         const markupValueElem = document.getElementById('markupValue');
         const markupTypeElem = document.getElementById('markupType');
@@ -28236,32 +28910,18 @@
             return;
         }
         
-        const markupValue = parseFloat(markupValueElem.value || 0);
-        const markupType = markupTypeElem.value || '';
-        const discountType = discountTypeElem.value || '';
         const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
         const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
 
-        // FOC discount type: auto-recompute the absorbed-cost value on every pass so it stays
-        // in sync as services are added/removed. The value is purely informational and is NOT
-        // subtracted from per-pax sells (paying pax already pay their normal share with factor = 1).
-        let discountValue;
-        if (discountType === 'foc' && focDiscountUiActive) {
-            discountValue = computeAutoFocDiscount();
-            discountValueElem.value = discountValue;
-        } else if (discountType === 'foc') {
-            discountValue = 0;
+        const activeDiscountType = discountTypeElem.value || '';
+        if (activeDiscountType === 'foc' && focDiscountUiActive && typeof computeAutoFocDiscount === 'function') {
+            discountValueElem.value = computeAutoFocDiscount();
+        } else if (activeDiscountType === 'foc') {
             discountValueElem.value = 0;
-        } else {
-            discountValue = parseFloat(discountValueElem.value || 0);
         }
-        
-        console.log('📊 Markup/Discount Values:', {
-            markupValue,
-            markupType,
-            discountValue,
-            discountType
-        });
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') {
+            syncActiveCurrencyMarkupToStore();
+        }
         
         const tbody = document.getElementById('footerSummaryBody');
         if (!tbody) {
@@ -28269,7 +28929,6 @@
             return;
         }
         
-        // Get all rows
         const rows = tbody.querySelectorAll('tr');
         
         if (rows.length === 0) {
@@ -28282,26 +28941,38 @@
         let inputsProcessed = 0;
         
         rows.forEach((row, rowIndex) => {
-            // Get all sell input fields (columns: Single(2), Twin(4), Triple(6), Child w/bed(8), Child w/o bed(10), Infant(12))
+            const rowCurrency = (row.getAttribute('data-currency') || '').toUpperCase();
+            const rowCity = (row.getAttribute('data-city') || '').trim();
+            const settings = (typeof getCurrencyMarkupDiscountSettings === 'function')
+                ? getCurrencyMarkupDiscountSettings(rowCurrency, rowCity)
+                : {
+                    markup_type: markupTypeElem.value || '',
+                    markup_value: parseFloat(markupValueElem.value || 0) || 0,
+                    discount_type: discountTypeElem.value || '',
+                    discount_value: parseFloat(discountValueElem.value || 0) || 0
+                };
+            let markupValue = parseFloat(settings.markup_value || 0) || 0;
+            let markupType = settings.markup_type || '';
+            let discountType = settings.discount_type || '';
+            let discountValue = parseFloat(settings.discount_value || 0) || 0;
+            if (discountType === 'foc') {
+                discountValue = 0;
+            }
+
             const cells = row.querySelectorAll('td');
-            
-            // Process each sell column with input fields (0-indexed)
             const sellColumns = [2, 4, 6, 8, 10, 12];
             
             sellColumns.forEach(colIndex => {
                 if (cells[colIndex]) {
                     const input = cells[colIndex].querySelector('input[type="number"]');
                     if (input) {
-                        // Get original value
                         let originalValue = parseFloat(input.getAttribute('data-original-value'));
                         
-                        // If no original value stored, store current value as original
                         if (isNaN(originalValue)) {
                             originalValue = parseFloat(input.value) || 0;
                             input.setAttribute('data-original-value', originalValue);
                         }
                         
-                        // If original value is 0, don't apply any markup or discount (0 stays 0)
                         if (originalValue === 0) {
                             input.value = '0.00';
                             inputsProcessed++;
@@ -28311,7 +28982,6 @@
                         let newValue = originalValue;
                         const oldValue = parseFloat(input.value);
                         
-                        // Apply markup (only if type is selected and value > 0)
                         if (markupValue > 0 && markupType !== '') {
                             if (markupType === 'percentage') {
                                 newValue += (originalValue * markupValue / 100);
@@ -28320,9 +28990,6 @@
                             }
                         }
                         
-                        // Apply discount (only if type is selected and value > 0).
-                        // FOC type is intentionally skipped — its value is informational only
-                        // (paying-pax sells are already correct at factor = 1).
                         if (discountValue > 0 && discountType !== '' && discountType !== 'foc') {
                             if (discountType === 'percentage') {
                                 newValue -= (newValue * discountValue / 100);
@@ -28331,17 +28998,14 @@
                             }
                         }
                         
-                        // Apply ceiling if there's any decimal part
-                        // If 50.01, it becomes 51; if 50.00, it stays 50
                         if (newValue % 1 !== 0) {
                             newValue = Math.ceil(newValue);
                         }
                         
-                        // Update the input value
                         input.value = newValue.toFixed(2);
                         
-                        if (inputsProcessed < 3) { // Only log first 3 to avoid console spam
-                            console.log(`  Row ${rowIndex}, Col ${colIndex}: ${oldValue.toFixed(2)} → ${newValue.toFixed(2)} (original: ${originalValue.toFixed(2)})`);
+                        if (inputsProcessed < 3) {
+                            console.log(`  Row ${rowIndex} [${rowCurrency || '—'}], Col ${colIndex}: ${oldValue.toFixed(2)} → ${newValue.toFixed(2)} (original: ${originalValue.toFixed(2)})`);
                         }
                         inputsProcessed++;
                     }
@@ -28449,19 +29113,28 @@
         console.log('✅ Markup/Discount event listeners registered');
         console.log('Markup Value Element:', markupValue);
         console.log('Discount Value Element:', discountValue);
-        
-        // Apply markup/discount on page load if values are set
-        @if(isset($markupType) && $markupType != '')
-            if (markupType) {
-                markupType.value = '{{ $markupType }}';
-                handleMarkupTypeChange();
+
+        // Prefer per-currency seed (multi-city); fall back to legacy single markup/discount
+        @if(!empty($currencyMarkups))
+            if (typeof initEnquiryProCurrencyMarkupUi === 'function') {
+                initEnquiryProCurrencyMarkupUi(@json($currencyMarkups));
             }
-        @endif
-        
-        @if(isset($discountType) && $discountType != '')
-            if (discountType) {
-                discountType.value = '{{ $discountType }}';
-                handleDiscountTypeChange();
+        @else
+            @if(isset($markupType) && $markupType != '')
+                if (markupType) {
+                    markupType.value = '{{ $markupType }}';
+                    handleMarkupTypeChange();
+                }
+            @endif
+            
+            @if(isset($discountType) && $discountType != '')
+                if (discountType) {
+                    discountType.value = '{{ $discountType }}';
+                    handleDiscountTypeChange();
+                }
+            @endif
+            if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') {
+                refreshEnquiryProCurrencyMarkupOptions();
             }
         @endif
 
@@ -28472,6 +29145,7 @@
         // Apply markup/discount after a short delay to ensure all data is loaded
         setTimeout(function() {
             if (typeof refreshGroupFocDiscountUiVisibility === 'function') refreshGroupFocDiscountUiVisibility();
+            if (typeof refreshEnquiryProCurrencyMarkupOptions === 'function') refreshEnquiryProCurrencyMarkupOptions();
             applyMarkupDiscount();
         }, 500);
     });
@@ -30735,14 +31409,33 @@
         formData.append('city_date_ranges', JSON.stringify(cityRangeValidation.ranges || []));
         if (childAges) formData.append('child_ages', childAges);
         
-        // Add markup and discount values
-        formData.append('markup_value', markupValue);
-        formData.append('markup_type', markupType);
-        formData.append('discount_value', discountValue);
-        formData.append('discount_type', discountType);
+        // Add markup and discount values (single-city inputs, or first city row for multi-city tour-level columns)
+        if (typeof syncActiveCurrencyMarkupToStore === 'function') syncActiveCurrencyMarkupToStore();
+        const currencyMarkupsPayload = (typeof getCurrencyMarkupsPayload === 'function')
+            ? getCurrencyMarkupsPayload()
+            : [];
+        let markupValueOut = markupValue;
+        let markupTypeOut = markupType;
+        let discountValueOut = discountValue;
+        let discountTypeOut = discountType;
+        if (Array.isArray(currencyMarkupsPayload) && currencyMarkupsPayload.length > 1) {
+            const primaryMd = currencyMarkupsPayload.find(function (r) {
+                return (r.markup_type && parseFloat(r.markup_value || 0) > 0)
+                    || (r.discount_type && r.discount_type !== '');
+            }) || currencyMarkupsPayload[0] || {};
+            markupTypeOut = primaryMd.markup_type || '';
+            markupValueOut = parseFloat(primaryMd.markup_value || 0) || 0;
+            discountTypeOut = primaryMd.discount_type || '';
+            discountValueOut = parseFloat(primaryMd.discount_value || 0) || 0;
+        }
+        formData.append('markup_value', markupValueOut);
+        formData.append('markup_type', markupTypeOut);
+        formData.append('discount_value', discountValueOut);
+        formData.append('discount_type', discountTypeOut);
         // Store the entered discount amount for FOC, Fixed and % types; 0 when nothing selected.
-        const discountAmountOut = ['foc', 'flat', 'percentage'].includes(discountType) ? discountValue : 0;
+        const discountAmountOut = ['foc', 'flat', 'percentage'].includes(discountTypeOut) ? discountValueOut : 0;
         formData.append('discount_amount', discountAmountOut);
+        formData.append('currency_markups', JSON.stringify(currencyMarkupsPayload || []));
         
         // Add tour type (FIT or GROUP). Fall back to whichever radio still exists (the live one is disabled when locked).
         let tourType = document.querySelector('input[name="type"]:checked')?.value;

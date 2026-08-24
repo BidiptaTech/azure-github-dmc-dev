@@ -25,6 +25,7 @@ class Tour extends Model
         'mainguest' => 'array',
         'additionalguest' => 'array',
         'city_date_ranges' => 'array',
+        'currency_markups' => 'array',
     ];
 
     protected static $TourStatus = [

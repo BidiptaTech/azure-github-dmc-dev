@@ -1030,6 +1030,22 @@
                           <span class="text-muted" style="font-size:11px;">{{ $user->ai_response ?: '—' }}</span>
                         @endif
                       </div>
+                      <div class="users-corp-control-item">
+                        <span class="users-corp-label">AI Resp</span>
+                        @if($canEditSettings)
+                          <select class="form-select ai-response-type-dropdown"
+                            data-user-id="{{ $user->userId }}"
+                            data-previous-value="{{ strtolower((string) ($user->ai_response_type ?? '')) }}"
+                            id="ai_response_type_{{ $user->userId }}"
+                            title="AI Response Type: Lite or Pro">
+                            <option value="" {{ empty($user->ai_response_type) ? 'selected' : '' }}>--</option>
+                            <option value="lite" {{ strtolower((string) ($user->ai_response_type ?? '')) === 'lite' ? 'selected' : '' }}>Lite</option>
+                            <option value="pro" {{ strtolower((string) ($user->ai_response_type ?? '')) === 'pro' ? 'selected' : '' }}>Pro</option>
+                          </select>
+                        @else
+                          <span class="text-muted" style="font-size:11px;">{{ $user->ai_response_type ? ucfirst($user->ai_response_type) : '—' }}</span>
+                        @endif
+                      </div>
                     @endif
 
                     @if($showThirdPartyForThisRow)
@@ -1491,6 +1507,17 @@
                             '</select>' +
                         '</div>'
                     );
+                    controls.push(
+                        '<div class="mdmc-control-item">' +
+                            '<span class="mdmc-label">AI Resp</span>' +
+                            '<select class="form-select ai-response-type-dropdown" data-user-id="' + uid + '" data-previous-value="' +
+                                escapeHtml(u.ai_response_type || '') + '" id="modal_ai_response_type_' + uid + '" title="AI Response Type: Lite or Pro">' +
+                                '<option value=""' + (!u.ai_response_type ? ' selected' : '') + '>--</option>' +
+                                '<option value="lite"' + (u.ai_response_type === 'lite' ? ' selected' : '') + '>Lite</option>' +
+                                '<option value="pro"' + (u.ai_response_type === 'pro' ? ' selected' : '') + '>Pro</option>' +
+                            '</select>' +
+                        '</div>'
+                    );
                 } else {
                     controls.push(controlSwitch('Zone', '', 'modal_zone_ro_' + uid, uid, u.zone_on, true));
                     controls.push(controlSwitch('Price', '', 'modal_price_ro_' + uid, uid, u.price_hide, true));
@@ -1507,6 +1534,14 @@
                         '<div class="mdmc-control-item">' +
                             '<span class="mdmc-label">AI</span>' +
                             '<span class="text-muted" style="font-size:11px;">' + escapeHtml(u.ai_response || '—') + '</span>' +
+                        '</div>'
+                    );
+                    controls.push(
+                        '<div class="mdmc-control-item">' +
+                            '<span class="mdmc-label">AI Resp</span>' +
+                            '<span class="text-muted" style="font-size:11px;">' +
+                                (u.ai_response_type ? (u.ai_response_type.charAt(0).toUpperCase() + u.ai_response_type.slice(1)) : '—') +
+                            '</span>' +
                         '</div>'
                     );
                 }
@@ -2127,6 +2162,48 @@ $(document).ready(function() {
     });
 
     $(document).on('focus', '.ai-response-dropdown:not(:disabled)', function() {
+        $(this).data('previous-value', $(this).val());
+    });
+
+    $(document).on('change', '.ai-response-type-dropdown:not(:disabled)', function() {
+        const $dropdown = $(this);
+        const userId = $dropdown.data('user-id');
+        const selectedValue = $dropdown.val();
+        const previousValue = $dropdown.data('previous-value') ?? '';
+
+        $dropdown.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('update.airesponsetype') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                ai_response_type: selectedValue,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $dropdown.prop('disabled', false);
+                if (response.success) {
+                    $dropdown.data('previous-value', selectedValue);
+                    toastr.success(response.message || 'AI Response Type updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating AI Response Type');
+                    $dropdown.val(response.previous_value || previousValue || '');
+                }
+            },
+            error: function(xhr) {
+                $dropdown.prop('disabled', false);
+                const msg = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Error updating AI Response Type';
+                toastr.error(msg);
+                $dropdown.val(previousValue || '');
+                console.error(xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('focus', '.ai-response-type-dropdown:not(:disabled)', function() {
         $(this).data('previous-value', $(this).val());
     });
 });
